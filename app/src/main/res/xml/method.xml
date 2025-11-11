@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="it.palsoftware.pastiera.MainActivity"
+    android:supportsSwitchingToNextInputMethod="false">
+    <subtype
+        android:label="@string/input_method_name"
+        android:imeSubtypeLocale="it_IT"
+        android:imeSubtypeMode="keyboard"
+        android:imeSubtypeExtraValue="noSuggestions=true" />
+</input-method>
+

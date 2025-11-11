@@ -1,0 +1,30 @@
+{
+  "mappings": {
+    "KEYCODE_Q": "0",
+    "KEYCODE_W": "1",
+    "KEYCODE_E": "2",
+    "KEYCODE_R": "3",
+    "KEYCODE_T": "(",
+    "KEYCODE_Y": ")",
+    "KEYCODE_U": "-",
+    "KEYCODE_I": "_",
+    "KEYCODE_O": "/",
+    "KEYCODE_P": ":",
+    "KEYCODE_A": "@",
+    "KEYCODE_S": "4",
+    "KEYCODE_D": "5",
+    "KEYCODE_F": "6",
+    "KEYCODE_G": "*",
+    "KEYCODE_H": "#",
+    "KEYCODE_J": "+",
+    "KEYCODE_K": "\"",
+    "KEYCODE_L": "'",
+    "KEYCODE_Z": "!",
+    "KEYCODE_X": "7",
+    "KEYCODE_C": "8",
+    "KEYCODE_V": "9",
+    "KEYCODE_B": ".",
+    "KEYCODE_N": ",",
+    "KEYCODE_M": "?"
+  }
+}
