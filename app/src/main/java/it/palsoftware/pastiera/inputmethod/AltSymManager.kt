@@ -16,6 +16,8 @@ class AltSymManager(
     assets: AssetManager,
     private val prefs: SharedPreferences
 ) {
+    // Callback chiamato quando viene inserito un carattere Alt dopo long press
+    var onAltCharInserted: ((Char) -> Unit)? = null
 
     companion object {
         private const val TAG = "AltSymManager"
@@ -181,6 +183,10 @@ class AltSymManager(
                     insertedNormalChars.remove(keyCode)
                     longPressRunnables.remove(keyCode)
                     Log.d(TAG, "Long press Alt per keyCode $keyCode -> $altChar")
+                    // Notifica che un carattere Alt è stato inserito
+                    if (altChar.isNotEmpty()) {
+                        onAltCharInserted?.invoke(altChar[0])
+                    }
                 }
             }
         }

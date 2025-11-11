@@ -36,6 +36,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Mappatura Ctrl+tasto -> azione o keycode (caricata da JSON)
     private val ctrlKeyMap = mutableMapOf<Int, KeyMappingLoader.CtrlMapping>()
     
+    // Mappatura variazioni caratteri (caricata da JSON)
+    private val variationsMap = mutableMapOf<Char, List<String>>()
+    
+    // Ultimo carattere inserito e relative variazioni disponibili
+    private var lastInsertedChar: Char? = null
+    private var availableVariations: List<String> = emptyList()
+    private var variationsActive = false
+    
     // Stato Caps Lock
     private var capsLockEnabled = false
     
@@ -80,8 +88,22 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         Log.d(TAG, "onCreate() chiamato")
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
         statusBarController = StatusBarController(this)
+        // Registra listener per la selezione delle variazioni
+        statusBarController.onVariationSelectedListener = object : VariationButtonHandler.OnVariationSelectedListener {
+            override fun onVariationSelected(variation: String) {
+                // Aggiorna le variazioni dopo che una variazione è stata selezionata
+                // (per aggiornare la visualizzazione se necessario)
+                updateStatusBarText()
+            }
+        }
         altSymManager = AltSymManager(assets, prefs)
+        // Registra callback per notificare quando viene inserito un carattere Alt dopo long press
+        // Le variazioni vengono aggiornate automaticamente da updateStatusBarText()
+        altSymManager.onAltCharInserted = { char ->
+            updateStatusBarText()
+        }
         ctrlKeyMap.putAll(KeyMappingLoader.loadCtrlKeyMappings(assets))
+        variationsMap.putAll(KeyMappingLoader.loadVariations(assets))
         Log.d(TAG, "onCreate() completato")
     }
 
@@ -158,6 +180,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // Reset stato Alt/SYM
         altSymManager.resetTransientState()
+        
+        // Reset variazioni
+        deactivateVariations()
         
         // Aggiorna la status bar
         refreshStatusBar()
@@ -263,9 +288,47 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
     
     /**
+     * Aggiorna le variazioni controllando il carattere prima del cursore.
+     */
+    private fun updateVariationsFromCursor() {
+        val inputConnection = currentInputConnection
+        if (inputConnection == null) {
+            deactivateVariations()
+            return
+        }
+        
+        // Ottieni il carattere prima del cursore
+        val textBeforeCursor = inputConnection.getTextBeforeCursor(1, 0)
+        if (textBeforeCursor != null && textBeforeCursor.isNotEmpty()) {
+            val charBeforeCursor = textBeforeCursor[textBeforeCursor.length - 1]
+            // Controlla se il carattere ha variazioni disponibili
+            val variations = variationsMap[charBeforeCursor]
+            if (variations != null && variations.isNotEmpty()) {
+                lastInsertedChar = charBeforeCursor
+                availableVariations = variations
+                variationsActive = true
+                Log.d(TAG, "Variazioni aggiornate per carattere prima del cursore '$charBeforeCursor': $variations")
+            } else {
+                // Nessuna variazione disponibile per questo carattere
+                variationsActive = false
+                lastInsertedChar = null
+                availableVariations = emptyList()
+            }
+        } else {
+            // Nessun carattere prima del cursore
+            variationsActive = false
+            lastInsertedChar = null
+            availableVariations = emptyList()
+        }
+    }
+    
+    /**
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
+        // Aggiorna le variazioni controllando il carattere prima del cursore
+        updateVariationsFromCursor()
+        
         val snapshot = StatusBarController.StatusSnapshot(
             capsLockEnabled = capsLockEnabled,
             shiftPhysicallyPressed = shiftPhysicallyPressed,
@@ -277,9 +340,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             altLatchActive = altLatchActive,
             altPhysicallyPressed = altPhysicallyPressed,
             altOneShot = altOneShot,
-            symKeyActive = symKeyActive
+            symKeyActive = symKeyActive,
+            variations = if (variationsActive) availableVariations else emptyList(),
+            lastInsertedChar = lastInsertedChar
         )
-        statusBarController.update(snapshot)
+        // Passa anche la mappa emoji quando SYM è attivo
+        val emojiMapText = if (symKeyActive) altSymManager.buildEmojiMapText() else ""
+        // Passa l'inputConnection per rendere i pulsanti clickabili
+        val inputConnection = currentInputConnection
+        statusBarController.update(snapshot, emojiMapText, inputConnection)
+    }
+    
+    /**
+     * Disattiva le variazioni.
+     */
+    private fun deactivateVariations() {
+        variationsActive = false
+        lastInsertedChar = null
+        availableVariations = emptyList()
     }
     
 
@@ -878,13 +956,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 altOneShot = false
                 refreshStatusBar()
             }
-            return altSymManager.handleAltCombination(
+            val result = altSymManager.handleAltCombination(
                 keyCode,
                 inputConnection,
                 event
             ) { defaultKeyCode, defaultEvent ->
                 super.onKeyDown(defaultKeyCode, defaultEvent)
             }
+            // Se un carattere Alt è stato inserito, aggiorna le variazioni
+            if (result) {
+                updateStatusBarText()
+            }
+            return result
         }
         
         // Se SYM è attivo, controlla prima la mappa SYM
@@ -907,8 +990,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 char = char.uppercase()
                 Log.d(TAG, "Shift one-shot, carattere modificato: $char")
                 shiftOneShot = false
-                updateStatusBarText()
                 inputConnection.commitText(char, 1)
+                // Aggiorna le variazioni dopo l'inserimento
+                updateStatusBarText()
                 return true
             }
         }
@@ -929,6 +1013,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                             Log.d(TAG, "Auto-maiuscola: prima lettera rilevata, carattere: $char")
                             val capitalizedChar = char.uppercase()
                             inputConnection.commitText(capitalizedChar, 1)
+                            // Aggiorna le variazioni dopo l'inserimento
+                            updateStatusBarText()
                             return true
                         }
                     }
@@ -944,6 +1030,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 if (altChar != null) {
                     Log.d(TAG, "Campo numerico: inserimento diretto carattere Alt '$altChar' per keyCode $keyCode")
                     inputConnection.commitText(altChar, 1)
+                    // Aggiorna le variazioni dopo l'inserimento
+                    updateStatusBarText()
                     return true
                 }
             }
@@ -975,12 +1063,40 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             
             if (shouldConsume) {
                 inputConnection.commitText(char, 1)
+                // Aggiorna le variazioni dopo l'inserimento
+                updateStatusBarText()
                 return true
             }
         }
         
+        // Se non ha mappatura, controlla se il carattere ha variazioni disponibili
+        // Se sì, gestiscilo noi stessi per poter visualizzare le variazioni
+        if (event != null && event.unicodeChar != 0) {
+            val char = event.unicodeChar.toChar()
+            // Controlla se il carattere ha variazioni disponibili
+            if (variationsMap.containsKey(char)) {
+                // Inserisci il carattere noi stessi per poter visualizzare le variazioni
+                inputConnection.commitText(char.toString(), 1)
+                // Aggiorna le variazioni dopo l'inserimento
+                updateStatusBarText()
+                return true
+            }
+            // Se il carattere non ha variazioni, le variazioni precedenti rimangono visibili
+            // (solo visualizzazione, nessuna azione)
+        }
+        
         // Se non ha mappatura, lascia che Android gestisca normalmente
-        return super.onKeyDown(keyCode, event)
+        // Aggiorna le variazioni dopo che Android ha gestito l'evento
+        val result = super.onKeyDown(keyCode, event)
+        // Aggiorna le variazioni dopo qualsiasi operazione che potrebbe cambiare il testo o la posizione del cursore
+        // (caratteri inseriti, Backspace, frecce, ecc.)
+        if (result) {
+            // Usa un post per aggiornare le variazioni dopo che Android ha gestito l'evento
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                updateStatusBarText()
+            }
+        }
+        return result
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
