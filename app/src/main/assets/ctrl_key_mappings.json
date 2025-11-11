@@ -1,0 +1,93 @@
+{
+  "mappings": {
+    "KEYCODE_Q": {
+      "type": "none"
+    },
+    "KEYCODE_W": {
+      "type": "action",
+      "action": "expand_selection_left"
+    },
+    "KEYCODE_E": {
+      "type": "keycode",
+      "keycode": "DPAD_UP"
+    },
+    "KEYCODE_R": {
+      "type": "action",
+      "action": "expand_selection_right"
+    },
+    "KEYCODE_T": {
+      "type": "none"
+    },
+    "KEYCODE_Y": {
+      "type": "none"
+    },
+    "KEYCODE_U": {
+      "type": "none"
+    },
+    "KEYCODE_I": {
+      "type": "none"
+    },
+    "KEYCODE_O": {
+      "type": "none"
+    },
+    "KEYCODE_P": {
+      "type": "none"
+    },
+    "KEYCODE_A": {
+      "type": "action",
+      "action": "select_all"
+    },
+    "KEYCODE_S": {
+      "type": "keycode",
+      "keycode": "DPAD_LEFT"
+    },
+    "KEYCODE_D": {
+      "type": "keycode",
+      "keycode": "DPAD_DOWN"
+    },
+    "KEYCODE_F": {
+      "type": "keycode",
+      "keycode": "DPAD_RIGHT"
+    },
+    "KEYCODE_G": {
+      "type": "none"
+    },
+    "KEYCODE_H": {
+      "type": "none"
+    },
+    "KEYCODE_J": {
+      "type": "none"
+    },
+    "KEYCODE_K": {
+      "type": "none"
+    },
+    "KEYCODE_L": {
+      "type": "none"
+    },
+    "KEYCODE_Z": {
+      "type": "action",
+      "action": "undo"
+    },
+    "KEYCODE_X": {
+      "type": "action",
+      "action": "cut"
+    },
+    "KEYCODE_C": {
+      "type": "action",
+      "action": "copy"
+    },
+    "KEYCODE_V": {
+      "type": "action",
+      "action": "paste"
+    },
+    "KEYCODE_B": {
+      "type": "none"
+    },
+    "KEYCODE_N": {
+      "type": "none"
+    },
+    "KEYCODE_M": {
+      "type": "none"
+    }
+  }
+}

@@ -16,8 +16,6 @@ import android.view.inputmethod.InputConnection
 import android.widget.LinearLayout
 import android.widget.TextView
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
-import org.json.JSONObject
-import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -63,6 +61,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Mappatura SYM+tasto -> emoji (caricata da JSON)
     private val symKeyMap = mutableMapOf<Int, String>()
     
+    // Mappatura Ctrl+tasto -> azione o keycode (caricata da JSON)
+    private val ctrlKeyMap = mutableMapOf<Int, KeyMappingLoader.CtrlMapping>()
+    
     // Stato Caps Lock
     private var capsLockEnabled = false
     
@@ -96,14 +97,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var statusBarTextView: TextView? = null
     private var statusBarLayout: LinearLayout? = null
     private var emojiMapTextView: TextView? = null
+    
+    // Flag per tracciare se siamo in un contesto di input valido
+    private var isInputViewActive = false
 
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate() chiamato")
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
         loadLongPressThreshold()
-        loadAltKeyMappings()
-        loadSymKeyMappings()
+        altKeyMap.putAll(KeyMappingLoader.loadAltKeyMappings(assets))
+        symKeyMap.putAll(KeyMappingLoader.loadSymKeyMappings(assets))
+        ctrlKeyMap.putAll(KeyMappingLoader.loadCtrlKeyMappings(assets))
         Log.d(TAG, "onCreate() completato")
     }
     
@@ -209,11 +214,73 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
     
     /**
+     * Resetta tutti gli stati dei tasti modificatori.
+     * Viene chiamato quando si esce da un campo o si chiude/riapre la tastiera.
+     */
+    private fun resetModifierStates() {
+        Log.d(TAG, "resetModifierStates() chiamato - reset di tutti gli stati modificatori")
+        
+        // Reset Caps Lock
+        capsLockEnabled = false
+        
+        // Reset stati one-shot
+        shiftOneShot = false
+        ctrlOneShot = false
+        altOneShot = false
+        
+        // Reset stati latch
+        ctrlLatchActive = false
+        altLatchActive = false
+        
+        // Reset SYM
+        symKeyActive = false
+        
+        // Reset stati fisici
+        shiftPressed = false
+        ctrlPressed = false
+        altPressed = false
+        
+        // Reset stati fisicamente premuti (per status bar)
+        shiftPhysicallyPressed = false
+        ctrlPhysicallyPressed = false
+        altPhysicallyPressed = false
+        
+        // Reset tempi di rilascio
+        lastShiftReleaseTime = 0
+        lastCtrlReleaseTime = 0
+        lastAltReleaseTime = 0
+        
+        // Cancella tutti i long press in attesa
+        longPressRunnables.values.forEach { handler.removeCallbacks(it) }
+        longPressRunnables.clear()
+        pressedKeys.clear()
+        longPressActivated.clear()
+        insertedNormalChars.clear()
+        
+        // Aggiorna la status bar
+        updateStatusBarText()
+    }
+    
+    /**
      * Forza la creazione e visualizzazione della view.
      * Viene chiamata quando viene premuto il primo tasto fisico.
+     * Mostra la tastiera solo se c'è un campo di testo attivo.
      */
     private fun ensureInputViewCreated() {
-        Log.d(TAG, "ensureInputViewCreated() chiamato - statusBarLayout è null: ${statusBarLayout == null}")
+        Log.d(TAG, "ensureInputViewCreated() chiamato - statusBarLayout è null: ${statusBarLayout == null}, isInputViewActive: $isInputViewActive")
+        
+        // Verifica se siamo in un contesto di input valido
+        if (!isInputViewActive) {
+            Log.d(TAG, "ensureInputViewCreated() - non siamo in un contesto di input valido, non mostro la tastiera")
+            return
+        }
+        
+        // Verifica se c'è un input connection valido (campo di testo attivo)
+        val inputConnection = currentInputConnection
+        if (inputConnection == null) {
+            Log.d(TAG, "ensureInputViewCreated() - nessun inputConnection, non mostro la tastiera")
+            return
+        }
         
         // Se la view non esiste, creala
         if (statusBarLayout == null) {
@@ -245,7 +312,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Log.d(TAG, "View ha già un parent, non chiamo setInputView()")
             }
             
-            // Forza sempre la visualizzazione con requestShowSelf()
+            // Forza la visualizzazione con requestShowSelf() solo se c'è un input connection
             Log.d(TAG, "Chiamata requestShowSelf() per forzare la visualizzazione...")
             requestShowSelf(0)
             Log.d(TAG, "ensureInputViewCreated() completato")
@@ -305,165 +372,71 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         updateStatusBarLayout()
     }
     
-    /**
-     * Carica le mappature Alt+tasto dal file JSON.
-     */
-    private fun loadAltKeyMappings() {
-        try {
-            val inputStream: InputStream = assets.open("alt_key_mappings.json")
-            val jsonString = inputStream.bufferedReader().use { it.readText() }
-            val jsonObject = JSONObject(jsonString)
-            val mappingsObject = jsonObject.getJSONObject("mappings")
-            
-            // Mappa i nomi dei keycode alle costanti KeyEvent
-            val keyCodeMap = mapOf(
-                "KEYCODE_Q" to KeyEvent.KEYCODE_Q,
-                "KEYCODE_W" to KeyEvent.KEYCODE_W,
-                "KEYCODE_E" to KeyEvent.KEYCODE_E,
-                "KEYCODE_R" to KeyEvent.KEYCODE_R,
-                "KEYCODE_T" to KeyEvent.KEYCODE_T,
-                "KEYCODE_Y" to KeyEvent.KEYCODE_Y,
-                "KEYCODE_U" to KeyEvent.KEYCODE_U,
-                "KEYCODE_I" to KeyEvent.KEYCODE_I,
-                "KEYCODE_O" to KeyEvent.KEYCODE_O,
-                "KEYCODE_P" to KeyEvent.KEYCODE_P,
-                "KEYCODE_A" to KeyEvent.KEYCODE_A,
-                "KEYCODE_S" to KeyEvent.KEYCODE_S,
-                "KEYCODE_D" to KeyEvent.KEYCODE_D,
-                "KEYCODE_F" to KeyEvent.KEYCODE_F,
-                "KEYCODE_G" to KeyEvent.KEYCODE_G,
-                "KEYCODE_H" to KeyEvent.KEYCODE_H,
-                "KEYCODE_J" to KeyEvent.KEYCODE_J,
-                "KEYCODE_K" to KeyEvent.KEYCODE_K,
-                "KEYCODE_L" to KeyEvent.KEYCODE_L,
-                "KEYCODE_Z" to KeyEvent.KEYCODE_Z,
-                "KEYCODE_X" to KeyEvent.KEYCODE_X,
-                "KEYCODE_C" to KeyEvent.KEYCODE_C,
-                "KEYCODE_V" to KeyEvent.KEYCODE_V,
-                "KEYCODE_B" to KeyEvent.KEYCODE_B,
-                "KEYCODE_N" to KeyEvent.KEYCODE_N,
-                "KEYCODE_M" to KeyEvent.KEYCODE_M,
-                "KEYCODE_1" to KeyEvent.KEYCODE_1,
-                "KEYCODE_2" to KeyEvent.KEYCODE_2,
-                "KEYCODE_3" to KeyEvent.KEYCODE_3,
-                "KEYCODE_4" to KeyEvent.KEYCODE_4,
-                "KEYCODE_5" to KeyEvent.KEYCODE_5,
-                "KEYCODE_6" to KeyEvent.KEYCODE_6,
-                "KEYCODE_7" to KeyEvent.KEYCODE_7,
-                "KEYCODE_8" to KeyEvent.KEYCODE_8,
-                "KEYCODE_9" to KeyEvent.KEYCODE_9,
-                "KEYCODE_0" to KeyEvent.KEYCODE_0,
-                "KEYCODE_MINUS" to KeyEvent.KEYCODE_MINUS,
-                "KEYCODE_EQUALS" to KeyEvent.KEYCODE_EQUALS,
-                "KEYCODE_LEFT_BRACKET" to KeyEvent.KEYCODE_LEFT_BRACKET,
-                "KEYCODE_RIGHT_BRACKET" to KeyEvent.KEYCODE_RIGHT_BRACKET,
-                "KEYCODE_SEMICOLON" to KeyEvent.KEYCODE_SEMICOLON,
-                "KEYCODE_APOSTROPHE" to KeyEvent.KEYCODE_APOSTROPHE,
-                "KEYCODE_COMMA" to KeyEvent.KEYCODE_COMMA,
-                "KEYCODE_PERIOD" to KeyEvent.KEYCODE_PERIOD,
-                "KEYCODE_SLASH" to KeyEvent.KEYCODE_SLASH
-            )
-            
-            val keys = mappingsObject.keys()
-            while (keys.hasNext()) {
-                val keyName = keys.next()
-                val keyCode = keyCodeMap[keyName]
-                val character = mappingsObject.getString(keyName)
-                
-                if (keyCode != null) {
-                    altKeyMap[keyCode] = character
-                }
-            }
-        } catch (e: Exception) {
-            // In caso di errore, usa mappature di default
-            e.printStackTrace()
-            // Fallback a mappature di base
-            altKeyMap[KeyEvent.KEYCODE_T] = "("
-            altKeyMap[KeyEvent.KEYCODE_Y] = ")"
-        }
-    }
-    
-    /**
-     * Carica le mappature SYM+tasto dal file JSON.
-     */
-    private fun loadSymKeyMappings() {
-        try {
-            val inputStream: InputStream = assets.open("sym_key_mappings.json")
-            val jsonString = inputStream.bufferedReader().use { it.readText() }
-            val jsonObject = JSONObject(jsonString)
-            val mappingsObject = jsonObject.getJSONObject("mappings")
-            
-            // Mappa i nomi dei keycode alle costanti KeyEvent (stessa mappa di loadAltKeyMappings)
-            val keyCodeMap = mapOf(
-                "KEYCODE_Q" to KeyEvent.KEYCODE_Q,
-                "KEYCODE_W" to KeyEvent.KEYCODE_W,
-                "KEYCODE_E" to KeyEvent.KEYCODE_E,
-                "KEYCODE_R" to KeyEvent.KEYCODE_R,
-                "KEYCODE_T" to KeyEvent.KEYCODE_T,
-                "KEYCODE_Y" to KeyEvent.KEYCODE_Y,
-                "KEYCODE_U" to KeyEvent.KEYCODE_U,
-                "KEYCODE_I" to KeyEvent.KEYCODE_I,
-                "KEYCODE_O" to KeyEvent.KEYCODE_O,
-                "KEYCODE_P" to KeyEvent.KEYCODE_P,
-                "KEYCODE_A" to KeyEvent.KEYCODE_A,
-                "KEYCODE_S" to KeyEvent.KEYCODE_S,
-                "KEYCODE_D" to KeyEvent.KEYCODE_D,
-                "KEYCODE_F" to KeyEvent.KEYCODE_F,
-                "KEYCODE_G" to KeyEvent.KEYCODE_G,
-                "KEYCODE_H" to KeyEvent.KEYCODE_H,
-                "KEYCODE_J" to KeyEvent.KEYCODE_J,
-                "KEYCODE_K" to KeyEvent.KEYCODE_K,
-                "KEYCODE_L" to KeyEvent.KEYCODE_L,
-                "KEYCODE_Z" to KeyEvent.KEYCODE_Z,
-                "KEYCODE_X" to KeyEvent.KEYCODE_X,
-                "KEYCODE_C" to KeyEvent.KEYCODE_C,
-                "KEYCODE_V" to KeyEvent.KEYCODE_V,
-                "KEYCODE_B" to KeyEvent.KEYCODE_B,
-                "KEYCODE_N" to KeyEvent.KEYCODE_N,
-                "KEYCODE_M" to KeyEvent.KEYCODE_M
-            )
-            
-            val keys = mappingsObject.keys()
-            while (keys.hasNext()) {
-                val keyName = keys.next()
-                val keyCode = keyCodeMap[keyName]
-                val emoji = mappingsObject.getString(keyName)
-                
-                if (keyCode != null) {
-                    symKeyMap[keyCode] = emoji
-                }
-            }
-        } catch (e: Exception) {
-            // In caso di errore, usa mappature di default
-            e.printStackTrace()
-            // Fallback a emoji di base
-            symKeyMap[KeyEvent.KEYCODE_Q] = "😀"
-            symKeyMap[KeyEvent.KEYCODE_W] = "😂"
-        }
-    }
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
-        Log.d(TAG, "onStartInput() chiamato - restarting: $restarting, info: ${info?.packageName}")
+        Log.d(TAG, "onStartInput() chiamato - restarting: $restarting, info: ${info?.packageName}, inputType: ${info?.inputType}")
+        
+        // Verifica se il campo è effettivamente editabile
+        val isEditable = info?.let { editorInfo ->
+            val inputType = editorInfo.inputType
+            // Controlla se è un campo di testo editabile (non TYPE_NULL)
+            val isTextInput = inputType and android.text.InputType.TYPE_MASK_CLASS != android.text.InputType.TYPE_NULL
+            // Escludi i campi non editabili come le liste
+            val isNotNoInput = inputType and android.text.InputType.TYPE_MASK_CLASS != 0
+            isTextInput && isNotNoInput
+        } ?: false
+        
+        Log.d(TAG, "onStartInput() - isEditable: $isEditable")
+        
+        // Segna che siamo in un contesto di input valido solo se il campo è editabile
+        isInputViewActive = isEditable
+        
         // Disabilita i suggerimenti per evitare popup
-        if (info != null) {
+        if (info != null && isEditable) {
             info.inputType = info.inputType or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        }
+        
+        // Reset degli stati modificatori quando si entra in un nuovo campo (solo se non è un restart)
+        if (!restarting && isEditable) {
+            resetModifierStates()
         }
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         Log.d(TAG, "onStartInputView() chiamato - restarting: $restarting, statusBarLayout: ${statusBarLayout != null}")
+        // Segna che siamo in un contesto di input valido
+        isInputViewActive = true
         // Ricarica la soglia del long press (potrebbe essere cambiata nelle impostazioni)
         loadLongPressThreshold()
         // Reset dello stato quando si inizia a inserire testo
         pressedKeys.clear()
         longPressActivated.clear()
         insertedNormalChars.clear()
-        // Non resettare SYM e Caps Lock - rimangono attivi finché non vengono disattivati manualmente
         // Cancella tutti i long press in attesa
         longPressRunnables.values.forEach { handler.removeCallbacks(it) }
         longPressRunnables.clear()
+    }
+    
+    override fun onFinishInput() {
+        super.onFinishInput()
+        Log.d(TAG, "onFinishInput() chiamato - reset degli stati modificatori")
+        // Segna che non siamo più in un contesto di input valido
+        isInputViewActive = false
+        // Reset degli stati modificatori quando si esce da un campo
+        resetModifierStates()
+    }
+    
+    override fun onFinishInputView(finishingInput: Boolean) {
+        super.onFinishInputView(finishingInput)
+        Log.d(TAG, "onFinishInputView() chiamato - finishingInput: $finishingInput")
+        // Segna che non siamo più in un contesto di input valido
+        isInputViewActive = false
+        // Reset degli stati modificatori quando la view viene nascosta
+        if (finishingInput) {
+            resetModifierStates()
+        }
     }
     
     override fun onWindowShown() {
@@ -475,7 +448,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     override fun onWindowHidden() {
         super.onWindowHidden()
-        Log.d(TAG, "onWindowHidden() chiamato - window è nascosta")
+        Log.d(TAG, "onWindowHidden() chiamato - window è nascosta, reset degli stati modificatori")
+        // Reset degli stati modificatori quando la tastiera viene nascosta
+        resetModifierStates()
     }
 
     override fun onKeyLongPress(keyCode: Int, event: KeyEvent?): Boolean {
@@ -491,6 +466,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // Se non siamo in un contesto di input valido, non processare i tasti
+        if (!isInputViewActive) {
+            Log.d(TAG, "onKeyDown() - non siamo in un contesto di input valido, passo l'evento ad Android")
+            return super.onKeyDown(keyCode, event)
+        }
+        
         val inputConnection = currentInputConnection ?: return super.onKeyDown(keyCode, event)
         
         Log.d(TAG, "onKeyDown() - keyCode: $keyCode, statusBarLayout: ${statusBarLayout != null}, inputConnection: ${inputConnection != null}")
@@ -498,23 +479,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Notifica sempre l'evento al tracker (anche se viene consumato)
         KeyboardEventTracker.notifyKeyEvent(keyCode, event, "KEY_DOWN")
         
-        // Forza la creazione della view al primo tasto premuto (escludendo solo i tasti modificatori)
+        // Forza la creazione della view al primo tasto premuto (inclusi i tasti modificatori)
         // Questo assicura che la status bar sia visibile anche se la tastiera virtuale non è abilitata
-        val isModifierKey = keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || 
-                           keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT ||
-                           keyCode == KeyEvent.KEYCODE_CTRL_LEFT || 
-                           keyCode == KeyEvent.KEYCODE_CTRL_RIGHT ||
-                           keyCode == KeyEvent.KEYCODE_ALT_LEFT || 
-                           keyCode == KeyEvent.KEYCODE_ALT_RIGHT
-        
-        Log.d(TAG, "onKeyDown() - isModifierKey: $isModifierKey")
-        
-        if (!isModifierKey) {
-            Log.d(TAG, "onKeyDown() - chiamata ensureInputViewCreated() per tasto non modificatore")
-            ensureInputViewCreated()
-        } else {
-            Log.d(TAG, "onKeyDown() - tasto modificatore, salto ensureInputViewCreated()")
-        }
+        Log.d(TAG, "onKeyDown() - chiamata ensureInputViewCreated() per attivare la tastiera")
+        ensureInputViewCreated()
         
         // Gestisci il doppio tap su Shift per attivare/disattivare Caps Lock
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
@@ -669,9 +637,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // Gestisci il keycode 322 per cancellare l'ultima parola
         if (keyCode == 322) {
-            deleteLastWord(inputConnection)
-            // Consumiamo l'evento
-            return true
+            if (TextSelectionHelper.deleteLastWord(inputConnection)) {
+                // Consumiamo l'evento
+                return true
+            }
         }
         
         // Se il tasto è già premuto, consumiamo l'evento per evitare ripetizioni e popup
@@ -688,50 +657,55 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 updateStatusBarText()
             }
             
-            when (keyCode) {
-                KeyEvent.KEYCODE_W -> {
-                    // Ctrl+W: Freccia su
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP))
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_UP))
-                    return true
-                }
-                KeyEvent.KEYCODE_S -> {
-                    // Ctrl+S: Freccia giù
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN))
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_DOWN))
-                    return true
-                }
-                KeyEvent.KEYCODE_A -> {
-                    // Ctrl+A: Freccia sinistra
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT))
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_LEFT))
-                    return true
-                }
-                KeyEvent.KEYCODE_D -> {
-                    // Ctrl+D: Freccia destra
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
-                    inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT))
-                    return true
-                }
-                KeyEvent.KEYCODE_C -> {
-                    // Ctrl+C: Copia
-                    inputConnection.performContextMenuAction(android.R.id.copy)
-                    return true
-                }
-                KeyEvent.KEYCODE_V -> {
-                    // Ctrl+V: Incolla
-                    inputConnection.performContextMenuAction(android.R.id.paste)
-                    return true
-                }
-                KeyEvent.KEYCODE_X -> {
-                    // Ctrl+X: Taglia
-                    inputConnection.performContextMenuAction(android.R.id.cut)
-                    return true
-                }
-                KeyEvent.KEYCODE_Z -> {
-                    // Ctrl+Z: Annulla (se supportato)
-                    inputConnection.performContextMenuAction(android.R.id.undo)
-                    return true
+            // Controlla se esiste una mappatura Ctrl per questo tasto
+            val ctrlMapping = ctrlKeyMap[keyCode]
+            if (ctrlMapping != null) {
+                when (ctrlMapping.type) {
+                    "action" -> {
+                        // Gestisci azioni speciali personalizzate
+                        when (ctrlMapping.value) {
+                            "expand_selection_left" -> {
+                                if (TextSelectionHelper.expandSelectionLeft(inputConnection)) {
+                                    return true
+                                }
+                            }
+                            "expand_selection_right" -> {
+                                if (TextSelectionHelper.expandSelectionRight(inputConnection)) {
+                                    return true
+                                }
+                            }
+                            else -> {
+                                // Esegui l'azione del context menu standard
+                                val actionId = when (ctrlMapping.value) {
+                                    "copy" -> android.R.id.copy
+                                    "paste" -> android.R.id.paste
+                                    "cut" -> android.R.id.cut
+                                    "undo" -> android.R.id.undo
+                                    "select_all" -> android.R.id.selectAll
+                                    else -> null
+                                }
+                                if (actionId != null) {
+                                    inputConnection.performContextMenuAction(actionId)
+                                    return true
+                                }
+                            }
+                        }
+                    }
+                    "keycode" -> {
+                        // Invia il keycode direzionale
+                        val dpadKeyCode = when (ctrlMapping.value) {
+                            "DPAD_UP" -> KeyEvent.KEYCODE_DPAD_UP
+                            "DPAD_DOWN" -> KeyEvent.KEYCODE_DPAD_DOWN
+                            "DPAD_LEFT" -> KeyEvent.KEYCODE_DPAD_LEFT
+                            "DPAD_RIGHT" -> KeyEvent.KEYCODE_DPAD_RIGHT
+                            else -> null
+                        }
+                        if (dpadKeyCode != null) {
+                            inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, dpadKeyCode))
+                            inputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, dpadKeyCode))
+                            return true
+                        }
+                    }
                 }
             }
         }
@@ -993,37 +967,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         handler.postDelayed(longPressRunnable, longPressThreshold)
     }
 
-    /**
-     * Cancella l'ultima parola prima del cursore.
-     */
-    private fun deleteLastWord(inputConnection: InputConnection) {
-        // Ottieni il testo prima del cursore (fino a 100 caratteri)
-        val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0)
-        
-        if (textBeforeCursor != null && textBeforeCursor.isNotEmpty()) {
-            // Trova l'ultima parola (separata da spazi o all'inizio del testo)
-            var endIndex = textBeforeCursor.length
-            var startIndex = endIndex
-            
-            // Trova la fine dell'ultima parola (ignora spazi alla fine)
-            while (startIndex > 0 && textBeforeCursor[startIndex - 1].isWhitespace()) {
-                startIndex--
-            }
-            
-            // Trova l'inizio dell'ultima parola (primo spazio o inizio del testo)
-            while (startIndex > 0 && !textBeforeCursor[startIndex - 1].isWhitespace()) {
-                startIndex--
-            }
-            
-            // Calcola quanti caratteri cancellare
-            val charsToDelete = endIndex - startIndex
-            
-            if (charsToDelete > 0) {
-                // Cancella l'ultima parola (inclusi eventuali spazi dopo)
-                inputConnection.deleteSurroundingText(charsToDelete, 0)
-            }
-        }
-    }
     
     /**
      * Aggiunge una nuova mappatura Alt+tasto -> carattere.
