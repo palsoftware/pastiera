@@ -18,12 +18,15 @@ object SettingsManager {
     private const val KEY_LONG_PRESS_THRESHOLD = "long_press_threshold"
     private const val KEY_AUTO_CAPITALIZE_FIRST_LETTER = "auto_capitalize_first_letter"
     private const val KEY_SYM_MAPPINGS_CUSTOM = "sym_mappings_custom"
+    private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
+    private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
     
     // Valori di default
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 500L
     private const val MIN_LONG_PRESS_THRESHOLD = 50L
     private const val MAX_LONG_PRESS_THRESHOLD = 1000L
     private const val DEFAULT_AUTO_CAPITALIZE_FIRST_LETTER = false
+    private const val DEFAULT_AUTO_CORRECT_ENABLED = true
     
     /**
      * Ottiene le SharedPreferences per Pastiera.
@@ -180,6 +183,176 @@ object SettingsManager {
     fun hasCustomSymMappings(context: Context): Boolean {
         val prefs = getPreferences(context)
         return prefs.contains(KEY_SYM_MAPPINGS_CUSTOM)
+    }
+    
+    /**
+     * Ottiene lo stato dell'auto-correzione.
+     */
+    fun getAutoCorrectEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_AUTO_CORRECT_ENABLED, DEFAULT_AUTO_CORRECT_ENABLED)
+    }
+    
+    /**
+     * Imposta lo stato dell'auto-correzione.
+     */
+    fun setAutoCorrectEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_AUTO_CORRECT_ENABLED, enabled)
+            .apply()
+    }
+    
+    /**
+     * Ottiene l'elenco delle lingue abilitate per l'auto-correzione.
+     * @return Set di codici lingua (es. "it", "en")
+     */
+    fun getAutoCorrectEnabledLanguages(context: Context): Set<String> {
+        val prefs = getPreferences(context)
+        val languagesString = prefs.getString(KEY_AUTO_CORRECT_ENABLED_LANGUAGES, null)
+        return if (languagesString != null && languagesString.isNotEmpty()) {
+            languagesString.split(",").toSet()
+        } else {
+            // Default: tutte le lingue disponibili sono abilitate
+            setOf("it", "en")
+        }
+    }
+    
+    /**
+     * Imposta l'elenco delle lingue abilitate per l'auto-correzione.
+     * @param languages Set di codici lingua (es. "it", "en")
+     */
+    fun setAutoCorrectEnabledLanguages(context: Context, languages: Set<String>) {
+        val languagesString = languages.joinToString(",")
+        getPreferences(context).edit()
+            .putString(KEY_AUTO_CORRECT_ENABLED_LANGUAGES, languagesString)
+            .apply()
+    }
+    
+    /**
+     * Verifica se una lingua è abilitata per l'auto-correzione.
+     */
+    fun isAutoCorrectLanguageEnabled(context: Context, language: String): Boolean {
+        val enabledLanguages = getAutoCorrectEnabledLanguages(context)
+        // Se la lista è vuota, tutte le lingue sono abilitate (comportamento default)
+        return enabledLanguages.isEmpty() || enabledLanguages.contains(language)
+    }
+    
+    /**
+     * Campo speciale nel JSON per il nome della lingua.
+     */
+    private const val LANGUAGE_NAME_KEY = "__name"
+    
+    /**
+     * Ottiene le correzioni personalizzate per una lingua.
+     */
+    fun getCustomAutoCorrections(context: Context, languageCode: String): Map<String, String> {
+        val prefs = getPreferences(context)
+        val key = "auto_correct_custom_$languageCode"
+        val jsonString = prefs.getString(key, null) ?: return emptyMap()
+        
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            val corrections = mutableMapOf<String, String>()
+            val keys = jsonObject.keys()
+            while (keys.hasNext()) {
+                val correctionKey = keys.next()
+                // Salta il campo speciale del nome
+                if (correctionKey != LANGUAGE_NAME_KEY) {
+                    val value = jsonObject.getString(correctionKey)
+                    corrections[correctionKey] = value
+                }
+            }
+            corrections
+        } catch (e: Exception) {
+            Log.e(TAG, "Errore nel caricamento delle correzioni personalizzate per $languageCode", e)
+            emptyMap()
+        }
+    }
+    
+    /**
+     * Ottiene il nome visualizzato di una lingua personalizzata dal JSON.
+     */
+    fun getCustomLanguageName(context: Context, languageCode: String): String? {
+        val prefs = getPreferences(context)
+        val key = "auto_correct_custom_$languageCode"
+        val jsonString = prefs.getString(key, null) ?: return null
+        
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            if (jsonObject.has(LANGUAGE_NAME_KEY)) {
+                jsonObject.getString(LANGUAGE_NAME_KEY)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Errore nel caricamento del nome della lingua per $languageCode", e)
+            null
+        }
+    }
+    
+    /**
+     * Salva le correzioni personalizzate per una lingua.
+     * @param languageName Il nome visualizzato della lingua (opzionale, se null non viene salvato/aggiornato)
+     */
+    fun saveCustomAutoCorrections(
+        context: Context, 
+        languageCode: String, 
+        corrections: Map<String, String>,
+        languageName: String? = null
+    ) {
+        try {
+            val jsonObject = JSONObject()
+            
+            // Salva il nome della lingua se fornito
+            if (languageName != null) {
+                jsonObject.put(LANGUAGE_NAME_KEY, languageName)
+            } else {
+                // Se non fornito, prova a mantenere il nome esistente
+                val existingName = getCustomLanguageName(context, languageCode)
+                if (existingName != null) {
+                    jsonObject.put(LANGUAGE_NAME_KEY, existingName)
+                }
+            }
+            
+            // Salva le correzioni
+            corrections.forEach { (key, value) ->
+                // Salta il campo speciale se presente nelle correzioni
+                if (key != LANGUAGE_NAME_KEY) {
+                    jsonObject.put(key, value)
+                }
+            }
+            
+            val key = "auto_correct_custom_$languageCode"
+            getPreferences(context).edit()
+                .putString(key, jsonObject.toString())
+                .apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Errore nel salvataggio delle correzioni personalizzate per $languageCode", e)
+        }
+    }
+    
+    /**
+     * Aggiorna solo il nome di una lingua personalizzata.
+     */
+    fun updateCustomLanguageName(context: Context, languageCode: String, languageName: String) {
+        try {
+            val prefs = getPreferences(context)
+            val key = "auto_correct_custom_$languageCode"
+            val jsonString = prefs.getString(key, null)
+            
+            val jsonObject = if (jsonString != null) {
+                JSONObject(jsonString)
+            } else {
+                JSONObject()
+            }
+            
+            jsonObject.put(LANGUAGE_NAME_KEY, languageName)
+            
+            prefs.edit()
+                .putString(key, jsonObject.toString())
+                .apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Errore nell'aggiornamento del nome della lingua per $languageCode", e)
+        }
     }
 }
 

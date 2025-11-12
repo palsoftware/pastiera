@@ -18,6 +18,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.inputmethod.StatusBarController
 
@@ -87,12 +89,52 @@ fun SymCustomizationScreen(
         onBack()
     }
     
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    // Funzione helper per convertire keycode in lettera
+    fun getLetterFromKeyCode(keyCode: Int): String {
+        return when (keyCode) {
+            KeyEvent.KEYCODE_Q -> "Q"
+            KeyEvent.KEYCODE_W -> "W"
+            KeyEvent.KEYCODE_E -> "E"
+            KeyEvent.KEYCODE_R -> "R"
+            KeyEvent.KEYCODE_T -> "T"
+            KeyEvent.KEYCODE_Y -> "Y"
+            KeyEvent.KEYCODE_U -> "U"
+            KeyEvent.KEYCODE_I -> "I"
+            KeyEvent.KEYCODE_O -> "O"
+            KeyEvent.KEYCODE_P -> "P"
+            KeyEvent.KEYCODE_A -> "A"
+            KeyEvent.KEYCODE_S -> "S"
+            KeyEvent.KEYCODE_D -> "D"
+            KeyEvent.KEYCODE_F -> "F"
+            KeyEvent.KEYCODE_G -> "G"
+            KeyEvent.KEYCODE_H -> "H"
+            KeyEvent.KEYCODE_J -> "J"
+            KeyEvent.KEYCODE_K -> "K"
+            KeyEvent.KEYCODE_L -> "L"
+            KeyEvent.KEYCODE_Z -> "Z"
+            KeyEvent.KEYCODE_X -> "X"
+            KeyEvent.KEYCODE_C -> "C"
+            KeyEvent.KEYCODE_V -> "V"
+            KeyEvent.KEYCODE_B -> "B"
+            KeyEvent.KEYCODE_N -> "N"
+            KeyEvent.KEYCODE_M -> "M"
+            else -> "?"
+        }
+    }
+    
+    AnimatedContent(
+        targetState = Unit,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+        },
+        label = "sym_customization_animation"
     ) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
         // Header con pulsante back
         Row(
             modifier = Modifier
@@ -107,7 +149,7 @@ fun SymCustomizationScreen(
                 )
             }
             Text(
-                text = "Customize SYM Keyboard",
+                text = stringResource(R.string.sym_customize_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 4.dp)
@@ -130,12 +172,12 @@ fun SymCustomizationScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "Instructions",
+                    text = stringResource(R.string.sym_instructions_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Tap on any key below to change its emoji. Changes are saved automatically.",
+                    text = stringResource(R.string.sym_instructions_text),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -173,12 +215,14 @@ fun SymCustomizationScreen(
                 containerColor = MaterialTheme.colorScheme.errorContainer
             )
         ) {
-            Text("Reset to Default", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.sym_reset_to_default), style = MaterialTheme.typography.bodyMedium)
         }
         
         // Dialog emoji picker
         if (showEmojiPicker && selectedKeyCode != null) {
+            val selectedLetter = getLetterFromKeyCode(selectedKeyCode!!)
             EmojiPickerDialog(
+                selectedLetter = selectedLetter,
                 onEmojiSelected = { emoji ->
                     symMappings = symMappings.toMutableMap().apply {
                         put(selectedKeyCode!!, emoji)
@@ -192,6 +236,7 @@ fun SymCustomizationScreen(
                     selectedKeyCode = null
                 }
             )
+        }
         }
     }
 }

@@ -4,6 +4,39 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+import java.util.Properties
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+// File per salvare il build number incrementale
+val buildPropertiesFile = file("build.properties")
+
+// Task per incrementare il build number
+tasks.register("incrementBuildNumber") {
+    doLast {
+        val buildNumber = if (buildPropertiesFile.exists()) {
+            val props = Properties()
+            buildPropertiesFile.inputStream().use { props.load(it) }
+            (props.getProperty("buildNumber", "0").toIntOrNull() ?: 0) + 1
+        } else {
+            1
+        }
+        
+        // Ottieni data/ora corrente
+        val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.ITALIAN)
+        val buildDate = dateFormat.format(Date())
+        
+        // Salva nel file
+        val props = Properties()
+        props.setProperty("buildNumber", buildNumber.toString())
+        props.setProperty("buildDate", buildDate)
+        buildPropertiesFile.outputStream().use { props.store(it, "Build number and date") }
+        
+        println("Build number incremented to: $buildNumber - $buildDate")
+    }
+}
+
 android {
     namespace = "it.palsoftware.pastiera"
     compileSdk = 36
@@ -16,6 +49,27 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Leggi build number e data dal file
+        val buildNumber = if (buildPropertiesFile.exists()) {
+            val props = Properties()
+            buildPropertiesFile.inputStream().use { props.load(it) }
+            props.getProperty("buildNumber", "0").toIntOrNull() ?: 0
+        } else {
+            0
+        }
+        
+        val buildDate = if (buildPropertiesFile.exists()) {
+            val props = Properties()
+            buildPropertiesFile.inputStream().use { props.load(it) }
+            props.getProperty("buildDate", "")
+        } else {
+            ""
+        }
+        
+        // Aggiungi a BuildConfig
+        buildConfigField("int", "BUILD_NUMBER", buildNumber.toString())
+        buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
     }
 
     buildTypes {
@@ -36,6 +90,12 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+    
+    // Esegui incrementBuildNumber prima di preBuild
+    tasks.named("preBuild").configure {
+        dependsOn("incrementBuildNumber")
     }
 }
 

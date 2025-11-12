@@ -113,6 +113,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         ctrlKeyMap.putAll(KeyMappingLoader.loadCtrlKeyMappings(assets))
         variationsMap.putAll(KeyMappingLoader.loadVariations(assets))
         
+        // Carica le regole di auto-correzione
+        AutoCorrector.loadCorrections(assets, this)
+        
         // Registra listener per cambiamenti alle SharedPreferences
         prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
             if (key == "sym_mappings_custom") {
@@ -123,6 +126,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Handler(Looper.getMainLooper()).post {
                     updateStatusBarText()
                 }
+            } else if (key != null && (key.startsWith("auto_correct_custom_") || key == "auto_correct_enabled_languages")) {
+                Log.d(TAG, "Correzioni auto-correzione modificate, ricarico...")
+                // Ricarica le correzioni (incluso le nuove lingue personalizzate)
+                AutoCorrector.loadCorrections(assets, this)
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
@@ -702,6 +709,133 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Questo assicura che la status bar sia visibile anche se la tastiera virtuale non è abilitata
         Log.d(TAG, "onKeyDown() - chiamata ensureInputViewCreated() per attivare la tastiera")
         ensureInputViewCreated()
+        
+        // ========== GESTIONE AUTO-CORREZIONE ==========
+        val isAutoCorrectEnabled = SettingsManager.getAutoCorrectEnabled(this)
+        
+        // GESTISCI BACKSPACE PER ANNULLARE AUTO-CORREZIONE (PRIMA della gestione normale)
+        if (isAutoCorrectEnabled && keyCode == KeyEvent.KEYCODE_DEL) {
+            // Controlla se c'è una correzione da annullare
+            val correction = AutoCorrector.getLastCorrection()
+            
+            if (correction != null) {
+                // Ottieni il testo prima del cursore per verificare che corrisponda alla correzione
+                val textBeforeCursor = inputConnection.getTextBeforeCursor(
+                    correction.correctedWord.length + 2, // +2 per sicurezza (spazio/punteggiatura)
+                    0
+                )
+                
+                if (textBeforeCursor != null && 
+                    textBeforeCursor.length >= correction.correctedWord.length) {
+                    
+                    // Estrai gli ultimi caratteri (potrebbero includere spazio/punteggiatura)
+                    val lastChars = textBeforeCursor.substring(
+                        maxOf(0, textBeforeCursor.length - correction.correctedWord.length - 1)
+                    )
+                    
+                    // Verifica che il testo corrisponda alla correzione
+                    // La correzione potrebbe essere seguita da spazio o punteggiatura
+                    if (lastChars.endsWith(correction.correctedWord) ||
+                        lastChars.trimEnd().endsWith(correction.correctedWord)) {
+                        
+                        // Cancella la parola corretta (e eventuale spazio/punteggiatura dopo)
+                        // Prima contiamo quanti caratteri cancellare
+                        val charsToDelete = if (lastChars.endsWith(correction.correctedWord)) {
+                            correction.correctedWord.length
+                        } else {
+                            // C'è spazio/punteggiatura dopo, cancelliamo anche quello
+                            var deleteCount = correction.correctedWord.length
+                            var i = textBeforeCursor.length - 1
+                            while (i >= 0 && i >= textBeforeCursor.length - deleteCount - 1 &&
+                                   (textBeforeCursor[i].isWhitespace() || 
+                                    textBeforeCursor[i] in ".,;:!?()[]{}\"'")) {
+                                deleteCount++
+                                i--
+                            }
+                            deleteCount
+                        }
+                        
+                        // Cancella i caratteri
+                        inputConnection.deleteSurroundingText(charsToDelete, 0)
+                        
+                        // Reinserisci la parola originale
+                        inputConnection.commitText(correction.originalWord, 1)
+                        
+                        // Annulla la correzione
+                        AutoCorrector.undoLastCorrection()
+                        
+                        Log.d(TAG, "Auto-correzione annullata: '${correction.correctedWord}' → '${correction.originalWord}'")
+                        updateStatusBarText()
+                        return true // Consumiamo l'evento, non gestire ulteriormente il backspace
+                    }
+                }
+            }
+        }
+        
+        // GESTISCI AUTO-CORREZIONE PER SPAZIO E PUNTEGGIATURA
+        if (isAutoCorrectEnabled) {
+            // Controlla se è spazio o punteggiatura
+            val isSpace = keyCode == KeyEvent.KEYCODE_SPACE
+            val isPunctuation = event?.unicodeChar != null && 
+                               event.unicodeChar != 0 && 
+                               event.unicodeChar.toChar() in ".,;:!?()[]{}\"'"
+            
+            if (isSpace || isPunctuation) {
+                // Ottieni il testo prima del cursore
+                val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0)
+                
+                // Processa e ottieni la correzione se disponibile
+                val correction = AutoCorrector.processText(textBeforeCursor, context = this)
+                
+                if (correction != null) {
+                    val (wordToReplace, correctedWord) = correction
+                    
+                    // Cancella la parola da correggere
+                    inputConnection.deleteSurroundingText(wordToReplace.length, 0)
+                    
+                    // Inserisci la parola corretta
+                    inputConnection.commitText(correctedWord, 1)
+                    
+                    // Registra la correzione per permettere l'annullamento
+                    AutoCorrector.recordCorrection(
+                        originalWord = wordToReplace,
+                        correctedWord = correctedWord
+                    )
+                    
+                    // Se era spazio, inseriscilo dopo la correzione
+                    if (isSpace) {
+                        inputConnection.commitText(" ", 1)
+                    } else if (isPunctuation && event?.unicodeChar != null && event.unicodeChar != 0) {
+                        // Se era punteggiatura, inseriscila dopo la correzione
+                        val punctChar = event.unicodeChar.toChar().toString()
+                        inputConnection.commitText(punctChar, 1)
+                    }
+                    
+                    Log.d(TAG, "Auto-correzione: '$wordToReplace' → '$correctedWord'")
+                    updateStatusBarText()
+                    return true // Consumiamo l'evento
+                }
+            }
+        }
+        
+        // ACCETTA LA CORREZIONE SE VIENE PREMUTO QUALSIASI ALTRO TASTO
+        // (tranne backspace, che è già gestito sopra)
+        if (isAutoCorrectEnabled && keyCode != KeyEvent.KEYCODE_DEL) {
+            // Qualsiasi tasto diverso da backspace accetta la correzione
+            // Questo include caratteri, modificatori, frecce, ecc.
+            AutoCorrector.acceptLastCorrection()
+            
+            // Se viene digitato un carattere normale (non modificatori), resetta le parole rifiutate
+            // perché l'utente potrebbe aver modificato il testo
+            if (event != null && event.unicodeChar != 0) {
+                val char = event.unicodeChar.toChar()
+                // Solo per caratteri alfabetici o numerici (non modificatori, frecce, ecc.)
+                if (char.isLetterOrDigit()) {
+                    AutoCorrector.clearRejectedWords()
+                }
+            }
+        }
+        // ========== FINE GESTIONE AUTO-CORREZIONE ==========
         
         // Gestisci il doppio tap su Shift per attivare/disattivare Caps Lock
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {

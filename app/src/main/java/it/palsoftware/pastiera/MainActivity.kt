@@ -393,7 +393,7 @@ fun KeyboardSetupScreen(
                                     shape = MaterialTheme.shapes.small
                                 ) {
                                     Text(
-                                        text = "SHIFT",
+                                        text = stringResource(R.string.modifier_shift),
                                         style = MaterialTheme.typography.labelSmall,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         fontWeight = FontWeight.Medium
@@ -406,7 +406,7 @@ fun KeyboardSetupScreen(
                                     shape = MaterialTheme.shapes.small
                                 ) {
                                     Text(
-                                        text = "CTRL",
+                                        text = stringResource(R.string.modifier_ctrl),
                                         style = MaterialTheme.typography.labelSmall,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         fontWeight = FontWeight.Medium

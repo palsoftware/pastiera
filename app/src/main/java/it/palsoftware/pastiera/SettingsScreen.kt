@@ -14,13 +14,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Code
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import android.content.Intent
+import android.net.Uri
 import it.palsoftware.pastiera.R
 
 /**
@@ -44,16 +52,63 @@ fun SettingsScreen(
         mutableStateOf(SettingsManager.getAutoCapitalizeFirstLetter(context))
     }
     
-    // Gestisci il back button di sistema
-    BackHandler {
-        onBack()
+    // Carica il valore salvato dell'auto-correzione
+    var autoCorrectEnabled by remember {
+        mutableStateOf(SettingsManager.getAutoCorrectEnabled(context))
     }
     
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
+    // Stato per la navigazione alle impostazioni auto-correzione
+    var showAutoCorrectSettings by remember { mutableStateOf(false) }
+    var showAutoCorrectEdit by remember { mutableStateOf<String?>(null) }
+    
+    // Gestisci il back button di sistema
+    BackHandler {
+        when {
+            showAutoCorrectEdit != null -> {
+                showAutoCorrectEdit = null
+            }
+            showAutoCorrectSettings -> {
+                showAutoCorrectSettings = false
+            }
+            else -> {
+                onBack()
+            }
+        }
+    }
+    
+    // Navigazione condizionale
+    showAutoCorrectEdit?.let { languageCode ->
+        AutoCorrectEditScreen(
+            languageCode = languageCode,
+            modifier = modifier,
+            onBack = { showAutoCorrectEdit = null }
+        )
+        return
+    }
+    
+    if (showAutoCorrectSettings) {
+        AutoCorrectSettingsScreen(
+            modifier = modifier,
+            onBack = { showAutoCorrectSettings = false },
+            onEditLanguage = { languageCode ->
+                showAutoCorrectEdit = languageCode
+            }
+        )
+        return
+    }
+    
+    AnimatedContent(
+        targetState = Unit,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+        },
+        label = "settings_animation"
     ) {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+        ) {
         // Header moderno
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -189,6 +244,78 @@ fun SettingsScreen(
             
             HorizontalDivider()
             
+            // Auto-Correction
+            Surface(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.auto_correct_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Switch(
+                        checked = autoCorrectEnabled,
+                        onCheckedChange = { enabled ->
+                            autoCorrectEnabled = enabled
+                            SettingsManager.setAutoCorrectEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+            
+            HorizontalDivider()
+            
+            // Auto-Correction Languages (solo se auto-correzione è abilitata)
+            if (autoCorrectEnabled) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showAutoCorrectSettings = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Language,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.auto_correct_languages_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                HorizontalDivider()
+            }
+            
             // SYM Customization
             Surface(
                 modifier = Modifier
@@ -221,6 +348,105 @@ fun SettingsScreen(
                     )
                 }
             }
+            
+            HorizontalDivider()
+            
+            // About Section
+            Surface(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = stringResource(R.string.about_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    
+                    // GitHub Link
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/palsoftware/pastiera/"))
+                                context.startActivity(intent)
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Code,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.about_github),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "https://github.com/palsoftware/pastiera/",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    
+                    // Build Info
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column {
+                            Text(
+                                text = stringResource(R.string.about_build_info),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = BuildInfo.getBuildInfoString(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
         }
     }
 }

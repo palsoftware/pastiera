@@ -62,4 +62,58 @@
     <string name="reset_to_default">Reset to Default</string>
     <string name="select_emoji">Select Emoji</string>
     <string name="close">Close</string>
+    
+    <!-- Auto-Correction Section -->
+    <string name="auto_correct_title">Auto-Correction</string>
+    <string name="auto_correct_languages_title">Languages</string>
+    <string name="auto_correct_settings_title">Auto-Correction Languages</string>
+    <string name="auto_correct_settings_description">Select which languages to use for auto-correction. The system language is shown at the top.</string>
+    <string name="auto_correct_system_language">System language</string>
+    <string name="auto_correct_other_languages">Other Languages</string>
+    <string name="auto_correct_custom_languages">Custom Languages</string>
+    <string name="auto_correct_at_least_one_language_required">Almeno una lingua necessaria per il funzionamento</string>
+    <string name="auto_correct_edit">Edit</string>
+    <string name="auto_correct_edit_description">Tap on a correction to edit it, or use the + button to add a new one.</string>
+    <string name="auto_correct_add_correction">Add Correction</string>
+    <string name="auto_correct_edit_correction">Edit Correction</string>
+    <string name="auto_correct_original">Original</string>
+    <string name="auto_correct_corrected">Corrected</string>
+    <string name="auto_correct_delete">Delete</string>
+    <string name="auto_correct_save">Save</string>
+    <string name="auto_correct_cancel">Cancel</string>
+    <string name="auto_correct_no_corrections">No corrections available. Tap the + button to add one.</string>
+    <string name="auto_correct_add_language">Add New Language</string>
+    <string name="auto_correct_language_code">Language Code</string>
+    <string name="auto_correct_language_name">Language Name</string>
+    <string name="auto_correct_language_code_hint">Enter a code and name for your custom language (e.g., \"fr\" / \"French\", \"mydict\" / \"My Dictionary\")</string>
+    <string name="auto_correct_language_code_required">Language name is required</string>
+    <string name="auto_correct_language_already_exists">This language already exists</string>
+    
+    <!-- SYM Customization Screen -->
+    <string name="sym_customize_title">Customize SYM Keyboard</string>
+    <string name="sym_instructions_title">Instructions</string>
+    <string name="sym_instructions_text">Tap on any key below to change its emoji. Changes are saved automatically.</string>
+    <string name="sym_reset_to_default">Reset to Default</string>
+    
+    <!-- Emoji Picker Dialog -->
+    <string name="emoji_picker_title">Select Emoji</string>
+    <string name="emoji_picker_title_for_letter">Select emoji for letter %1$s</string>
+    <string name="emoji_picker_close">Close</string>
+    <string name="emoji_category_smileys">Smileys &amp; People</string>
+    <string name="emoji_category_animals">Animals &amp; Nature</string>
+    <string name="emoji_category_food">Food &amp; Drink</string>
+    <string name="emoji_category_travel">Travel &amp; Places</string>
+    <string name="emoji_category_activities">Activities</string>
+    <string name="emoji_category_objects">Objects</string>
+    <string name="emoji_category_symbols">Symbols</string>
+    <string name="emoji_category_flags">Flags</string>
+    
+    <!-- Modifiers -->
+    <string name="modifier_shift">SHIFT</string>
+    <string name="modifier_ctrl">CTRL</string>
+    
+    <!-- About Section -->
+    <string name="about_github">GitHub</string>
+    <string name="about_build_info">Build</string>
+    <string name="about_title">About</string>
 </resources>

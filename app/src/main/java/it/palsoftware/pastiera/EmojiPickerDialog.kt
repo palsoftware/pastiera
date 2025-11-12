@@ -12,8 +12,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import it.palsoftware.pastiera.R
 
 /**
  * Dialog per selezionare un'emoji.
@@ -21,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
  */
 @Composable
 fun EmojiPickerDialog(
+    selectedLetter: String? = null,
     onEmojiSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -48,21 +51,26 @@ fun EmojiPickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Select Emoji",
+                        text = if (selectedLetter != null) {
+                            stringResource(R.string.emoji_picker_title_for_letter, selectedLetter)
+                        } else {
+                            stringResource(R.string.emoji_picker_title)
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     TextButton(onClick = onDismiss) {
-                        Text("Close", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.emoji_picker_close), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 
                 // Categorie emoji standard (future-proof - si aggiornano con il sistema)
+                // Usa chiavi hardcoded e traduce solo per la visualizzazione
                 val emojiCategories = remember {
                     mapOf(
-                        "Smileys & People" to listOf(
+                        "smileys" to listOf(
                             "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇",
                             "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚",
                             "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩",
@@ -92,7 +100,7 @@ fun EmojiPickerDialog(
                             "👜", "💼", "🎒", "👓", "🕶️", "🥽", "🥼", "🌂", "☂️", "🧵",
                             "🧶"
                         ),
-                        "Animals & Nature" to listOf(
+                        "animals" to listOf(
                             "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
                             "🦁", "🐮", "🐷", "🐽", "🐸", "🐵", "🙈", "🙉", "🙊", "🐒",
                             "🐔", "🐧", "🐦", "🐤", "🐣", "🐥", "🦆", "🦅", "🦉", "🦇",
@@ -119,7 +127,7 @@ fun EmojiPickerDialog(
                             "🍯", "🍼", "🥛", "☕", "🫖", "🍵", "🍶", "🍾", "🍷", "🍸",
                             "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧋", "🧃", "🧉", "🧊"
                         ),
-                        "Food & Drink" to listOf(
+                        "food" to listOf(
                             "🍇", "🍈", "🍉", "🍊", "🍋", "🍌", "🍍", "🥭", "🍎", "🍏",
                             "🍐", "🍑", "🍒", "🍓", "🥝", "🍅", "🥥", "🥑", "🍆", "🥔",
                             "🥕", "🌽", "🌶️", "🥒", "🥬", "🥦", "🧄", "🧅", "🍄", "🥜",
@@ -133,7 +141,7 @@ fun EmojiPickerDialog(
                             "🍷", "🍸", "🍹", "🍺", "🍻", "🥂", "🥃", "🥤", "🧋", "🧃",
                             "🧉", "🧊"
                         ),
-                        "Travel & Places" to listOf(
+                        "travel" to listOf(
                             "🚗", "🚕", "🚙", "🚌", "🚎", "🏎️", "🚓", "🚑", "🚒", "🚐",
                             "🚚", "🚛", "🚜", "🛴", "🚲", "🛵", "🏍️", "🛺", "🚨", "🚔",
                             "🚍", "🚘", "🚖", "🚡", "🚠", "🚟", "🚃", "🚋", "🚞", "🚝",
@@ -178,7 +186,7 @@ fun EmojiPickerDialog(
                             "⛺", "🌁", "🌃", "🏙️", "🌄", "🌅", "🌆", "🌇", "🌉", "♨️",
                             "🎠", "🎡", "🎢", "💈", "🎪"
                         ),
-                        "Activities" to listOf(
+                        "activities" to listOf(
                             "⚽", "🏀", "🏈", "⚾", "🥎", "🎾", "🏐", "🏉", "🥏", "🎱",
                             "🏓", "🏸", "🏒", "🏑", "🥍", "🏏", "🥅", "⛳", "🏹", "🎣",
                             "🥊", "🥋", "🎽", "🛹", "🛷", "⛸️", "🥌", "🎿", "⛷️", "🏂",
@@ -188,7 +196,7 @@ fun EmojiPickerDialog(
                             "🎨", "🎬", "🎤", "🎧", "🎼", "🎹", "🥁", "🎷", "🎺", "🎸",
                             "🪕", "🎻", "🎲", "♟️", "🎯", "🎳", "🎮", "🎰", "🧩", "🎯"
                         ),
-                        "Objects" to listOf(
+                        "objects" to listOf(
                             "⌚", "📱", "📲", "💻", "⌨️", "🖥️", "🖨️", "🖱️", "🖲️", "🕹️",
                             "🗜️", "💾", "💿", "📀", "📼", "📷", "📸", "📹", "🎥", "📽️",
                             "🎞️", "📞", "☎️", "📟", "📠", "📺", "📻", "🎙️", "🎚️", "🎛️",
@@ -217,7 +225,7 @@ fun EmojiPickerDialog(
                             "🔖", "🧷", "🔗", "📎", "🖇️", "📐", "📏", "🧮", "📌", "📍",
                             "✂️", "🖊️", "🖋️", "✒️", "🖌️", "🖍️", "📝", "✏️", "💼"
                         ),
-                        "Symbols" to listOf(
+                        "symbols" to listOf(
                             "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔",
                             "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟", "☮️",
                             "✝️", "☪️", "🕉️", "☸️", "✡️", "🔯", "🕎", "☯️", "☦️", "🛐",
@@ -252,7 +260,7 @@ fun EmojiPickerDialog(
                             "✖️", "♾️", "💲", "💱", "™️", "©️", "®️", "〰️", "➰", "➿",
                             "🔚", "🔙", "🔛", "🔜", "🔝"
                         ),
-                        "Flags" to listOf(
+                        "flags" to listOf(
                             "🏳️", "🏴", "🏁", "🚩", "🏳️‍🌈", "🏳️‍⚧️", "🇺🇳", "🇦🇫", "🇦🇽", "🇦🇱",
                             "🇩🇿", "🇦🇸", "🇦🇩", "🇦🇴", "🇦🇮", "🇦🇶", "🇦🇬", "🇦🇷", "🇦🇲", "🇦🇼",
                             "🇦🇺", "🇦🇹", "🇦🇿", "🇧🇸", "🇧🇭", "🇧🇩", "🇧🇧", "🇧🇾", "🇧🇪", "🇧🇿",
@@ -283,6 +291,22 @@ fun EmojiPickerDialog(
                     )
                 }
                 
+                // Funzione helper per tradurre le chiavi delle categorie
+                @Composable
+                fun getCategoryName(categoryKey: String): String {
+                    return when (categoryKey) {
+                        "smileys" -> stringResource(R.string.emoji_category_smileys)
+                        "animals" -> stringResource(R.string.emoji_category_animals)
+                        "food" -> stringResource(R.string.emoji_category_food)
+                        "travel" -> stringResource(R.string.emoji_category_travel)
+                        "activities" -> stringResource(R.string.emoji_category_activities)
+                        "objects" -> stringResource(R.string.emoji_category_objects)
+                        "symbols" -> stringResource(R.string.emoji_category_symbols)
+                        "flags" -> stringResource(R.string.emoji_category_flags)
+                        else -> categoryKey
+                    }
+                }
+                
                 // Tab per categorie
                 var selectedCategory by remember { mutableStateOf(emojiCategories.keys.first()) }
                 
@@ -297,7 +321,7 @@ fun EmojiPickerDialog(
                         FilterChip(
                             selected = selectedCategory == category,
                             onClick = { selectedCategory = category },
-                            label = { Text(category, style = MaterialTheme.typography.labelSmall) },
+                            label = { Text(getCategoryName(category), style = MaterialTheme.typography.labelSmall) },
                             modifier = Modifier.padding(horizontal = 2.dp)
                         )
                     }
