@@ -660,13 +660,13 @@ fun SettingsScreen(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Nav Mode",
+                                text = stringResource(R.string.nav_mode_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1
                             )
                             Text(
-                                text = "Configure navigation mode key mappings",
+                                text = stringResource(R.string.settings_nav_mode_configure),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1
@@ -806,13 +806,13 @@ fun SettingsScreen(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Trackpad Debug",
+                                text = stringResource(R.string.settings_trackpad_debug_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium,
                                 maxLines = 1
                             )
                             Text(
-                                text = "Test trackpad/touch-sensitive keyboard events",
+                                text = stringResource(R.string.settings_trackpad_debug_description),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1
@@ -948,7 +948,7 @@ fun SettingsScreen(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.kofi5),
-                        contentDescription = "Support on Ko-fi",
+                        contentDescription = stringResource(R.string.settings_support_ko_fi),
                         modifier = Modifier
                             .fillMaxWidth(0.35f)
                             .aspectRatio(1f)

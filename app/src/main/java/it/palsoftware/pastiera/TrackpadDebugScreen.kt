@@ -97,7 +97,7 @@ fun TrackpadDebugScreen(
                         )
                     }
                     Text(
-                        text = "Trackpad Debug",
+                        text = stringResource(R.string.trackpad_debug_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(start = 8.dp)
@@ -135,15 +135,15 @@ fun TrackpadDebugScreen(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Motion Events Status",
+                                text = stringResource(R.string.trackpad_debug_motion_events_status),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Medium
                             )
                             Text(
                                 text = if (lastMotionEvent != null) {
-                                    "Intercepting events ✓ ($eventCount events received)"
+                                    stringResource(R.string.trackpad_debug_intercepting_events, eventCount)
                                 } else {
-                                    "Waiting for events... (Try moving your finger on the keyboard)"
+                                    stringResource(R.string.trackpad_debug_waiting_events)
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (lastMotionEvent != null) 
@@ -171,12 +171,12 @@ fun TrackpadDebugScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Test Text Field",
+                        text = stringResource(R.string.trackpad_debug_test_field_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Focus this field and try using the trackpad on your keyboard",
+                        text = stringResource(R.string.trackpad_debug_test_field_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -184,7 +184,7 @@ fun TrackpadDebugScreen(
                         value = testText,
                         onValueChange = { testText = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Type here or use trackpad gestures...") },
+                        placeholder = { Text(stringResource(R.string.trackpad_debug_test_field_placeholder)) },
                         minLines = 5,
                         maxLines = 10
                     )
@@ -208,7 +208,7 @@ fun TrackpadDebugScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Last Motion Event",
+                            text = stringResource(R.string.trackpad_debug_last_event_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -222,7 +222,7 @@ fun TrackpadDebugScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Action:",
+                                text = stringResource(R.string.trackpad_debug_action),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -240,7 +240,7 @@ fun TrackpadDebugScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Source:",
+                                text = stringResource(R.string.trackpad_debug_source),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -257,7 +257,7 @@ fun TrackpadDebugScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Device:",
+                                text = stringResource(R.string.trackpad_debug_device),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -270,7 +270,7 @@ fun TrackpadDebugScreen(
                         }
                         
                         Text(
-                            text = "Device ID: ${motionEvent.deviceId}",
+                            text = stringResource(R.string.trackpad_debug_device_id, motionEvent.deviceId),
                             style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -284,7 +284,7 @@ fun TrackpadDebugScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Position:",
+                                text = stringResource(R.string.trackpad_debug_position),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -302,7 +302,7 @@ fun TrackpadDebugScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "Scroll:",
+                                    text = stringResource(R.string.trackpad_debug_scroll),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -323,7 +323,7 @@ fun TrackpadDebugScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Pressure:",
+                                text = stringResource(R.string.trackpad_debug_pressure),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -339,7 +339,7 @@ fun TrackpadDebugScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Size:",
+                                text = stringResource(R.string.trackpad_debug_size),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -355,7 +355,7 @@ fun TrackpadDebugScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Button State:",
+                                text = stringResource(R.string.trackpad_debug_button_state),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -370,7 +370,7 @@ fun TrackpadDebugScreen(
                         
                         // Timestamp
                         Text(
-                            text = "Timestamp: ${motionEvent.timestamp}",
+                            text = stringResource(R.string.trackpad_debug_timestamp, motionEvent.timestamp),
                             style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -392,12 +392,12 @@ fun TrackpadDebugScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "No motion events detected yet",
+                            text = stringResource(R.string.trackpad_debug_no_events),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Try moving your finger on the touch-sensitive keyboard",
+                            text = stringResource(R.string.trackpad_debug_no_events_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -1,0 +1,264 @@
+<resources>
+    <string name="app_name">Pastiera</string>
+    <string name="input_method_name">Pastiera Physical Keyboard</string>
+    <string name="input_method_name_en">English</string>
+    <string name="input_method_name_it">Italiano</string>
+    <string name="input_method_name_fr">Français</string>
+    <string name="input_method_name_de">Deutsch</string>
+    <string name="input_method_name_pl">Polski</string>
+    <string name="input_method_name_es">Español</string>
+    
+    <!-- Settings Screen -->
+    <string name="settings_title">Configuración</string>
+    <string name="back">Atrás</string>
+    <string name="settings_back_content_description">Atrás</string>
+    
+    <!-- Long Press Section -->
+    <string name="long_press_title">Pulsación Larga</string>
+    <string name="long_press_duration">Duración de Pulsación Larga: %1$dms</string>
+    <string name="long_press_description">Tiempo de espera antes de que se reconozca una pulsación larga. Un valor más bajo hace que la pulsación larga sea más sensible, mientras que un valor más alto requiere una pulsación más prolongada.</string>
+    <string name="setting_applied_immediately">Configuración aplicada inmediatamente</string>
+    
+    <!-- Auto Capitalize Section -->
+    <string name="auto_capitalize_title">Auto-Mayúscula Primera Letra</string>
+    <string name="auto_capitalize_description">Pone automáticamente en mayúscula la primera letra al comenzar a escribir en un campo de texto vacío.</string>
+
+    <!-- Auto Capitalize After Period Section -->
+    <string name="auto_capitalize_after_period_title">Auto-Mayúscula Después de Punto</string>
+    <string name="auto_capitalize_after_period_description">Pone automáticamente en mayúscula la siguiente letra después de escribir un punto seguido de un espacio (fin de oración).</string>
+
+    <!-- Double Space to Period Section -->
+    <string name="double_space_to_period_title">Doble Espacio a Punto</string>
+    <string name="double_space_to_period_description">Doble toque en espacio para insertar un punto seguido de un espacio y poner en mayúscula la siguiente letra.</string>
+    
+    <!-- Swipe to Delete Section -->
+    <string name="swipe_to_delete_title">Activar Deslizar para Eliminar</string>
+    
+    <!-- Auto Show Keyboard Section -->
+    <string name="auto_show_keyboard_title">Mostrar Automáticamente el Teclado</string>
+    
+    <!-- Info Section -->
+    <string name="info_title">Información</string>
+    <string name="info_description">La configuración se guarda automáticamente y se aplica inmediatamente al método de entrada.</string>
+    
+    <!-- Main Activity -->
+    <string name="keyboard_title">Teclado Pastiera</string>
+    <string name="keyboard_subtitle">Teclado físico con soporte de pulsación larga</string>
+    <string name="settings_content_description">Configuración</string>
+    
+    <!-- Installation Section -->
+    <string name="installation_title">Instalación</string>
+    <string name="installation_step1">1. Haga clic en el botón de abajo para abrir la configuración</string>
+    <string name="installation_step2">2. Active \'Teclado Físico Pastiera\'</string>
+    <string name="installation_step3">3. Vuelva aquí y pruebe el teclado</string>
+    <string name="open_keyboard_settings">Abrir Configuración del Teclado</string>
+    
+    <!-- Main Activity - Enable/Select IME -->
+    <string name="enable_pastiera">Activar Pastiera</string>
+    <string name="pastiera_not_enabled">Pastiera no está activado</string>
+    <string name="choose_input_method">Elegir método de entrada</string>
+    <string name="pastiera_not_selected">Pastiera no está seleccionado</string>
+    
+    <!-- Test Section -->
+    <string name="test_keyboard_title">Prueba de Teclado</string>
+    <string name="test_keyboard_description">Conecte un teclado físico y pruebe a continuación:</string>
+    <string name="test_keyboard_normal">• Pulsación normal: inserta el carácter</string>
+    <string name="test_keyboard_long_press">• Pulsación larga (500ms): inserta el carácter Alt</string>
+    <string name="test_field_label">Campo de prueba</string>
+    <string name="test_field_placeholder">Escriba aquí con el teclado físico…</string>
+    
+    <!-- Last Event Section -->
+    <string name="last_keyboard_event_title">Último Evento del Teclado</string>
+    <string name="no_event_yet">Aún no hay eventos</string>
+    
+    <!-- Long Press Mappings Section -->
+    <string name="long_press_mappings_title">Asignaciones de Pulsación Larga</string>
+    <string name="long_press_mappings_line1">Q→0, W→1, E→2, R→3, T→(, Y→), U→-, I→_, O→\', P→:</string>
+    <string name="long_press_mappings_line2">A→@, S→4, D→5, F→6, G→*, H→#, J→+, K→\", L→\'</string>
+    <string name="long_press_mappings_line3">Z→!, X→7, C→8, V→9, B→., N→\', M→?</string>
+    
+    <!-- Buttons -->
+    <string name="settings_button">Configuración</string>
+    <string name="change_keyboard_button">Cambiar Teclado</string>
+    
+    <!-- SYM Customization -->
+    <string name="sym_customization_title">Personalizar Teclado SYM</string>
+    <string name="sym_customization_button">Personalizar Teclado SYM</string>
+    <string name="sym_customization_description">Personalice las asignaciones de emoji para el teclado SYM. Toque cualquier tecla para cambiar su emoji.</string>
+    <string name="reset_to_default">Restablecer Predeterminado</string>
+    <string name="select_emoji">Seleccionar Emoji</string>
+    <string name="close">Cerrar</string>
+    
+    <!-- Auto-Correction Section -->
+    <string name="auto_correct_title">Auto-Corrección</string>
+    <string name="auto_correct_languages_title">Idiomas</string>
+    <string name="auto_correct_settings_title">Idiomas de Auto-Corrección</string>
+    <string name="auto_correct_settings_description">Seleccione qué idiomas usar para la auto-corrección. El idioma del sistema se muestra en la parte superior.</string>
+    <string name="auto_correct_system_language">Idioma del sistema</string>
+    <string name="auto_correct_ricette_pastiera_description">Personalizaciones válidas para todos los idiomas</string>
+    <string name="auto_correct_other_languages">Otros Idiomas</string>
+    <string name="auto_correct_custom_languages">Idiomas Personalizados</string>
+    <string name="auto_correct_at_least_one_language_required">Se requiere al menos un idioma para el funcionamiento</string>
+    <string name="auto_correct_edit">Editar</string>
+    <string name="auto_correct_edit_description">Toque una corrección para editarla, o use el botón + para agregar una nueva.</string>
+    <string name="auto_correct_add_correction">Agregar Corrección</string>
+    <string name="auto_correct_edit_correction">Editar Corrección</string>
+    <string name="auto_correct_original">Original</string>
+    <string name="auto_correct_corrected">Corregido</string>
+    <string name="auto_correct_delete">Eliminar</string>
+    <string name="auto_correct_save">Guardar</string>
+    <string name="auto_correct_cancel">Cancelar</string>
+    <string name="auto_correct_no_corrections">No hay correcciones disponibles. Toque el botón + para agregar una.</string>
+    <string name="auto_correct_add_language">Agregar Nuevo Idioma</string>
+    <string name="auto_correct_language_code">Código de Idioma</string>
+    <string name="auto_correct_language_name">Nombre del Idioma</string>
+    <string name="auto_correct_language_code_hint">Ingrese un código y un nombre para su idioma personalizado (ej. \"fr\" / \"Francés\", \"mydict\" / \"Mi Diccionario\")</string>
+    <string name="auto_correct_language_code_required">El nombre del idioma es obligatorio</string>
+    <string name="auto_correct_language_already_exists">Este idioma ya existe</string>
+    
+    <!-- SYM Customization Screen -->
+    <string name="sym_customize_title">Personalizar Teclado SYM</string>
+    <string name="sym_instructions_title">Instrucciones</string>
+    <string name="sym_instructions_text">Toque cualquier tecla a continuación para cambiar su emoji. Los cambios se guardan automáticamente.</string>
+    <string name="sym_reset_to_default">Restablecer Predeterminado</string>
+    
+    <!-- Emoji Picker Dialog -->
+    <string name="emoji_picker_title">Seleccionar Emoji</string>
+    <string name="emoji_picker_title_for_letter">Seleccionar emoji para la letra %1$s</string>
+    <string name="emoji_picker_close">Cerrar</string>
+    <string name="emoji_category_smileys">Sonrisas &amp; Personas</string>
+    <string name="emoji_category_animals">Animales &amp; Naturaleza</string>
+    <string name="emoji_category_food">Comida &amp; Bebidas</string>
+    <string name="emoji_category_travel">Viajes &amp; Lugares</string>
+    <string name="emoji_category_activities">Actividades</string>
+    <string name="emoji_category_objects">Objetos</string>
+    <string name="emoji_category_symbols">Símbolos</string>
+    <string name="emoji_category_flags">Banderas</string>
+    
+    <!-- Modifiers -->
+    <string name="modifier_shift">SHIFT</string>
+    <string name="modifier_ctrl">CTRL</string>
+    
+    <!-- Long Press Modifier Section -->
+    <string name="long_press_modifier_title">Modificador de Pulsación Larga</string>
+    <string name="long_press_modifier_description">Elija si la pulsación larga simula Alt+tecla o Shift+tecla</string>
+    <string name="long_press_modifier_alt">Alt</string>
+    <string name="long_press_modifier_shift">Shift</string>
+    
+    <!-- About Section -->
+    <string name="about_github">GitHub</string>
+    <string name="about_build_info">Build</string>
+    <string name="about_title">Acerca de</string>
+    
+    <!-- Launcher Shortcuts Section -->
+    <string name="launcher_shortcuts_title">Accesos Rápidos del Lanzador</string>
+    <string name="launcher_shortcuts_experimental">Experimental</string>
+    <string name="launcher_shortcuts_description">Activar atajos de teclado en el lanzador</string>
+    <string name="launcher_shortcuts_configure">Configurar Accesos Rápidos</string>
+    <string name="launcher_shortcuts_configure_description">Asignar teclas para abrir aplicaciones en el lanzador</string>
+    
+    <!-- Launcher Shortcuts Screen -->
+    <string name="launcher_shortcuts_screen_title">Accesos Rápidos del Lanzador</string>
+    <string name="launcher_shortcuts_screen_assign_title">Asignar accesos rápidos a aplicaciones</string>
+    <string name="launcher_shortcuts_screen_assign_description">Cuando esté en el lanzador y no en un campo de texto, puede presionar una tecla para abrir una aplicación asignada.</string>
+    <string name="launcher_shortcuts_not_assigned">No asignado</string>
+    <string name="launcher_shortcuts_remove">Eliminar</string>
+    <string name="launcher_shortcuts_app_name_unavailable">Aplicación (nombre no disponible)</string>
+    <string name="launcher_shortcuts_shortcut_type">Acceso rápido: %1$s</string>
+    <string name="launcher_shortcuts_shortcut_unknown">desconocido</string>
+    <string name="launcher_shortcuts_action_type">Acción: %1$s</string>
+    
+    <!-- Launcher Shortcut Assignment Activity -->
+    <string name="launcher_shortcut_assignment_title">Asignar aplicación a tecla</string>
+    <string name="launcher_shortcut_assignment_key">Tecla %1$s</string>
+    <string name="launcher_shortcut_assignment_search_placeholder">Buscar aplicaciones…</string>
+    <string name="launcher_shortcut_assignment_search_description">Buscar</string>
+    <string name="launcher_shortcut_assignment_close">Cerrar</string>
+    <string name="launcher_shortcut_assignment_no_apps">No se encontraron aplicaciones</string>
+    <string name="launcher_shortcut_assignment_no_results">No hay resultados para \"%1$s\"</string>
+    <string name="launcher_shortcut_assignment_key_name">Tecla %1$d</string>
+    
+    <!-- Notification Helper -->
+    <string name="notification_nav_mode_channel_name">Pastiera Nav Mode</string>
+    <string name="notification_nav_mode_channel_description">Notificaciones para el modo nav de Pastiera</string>
+    <string name="notification_nav_mode_activated_title">Modo Nav Activado</string>
+    <string name="notification_nav_mode_activated_text">Modo nav activado</string>
+    
+    <!-- Speech Recognition -->
+    <string name="speech_recognition_prompt">Hable ahora…</string>
+    
+    <!-- Auto Correct Edit Screen -->
+    <string name="auto_correct_search_placeholder">Buscar correcciones…</string>
+    <string name="auto_correct_search_description">Buscar</string>
+    <string name="auto_correct_clear_search">Limpiar búsqueda</string>
+    <string name="auto_correct_no_corrections_found">No se encontraron correcciones</string>
+    
+    <!-- Nav Mode Settings -->
+    <string name="nav_mode_title">Modo Nav</string>
+    <string name="nav_mode_enable_title">Activar Modo Nav</string>
+    <string name="nav_mode_enable_description">Doble toque en Ctrl para activar el modo de navegación</string>
+    <string name="nav_mode_key_mappings">Asignaciones de Teclas</string>
+    <string name="nav_mode_revert_to_default">Restablecer Predeterminado</string>
+    <string name="nav_mode_note">Nota: Modificar las teclas del modo nav también afecta las combinaciones Ctrl+tecla en los campos de texto.</string>
+    <string name="nav_mode_configure_key">Configurar %1$s</string>
+    <string name="nav_mode_type">Tipo</string>
+    <string name="nav_mode_keycode">Keycode</string>
+    <string name="nav_mode_action">Acción</string>
+    <string name="nav_mode_none">Ninguno</string>
+    <string name="nav_mode_use_default">Usar Predeterminado: %1$s</string>
+    <string name="nav_mode_save">Guardar</string>
+    <string name="nav_mode_cancel">Cancelar</string>
+    <string name="nav_mode_default">predeterminado</string>
+    
+    <!-- Unicode Character Picker -->
+    <string name="unicode_picker_title_for_letter">Seleccionar carácter para %1$s</string>
+    <string name="unicode_picker_title">Seleccionar carácter unicode</string>
+    <string name="unicode_picker_close">Cerrar</string>
+    <string name="unicode_category_punctuation">Puntuación</string>
+    <string name="unicode_category_math">Símbolos Matemáticos</string>
+    <string name="unicode_category_currency">Monedas</string>
+    <string name="unicode_category_technical">Símbolos Técnicos</string>
+    <string name="unicode_category_arrows">Flechas</string>
+    <string name="unicode_category_misc">Varios</string>
+    
+    <!-- Trackpad Debug Screen -->
+    <string name="trackpad_debug_title">Depuración de Trackpad</string>
+    <string name="trackpad_debug_motion_events_status">Estado de Eventos de Movimiento</string>
+    <string name="trackpad_debug_intercepting_events">Interceptando eventos ✓ (%1$d eventos recibidos)</string>
+    <string name="trackpad_debug_waiting_events">Esperando eventos… (Intente mover el dedo en el teclado)</string>
+    <string name="trackpad_debug_test_field_title">Campo de Prueba</string>
+    <string name="trackpad_debug_test_field_description">Enfóquese en este campo e intente usar el trackpad en su teclado</string>
+    <string name="trackpad_debug_test_field_placeholder">Escriba aquí o use gestos del trackpad…</string>
+    <string name="trackpad_debug_last_event_title">Último Evento de Movimiento</string>
+    <string name="trackpad_debug_action">Acción:</string>
+    <string name="trackpad_debug_source">Fuente:</string>
+    <string name="trackpad_debug_device">Dispositivo:</string>
+    <string name="trackpad_debug_device_id">ID del Dispositivo: %1$d</string>
+    <string name="trackpad_debug_position">Posición:</string>
+    <string name="trackpad_debug_scroll">Desplazamiento:</string>
+    <string name="trackpad_debug_pressure">Presión:</string>
+    <string name="trackpad_debug_size">Tamaño:</string>
+    <string name="trackpad_debug_button_state">Estado del Botón:</string>
+    <string name="trackpad_debug_timestamp">Marca de Tiempo: %1$d</string>
+    <string name="trackpad_debug_no_events">Aún no se han detectado eventos de movimiento</string>
+    <string name="trackpad_debug_no_events_description">Intente mover el dedo en el teclado táctil</string>
+    
+    <!-- SYM Customization Screen -->
+    <string name="sym_tab_emoji">Emoji</string>
+    <string name="sym_tab_characters">Caracteres</string>
+    
+    <!-- App Picker Dialog -->
+    <string name="app_picker_title">Seleccionar una aplicación</string>
+    <string name="app_picker_cancel">Cancelar</string>
+    <string name="app_picker_search_placeholder">Buscar aplicaciones…</string>
+    
+    <!-- Settings Screen -->
+    <string name="settings_support_ko_fi">Apoyar en Ko-fi</string>
+    <string name="settings_nav_mode_configure">Configurar asignaciones de teclas del modo de navegación</string>
+    <string name="settings_trackpad_debug_title">Depuración de Trackpad</string>
+    <string name="settings_trackpad_debug_description">Probar eventos de trackpad/teclado táctil</string>
+    
+    <!-- Auto Correct Settings -->
+    <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
+</resources>
+

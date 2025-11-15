@@ -105,7 +105,7 @@ private fun LanguageItem(
 private fun getLanguageDisplayName(context: Context, languageCode: String): String {
     // Special case for Ricette Pastiera
     if (languageCode == "x-pastiera") {
-        return "Ricette Pastiera"
+        return context.getString(R.string.auto_correct_ricette_pastiera_name)
     }
     
     // First try to get saved name from JSON

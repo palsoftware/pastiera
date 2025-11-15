@@ -50,15 +50,15 @@ fun UnicodeCharacterPickerDialog(
                 ) {
                     Text(
                         text = if (selectedLetter != null) {
-                            "Seleziona carattere per $selectedLetter"
+                            stringResource(R.string.unicode_picker_title_for_letter, selectedLetter)
                         } else {
-                            "Seleziona carattere unicode"
+                            stringResource(R.string.unicode_picker_title)
                         },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     TextButton(onClick = onDismiss) {
-                        Text("Chiudi", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.unicode_picker_close), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
                 
@@ -102,12 +102,12 @@ fun UnicodeCharacterPickerDialog(
                 @Composable
                 fun getCategoryName(categoryKey: String): String {
                     return when (categoryKey) {
-                        "punteggiatura" -> "Punteggiatura"
-                        "simboli_matematici" -> "Simboli matematici"
-                        "simboli_valuta" -> "Valute"
-                        "simboli_tecnici" -> "Simboli tecnici"
-                        "simboli_freccia" -> "Frecce"
-                        "simboli_varie" -> "Varie"
+                        "punteggiatura" -> stringResource(R.string.unicode_category_punctuation)
+                        "simboli_matematici" -> stringResource(R.string.unicode_category_math)
+                        "simboli_valuta" -> stringResource(R.string.unicode_category_currency)
+                        "simboli_tecnici" -> stringResource(R.string.unicode_category_technical)
+                        "simboli_freccia" -> stringResource(R.string.unicode_category_arrows)
+                        "simboli_varie" -> stringResource(R.string.unicode_category_misc)
                         else -> categoryKey
                     }
                 }

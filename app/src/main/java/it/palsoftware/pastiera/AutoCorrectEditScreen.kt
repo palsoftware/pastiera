@@ -148,12 +148,12 @@ fun AutoCorrectEditScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = { Text("Search corrections...") },
+                    placeholder = { Text(stringResource(R.string.auto_correct_search_placeholder)) },
                     singleLine = true,
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Search"
+                            contentDescription = stringResource(R.string.auto_correct_search_description)
                         )
                     },
                     trailingIcon = {
@@ -161,7 +161,7 @@ fun AutoCorrectEditScreen(
                             IconButton(onClick = { searchQuery = "" }) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear search"
+                                    contentDescription = stringResource(R.string.auto_correct_clear_search)
                                 )
                             }
                         }
@@ -177,7 +177,7 @@ fun AutoCorrectEditScreen(
                 ) {
                     Text(
                         text = if (searchQuery.isNotEmpty()) {
-                            "No corrections found"
+                            stringResource(R.string.auto_correct_no_corrections_found)
                         } else {
                             stringResource(R.string.auto_correct_no_corrections)
                         },

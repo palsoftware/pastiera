@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.res.stringResource
+import it.palsoftware.pastiera.R
 import android.graphics.drawable.Drawable
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -78,12 +80,12 @@ fun AppPickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Seleziona un'app",
+                        text = stringResource(R.string.app_picker_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     TextButton(onClick = onDismiss) {
-                        Text("Annulla")
+                        Text(stringResource(R.string.app_picker_cancel))
                     }
                 }
                 
@@ -96,7 +98,7 @@ fun AppPickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
-                    placeholder = { Text("Cerca app...") },
+                    placeholder = { Text(stringResource(R.string.app_picker_search_placeholder)) },
                     singleLine = true
                 )
                 

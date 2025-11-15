@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognizerIntent
 import android.util.Log
+import it.palsoftware.pastiera.R
 
 /**
  * Helper activity for handling speech recognition.
@@ -35,7 +36,7 @@ class SpeechRecognitionActivity : Activity() {
                 intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     setPackage(packageName)
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Parla ora...")
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speech_recognition_prompt))
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 }
                 
@@ -52,7 +53,7 @@ class SpeechRecognitionActivity : Activity() {
                 Log.d(TAG, "Google Voice Typing not available, using generic recognition")
                 intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Parla ora...")
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, getString(R.string.speech_recognition_prompt))
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 }
                 

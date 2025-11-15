@@ -53,6 +53,12 @@
     <string name="installation_step3">3. Come back here and test the keyboard</string>
     <string name="open_keyboard_settings">Open Keyboard Settings</string>
     
+    <!-- Main Activity - Enable/Select IME -->
+    <string name="enable_pastiera">Enable Pastiera</string>
+    <string name="pastiera_not_enabled">Pastiera is not enabled</string>
+    <string name="choose_input_method">Choose input method</string>
+    <string name="pastiera_not_selected">Pastiera is not selected</string>
+    
     <!-- Test Section -->
     <string name="test_keyboard_title">Keyboard Test</string>
     <string name="test_keyboard_description">Connect a physical keyboard and test below:</string>
@@ -177,4 +183,81 @@
     <string name="notification_nav_mode_channel_description">Notifications for Pastiera nav mode</string>
     <string name="notification_nav_mode_activated_title">Nav Mode Activated</string>
     <string name="notification_nav_mode_activated_text">Nav mode activated</string>
+    
+    <!-- Speech Recognition -->
+    <string name="speech_recognition_prompt">Speak now...</string>
+    
+    <!-- Auto Correct Edit Screen -->
+    <string name="auto_correct_search_placeholder">Search corrections...</string>
+    <string name="auto_correct_search_description">Search</string>
+    <string name="auto_correct_clear_search">Clear search</string>
+    <string name="auto_correct_no_corrections_found">No corrections found</string>
+    
+    <!-- Nav Mode Settings -->
+    <string name="nav_mode_title">Nav Mode</string>
+    <string name="nav_mode_enable_title">Enable Nav Mode</string>
+    <string name="nav_mode_enable_description">Double-tap Ctrl to activate navigation mode</string>
+    <string name="nav_mode_key_mappings">Key Mappings</string>
+    <string name="nav_mode_revert_to_default">Revert to Default</string>
+    <string name="nav_mode_note">Note: Modifying nav mode keys also affects Ctrl+key combinations in text fields.</string>
+    <string name="nav_mode_configure_key">Configure %1$s</string>
+    <string name="nav_mode_type">Type</string>
+    <string name="nav_mode_keycode">Keycode</string>
+    <string name="nav_mode_action">Action</string>
+    <string name="nav_mode_none">None</string>
+    <string name="nav_mode_use_default">Use Default: %1$s</string>
+    <string name="nav_mode_save">Save</string>
+    <string name="nav_mode_cancel">Cancel</string>
+    <string name="nav_mode_default">default</string>
+    
+    <!-- Unicode Character Picker -->
+    <string name="unicode_picker_title_for_letter">Select character for %1$s</string>
+    <string name="unicode_picker_title">Select unicode character</string>
+    <string name="unicode_picker_close">Close</string>
+    <string name="unicode_category_punctuation">Punctuation</string>
+    <string name="unicode_category_math">Mathematical Symbols</string>
+    <string name="unicode_category_currency">Currencies</string>
+    <string name="unicode_category_technical">Technical Symbols</string>
+    <string name="unicode_category_arrows">Arrows</string>
+    <string name="unicode_category_misc">Miscellaneous</string>
+    
+    <!-- Trackpad Debug Screen -->
+    <string name="trackpad_debug_title">Trackpad Debug</string>
+    <string name="trackpad_debug_motion_events_status">Motion Events Status</string>
+    <string name="trackpad_debug_intercepting_events">Intercepting events ✓ (%1$d events received)</string>
+    <string name="trackpad_debug_waiting_events">Waiting for events... (Try moving your finger on the keyboard)</string>
+    <string name="trackpad_debug_test_field_title">Test Text Field</string>
+    <string name="trackpad_debug_test_field_description">Focus this field and try using the trackpad on your keyboard</string>
+    <string name="trackpad_debug_test_field_placeholder">Type here or use trackpad gestures...</string>
+    <string name="trackpad_debug_last_event_title">Last Motion Event</string>
+    <string name="trackpad_debug_action">Action:</string>
+    <string name="trackpad_debug_source">Source:</string>
+    <string name="trackpad_debug_device">Device:</string>
+    <string name="trackpad_debug_device_id">Device ID: %1$d</string>
+    <string name="trackpad_debug_position">Position:</string>
+    <string name="trackpad_debug_scroll">Scroll:</string>
+    <string name="trackpad_debug_pressure">Pressure:</string>
+    <string name="trackpad_debug_size">Size:</string>
+    <string name="trackpad_debug_button_state">Button State:</string>
+    <string name="trackpad_debug_timestamp">Timestamp: %1$d</string>
+    <string name="trackpad_debug_no_events">No motion events detected yet</string>
+    <string name="trackpad_debug_no_events_description">Try moving your finger on the touch-sensitive keyboard</string>
+    
+    <!-- SYM Customization Screen -->
+    <string name="sym_tab_emoji">Emoji</string>
+    <string name="sym_tab_characters">Characters</string>
+    
+    <!-- App Picker Dialog -->
+    <string name="app_picker_title">Select an app</string>
+    <string name="app_picker_cancel">Cancel</string>
+    <string name="app_picker_search_placeholder">Search apps...</string>
+    
+    <!-- Settings Screen -->
+    <string name="settings_support_ko_fi">Support on Ko-fi</string>
+    <string name="settings_nav_mode_configure">Configure navigation mode key mappings</string>
+    <string name="settings_trackpad_debug_title">Trackpad Debug</string>
+    <string name="settings_trackpad_debug_description">Test trackpad/touch-sensitive keyboard events</string>
+    
+    <!-- Auto Correct Settings -->
+    <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
 </resources>

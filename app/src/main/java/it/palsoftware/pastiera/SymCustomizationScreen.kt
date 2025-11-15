@@ -184,12 +184,12 @@ fun SymCustomizationScreen(
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text("Emoji") }
+                text = { Text(stringResource(R.string.sym_tab_emoji)) }
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
-                text = { Text("Caratteri") }
+                text = { Text(stringResource(R.string.sym_tab_characters)) }
             )
         }
         

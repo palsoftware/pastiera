@@ -23,7 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import it.palsoftware.pastiera.inputmethod.KeyMappingLoader
+import it.palsoftware.pastiera.R
 
 /**
  * Nav Mode settings screen with keyboard visualization.
@@ -72,11 +74,11 @@ fun NavModeSettingsScreen(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.Filled.ArrowBack,
-                        contentDescription = "Back"
+                        contentDescription = stringResource(R.string.settings_back_content_description)
                     )
                 }
                 Text(
-                    text = "Nav Mode",
+                    text = stringResource(R.string.nav_mode_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 8.dp)
@@ -97,12 +99,12 @@ fun NavModeSettingsScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Enable Nav Mode",
+                        text = stringResource(R.string.nav_mode_enable_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Double-tap Ctrl to activate navigation mode",
+                        text = stringResource(R.string.nav_mode_enable_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -127,7 +129,7 @@ fun NavModeSettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 Text(
-                    text = "Key Mappings",
+                    text = stringResource(R.string.nav_mode_key_mappings),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -199,7 +201,7 @@ fun NavModeSettingsScreen(
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Revert to Default")
+                        Text(stringResource(R.string.nav_mode_revert_to_default))
                     }
                     
                     // Disclaimer
@@ -221,7 +223,7 @@ fun NavModeSettingsScreen(
                             )
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Note: Modifying nav mode keys also affects Ctrl+key combinations in text fields.",
+                                    text = stringResource(R.string.nav_mode_note),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onTertiaryContainer
                                 )
@@ -336,7 +338,7 @@ private fun KeyButton(
             } else if (hasDefault) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "default",
+                    text = stringResource(R.string.nav_mode_default),
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -361,7 +363,7 @@ private fun KeyMappingDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("Configure $keyLabel")
+            Text(stringResource(R.string.nav_mode_configure_key, keyLabel))
         },
         text = {
             Column(
@@ -369,7 +371,7 @@ private fun KeyMappingDialog(
             ) {
                 // Type selection
                 Text(
-                    text = "Type",
+                    text = stringResource(R.string.nav_mode_type),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Medium
                 )
@@ -382,7 +384,7 @@ private fun KeyMappingDialog(
                             selectedType = "keycode"
                             selectedValue = null
                         },
-                        label = { Text("Keycode") }
+                        label = { Text(stringResource(R.string.nav_mode_keycode)) }
                     )
                     FilterChip(
                         selected = selectedType == "action",
@@ -390,7 +392,7 @@ private fun KeyMappingDialog(
                             selectedType = "action"
                             selectedValue = null
                         },
-                        label = { Text("Action") }
+                        label = { Text(stringResource(R.string.nav_mode_action)) }
                     )
                     FilterChip(
                         selected = selectedType == "none",
@@ -398,14 +400,14 @@ private fun KeyMappingDialog(
                             selectedType = "none"
                             selectedValue = null
                         },
-                        label = { Text("None") }
+                        label = { Text(stringResource(R.string.nav_mode_none)) }
                     )
                 }
                 
                 // Value selection based on type
                 if (selectedType == "keycode") {
                     Text(
-                        text = "Keycode",
+                        text = stringResource(R.string.nav_mode_keycode),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -430,7 +432,7 @@ private fun KeyMappingDialog(
                     }
                 } else if (selectedType == "action") {
                     Text(
-                        text = "Action",
+                        text = stringResource(R.string.nav_mode_action),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -463,7 +465,7 @@ private fun KeyMappingDialog(
                             selectedValue = defaultMapping.value
                         }
                     ) {
-                        Text("Use Default: ${getMappingLabel(defaultMapping)}")
+                        Text(stringResource(R.string.nav_mode_use_default, getMappingLabel(defaultMapping) ?: ""))
                     }
                 }
             }
@@ -484,12 +486,12 @@ private fun KeyMappingDialog(
                     onSave(mapping)
                 }
             ) {
-                Text("Save")
+                Text(stringResource(R.string.nav_mode_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.nav_mode_cancel))
             }
         }
     )

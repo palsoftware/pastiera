@@ -367,7 +367,7 @@ fun KeyboardSetupScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Abilita Pastiera",
+                            text = stringResource(R.string.enable_pastiera),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium
                         )
@@ -384,7 +384,7 @@ fun KeyboardSetupScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                text = "Pastiera non è abilitata",
+                                text = stringResource(R.string.pastiera_not_enabled),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -431,7 +431,7 @@ fun KeyboardSetupScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "Scegli metodo di immissione",
+                            text = stringResource(R.string.choose_input_method),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Medium
                         )
@@ -448,7 +448,7 @@ fun KeyboardSetupScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
-                                text = "Pastiera non è selezionata",
+                                text = stringResource(R.string.pastiera_not_selected),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
