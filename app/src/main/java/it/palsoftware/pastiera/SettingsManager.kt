@@ -31,15 +31,15 @@ object SettingsManager {
     private const val KEY_LONG_PRESS_MODIFIER = "long_press_modifier" // "alt" or "shift"
     
     // Default values
-    private const val DEFAULT_LONG_PRESS_THRESHOLD = 500L
+    private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
     private const val MIN_LONG_PRESS_THRESHOLD = 50L
     private const val MAX_LONG_PRESS_THRESHOLD = 1000L
-    private const val DEFAULT_AUTO_CAPITALIZE_FIRST_LETTER = false
-    private const val DEFAULT_DOUBLE_SPACE_TO_PERIOD = false
-    private const val DEFAULT_SWIPE_TO_DELETE = true
+    private const val DEFAULT_AUTO_CAPITALIZE_FIRST_LETTER = true
+    private const val DEFAULT_DOUBLE_SPACE_TO_PERIOD = true
+    private const val DEFAULT_SWIPE_TO_DELETE = false
     private const val DEFAULT_AUTO_SHOW_KEYBOARD = true
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
-    private const val DEFAULT_AUTO_CAPITALIZE_AFTER_PERIOD = false
+    private const val DEFAULT_AUTO_CAPITALIZE_AFTER_PERIOD = true
     private const val DEFAULT_LONG_PRESS_MODIFIER = "alt"
     
     /**

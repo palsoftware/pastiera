@@ -30,6 +30,8 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import it.palsoftware.pastiera.R
 
 /**
@@ -896,7 +898,7 @@ fun SettingsScreen(
                         )
                     }
                 }
-                
+
                 // Build Info
                 Surface(
                     modifier = Modifier
@@ -931,6 +933,26 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+
+                // Ko-fi Support Link
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/palsoftware"))
+                            context.startActivity(intent)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.kofi5),
+                        contentDescription = "Support on Ko-fi",
+                        modifier = Modifier
+                            .fillMaxWidth(0.35f)
+                            .aspectRatio(1f)
+                    )
                 }
             }
         }

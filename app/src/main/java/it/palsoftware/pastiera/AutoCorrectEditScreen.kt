@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +28,7 @@ import it.palsoftware.pastiera.inputmethod.AutoCorrector
 import it.palsoftware.pastiera.R
 import org.json.JSONObject
 import java.util.Locale
+import java.util.LinkedHashMap
 
 /**
  * Screen for editing corrections for a specific language.
@@ -40,13 +43,30 @@ fun AutoCorrectEditScreen(
     val context = LocalContext.current
     
     // Load corrections (custom first, then default)
+    // Use LinkedHashMap to maintain insertion order (newest first)
     var corrections by remember {
-        mutableStateOf(loadCorrectionsForLanguage(context, languageCode))
+        mutableStateOf(loadCorrectionsForLanguage(context, languageCode).toLinkedHashMap())
     }
     
     // State for the add/edit dialog
     var showAddDialog by remember { mutableStateOf(false) }
     var editingKey by remember { mutableStateOf<String?>(null) }
+    
+    // State for search query
+    var searchQuery by remember { mutableStateOf("") }
+    
+    // Filter corrections based on search query (searches both original and corrected)
+    val filteredCorrections = remember(corrections, searchQuery) {
+        if (searchQuery.isBlank()) {
+            corrections
+        } else {
+            val query = searchQuery.lowercase()
+            corrections.filter { (original, corrected) ->
+                original.lowercase().contains(query) || 
+                corrected.lowercase().contains(query)
+            }
+        }
+    }
     
     // Handle the system back button
     BackHandler {
@@ -118,16 +138,49 @@ fun AutoCorrectEditScreen(
                 )
             }
             
-            HorizontalDivider()
+            // Search field
+            Surface(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text("Search corrections...") },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search"
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear search"
+                                )
+                            }
+                        }
+                    }
+                )
+            }
             
             // List of corrections
-            if (corrections.isEmpty()) {
-                // Message shown when there are no corrections
+            if (filteredCorrections.isEmpty()) {
+                // Message shown when there are no corrections or no search results
                 Surface(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = stringResource(R.string.auto_correct_no_corrections),
+                        text = if (searchQuery.isNotEmpty()) {
+                            "No corrections found"
+                        } else {
+                            stringResource(R.string.auto_correct_no_corrections)
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
@@ -137,10 +190,8 @@ fun AutoCorrectEditScreen(
                     )
                 }
             } else {
-                // Show corrections ordered alphabetically
-                val sortedCorrections = corrections.toList().sortedBy { it.first }
-                
-                sortedCorrections.forEach { (original, corrected) ->
+                // Show corrections in insertion order (newest first)
+                filteredCorrections.forEach { (original, corrected) ->
                     CorrectionItem(
                         original = original,
                         corrected = corrected,
@@ -149,7 +200,9 @@ fun AutoCorrectEditScreen(
                             showAddDialog = true
                         },
                         onDelete = {
-                            corrections = corrections - original
+                            val newCorrections = corrections.toMutableMap()
+                            newCorrections.remove(original)
+                            corrections = newCorrections.toLinkedHashMap()
                             saveCorrections(context, languageCode, corrections, null)
                             // Reload all corrections (including new languages)
                             // Use a context that allows access to assets
@@ -165,7 +218,6 @@ fun AutoCorrectEditScreen(
                             }
                         }
                     )
-                    HorizontalDivider()
                 }
                 }
             }
@@ -182,12 +234,24 @@ fun AutoCorrectEditScreen(
                 editingKey = null
             },
             onSave = { original, corrected ->
-                val newCorrections = corrections.toMutableMap()
-                if (editingKey != null && editingKey != original) {
-                    // Remove the old key if it has been changed
+                val newCorrections = LinkedHashMap<String, String>()
+                val key = original.lowercase()
+                
+                // If editing, remove the old key first
+                if (editingKey != null && editingKey != key) {
                     newCorrections.remove(editingKey)
                 }
-                newCorrections[original.lowercase()] = corrected
+                
+                // Add the new/edited correction at the beginning (newest first)
+                newCorrections[key] = corrected
+                
+                // Add all other corrections (excluding the one being edited if it's the same key)
+                corrections.forEach { (k, v) ->
+                    if (k != key && k != editingKey) {
+                        newCorrections[k] = v
+                    }
+                }
+                
                 corrections = newCorrections
                 saveCorrections(context, languageCode, corrections, null)
                 // Reload all corrections (including new languages)
@@ -223,7 +287,7 @@ private fun CorrectionItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -398,6 +462,13 @@ private fun correctionsToJson(corrections: Map<String, String>): String {
         jsonObject.put(key, value)
     }
     return jsonObject.toString()
+}
+
+/**
+ * Converts a Map to LinkedHashMap to maintain insertion order.
+ */
+private fun <K, V> Map<K, V>.toLinkedHashMap(): LinkedHashMap<K, V> {
+    return LinkedHashMap(this)
 }
 
 /**
