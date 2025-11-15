@@ -1,3 +1,4 @@
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C31OHWF2)
 # Pastiera
 
 A physical keyboard input method for Android, made for devices like the Unihertz Titan 2. Built as a hobby project to make typing on physical keyboards more efficient and enjoyable.
