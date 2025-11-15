@@ -25,6 +25,7 @@
     "KEYCODE_V": "9",
     "KEYCODE_B": ".",
     "KEYCODE_N": ",",
-    "KEYCODE_M": "?"
+    "KEYCODE_M": "?",
+    "KEYCODE_SPACE": " "
   }
 }

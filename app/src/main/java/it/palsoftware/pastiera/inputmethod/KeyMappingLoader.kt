@@ -79,7 +79,8 @@ object KeyMappingLoader {
         "KEYCODE_APOSTROPHE" to KeyEvent.KEYCODE_APOSTROPHE,
         "KEYCODE_COMMA" to KeyEvent.KEYCODE_COMMA,
         "KEYCODE_PERIOD" to KeyEvent.KEYCODE_PERIOD,
-        "KEYCODE_SLASH" to KeyEvent.KEYCODE_SLASH
+        "KEYCODE_SLASH" to KeyEvent.KEYCODE_SLASH,
+        "KEYCODE_SPACE" to KeyEvent.KEYCODE_SPACE
     )
     
     /**
