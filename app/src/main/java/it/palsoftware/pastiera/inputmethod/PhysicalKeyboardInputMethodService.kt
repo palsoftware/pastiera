@@ -1607,8 +1607,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
                 altPressed = true
             }
-            // Non consumiamo l'evento, lasciamo che Android gestisca Alt normalmente
-            return super.onKeyDown(keyCode, event)
+            // Consumiamo l'evento Alt per evitare che Android gestisca Alt+Spazio come scorciatoia
+            // Questo previene il popup di selezione simboli di Android
+            Log.d(TAG, "Alt key consumed to prevent Android symbol picker popup")
+            return true  // Consumiamo l'evento invece di passarlo ad Android
         }
         
         // Handle SYM key (toggle/latch with 3 states: disabled -> page1 -> page2 -> disabled)
@@ -1664,11 +1666,32 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 altOneShot = false
                 refreshStatusBar()
             }
+            
+            // FIX: Consumiamo Alt+Spazio per evitare il popup di selezione simboli di Android
+            // Questo gestisce i casi: Spazio->Alt, Alt->Spazio, Alt->tasto alfabetico->Spazio
+            // Inseriamo uno spazio nel campo di testo
+            if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                inputConnection.commitText(" ", 1)
+                Log.d(TAG, "Alt+Space combination: inserted space to prevent Android symbol picker popup")
+                updateStatusBarText()
+                return true  // Consumiamo l'evento senza passarlo ad Android
+            }
+            
             val result = altSymManager.handleAltCombination(
                 keyCode,
                 inputConnection,
                 event
             ) { defaultKeyCode, defaultEvent ->
+                // FIX: Anche se non c'è una mappatura Alt per questo tasto,
+                // consumiamo l'evento quando Alt è attivo e il tasto è Spazio
+                // per evitare comportamenti indesiderati di Android
+                // Inseriamo uno spazio nel campo di testo
+                if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                    inputConnection.commitText(" ", 1)
+                    Log.d(TAG, "Alt+Space (no mapping): inserted space to prevent Android symbol picker")
+                    updateStatusBarText()
+                    return@handleAltCombination true
+                }
                 super.onKeyDown(defaultKeyCode, defaultEvent)
             }
             // If an Alt character has been inserted, update variations
