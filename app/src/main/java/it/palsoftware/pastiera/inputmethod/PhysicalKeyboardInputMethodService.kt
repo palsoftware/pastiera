@@ -1374,12 +1374,27 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
             val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0)
 
-            // Check if text ends with "." (single period, not multiple periods)
-            if (textBeforeCursor != null && textBeforeCursor.endsWith(".") &&
-                textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2] != '.') {
-
-                shiftOneShot = true
-                updateStatusBarText()
+            // Check if text ends with punctuation that requires capitalization: ".", "!", "?"
+            // For period, avoid multiple consecutive periods (ellipsis "...")
+            // For "!" and "?", consecutive characters are acceptable (e.g., "!!!" or "???")
+            if (textBeforeCursor != null && textBeforeCursor.isNotEmpty()) {
+                val lastChar = textBeforeCursor[textBeforeCursor.length - 1]
+                val shouldCapitalize = when (lastChar) {
+                    '.' -> {
+                        // For period, check that it's not part of an ellipsis
+                        textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2] != '.'
+                    }
+                    '!', '?' -> {
+                        // For "!" and "?", just check that the character exists
+                        true
+                    }
+                    else -> false
+                }
+                
+                if (shouldCapitalize) {
+                    shiftOneShot = true
+                    updateStatusBarText()
+                }
             }
         }
 
