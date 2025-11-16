@@ -11,6 +11,7 @@ import android.os.Build
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
+import android.widget.LinearLayout
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
@@ -459,6 +460,58 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         return layout
     }
 
+    // Store separate layout instances for input view and candidates view
+    private var candidatesViewLayout: LinearLayout? = null
+
+    /**
+     * Creates the candidates view shown when the soft keyboard is disabled.
+     * Uses the same layout as the status bar to provide identical functionality.
+     */
+    override fun onCreateCandidatesView(): View? {
+        Log.d(TAG, "onCreateCandidatesView() called - creating candidates view with status bar layout")
+
+        // Create a separate layout instance for candidates view
+        // We can't reuse the same layout as input view due to Android View hierarchy constraints
+        if (candidatesViewLayout == null) {
+            candidatesViewLayout = statusBarController.getOrCreateLayout(altSymManager.buildEmojiMapText())
+            Log.d(TAG, "onCreateCandidatesView() - created new layout instance for candidates view")
+        }
+
+        // Remove from any existing parent to avoid conflicts
+        if (candidatesViewLayout?.parent != null) {
+            Log.d(TAG, "onCreateCandidatesView() - removing view from existing parent")
+            (candidatesViewLayout?.parent as? android.view.ViewGroup)?.removeView(candidatesViewLayout)
+        }
+
+        // Refresh the status bar content
+        refreshStatusBar()
+
+        Log.d(TAG, "onCreateCandidatesView() completed - candidates view created")
+        return candidatesViewLayout
+    }
+
+    /**
+     * Determines whether the input view (soft keyboard) should be shown.
+     * Respects the system setting "Show input method" when hardware keyboard is connected.
+     */
+    override fun onEvaluateInputViewShown(): Boolean {
+        val shouldShow = super.onEvaluateInputViewShown()
+        Log.d(TAG, "onEvaluateInputViewShown() - super returned: $shouldShow")
+
+        // If the system says to show the keyboard, always show it
+        if (shouldShow) {
+            // Make sure candidates view is hidden when main input view is shown
+            setCandidatesViewShown(false)
+            return true
+        }
+
+        // If system says not to show, we still want to show the candidates view
+        // as an alternative UI for physical keyboard users
+        setCandidatesViewShown(true)
+        return false
+    }
+
+
     // Flag per tracciare se Ctrl latch è stato attivato nel nav mode (anche quando si entra in un campo di testo)
     private var ctrlLatchFromNavMode = false
     
@@ -873,6 +926,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         Log.d(TAG, "onStartInputView() called - restarting: $restarting, ctrlLatchFromNavMode: $ctrlLatchFromNavMode")
+
+        // Force reevaluation of input view visibility when starting input
+        // This ensures the candidates view is shown/hidden appropriately
+        updateInputViewShown()
         
         // Check whether the field is actually editable
         val isEditable = info?.let { editorInfo ->
@@ -1633,6 +1690,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Cycle between the 3 states: 0 -> 1 -> 2 -> 0
             symPage = (symPage + 1) % 3
             updateStatusBarText()
+            // Force reevaluation of input view visibility to ensure SYM layout works in candidates view
+            updateInputViewShown()
             // Consume the event to prevent Android from handling it
             return true
         }
