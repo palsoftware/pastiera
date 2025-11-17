@@ -105,6 +105,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Flag to track whether we are in a numeric field
     private var isNumericField = false
     
+    // Flag to track whether we are in a field that should have smart features disabled
+    // (password, URL, email, filter, codes, OTP, tokens, etc.)
+    private var shouldDisableSmartFeatures = false
+    
     // Flag to avoid infinite loops when reactivating the keyboard recursively
     private var isRehandlingKeyAfterReactivation = false
     
@@ -160,6 +164,54 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
     
     /**
+     * Checks if the given EditorInfo represents a field that should have smart features disabled.
+     * This includes:
+     * - Password fields (TYPE_TEXT_VARIATION_PASSWORD, TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, 
+     *   TYPE_TEXT_VARIATION_WEB_PASSWORD, TYPE_NUMBER_VARIATION_PASSWORD)
+     * - URL fields (TYPE_TEXT_VARIATION_URI)
+     * - Email fields (TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
+     * - Filter/search fields (TYPE_TEXT_VARIATION_FILTER)
+     * - Fields with NO_SUGGESTIONS flag (codes, OTP, tokens)
+     * 
+     * For these fields, all smart features are disabled:
+     * - Autocorrection
+     * - Suggestions
+     * - Predictive text
+     * - Auto-capitalize
+     * - Double-space to period
+     * - Variations (long-press variants)
+     * 
+     * @param info The EditorInfo to check
+     * @return true if smart features should be disabled, false otherwise
+     */
+    private fun shouldDisableSmartFeatures(info: EditorInfo?): Boolean {
+        if (info == null) return false
+        val inputType = info.inputType
+        val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
+        val inputFlags = inputType and android.text.InputType.TYPE_MASK_FLAGS
+        
+        // Check for password field types
+        val isPasswordType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+                            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+                            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+                            inputVariation == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        
+        // Check for URL fields
+        val isUriType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_URI
+        
+        // Check for email fields
+        val isEmailType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        
+        // Check for filter/search fields
+        val isFilterType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_FILTER
+        
+        // Check for NO_SUGGESTIONS flag (codes, OTP, tokens)
+        val hasNoSuggestionsFlag = (inputFlags and android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) != 0
+        
+        return isPasswordType || isUriType || isEmailType || isFilterType || hasNoSuggestionsFlag
+    }
+    
+    /**
      * Initializes the input context for a field.
      * This method contains all common initialization logic that must run
      * regardless of whether input view or candidates view is shown.
@@ -197,14 +249,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // For auto-capitalize, we can be more permissive - check if field is editable (even if not "truly editable")
         // This helps with messaging apps like WhatsApp that might use custom input types
-        val isPasswordField = info?.let { editorInfo ->
-            val inputType = editorInfo.inputType
-            val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
-            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-        } ?: false
-        val canCheckAutoCapitalize = isEditable && !isPasswordField
+        val canCheckAutoCapitalize = isEditable && !shouldDisableSmartFeatures
         
         if (!isReallyEditable) {
             // Not a truly editable field - if we are in nav mode, keep it
@@ -254,6 +299,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         } ?: false
         Log.d(TAG, "initializeInputContext() - isNumericField: $isNumericField")
         
+        // Check whether the field should have smart features disabled
+        shouldDisableSmartFeatures = shouldDisableSmartFeatures(info)
+        Log.d(TAG, "initializeInputContext() - shouldDisableSmartFeatures: $shouldDisableSmartFeatures")
+        
+        // Hide candidates view for restricted fields
+        if (shouldDisableSmartFeatures) {
+            setCandidatesViewShown(false)
+            deactivateVariations()
+        }
+        
         // Handle nav mode: disable if entering a truly editable field
         if (ctrlLatchFromNavMode && ctrlLatchActive) {
             val inputConnection = currentInputConnection
@@ -267,20 +322,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // Handle auto-capitalize: enable shiftOneShot when cursor is at start with no characters before (not even spaces),
         // or when cursor is after a newline (after pressing Enter).
-        // BUT: disable it for password fields even if auto-capitalize is enabled.
+        // BUT: disable it for restricted fields (password, URL, email, etc.) even if auto-capitalize is enabled.
         val autoCapitalizeEnabled = SettingsManager.getAutoCapitalizeFirstLetter(this)
         if (autoCapitalizeEnabled) {
-            // Check whether the field is a password field
-            val isPasswordField = info?.let { editorInfo ->
-                val inputType = editorInfo.inputType
-                val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
-                inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-                inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-            } ?: false
-            
-            // Do not apply auto-capitalize to password fields
-            if (!isPasswordField) {
+            // Do not apply auto-capitalize to restricted fields
+            if (!shouldDisableSmartFeatures) {
                 val inputConnection = currentInputConnection
                 if (inputConnection != null) {
                     // Use a delay to ensure inputConnection is ready (especially for messaging apps like WhatsApp)
@@ -928,6 +974,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * regardless of how the cursor was moved (keyboard, swipe pad, mouse, etc.).
      */
     private fun updateVariationsFromCursor() {
+        // Disable variations for restricted fields
+        if (shouldDisableSmartFeatures) {
+            deactivateVariations()
+            return
+        }
+        
         val inputConnection = currentInputConnection
         if (inputConnection == null) {
             deactivateVariations()
@@ -1070,6 +1122,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         } ?: false
         Log.d(TAG, "onStartInput() - isNumericField: $isNumericField")
         
+        // Check whether the field should have smart features disabled
+        shouldDisableSmartFeatures = shouldDisableSmartFeatures(info)
+        Log.d(TAG, "onStartInput() - shouldDisableSmartFeatures: $shouldDisableSmartFeatures")
+        
+        // Hide candidates view for restricted fields
+        if (shouldDisableSmartFeatures) {
+            setCandidatesViewShown(false)
+            deactivateVariations()
+        }
+        
         // Disable suggestions to avoid popup
         if (info != null && isEditable) {
             info.inputType = info.inputType or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
@@ -1153,16 +1215,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (restarting && isEditable) {
             val autoCapitalizeEnabled = SettingsManager.getAutoCapitalizeFirstLetter(this)
             if (autoCapitalizeEnabled) {
-                // Check if it's not a password field
-                val isPasswordField = info?.let { editorInfo ->
-                    val inputType = editorInfo.inputType
-                    val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-                } ?: false
-                
-                if (!isPasswordField) {
+                // Check if it's not a restricted field
+                if (!shouldDisableSmartFeatures) {
                     val inputConnection = currentInputConnection
                     if (inputConnection != null) {
                         // Use a delay to ensure inputConnection is ready
@@ -1216,16 +1270,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (restarting && isEditable) {
             val autoCapitalizeEnabled = SettingsManager.getAutoCapitalizeFirstLetter(this)
             if (autoCapitalizeEnabled) {
-                // Check if it's not a password field
-                val isPasswordField = info?.let { editorInfo ->
-                    val inputType = editorInfo.inputType
-                    val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-                } ?: false
-                
-                if (!isPasswordField) {
+                // Check if it's not a restricted field
+                if (!shouldDisableSmartFeatures) {
                     val inputConnection = currentInputConnection
                     if (inputConnection != null) {
                         // Use a delay to ensure inputConnection is ready
@@ -1312,6 +1358,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         Log.d(TAG, "onUpdateSelection called: oldSelStart=$oldSelStart, oldSelEnd=$oldSelEnd, newSelStart=$newSelStart, newSelEnd=$newSelEnd")
         
+        // Update variations when cursor position changes (important for candidates mode)
+        // This ensures variations are updated after Android has completed the insertion
+        // Disabled for restricted fields
+        if (!shouldDisableSmartFeatures) {
+            val cursorPositionChanged = (oldSelStart != newSelStart) || (oldSelEnd != newSelEnd)
+            if (cursorPositionChanged && newSelStart == newSelEnd) {
+                // Cursor moved and there's no selection - update variations after a short delay
+                // to ensure Android has completed all text updates
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    updateStatusBarText()
+                }, 50) // Delay to ensure text insertion is complete
+            }
+        }
+        
         // Check if auto-capitalize is enabled
         val autoCapitalizeEnabled = SettingsManager.getAutoCapitalizeFirstLetter(this)
         if (!autoCapitalizeEnabled) {
@@ -1336,17 +1396,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return
         }
         
-        // Check if it's not a password field
-        val isPasswordField = currentInputEditorInfo?.let { editorInfo ->
-            val inputType = editorInfo.inputType
-            val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
-            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-        } ?: false
-        
-        if (isPasswordField) {
-            // Password field, disable auto-capitalize if it was active
+        // Check if it's a restricted field
+        if (shouldDisableSmartFeatures) {
+            // Restricted field, disable auto-capitalize if it was active
             if (shiftOneShot) {
                 shiftOneShot = false
                 shiftOneShotEnabledTime = 0
@@ -1660,7 +1712,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         ensureInputViewCreated()
         
         // ========== AUTO-CORRECTION HANDLING ==========
-        val isAutoCorrectEnabled = SettingsManager.getAutoCorrectEnabled(this)
+        // Skip all auto-correction, suggestions, and text modifications for restricted fields
+        val isAutoCorrectEnabled = SettingsManager.getAutoCorrectEnabled(this) && !shouldDisableSmartFeatures
         
         // HANDLE BACKSPACE TO UNDO AUTO-CORRECTION (BEFORE normal handling)
         if (isAutoCorrectEnabled && keyCode == KeyEvent.KEYCODE_DEL) {
@@ -1722,8 +1775,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         
         // HANDLE DOUBLE-TAP SPACE TO INSERT PERIOD AND SPACE (BEFORE auto-correction)
+        // Disabled for restricted fields
         val isSpace = keyCode == KeyEvent.KEYCODE_SPACE
-        if (isSpace) {
+        if (isSpace && !shouldDisableSmartFeatures) {
             val doubleSpaceToPeriodEnabled = SettingsManager.getDoubleSpaceToPeriod(this)
             if (doubleSpaceToPeriodEnabled) {
                 val currentTime = System.currentTimeMillis()
@@ -1818,7 +1872,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         // ========== AUTO-CAPITALIZE AFTER PERIOD ==========
-        val autoCapitalizeAfterPeriodEnabled = SettingsManager.getAutoCapitalizeAfterPeriod(this)
+        // Disabled for restricted fields
+        val autoCapitalizeAfterPeriodEnabled = SettingsManager.getAutoCapitalizeAfterPeriod(this) && !shouldDisableSmartFeatures
 
         if (autoCapitalizeAfterPeriodEnabled && inputConnection != null &&
             keyCode == KeyEvent.KEYCODE_SPACE && !shiftOneShot) {
@@ -1920,16 +1975,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (keyCode == KeyEvent.KEYCODE_ENTER && inputConnection != null) {
             val autoCapitalizeEnabled = SettingsManager.getAutoCapitalizeFirstLetter(this)
             if (autoCapitalizeEnabled) {
-                // Check if it's not a password field
-                val isPasswordField = currentInputEditorInfo?.let { editorInfo ->
-                    val inputType = editorInfo.inputType
-                    val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-                    inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
-                } ?: false
-                
-                if (!isPasswordField) {
+                // Check if it's not a restricted field
+                if (!shouldDisableSmartFeatures) {
                     // After ENTER is processed by Android, the cursor will be on a new line
                     // Use a delayed check to ensure ENTER has been processed
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -2533,18 +2580,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         
         // When there is no mapping, let Android handle the event normally.
-        // Update variations after Android has processed the event.
-        val result = super.onKeyDown(keyCode, event)
-        // Update variations after any operation that could change text or cursor position
-        // (inserted characters, backspace, arrows, etc.).
-        if (result) {
-            // Use a delayed post to ensure Android has completed all changes,
-            // including character insertions, cursor moves, backspace, etc.
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                updateStatusBarText()
-            }, 30) // 30ms per dare tempo ad Android di completare le modifiche
-        }
-        return result
+        // Variations will be updated automatically by onUpdateSelection() after Android completes the insertion.
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {

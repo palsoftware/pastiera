@@ -352,7 +352,7 @@ class StatusBarController(
             ).toInt()
             val ledBottomPadding = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP,
-                4f,
+                0f,
                 context.resources.displayMetrics
             ).toInt()
             val ledGap = TypedValue.applyDimension(
@@ -414,6 +414,14 @@ class StatusBarController(
             emojiMapTextView?.text = emojiMapText
         }
         return statusBarLayout!!
+    }
+    
+    /**
+     * Ensures the layout is created before updating.
+     * This is important for candidates view which may not have been created yet.
+     */
+    private fun ensureLayoutCreated(emojiMapText: String = ""): LinearLayout? {
+        return statusBarLayout ?: getOrCreateLayout(emojiMapText)
     }
     
     /**
@@ -1625,7 +1633,8 @@ class StatusBarController(
         // Update SYM mode state (swipe pad disabled when SYM mode is active)
         isSymModeActive = snapshot.symPage > 0
         
-        val layout = statusBarLayout ?: return
+        // Ensure layout is created (important for candidates view which may not have been created yet)
+        val layout = ensureLayoutCreated(emojiMapText) ?: return
         val modifiersContainerView = modifiersContainer ?: return
         val emojiView = emojiMapTextView ?: return
         val variationsContainerView = variationsContainer ?: return
