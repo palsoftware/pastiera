@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Psychology
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -85,7 +86,12 @@ fun SettingsScreen(
     var autoCorrectEnabled by remember {
         mutableStateOf(SettingsManager.getAutoCorrectEnabled(context))
     }
-    
+
+    // Load saved word prediction value
+    var wordPredictionEnabled by remember {
+        mutableStateOf(SettingsManager.getWordPredictionEnabled(context))
+    }
+
     // Load saved launcher shortcuts enabled value
     var launcherShortcutsEnabled by remember { 
         mutableStateOf(SettingsManager.getLauncherShortcutsEnabled(context))
@@ -675,7 +681,44 @@ fun SettingsScreen(
                         }
                     }
                 }
-            
+
+                // Word Prediction
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Psychology, // Brain icon for prediction
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Word Prediction",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                        }
+                        Switch(
+                            checked = wordPredictionEnabled,
+                            onCheckedChange = { enabled ->
+                                wordPredictionEnabled = enabled
+                                SettingsManager.setWordPredictionEnabled(context, enabled)
+                            }
+                        )
+                    }
+                }
+
                 // SYM Customization
                 Surface(
                     modifier = Modifier

@@ -38,7 +38,10 @@ class StatusBarController(
 ) {
     // Listener for variation selection
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
-    
+
+    // Listener for prediction selection
+    var onPredictionSelectedListener: PredictionButtonHandler.OnPredictionSelectedListener? = null
+
     // Listener for speech recognition results
     var onSpeechResultListener: ((String) -> Unit)? = null
     
@@ -71,7 +74,8 @@ class StatusBarController(
         val symPage: Int, // 0=disattivato, 1=pagina1 emoji, 2=pagina2 caratteri
         val variations: List<String> = emptyList(),
         val lastInsertedChar: Char? = null,
-        val shouldDisableSmartFeatures: Boolean = false
+        val shouldDisableSmartFeatures: Boolean = false,
+        val predictions: List<String> = emptyList() // Word predictions (max 3)
     ) {
         val navModeActive: Boolean
             get() = ctrlLatchActive && ctrlLatchFromNavMode
@@ -85,6 +89,8 @@ class StatusBarController(
     private var variationsOverlay: View? = null
     private var variationsWrapper: FrameLayout? = null
     private var variationButtons: MutableList<TextView> = mutableListOf()
+    private var predictionsContainer: LinearLayout? = null // Word predictions display
+    private var predictionButtons: MutableList<TextView> = mutableListOf()
     private var ledContainer: LinearLayout? = null
     private var shiftLed: View? = null
     private var ctrlLed: View? = null
@@ -95,12 +101,15 @@ class StatusBarController(
     private var microphoneButtonView: ImageView? = null
     private var settingsButtonView: ImageView? = null
     private var lastDisplayedVariations: List<String> = emptyList()
+    private var currentPredictionsRow: LinearLayout? = null // Prediction row tracking
+    private var lastDisplayedPredictions: List<String> = emptyList() // Prediction tracking
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
     private var isSwipeInProgress = false
     private var touchStartX = 0f
     private var touchStartY = 0f
     private var lastCursorMoveX = 0f // Last X position where cursor was moved
     private var swipeDirection: Int? = null // 1 for right, -1 for left
+    private var isFlickInProgress = false // Track if upward flick detected
     private var isSymModeActive = false
 
     fun getLayout(): LinearLayout? = statusBarLayout
@@ -245,6 +254,7 @@ class StatusBarController(
                 when (motionEvent.action) {
                     MotionEvent.ACTION_DOWN -> {
                         isSwipeInProgress = false
+                        isFlickInProgress = false
                         swipeDirection = null
                         touchStartX = motionEvent.x
                         touchStartY = motionEvent.y
@@ -255,11 +265,27 @@ class StatusBarController(
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = motionEvent.x - touchStartX
-                        val deltaY = abs(motionEvent.y - touchStartY)
+                        val deltaY = motionEvent.y - touchStartY // Keep sign to detect upward (negative)
+                        val absDeltaY = abs(deltaY)
                         val incrementalDeltaX = motionEvent.x - lastCursorMoveX
-                        
+
+                        // UPWARD FLICK threshold (smaller than swipe for quicker detection)
+                        val FLICK_THRESHOLD = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            20f, // 20dp upward movement to trigger flick
+                            context.resources.displayMetrics
+                        )
+
+                        // Check for UPWARD FLICK (for prediction selection) - highest priority
+                        if (!isSwipeInProgress && !isFlickInProgress && deltaY < -FLICK_THRESHOLD && absDeltaY > abs(deltaX)) {
+                            // Upward flick detected!
+                            isFlickInProgress = true
+                            Log.d(TAG, "Upward flick detected at x=$touchStartX")
+                            // Will handle prediction selection in ACTION_UP
+                            true
+                        }
                         // If scroll is mainly horizontal and exceeds initial threshold, or swipe is already in progress
-                        if (isSwipeInProgress || (abs(deltaX) > SWIPE_THRESHOLD && abs(deltaX) > deltaY)) {
+                        else if (isSwipeInProgress || (abs(deltaX) > SWIPE_THRESHOLD && abs(deltaX) > absDeltaY)) {
                             // Determine or update swipe direction
                             if (!isSwipeInProgress) {
                                 isSwipeInProgress = true
@@ -316,7 +342,13 @@ class StatusBarController(
                         }
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (isSwipeInProgress) {
+                        if (isFlickInProgress) {
+                            // Handle upward flick gesture for prediction selection
+                            handleFlickGesture(touchStartX)
+                            isFlickInProgress = false
+                            Log.d(TAG, "Flick gesture ended")
+                            true // Consume the event
+                        } else if (isSwipeInProgress) {
                             isSwipeInProgress = false
                             swipeDirection = null
                             Log.d(TAG, "Swipe ended on overlay")
@@ -326,7 +358,7 @@ class StatusBarController(
                             val x = motionEvent.x
                             val y = motionEvent.y
                             Log.d(TAG, "Tap detected on overlay at ($x, $y), looking for button")
-                            
+
                             // Find clickable view at touch position in variationsContainer
                             val clickedView = variationsContainer?.let { findClickableViewAt(it, x, y) }
                             if (clickedView != null) {
@@ -340,6 +372,7 @@ class StatusBarController(
                     }
                     MotionEvent.ACTION_CANCEL -> {
                         isSwipeInProgress = false
+                        isFlickInProgress = false
                         swipeDirection = null
                         true
                     }
@@ -428,9 +461,76 @@ class StatusBarController(
     }
     
     /**
-     * Recursively finds a clickable view at the given coordinates in the view hierarchy.
-     * Coordinates are relative to the parent view.
+     * Handles upward flick gesture for prediction selection.
+     * Determines which zone (left/center/right) the flick was in and selects the corresponding prediction.
      */
+    private fun handleFlickGesture(touchX: Float) {
+        // Only handle flicks when predictions are displayed
+        if (lastDisplayedPredictions.isEmpty()) {
+            Log.d(TAG, "Flick detected but no predictions displayed")
+            return
+        }
+
+        val screenWidth = context.resources.displayMetrics.widthPixels.toFloat()
+
+        // Determine zone: divide screen into 3 equal parts
+        val zone = when {
+            touchX < screenWidth / 3 -> 0 // Left zone
+            touchX < (screenWidth * 2 / 3) -> 1 // Center zone
+            else -> 2 // Right zone
+        }
+
+        val zoneNames = listOf("LEFT", "CENTER", "RIGHT")
+        Log.d(TAG, "Flick in ${zoneNames[zone]} zone (x=$touchX, screenWidth=$screenWidth)")
+
+        // Get the prediction for this zone
+        val prediction = lastDisplayedPredictions.getOrNull(zone)
+        if (prediction != null) {
+            Log.d(TAG, "Selecting prediction: $prediction")
+
+            // Trigger haptic feedback
+            performHapticFeedback()
+
+            // Simulate prediction button click
+            val inputConnection = currentInputConnection
+            if (inputConnection != null) {
+                // Use the PredictionButtonHandler to insert the word
+                PredictionButtonHandler.createPredictionClickListener(
+                    prediction,
+                    inputConnection,
+                    onPredictionSelectedListener
+                ).onClick(null)
+
+                Log.d(TAG, "Prediction '$prediction' selected via flick gesture")
+            } else {
+                Log.w(TAG, "No inputConnection available for flick gesture")
+            }
+        } else {
+            Log.w(TAG, "No prediction available for zone $zone (only ${lastDisplayedPredictions.size} predictions)")
+            // Still provide feedback to acknowledge the gesture
+            performHapticFeedback()
+        }
+    }
+
+    /**
+     * Triggers haptic feedback for gesture recognition.
+     * Uses View.performHapticFeedback() which doesn't require VIBRATE permission.
+     */
+    private fun performHapticFeedback() {
+        try {
+            // Use the overlay view or status bar layout for haptic feedback
+            val feedbackView = variationsOverlay ?: statusBarLayout
+            feedbackView?.performHapticFeedback(
+                android.view.HapticFeedbackConstants.VIRTUAL_KEY,
+                android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+            )
+            Log.d(TAG, "Haptic feedback triggered")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error triggering haptic feedback: ${e.message}", e)
+        }
+    }
+
     private fun findClickableViewAt(parent: View, x: Float, y: Float): View? {
         if (parent !is ViewGroup) {
             // Single view: check if it's clickable and contains the point
@@ -1386,7 +1486,85 @@ class StatusBarController(
         
         return button
     }
-    
+
+    /**
+     * Creates a prediction button (word suggestion).
+     */
+    private fun createPredictionButton(
+        prediction: String,
+        inputConnection: android.view.inputmethod.InputConnection?,
+        buttonWidth: Int
+    ): TextView {
+        // Convert dp to pixels
+        val dp4 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            4f,
+            context.resources.displayMetrics
+        ).toInt()
+        val dp6 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            6f,
+            context.resources.displayMetrics
+        ).toInt()
+        val dp3 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            3f,
+            context.resources.displayMetrics
+        ).toInt()
+
+        val buttonHeight = buttonWidth
+
+        // Create background (slightly lighter than variation buttons to differentiate)
+        val drawable = GradientDrawable().apply {
+            setColor(Color.rgb(25, 25, 25)) // Slightly lighter gray
+            setCornerRadius(0f)
+        }
+
+        // Pressed state (blue highlight)
+        val pressedDrawable = GradientDrawable().apply {
+            setColor(Color.rgb(38, 0, 255)) // Blue when pressed
+            setCornerRadius(0f)
+        }
+
+        // State list drawable
+        val stateListDrawable = android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), pressedDrawable)
+            addState(intArrayOf(), drawable)
+        }
+
+        val button = TextView(context).apply {
+            text = prediction
+            textSize = 16f // Slightly smaller than variations
+            setTextColor(Color.rgb(200, 200, 200)) // Slightly dimmer white to differentiate
+            setTypeface(null, android.graphics.Typeface.NORMAL) // Not bold (unlike variations)
+            gravity = Gravity.CENTER
+            setPadding(dp6, dp4, dp6, dp4)
+            background = stateListDrawable
+            layoutParams = LinearLayout.LayoutParams(
+                buttonWidth,
+                buttonHeight
+            ).apply {
+                marginEnd = dp3
+            }
+            isClickable = true
+            isFocusable = true
+            // Single line, ellipsize if too long
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+
+        // Add click listener
+        button.setOnClickListener(
+            PredictionButtonHandler.createPredictionClickListener(
+                prediction,
+                inputConnection,
+                onPredictionSelectedListener
+            )
+        )
+
+        return button
+    }
+
     /**
      * Crea il pulsante microfono (usato nei suggerimenti).
      */
@@ -1513,6 +1691,10 @@ class StatusBarController(
     /**
      * Mostra i suggerimenti (variazioni) e il microfono.
      * Questa funzione viene chiamata dopo che la griglia SYM è completamente collassata.
+     *
+     * PRIORITIZATION:
+     * 1. Character variations (if available)
+     * 2. Word predictions (if no variations)
      */
     private fun showVariationsAndMicrophone(snapshot: StatusSnapshot, inputConnection: android.view.inputmethod.InputConnection?) {
         val variationsContainerView = variationsContainer ?: return
@@ -1520,11 +1702,37 @@ class StatusBarController(
         variationsWrapper?.visibility = View.VISIBLE
         variationsOverlay?.visibility = View.VISIBLE
 
+        // Check variations first (highest priority)
         val limitedVariations = if (snapshot.variations.isNotEmpty() && snapshot.lastInsertedChar != null) {
             snapshot.variations.take(7)
         } else {
             emptyList()
         }
+
+        // Decide whether to show variations or predictions
+        val shouldShowVariations = limitedVariations.isNotEmpty()
+        val shouldShowPredictions = !shouldShowVariations && snapshot.predictions.isNotEmpty()
+
+        if (shouldShowVariations) {
+            // Show character variations (existing logic)
+            showCharacterVariations(limitedVariations, inputConnection, variationsContainerView)
+        } else if (shouldShowPredictions) {
+            // Show word predictions (NEW!)
+            showWordPredictions(snapshot.predictions, inputConnection, variationsContainerView)
+        } else {
+            // Show empty state with microphone
+            showEmptyState(variationsContainerView)
+        }
+    }
+
+    /**
+     * Shows character variations in the status bar.
+     */
+    private fun showCharacterVariations(
+        limitedVariations: List<String>,
+        inputConnection: android.view.inputmethod.InputConnection?,
+        variationsContainerView: LinearLayout
+    ) {
 
         // Verifica se le variazioni sono le stesse di quelle già visualizzate
         val variationsChanged = limitedVariations != lastDisplayedVariations
@@ -1636,10 +1844,184 @@ class StatusBarController(
         }
     }
 
+    /**
+     * Shows word predictions in the status bar (triple-split layout).
+     */
+    private fun showWordPredictions(
+        predictions: List<String>,
+        inputConnection: android.view.inputmethod.InputConnection?,
+        variationsContainerView: LinearLayout
+    ) {
+        // Take max 3 predictions
+        val limitedPredictions = predictions.take(3)
+
+        // Check if predictions changed
+        val predictionsChanged = limitedPredictions != lastDisplayedPredictions
+        val hasExistingRow = currentPredictionsRow != null &&
+                            currentPredictionsRow?.parent == variationsContainerView &&
+                            currentPredictionsRow?.visibility == View.VISIBLE
+
+        // If predictions haven't changed and row exists, do nothing
+        if (!predictionsChanged && hasExistingRow) {
+            return
+        }
+
+        // Clear previous predictions
+        predictionButtons.clear()
+        currentPredictionsRow?.let {
+            variationsContainerView.removeView(it)
+            currentPredictionsRow = null
+        }
+
+        // Also clear any variation rows
+        currentVariationsRow?.let {
+            variationsContainerView.removeView(it)
+            currentVariationsRow = null
+        }
+
+        val screenWidth = context.resources.displayMetrics.widthPixels
+        val leftPadding = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            16f, // Less padding for predictions (wider buttons)
+            context.resources.displayMetrics
+        ).toInt()
+        val rightPadding = leftPadding
+        val availableWidth = screenWidth - leftPadding - rightPadding
+
+        val spacingBetweenButtons = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            8f, // More spacing between predictions
+            context.resources.displayMetrics
+        ).toInt()
+
+        // Calculate button width for triple-split layout
+        // 3 predictions + 1 microphone + 1 settings = 5 elements
+        // Total spacing: 4 spaces between 5 elements
+        val totalSpacing = spacingBetweenButtons * 4
+        val predictionButtonWidth = ((availableWidth - totalSpacing) * 0.6f / 3).toInt() // 60% for predictions
+        val iconButtonWidth = ((availableWidth - totalSpacing) * 0.2f).toInt() // 20% each for mic & settings
+
+        val predictionsRow = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+        }
+        currentPredictionsRow = predictionsRow
+
+        val rowLayoutParams = LinearLayout.LayoutParams(
+            0,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            1f
+        )
+        variationsContainerView.addView(predictionsRow, 0, rowLayoutParams)
+
+        lastDisplayedPredictions = limitedPredictions
+
+        // Add prediction buttons
+        for (prediction in limitedPredictions) {
+            val button = createPredictionButton(prediction, inputConnection, predictionButtonWidth)
+            predictionButtons.add(button)
+            predictionsRow.addView(button)
+        }
+
+        // Add placeholder if less than 3 predictions
+        val placeholderCount = 3 - limitedPredictions.size
+        for (i in 0 until placeholderCount) {
+            val placeholderButton = createPlaceholderButton(predictionButtonWidth)
+            predictionsRow.addView(placeholderButton)
+        }
+
+        // Add microphone button
+        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(iconButtonWidth)
+        microphoneButtonView = microphoneButton
+        (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
+        val micParams = LinearLayout.LayoutParams(iconButtonWidth, iconButtonWidth)
+        variationsContainerView.addView(microphoneButton, micParams)
+        microphoneButton.setOnClickListener {
+            startSpeechRecognition(inputConnection)
+        }
+        microphoneButton.alpha = 1f
+        microphoneButton.visibility = View.VISIBLE
+
+        // Add settings button
+        val settingsButton = settingsButtonView ?: createStatusBarSettingsButton(iconButtonWidth)
+        settingsButtonView = settingsButton
+        (settingsButton.parent as? ViewGroup)?.removeView(settingsButton)
+        val settingsParams = LinearLayout.LayoutParams(iconButtonWidth, iconButtonWidth).apply {
+            topMargin = (-iconButtonWidth * 0.1f).toInt()
+        }
+        variationsContainerView.addView(settingsButton, settingsParams)
+        settingsButton.setOnClickListener {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("open_settings", true)
+            }
+            try {
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error opening Settings screen", e)
+            }
+        }
+        settingsButton.alpha = 1f
+        settingsButton.visibility = View.VISIBLE
+
+        // Animate in
+        if (predictionsChanged) {
+            animateVariationsIn(predictionsRow) // Reuse variation animation
+        } else {
+            predictionsRow.alpha = 1f
+            predictionsRow.visibility = View.VISIBLE
+        }
+    }
+
+    /**
+     * Shows empty state (just microphone and settings buttons).
+     */
+    private fun showEmptyState(variationsContainerView: LinearLayout) {
+        // Clear any existing rows
+        currentVariationsRow?.let {
+            variationsContainerView.removeView(it)
+            currentVariationsRow = null
+        }
+        currentPredictionsRow?.let {
+            variationsContainerView.removeView(it)
+            currentPredictionsRow = null
+        }
+
+        lastDisplayedVariations = emptyList()
+        lastDisplayedPredictions = emptyList()
+
+        // Calculate button size
+        val buttonWidth = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            40f,
+            context.resources.displayMetrics
+        ).toInt()
+
+        // Add microphone button
+        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth)
+        microphoneButtonView = microphoneButton
+        (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
+        val micParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth)
+        variationsContainerView.addView(microphoneButton, micParams)
+        microphoneButton.alpha = 1f
+        microphoneButton.visibility = View.VISIBLE
+
+        // Add settings button
+        val settingsButton = settingsButtonView ?: createStatusBarSettingsButton(buttonWidth)
+        settingsButtonView = settingsButton
+        (settingsButton.parent as? ViewGroup)?.removeView(settingsButton)
+        val settingsParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
+            topMargin = (-buttonWidth * 0.1f).toInt()
+        }
+        variationsContainerView.addView(settingsButton, settingsParams)
+        settingsButton.alpha = 1f
+        settingsButton.visibility = View.VISIBLE
+    }
+
     fun update(snapshot: StatusSnapshot, emojiMapText: String = "", inputConnection: android.view.inputmethod.InputConnection? = null, symMappings: Map<Int, String>? = null) {
         // Save current inputConnection for swipe gestures
         currentInputConnection = inputConnection
-        
+
         // Update SYM mode state (swipe pad disabled when SYM mode is active)
         isSymModeActive = snapshot.symPage > 0
         
