@@ -109,6 +109,7 @@ class StatusBarController(
     private var touchStartY = 0f
     private var lastCursorMoveX = 0f // Last X position where cursor was moved
     private var swipeDirection: Int? = null // 1 for right, -1 for left
+    private var isFlickInProgress = false // Track if upward flick detected
     private var isSymModeActive = false
 
     fun getLayout(): LinearLayout? = statusBarLayout
@@ -253,6 +254,7 @@ class StatusBarController(
                 when (motionEvent.action) {
                     MotionEvent.ACTION_DOWN -> {
                         isSwipeInProgress = false
+                        isFlickInProgress = false
                         swipeDirection = null
                         touchStartX = motionEvent.x
                         touchStartY = motionEvent.y
@@ -263,11 +265,27 @@ class StatusBarController(
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val deltaX = motionEvent.x - touchStartX
-                        val deltaY = abs(motionEvent.y - touchStartY)
+                        val deltaY = motionEvent.y - touchStartY // Keep sign to detect upward (negative)
+                        val absDeltaY = abs(deltaY)
                         val incrementalDeltaX = motionEvent.x - lastCursorMoveX
-                        
+
+                        // UPWARD FLICK threshold (smaller than swipe for quicker detection)
+                        val FLICK_THRESHOLD = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            20f, // 20dp upward movement to trigger flick
+                            context.resources.displayMetrics
+                        )
+
+                        // Check for UPWARD FLICK (for prediction selection) - highest priority
+                        if (!isSwipeInProgress && !isFlickInProgress && deltaY < -FLICK_THRESHOLD && absDeltaY > abs(deltaX)) {
+                            // Upward flick detected!
+                            isFlickInProgress = true
+                            Log.d(TAG, "Upward flick detected at x=$touchStartX")
+                            // Will handle prediction selection in ACTION_UP
+                            true
+                        }
                         // If scroll is mainly horizontal and exceeds initial threshold, or swipe is already in progress
-                        if (isSwipeInProgress || (abs(deltaX) > SWIPE_THRESHOLD && abs(deltaX) > deltaY)) {
+                        else if (isSwipeInProgress || (abs(deltaX) > SWIPE_THRESHOLD && abs(deltaX) > absDeltaY)) {
                             // Determine or update swipe direction
                             if (!isSwipeInProgress) {
                                 isSwipeInProgress = true
@@ -324,7 +342,13 @@ class StatusBarController(
                         }
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (isSwipeInProgress) {
+                        if (isFlickInProgress) {
+                            // Handle upward flick gesture for prediction selection
+                            handleFlickGesture(touchStartX)
+                            isFlickInProgress = false
+                            Log.d(TAG, "Flick gesture ended")
+                            true // Consume the event
+                        } else if (isSwipeInProgress) {
                             isSwipeInProgress = false
                             swipeDirection = null
                             Log.d(TAG, "Swipe ended on overlay")
@@ -334,7 +358,7 @@ class StatusBarController(
                             val x = motionEvent.x
                             val y = motionEvent.y
                             Log.d(TAG, "Tap detected on overlay at ($x, $y), looking for button")
-                            
+
                             // Find clickable view at touch position in variationsContainer
                             val clickedView = variationsContainer?.let { findClickableViewAt(it, x, y) }
                             if (clickedView != null) {
@@ -348,6 +372,7 @@ class StatusBarController(
                     }
                     MotionEvent.ACTION_CANCEL -> {
                         isSwipeInProgress = false
+                        isFlickInProgress = false
                         swipeDirection = null
                         true
                     }
@@ -436,9 +461,76 @@ class StatusBarController(
     }
     
     /**
-     * Recursively finds a clickable view at the given coordinates in the view hierarchy.
-     * Coordinates are relative to the parent view.
+     * Handles upward flick gesture for prediction selection.
+     * Determines which zone (left/center/right) the flick was in and selects the corresponding prediction.
      */
+    private fun handleFlickGesture(touchX: Float) {
+        // Only handle flicks when predictions are displayed
+        if (lastDisplayedPredictions.isEmpty()) {
+            Log.d(TAG, "Flick detected but no predictions displayed")
+            return
+        }
+
+        val screenWidth = context.resources.displayMetrics.widthPixels.toFloat()
+
+        // Determine zone: divide screen into 3 equal parts
+        val zone = when {
+            touchX < screenWidth / 3 -> 0 // Left zone
+            touchX < (screenWidth * 2 / 3) -> 1 // Center zone
+            else -> 2 // Right zone
+        }
+
+        val zoneNames = listOf("LEFT", "CENTER", "RIGHT")
+        Log.d(TAG, "Flick in ${zoneNames[zone]} zone (x=$touchX, screenWidth=$screenWidth)")
+
+        // Get the prediction for this zone
+        val prediction = lastDisplayedPredictions.getOrNull(zone)
+        if (prediction != null) {
+            Log.d(TAG, "Selecting prediction: $prediction")
+
+            // Trigger haptic feedback
+            performHapticFeedback()
+
+            // Simulate prediction button click
+            val inputConnection = currentInputConnection
+            if (inputConnection != null) {
+                // Use the PredictionButtonHandler to insert the word
+                PredictionButtonHandler.createPredictionClickListener(
+                    prediction,
+                    inputConnection,
+                    onPredictionSelectedListener
+                ).onClick(null)
+
+                Log.d(TAG, "Prediction '$prediction' selected via flick gesture")
+            } else {
+                Log.w(TAG, "No inputConnection available for flick gesture")
+            }
+        } else {
+            Log.w(TAG, "No prediction available for zone $zone (only ${lastDisplayedPredictions.size} predictions)")
+            // Still provide feedback to acknowledge the gesture
+            performHapticFeedback()
+        }
+    }
+
+    /**
+     * Triggers haptic feedback for gesture recognition.
+     * Uses View.performHapticFeedback() which doesn't require VIBRATE permission.
+     */
+    private fun performHapticFeedback() {
+        try {
+            // Use the overlay view or status bar layout for haptic feedback
+            val feedbackView = variationsOverlay ?: statusBarLayout
+            feedbackView?.performHapticFeedback(
+                android.view.HapticFeedbackConstants.VIRTUAL_KEY,
+                android.view.HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
+                android.view.HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
+            )
+            Log.d(TAG, "Haptic feedback triggered")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error triggering haptic feedback: ${e.message}", e)
+        }
+    }
+
     private fun findClickableViewAt(parent: View, x: Float, y: Float): View? {
         if (parent !is ViewGroup) {
             // Single view: check if it's clickable and contains the point
