@@ -71,7 +71,8 @@ class StatusBarController(
         val symPage: Int, // 0=disattivato, 1=pagina1 emoji, 2=pagina2 caratteri
         val variations: List<String> = emptyList(),
         val lastInsertedChar: Char? = null,
-        val shouldDisableSmartFeatures: Boolean = false
+        val shouldDisableSmartFeatures: Boolean = false,
+        val predictions: List<String> = emptyList() // Word predictions (max 3)
     ) {
         val navModeActive: Boolean
             get() = ctrlLatchActive && ctrlLatchFromNavMode
@@ -85,6 +86,8 @@ class StatusBarController(
     private var variationsOverlay: View? = null
     private var variationsWrapper: FrameLayout? = null
     private var variationButtons: MutableList<TextView> = mutableListOf()
+    private var predictionsContainer: LinearLayout? = null // Word predictions display
+    private var predictionButtons: MutableList<TextView> = mutableListOf()
     private var ledContainer: LinearLayout? = null
     private var shiftLed: View? = null
     private var ctrlLed: View? = null
@@ -1639,7 +1642,12 @@ class StatusBarController(
     fun update(snapshot: StatusSnapshot, emojiMapText: String = "", inputConnection: android.view.inputmethod.InputConnection? = null, symMappings: Map<Int, String>? = null) {
         // Save current inputConnection for swipe gestures
         currentInputConnection = inputConnection
-        
+
+        // Log word predictions (TODO: implement triple-split UI with haptic flick gestures)
+        if (snapshot.predictions.isNotEmpty()) {
+            Log.d(TAG, "Word predictions: ${snapshot.predictions.joinToString(", ")}")
+        }
+
         // Update SYM mode state (swipe pad disabled when SYM mode is active)
         isSymModeActive = snapshot.symPage > 0
         

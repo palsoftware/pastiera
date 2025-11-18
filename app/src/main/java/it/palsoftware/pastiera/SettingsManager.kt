@@ -28,6 +28,8 @@ object SettingsManager {
     private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
     private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
     private const val KEY_AUTO_CAPITALIZE_AFTER_PERIOD = "auto_capitalize_after_period"
+    private const val KEY_WORD_PREDICTION_ENABLED = "word_prediction_enabled"
+    private const val KEY_WORD_PREDICTION_ENABLED_LANGUAGES = "word_prediction_enabled_languages"
     private const val KEY_LONG_PRESS_MODIFIER = "long_press_modifier" // "alt" or "shift"
     private const val KEY_KEYBOARD_LAYOUT = "keyboard_layout" // "qwerty", "azerty", etc.
     private const val KEY_RESTORE_SYM_PAGE = "restore_sym_page" // SYM page to restore when returning from settings
@@ -44,6 +46,7 @@ object SettingsManager {
     private const val DEFAULT_AUTO_SHOW_KEYBOARD = true
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
     private const val DEFAULT_AUTO_CAPITALIZE_AFTER_PERIOD = true
+    private const val DEFAULT_WORD_PREDICTION_ENABLED = true
     private const val DEFAULT_LONG_PRESS_MODIFIER = "alt"
     private const val DEFAULT_KEYBOARD_LAYOUT = "qwerty"
     private const val DEFAULT_SYM_AUTO_CLOSE = true
@@ -436,7 +439,68 @@ object SettingsManager {
         // If the list is empty, all languages are enabled (default behavior)
         return enabledLanguages.isEmpty() || enabledLanguages.contains(language)
     }
-    
+
+    /**
+     * Returns whether word prediction is enabled.
+     */
+    fun getWordPredictionEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_WORD_PREDICTION_ENABLED, DEFAULT_WORD_PREDICTION_ENABLED)
+    }
+
+    /**
+     * Sets whether word prediction is enabled.
+     */
+    fun setWordPredictionEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_WORD_PREDICTION_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns the list of languages enabled for word prediction.
+     * @return Set of language codes (e.g. "it", "en")
+     */
+    fun getWordPredictionEnabledLanguages(context: Context): Set<String> {
+        val prefs = getPreferences(context)
+        val languagesString = prefs.getString(KEY_WORD_PREDICTION_ENABLED_LANGUAGES, null)
+
+        // If languages are explicitly set, return them
+        if (languagesString != null && languagesString.isNotEmpty()) {
+            return languagesString.split(",").toSet()
+        }
+
+        // Default: system language with fallback to English
+        val systemLanguage = context.resources.configuration.locales[0].language.lowercase()
+        val supportedLanguages = setOf("it", "en", "es", "fr", "de", "pl")
+
+        val defaultLanguage = if (systemLanguage in supportedLanguages) {
+            systemLanguage
+        } else {
+            "en" // Fallback to English
+        }
+
+        return setOf(defaultLanguage)
+    }
+
+    /**
+     * Sets the list of languages enabled for word prediction.
+     * @param languages Set of language codes (e.g. "it", "en")
+     */
+    fun setWordPredictionEnabledLanguages(context: Context, languages: Set<String>) {
+        val languagesString = languages.joinToString(",")
+        getPreferences(context).edit()
+            .putString(KEY_WORD_PREDICTION_ENABLED_LANGUAGES, languagesString)
+            .apply()
+    }
+
+    /**
+     * Returns true if a language is enabled for word prediction.
+     */
+    fun isWordPredictionLanguageEnabled(context: Context, language: String): Boolean {
+        val enabledLanguages = getWordPredictionEnabledLanguages(context)
+        return enabledLanguages.isEmpty() || enabledLanguages.contains(language)
+    }
+
     /**
      * Special JSON field for the language name.
      */

@@ -568,7 +568,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // Load auto-correction rules
         AutoCorrector.loadCorrections(assets, this)
-        
+
+        // Initialize word prediction engine
+        WordPredictionEngine.initialize(this)
+
         // Register listener for SharedPreferences changes
         prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
             if (key == "sym_mappings_custom") {
@@ -591,6 +594,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Log.d(TAG, "Auto-correction rules changed, reloading...")
                 // Reload auto-corrections (including new custom languages)
                 AutoCorrector.loadCorrections(assets, this)
+            } else if (key == "word_prediction_enabled_languages") {
+                Log.d(TAG, "Word prediction languages changed, loading dictionaries...")
+                // Load dictionaries for enabled languages
+                val enabledLanguages = SettingsManager.getWordPredictionEnabledLanguages(this)
+                enabledLanguages.forEach { lang ->
+                    WordPredictionEngine.loadLanguage(this, lang)
+                }
             } else if (key == "nav_mode_mappings_updated") {
                 Log.d(TAG, "Nav mode mappings changed, reloading...")
                 // Reload nav mode key mappings
@@ -1005,12 +1015,62 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
     
     /**
+     * Get word predictions for the current text before cursor.
+     */
+    private fun getWordPredictions(): List<String> {
+        // Don't show predictions in restricted fields
+        if (shouldDisableSmartFeatures) {
+            return emptyList()
+        }
+
+        // Check if word prediction is enabled
+        if (!SettingsManager.getWordPredictionEnabled(this)) {
+            return emptyList()
+        }
+
+        val inputConnection = currentInputConnection ?: return emptyList()
+
+        try {
+            // Get text before cursor (up to 100 characters)
+            val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0)?.toString() ?: ""
+
+            if (textBeforeCursor.isBlank()) {
+                return emptyList()
+            }
+
+            // Get current language (use system language or first enabled language)
+            val enabledLanguages = SettingsManager.getWordPredictionEnabledLanguages(this)
+            if (enabledLanguages.isEmpty()) {
+                return emptyList()
+            }
+
+            val currentLanguage = enabledLanguages.firstOrNull() ?: "en"
+
+            // Load language if not already loaded
+            WordPredictionEngine.loadLanguage(this, currentLanguage)
+
+            // Get suggestions
+            return WordPredictionEngine.getSuggestionsForText(
+                text = textBeforeCursor,
+                languageCode = currentLanguage,
+                maxResults = 3
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting word predictions: ${e.message}", e)
+            return emptyList()
+        }
+    }
+
+    /**
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
         // Aggiorna le variazioni controllando il carattere prima del cursore
         updateVariationsFromCursor()
-        
+
+        // Get word predictions
+        val predictions = getWordPredictions()
+
         val snapshot = StatusBarController.StatusSnapshot(
             capsLockEnabled = capsLockEnabled,
             shiftPhysicallyPressed = shiftPhysicallyPressed,
@@ -1025,7 +1085,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             symPage = symPage,
             variations = if (variationsActive) availableVariations else emptyList(),
             lastInsertedChar = lastInsertedChar,
-            shouldDisableSmartFeatures = shouldDisableSmartFeatures
+            shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+            predictions = predictions
         )
         // Passa anche la mappa emoji quando SYM è attivo (solo pagina 1)
         val emojiMapText = if (symPage == 1) altSymManager.buildEmojiMapText() else ""
