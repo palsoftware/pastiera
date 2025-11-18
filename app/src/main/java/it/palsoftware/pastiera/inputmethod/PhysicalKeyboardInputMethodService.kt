@@ -543,6 +543,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         statusBarController.onVariationSelectedListener = variationListener
         candidatesViewController.onVariationSelectedListener = variationListener
 
+        // Register listener for prediction selection (both controllers)
+        val predictionListener = object : PredictionButtonHandler.OnPredictionSelectedListener {
+            override fun onPredictionSelected(prediction: String) {
+                // Update predictions after one has been selected (refresh view if needed)
+                updateStatusBarText()
+            }
+        }
+        statusBarController.onPredictionSelectedListener = predictionListener
+        candidatesViewController.onPredictionSelectedListener = predictionListener
+
         // Register listener for cursor movement (both controllers)
         val cursorListener = {
             updateStatusBarText()
