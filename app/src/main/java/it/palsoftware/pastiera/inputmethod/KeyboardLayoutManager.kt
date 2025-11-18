@@ -21,7 +21,9 @@ object KeyboardLayoutManager {
      */
     data class LayoutMapping(
         val lowercase: Char,
-        val uppercase: Char
+        val uppercase: Char,
+        val altlowercase: Char? = null,
+        val altuppercase: Char? = null
     )
     
     private val defaultLayout = mapOf<Int, LayoutMapping>(
@@ -107,9 +109,19 @@ object KeyboardLayoutManager {
                     val mappingObj = mappingsObject.getJSONObject(keyName)
                     val lowercase = mappingObj.getString("lowercase")
                     val uppercase = mappingObj.getString("uppercase")
-                    
+                    val altlowercase = mappingObj.getString("altlowercase")
+                    val altuppercase = mappingObj.getString("altuppercase")
+
                     if (lowercase.length == 1 && uppercase.length == 1) {
-                        layout[keyCode] = LayoutMapping(lowercase[0], uppercase[0])
+                        if (altlowercase.isNotEmpty() && altuppercase.isNotEmpty()) {
+                            layout[keyCode] = LayoutMapping(
+                                lowercase[0],
+                                uppercase[0],
+                                altlowercase[0],
+                                altuppercase[0]
+                            )
+                        }
+                        else layout[keyCode] = LayoutMapping(lowercase[0], uppercase[0], null, null)
                     }
                 }
             }
@@ -142,7 +154,16 @@ object KeyboardLayoutManager {
         val mapping = currentLayout[keyCode] ?: return null
         return if (isShift) mapping.uppercase else mapping.lowercase
     }
-    
+
+    /**
+     * Gets the layout alt characters for a given layout.
+     */
+    fun getAltCharacter(keyCode: Int, isShift: Boolean): Char? {
+        val mapping = currentLayout[keyCode] ?: return null
+        if (mapping.altlowercase == null || mapping.altuppercase == null) return null
+        return if (isShift) mapping.altuppercase else mapping.altlowercase
+    }
+
     /**
      * Gets the lowercase character for a given keyCode.
      */
@@ -156,7 +177,11 @@ object KeyboardLayoutManager {
     fun getUppercase(keyCode: Int): Char? {
         return currentLayout[keyCode]?.uppercase
     }
-    
+
+    fun getAltLowercase(keyCode: Int): Char? {
+        return currentLayout[keyCode]?.lowercase
+    }
+
     /**
      * Returns true if the keyCode is mapped in the current layout.
      */

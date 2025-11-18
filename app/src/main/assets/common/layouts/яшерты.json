@@ -1,0 +1,40 @@
+{
+  "name": "ЯЩЕРТЫ",
+  "description": "Cyrillic ЯЩЕРТЫ keyboard layout",
+  "mappings": {
+    "KEYCODE_Q": { "lowercase": "я", "uppercase": "Я" },
+    "KEYCODE_W": { "lowercase": "ш", "uppercase": "Ш",
+                   "altlwoercase": "щ", "altuppercase": "Щ"},
+    "KEYCODE_E": { "lowercase": "е", "uppercase": "Е",
+                   "altlwoercase": "э", "altuppercase": "Э"},
+    "KEYCODE_R": { "lowercase": "р", "uppercase": "Р" },
+    "KEYCODE_T": { "lowercase": "т", "uppercase": "Т" },
+    "KEYCODE_Y": { "lowercase": "ы", "uppercase": "Ы" },
+    "KEYCODE_U": { "lowercase": "у", "uppercase": "У",
+                   "altlowercase": "ю", "altuppercase": "Ю"},
+    "KEYCODE_I": { "lowercase": "и", "uppercase": "И",
+                   "altlowercase": "й", "altuppercase": "Й"},
+    "KEYCODE_O": { "lowercase": "о", "uppercase": "О" },
+    "KEYCODE_P": { "lowercase": "п", "uppercase": "П" },
+    "KEYCODE_A": { "lowercase": "а", "uppercase": "А" },
+    "KEYCODE_S": { "lowercase": "с", "uppercase": "С" },
+    "KEYCODE_D": { "lowercase": "д", "uppercase": "Д" },
+    "KEYCODE_F": { "lowercase": "ф", "uppercase": "Ф" },
+    "KEYCODE_G": { "lowercase": "г", "uppercase": "Г" },
+    "KEYCODE_H": { "lowercase": "ч", "uppercase": "Ч" },
+    "KEYCODE_J": { "lowercase": "ь", "uppercase": "Ь",
+                   "altlowercase": "ъ", "altuppercase": "Ъ"},
+    "KEYCODE_K": { "lowercase": "к", "uppercase": "К" },
+    "KEYCODE_L": { "lowercase": "л", "uppercase": "Л" },
+    "KEYCODE_Z": { "lowercase": "ж", "uppercase": "Ж"
+                   "altlowercase": "з", "altuppercase": "З"},
+    "KEYCODE_X": { "lowercase": "х", "uppercase": "Х" },
+    "KEYCODE_C": { "lowercase": "ц", "uppercase": "Ц" },
+    "KEYCODE_V": { "lowercase": "в", "uppercase": "В" },
+    "KEYCODE_B": { "lowercase": "б", "uppercase": "Б" },
+    "KEYCODE_N": { "lowercase": "н", "uppercase": "Н" },
+    "KEYCODE_M": { "lowercase": "м", "uppercase": "М" }
+  }
+}
+
+
