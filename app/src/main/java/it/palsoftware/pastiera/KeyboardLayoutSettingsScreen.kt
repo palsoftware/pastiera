@@ -22,8 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import it.palsoftware.pastiera.inputmethod.KeyboardLayoutManager
-import it.palsoftware.pastiera.inputmethod.KeyboardLayoutFileManager
+import it.palsoftware.pastiera.data.layout.LayoutFileStore
+import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
 import it.palsoftware.pastiera.R
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -53,8 +53,8 @@ fun KeyboardLayoutSettingsScreen(
     
     // Get available keyboard layouts from assets and custom files (excluding qwerty as it's the default)
     val availableLayouts = remember(refreshTrigger) {
-        KeyboardLayoutManager.getAvailableLayouts(context.assets, context)
-            .filter { it != "qwerty" && !KeyboardLayoutFileManager.layoutExists(context, it) }
+        LayoutMappingRepository.getAvailableLayouts(context.assets, context)
+            .filter { it != "qwerty" && !LayoutFileStore.layoutExists(context, it) }
     }
     
     // Snackbar host state for showing messages
@@ -69,11 +69,11 @@ fun KeyboardLayoutSettingsScreen(
         uri?.let {
             try {
                 context.contentResolver.openInputStream(it)?.use { inputStream ->
-                    val layout = KeyboardLayoutFileManager.loadLayoutFromStream(inputStream)
+                    val layout = LayoutFileStore.loadLayoutFromStream(inputStream)
                     if (layout != null) {
                         // Generate a unique name based on timestamp
                         val layoutName = "custom_${System.currentTimeMillis()}"
-                        val success = KeyboardLayoutFileManager.saveLayout(
+                        val success = LayoutFileStore.saveLayout(
                             context = context,
                             layoutName = layoutName,
                             layout = layout,
@@ -163,17 +163,17 @@ fun KeyboardLayoutSettingsScreen(
                     // Save button
                     IconButton(
                         onClick = {
-                            val currentLayout = KeyboardLayoutManager.getLayout()
+                            val currentLayout = LayoutMappingRepository.getLayout()
                             if (currentLayout.isNotEmpty()) {
-                                val metadata = KeyboardLayoutFileManager.getLayoutMetadataFromAssets(
+                                val metadata = LayoutFileStore.getLayoutMetadataFromAssets(
                                     context.assets,
                                     selectedLayout
-                                ) ?: KeyboardLayoutFileManager.getLayoutMetadata(context, selectedLayout)
+                                ) ?: LayoutFileStore.getLayoutMetadata(context, selectedLayout)
 
                                 val displayName = metadata?.name ?: selectedLayout
                                 val description = metadata?.description
 
-                                val jsonString = KeyboardLayoutFileManager.buildLayoutJsonString(
+                                val jsonString = LayoutFileStore.buildLayoutJsonString(
                                     layoutName = selectedLayout,
                                     layout = currentLayout,
                                     name = displayName,
@@ -300,10 +300,10 @@ fun KeyboardLayoutSettingsScreen(
                 
                 // Available layout conversions
                 availableLayouts.forEach { layout ->
-                    val metadata = KeyboardLayoutFileManager.getLayoutMetadataFromAssets(
+                    val metadata = LayoutFileStore.getLayoutMetadataFromAssets(
                         context.assets,
                         layout
-                    ) ?: KeyboardLayoutFileManager.getLayoutMetadata(context, layout)
+                    ) ?: LayoutFileStore.getLayoutMetadata(context, layout)
                     
                     Surface(
                         modifier = Modifier
@@ -364,13 +364,13 @@ fun KeyboardLayoutSettingsScreen(
  */
 private fun getLayoutDescription(context: Context, layoutName: String): String {
     // Try custom layout first
-    val customMetadata = KeyboardLayoutFileManager.getLayoutMetadata(context, layoutName)
+    val customMetadata = LayoutFileStore.getLayoutMetadata(context, layoutName)
     if (customMetadata != null) {
         return customMetadata.description
     }
     
     // Fallback to assets
-    val assetsMetadata = KeyboardLayoutFileManager.getLayoutMetadataFromAssets(
+    val assetsMetadata = LayoutFileStore.getLayoutMetadataFromAssets(
         context.assets,
         layoutName
     )

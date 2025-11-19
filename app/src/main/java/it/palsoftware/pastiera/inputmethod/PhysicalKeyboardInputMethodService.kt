@@ -24,6 +24,9 @@ import android.content.pm.ResolveInfo
 import android.view.MotionEvent
 import android.view.InputDevice
 import it.palsoftware.pastiera.inputmethod.MotionEventTracker
+import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
+import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
+import it.palsoftware.pastiera.data.variation.VariationRepository
 
 /**
  * Input method service specialized for physical keyboards.
@@ -342,8 +345,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun loadKeyboardLayout() {
         val layoutName = SettingsManager.getKeyboardLayout(this)
-        val layout = KeyboardLayoutManager.loadLayout(assets, layoutName, this)
-        KeyboardLayoutManager.setLayout(layout)
+        val layout = LayoutMappingRepository.loadLayout(assets, layoutName, this)
         Log.d(TAG, "Keyboard layout loaded: $layoutName")
     }
     
@@ -355,7 +357,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun getCharacterFromLayout(keyCode: Int, event: KeyEvent?, isShift: Boolean): Char? {
         // First, try to get the character from the selected layout
-        val layoutChar = KeyboardLayoutManager.getCharacter(keyCode, isShift)
+        val layoutChar = LayoutMappingRepository.getCharacter(keyCode, isShift)
         if (layoutChar != null) {
             return layoutChar
         }
@@ -564,7 +566,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Initialize nav mode mappings file if needed
         it.palsoftware.pastiera.SettingsManager.initializeNavModeMappingsFile(this)
         ctrlKeyMap.putAll(KeyMappingLoader.loadCtrlKeyMappings(assets, this))
-        variationsMap.putAll(KeyMappingLoader.loadVariations(assets))
+        variationsMap.putAll(VariationRepository.loadVariations(assets))
         
         // Load auto-correction rules
         AutoCorrector.loadCorrections(assets, this)
@@ -1952,7 +1954,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // Handle Shift one-shot for keys without Alt mapping
         if (shiftOneShot) {
-            val char = KeyboardLayoutManager.getCharacterStringWithModifiers(
+            val char = LayoutMappingRepository.getCharacterStringWithModifiers(
                 keyCode,
                 isShiftPressed = event?.isShiftPressed == true,
                 capsLockEnabled = capsLockEnabled,
@@ -1974,8 +1976,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // When there is no mapping, handle Caps Lock for regular characters.
         // Apply Caps Lock to alphabetical characters.
-        if (capsLockEnabled && KeyboardLayoutManager.isMapped(keyCode)) {
-            val char = KeyboardLayoutManager.getCharacterStringWithModifiers(
+        if (capsLockEnabled && LayoutMappingRepository.isMapped(keyCode)) {
+            val char = LayoutMappingRepository.getCharacterStringWithModifiers(
                 keyCode,
                 isShiftPressed = event?.isShiftPressed == true,
                 capsLockEnabled = capsLockEnabled,
@@ -1992,8 +1994,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // When there is no mapping, check whether the character has variations.
         // If it does, handle it ourselves so we can show variation suggestions.
-        val charForVariations = if (KeyboardLayoutManager.isMapped(keyCode)) {
-            KeyboardLayoutManager.getCharacterWithModifiers(
+        val charForVariations = if (LayoutMappingRepository.isMapped(keyCode)) {
+            LayoutMappingRepository.getCharacterWithModifiers(
                 keyCode,
                 isShiftPressed = event?.isShiftPressed == true,
                 capsLockEnabled = capsLockEnabled,
@@ -2020,8 +2022,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // This ensures that layout conversion works even when no special modifiers are active
         // Check if this is an alphabetic key that should be converted
         val isAlphabeticKey = isAlphabeticKey(keyCode)
-        if (isAlphabeticKey && KeyboardLayoutManager.isMapped(keyCode)) {
-            val char = KeyboardLayoutManager.getCharacterStringWithModifiers(
+        if (isAlphabeticKey && LayoutMappingRepository.isMapped(keyCode)) {
+            val char = LayoutMappingRepository.getCharacterStringWithModifiers(
                 keyCode,
                 isShiftPressed = event?.isShiftPressed == true,
                 capsLockEnabled = capsLockEnabled,

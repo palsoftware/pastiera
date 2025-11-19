@@ -762,7 +762,7 @@ object SettingsManager {
     /**
      * Saves nav mode key mappings to the JSON file in filesDir.
      */
-    fun saveNavModeKeyMappings(context: Context, mappings: Map<Int, it.palsoftware.pastiera.inputmethod.KeyMappingLoader.CtrlMapping>) {
+    fun saveNavModeKeyMappings(context: Context, mappings: Map<Int, it.palsoftware.pastiera.data.mappings.KeyMappingLoader.CtrlMapping>) {
         try {
             val keyCodeToName = mapOf(
                 KeyEvent.KEYCODE_Q to "KEYCODE_Q", KeyEvent.KEYCODE_W to "KEYCODE_W",

@@ -9,6 +9,8 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.SettingsManager
+import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
+import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -158,8 +160,8 @@ class AltSymManager(
         longPressActivated[keyCode] = false
 
         // Use centralized character retrieval from layout manager when key is mapped
-        var normalChar = if (KeyboardLayoutManager.isMapped(keyCode)) {
-            KeyboardLayoutManager.getCharacterStringWithModifiers(
+        var normalChar = if (LayoutMappingRepository.isMapped(keyCode)) {
+            LayoutMappingRepository.getCharacterStringWithModifiers(
                 keyCode,
                 isShiftPressed = event?.isShiftPressed == true,
                 capsLockEnabled = capsLockEnabled,
@@ -177,7 +179,7 @@ class AltSymManager(
         }
 
         // For unmapped keys, apply case conversion if needed (fallback only)
-        if (normalChar.isNotEmpty() && !KeyboardLayoutManager.isMapped(keyCode)) {
+        if (normalChar.isNotEmpty() && !LayoutMappingRepository.isMapped(keyCode)) {
             // Gestisci shiftOneShot: se è attivo e il carattere è una lettera, rendilo maiuscolo
             if (shiftOneShot && normalChar.isNotEmpty() && normalChar[0].isLetter()) {
                 normalChar = normalChar.uppercase()
@@ -202,8 +204,7 @@ class AltSymManager(
         // - Using Alt and key has Alt mapping, OR
         // - Using Shift and key is mapped in layout (works for any character, not just letters)
         val shouldScheduleLongPress = if (useShift) {
-            // For Shift long press: schedule if key is mapped in layout (supports all characters)
-            KeyboardLayoutManager.isMapped(keyCode) && normalChar.isNotEmpty()
+            LayoutMappingRepository.isMapped(keyCode) && normalChar.isNotEmpty()
         } else {
             altKeyMap.containsKey(keyCode)
         }
@@ -265,9 +266,9 @@ class AltSymManager(
                 
                 if (useShift) {
                     // Long press with Shift: get uppercase from layout (always use JSON for mapped keys)
-                    if (KeyboardLayoutManager.isMapped(keyCode)) {
+                    if (LayoutMappingRepository.isMapped(keyCode)) {
                         // Always use JSON to get uppercase character (works correctly for complex layouts like Arabic)
-                        val upperChar = KeyboardLayoutManager.getUppercase(keyCode)
+                        val upperChar = LayoutMappingRepository.getUppercase(keyCode)
                         if (upperChar != null) {
                             longPressActivated[keyCode] = true
                             val upperCharString = upperChar.toString()

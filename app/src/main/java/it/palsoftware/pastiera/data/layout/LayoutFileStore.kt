@@ -1,21 +1,20 @@
-package it.palsoftware.pastiera.inputmethod
+package it.palsoftware.pastiera.data.layout
 
 import android.content.Context
+import android.content.res.AssetManager
 import android.util.Log
 import android.view.KeyEvent
 import org.json.JSONObject
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 
 /**
- * Manages custom keyboard layout files on device storage.
- * Provides functions to load, save, list, and delete custom layouts.
- * Layouts are stored in filesDir/keyboard_layouts/ directory.
+ * Manages custom keyboard layout files on device storage as well as metadata
+ * retrieval from both local files and bundled assets.
  */
-object KeyboardLayoutFileManager {
-    private const val TAG = "KeyboardLayoutFileManager"
+object LayoutFileStore {
+    private const val TAG = "LayoutFileStore"
     private const val LAYOUTS_DIR_NAME = "keyboard_layouts"
 
     private val keyboardLayoutNameToKeyCode = mapOf(
@@ -46,38 +45,27 @@ object KeyboardLayoutFileManager {
         "KEYCODE_N" to KeyEvent.KEYCODE_N,
         "KEYCODE_M" to KeyEvent.KEYCODE_M
     )
-    private val keyboardLayoutKeyCodeToName = keyboardLayoutNameToKeyCode.entries.associate { (name, code) -> code to name }
-    
-    /**
-     * Gets the directory where custom layouts are stored.
-     */
+    private val keyboardLayoutKeyCodeToName = keyboardLayoutNameToKeyCode.entries.associate { (name, code) ->
+        code to name
+    }
+
     fun getLayoutsDirectory(context: Context): File {
         return File(context.filesDir, LAYOUTS_DIR_NAME).apply {
-            if (!exists()) {
-                mkdirs()
-            }
+            if (!exists()) mkdirs()
         }
     }
-    
-    /**
-     * Gets the file path for a custom layout by name.
-     */
+
     fun getLayoutFile(context: Context, layoutName: String): File {
         val layoutsDir = getLayoutsDirectory(context)
         return File(layoutsDir, "$layoutName.json")
     }
-    
-    /**
-     * Loads a keyboard layout from a file (either from filesDir or external file).
-     * Returns null if the file cannot be loaded or parsed.
-     */
-    fun loadLayoutFromFile(file: File): Map<Int, KeyboardLayoutManager.LayoutMapping>? {
+
+    fun loadLayoutFromFile(file: File): Map<Int, LayoutMapping>? {
         return try {
             if (!file.exists() || !file.canRead()) {
                 Log.w(TAG, "File does not exist or cannot be read: ${file.absolutePath}")
                 return null
             }
-            
             val jsonString = file.readText()
             parseLayoutJson(jsonString)
         } catch (e: Exception) {
@@ -85,12 +73,8 @@ object KeyboardLayoutFileManager {
             null
         }
     }
-    
-    /**
-     * Loads a keyboard layout from an InputStream (e.g., from file picker).
-     * Returns null if the stream cannot be read or parsed.
-     */
-    fun loadLayoutFromStream(inputStream: InputStream): Map<Int, KeyboardLayoutManager.LayoutMapping>? {
+
+    fun loadLayoutFromStream(inputStream: InputStream): Map<Int, LayoutMapping>? {
         return try {
             val jsonString = inputStream.bufferedReader().use { it.readText() }
             parseLayoutJson(jsonString)
@@ -99,36 +83,26 @@ object KeyboardLayoutFileManager {
             null
         }
     }
-    
-    /**
-     * Parses a JSON string into a layout mapping.
-     * Returns null if the JSON is invalid or incomplete.
-     */
-    private fun parseLayoutJson(jsonString: String): Map<Int, KeyboardLayoutManager.LayoutMapping>? {
+
+    private fun parseLayoutJson(jsonString: String): Map<Int, LayoutMapping>? {
         return try {
             val jsonObject = JSONObject(jsonString)
             val mappingsObject = jsonObject.getJSONObject("mappings")
-            
-            val layout = mutableMapOf<Int, KeyboardLayoutManager.LayoutMapping>()
+
+            val layout = mutableMapOf<Int, LayoutMapping>()
             val keys = mappingsObject.keys()
             while (keys.hasNext()) {
                 val keyName = keys.next()
                 val keyCode = keyboardLayoutNameToKeyCode[keyName]
-                
                 if (keyCode != null) {
                     val mappingObj = mappingsObject.getJSONObject(keyName)
                     val lowercase = mappingObj.getString("lowercase")
                     val uppercase = mappingObj.getString("uppercase")
-                    
                     if (lowercase.length == 1 && uppercase.length == 1) {
-                        layout[keyCode] = KeyboardLayoutManager.LayoutMapping(
-                            lowercase[0],
-                            uppercase[0]
-                        )
+                        layout[keyCode] = LayoutMapping(lowercase[0], uppercase[0])
                     }
                 }
             }
-            
             Log.d(TAG, "Parsed layout with ${layout.size} mappings")
             layout
         } catch (e: Exception) {
@@ -136,20 +110,11 @@ object KeyboardLayoutFileManager {
             null
         }
     }
-    
-    /**
-     * Saves a keyboard layout to device storage.
-     * @param context The application context
-     * @param layoutName The name of the layout (without .json extension)
-     * @param layout The layout mapping to save
-     * @param name Optional display name for the layout
-     * @param description Optional description for the layout
-     * @return true if the layout was saved successfully, false otherwise
-     */
+
     fun saveLayout(
         context: Context,
         layoutName: String,
-        layout: Map<Int, KeyboardLayoutManager.LayoutMapping>,
+        layout: Map<Int, LayoutMapping>,
         name: String? = null,
         description: String? = null
     ): Boolean {
@@ -159,7 +124,6 @@ object KeyboardLayoutFileManager {
             FileOutputStream(layoutFile).use { outputStream ->
                 outputStream.write(jsonString.toByteArray())
             }
-
             Log.d(TAG, "Saved layout: $layoutName to ${layoutFile.absolutePath}")
             true
         } catch (e: Exception) {
@@ -168,12 +132,9 @@ object KeyboardLayoutFileManager {
         }
     }
 
-    /**
-     * Builds the JSON string for a layout mapping.
-     */
     fun buildLayoutJsonString(
         layoutName: String,
-        layout: Map<Int, KeyboardLayoutManager.LayoutMapping>,
+        layout: Map<Int, LayoutMapping>,
         name: String?,
         description: String?
     ): String {
@@ -195,33 +156,24 @@ object KeyboardLayoutFileManager {
         jsonObject.put("mappings", mappingsObject)
         return jsonObject.toString(2)
     }
-    
-    /**
-     * Saves a layout from a JSON string to device storage.
-     * Useful when importing from external sources.
-     * @param context The application context
-     * @param layoutName The name of the layout (without .json extension)
-     * @param jsonString The JSON string to save
-     * @return true if the layout was saved successfully, false otherwise
-     */
+
     fun saveLayoutFromJson(
         context: Context,
         layoutName: String,
         jsonString: String
     ): Boolean {
         return try {
-            // Validate JSON by parsing it first
             val layout = parseLayoutJson(jsonString)
             if (layout == null) {
                 Log.e(TAG, "Invalid JSON format, cannot save layout: $layoutName")
                 return false
             }
-            
+
             val layoutFile = getLayoutFile(context, layoutName)
             FileOutputStream(layoutFile).use { outputStream ->
                 outputStream.write(jsonString.toByteArray())
             }
-            
+
             Log.d(TAG, "Saved layout from JSON: $layoutName to ${layoutFile.absolutePath}")
             true
         } catch (e: Exception) {
@@ -229,38 +181,29 @@ object KeyboardLayoutFileManager {
             false
         }
     }
-    
-    /**
-     * Gets all custom layout names from device storage.
-     */
+
     fun getCustomLayoutNames(context: Context): List<String> {
         return try {
             val layoutsDir = getLayoutsDirectory(context)
             val layoutFiles = layoutsDir.listFiles { file ->
                 file.isFile && file.name.endsWith(".json")
             }
-            
             layoutFiles?.map { it.name.removeSuffix(".json") }?.sorted() ?: emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Error getting custom layout names", e)
             emptyList()
         }
     }
-    
-    /**
-     * Gets layout metadata (name and description) from a file.
-     * Returns null if the file doesn't exist or cannot be read.
-     */
+
     fun getLayoutMetadata(context: Context, layoutName: String): LayoutMetadata? {
         return try {
             val layoutFile = getLayoutFile(context, layoutName)
             if (!layoutFile.exists() || !layoutFile.canRead()) {
                 return null
             }
-            
+
             val jsonString = layoutFile.readText()
             val jsonObject = JSONObject(jsonString)
-            
             LayoutMetadata(
                 name = jsonObject.optString("name", layoutName),
                 description = jsonObject.optString("description", "")
@@ -270,18 +213,13 @@ object KeyboardLayoutFileManager {
             null
         }
     }
-    
-    /**
-     * Gets layout metadata (name and description) from assets.
-     * Returns null if the file doesn't exist or cannot be read.
-     */
-    fun getLayoutMetadataFromAssets(assets: android.content.res.AssetManager, layoutName: String): LayoutMetadata? {
+
+    fun getLayoutMetadataFromAssets(assets: AssetManager, layoutName: String): LayoutMetadata? {
         return try {
             val filePath = "common/layouts/$layoutName.json"
             val inputStream: InputStream = assets.open(filePath)
             val jsonString = inputStream.bufferedReader().use { it.readText() }
             val jsonObject = JSONObject(jsonString)
-            
             LayoutMetadata(
                 name = jsonObject.optString("name", layoutName),
                 description = jsonObject.optString("description", "")
@@ -291,11 +229,7 @@ object KeyboardLayoutFileManager {
             null
         }
     }
-    
-    /**
-     * Deletes a custom layout from device storage.
-     * @return true if the layout was deleted successfully, false otherwise
-     */
+
     fun deleteLayout(context: Context, layoutName: String): Boolean {
         return try {
             val layoutFile = getLayoutFile(context, layoutName)
@@ -314,21 +248,11 @@ object KeyboardLayoutFileManager {
             false
         }
     }
-    
-    /**
-     * Checks if a custom layout exists.
-     */
+
     fun layoutExists(context: Context, layoutName: String): Boolean {
         return getLayoutFile(context, layoutName).exists()
     }
-    
-    /**
-     * Copies a layout file from one location to device storage.
-     * Useful for importing from external sources.
-     * @param sourceFile The source file to copy
-     * @param targetLayoutName The name for the layout in device storage
-     * @return true if the copy was successful, false otherwise
-     */
+
     fun importLayoutFromFile(
         context: Context,
         sourceFile: File,
@@ -339,18 +263,16 @@ object KeyboardLayoutFileManager {
                 Log.e(TAG, "Source file does not exist or cannot be read: ${sourceFile.absolutePath}")
                 return false
             }
-            
-            // Validate the layout by parsing it first
+
             val layout = loadLayoutFromFile(sourceFile)
             if (layout == null) {
                 Log.e(TAG, "Invalid layout file, cannot import: ${sourceFile.absolutePath}")
                 return false
             }
-            
-            // Copy the file
+
             val targetFile = getLayoutFile(context, targetLayoutName)
             sourceFile.copyTo(targetFile, overwrite = true)
-            
+
             Log.d(TAG, "Imported layout from ${sourceFile.absolutePath} to ${targetFile.absolutePath}")
             true
         } catch (e: Exception) {
@@ -358,10 +280,7 @@ object KeyboardLayoutFileManager {
             false
         }
     }
-    
-    /**
-     * Data class for layout metadata.
-     */
+
     data class LayoutMetadata(
         val name: String,
         val description: String
