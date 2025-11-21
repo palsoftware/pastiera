@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 import android.content.res.AssetManager
 import org.json.JSONObject
+import java.io.File
 import java.io.InputStream
 
 private data class PendingLayoutSave(
@@ -59,10 +60,11 @@ fun KeyboardLayoutSettingsScreen(
     // Refresh trigger for custom layouts
     var refreshTrigger by remember { mutableStateOf(0) }
     
-    // Get available keyboard layouts from assets and custom files (excluding qwerty as it's the default)
-    val availableLayouts = remember(refreshTrigger) {
+    // Get all keyboard layouts (assets + custom, excluding qwerty as it's the default)
+    val allLayouts = remember(refreshTrigger) {
         LayoutMappingRepository.getAvailableLayouts(context.assets, context)
-            .filter { it != "qwerty" && !LayoutFileStore.layoutExists(context, it) }
+            .filter { it != "qwerty" }
+            .sorted()
     }
     
     // Snackbar host state for showing messages
@@ -70,6 +72,7 @@ fun KeyboardLayoutSettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     var pendingLayoutSave by remember { mutableStateOf<PendingLayoutSave?>(null) }
     var previewLayout by remember { mutableStateOf<String?>(null) }
+    var layoutToDelete by remember { mutableStateOf<String?>(null) }
     
     // File picker launcher for importing layouts
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -78,31 +81,34 @@ fun KeyboardLayoutSettingsScreen(
         uri?.let {
             try {
                 context.contentResolver.openInputStream(it)?.use { inputStream ->
-                    val layout = LayoutFileStore.loadLayoutFromStream(inputStream)
-                    if (layout != null) {
-                        // Generate a unique name based on timestamp
-                        val layoutName = "custom_${System.currentTimeMillis()}"
-                        val success = LayoutFileStore.saveLayout(
-                            context = context,
-                            layoutName = layoutName,
-                            layout = layout,
-                            name = context.getString(R.string.layout_imported_name),
-                            description = context.getString(R.string.layout_imported_description)
-                        )
-                        if (success) {
+                    // Read JSON as string
+                    val jsonString = inputStream.bufferedReader().use { it.readText() }
+                    
+                    // Validate JSON by creating a temp file and loading it
+                    val tempFile = File.createTempFile("temp_validate", ".json", context.cacheDir)
+                    try {
+                        tempFile.writeText(jsonString)
+                        val layout = LayoutFileStore.loadLayoutFromFile(tempFile)
+                        
+                        if (layout != null) {
+                            // Generate a unique name based on timestamp
+                            val layoutName = "custom_${System.currentTimeMillis()}"
+                            val layoutFile = LayoutFileStore.getLayoutFile(context, layoutName)
+                            
+                            // Copy the validated JSON directly to the layouts directory
+                            layoutFile.writeText(jsonString)
+                            
                             refreshTrigger++
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar(context.getString(R.string.layout_imported_successfully))
                             }
                         } else {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar(context.getString(R.string.layout_import_failed))
+                                snackbarHostState.showSnackbar(context.getString(R.string.layout_invalid_file))
                             }
                         }
-                    } else {
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(context.getString(R.string.layout_invalid_file))
-                        }
+                    } finally {
+                        tempFile.delete()
                     }
                 }
             } catch (e: Exception) {
@@ -335,94 +341,73 @@ fun KeyboardLayoutSettingsScreen(
                     }
                 }
                 
-                // Available layout conversions
-                availableLayouts.forEach { layout ->
+                // All layouts (assets + custom, unified list)
+                allLayouts.forEach { layout ->
                     val metadata = LayoutFileStore.getLayoutMetadataFromAssets(
                         context.assets,
                         layout
                     ) ?: LayoutFileStore.getLayoutMetadata(context, layout)
                     
                     val hasMultiTap = hasLayoutMultiTap(context.assets, context, layout)
+                    val isCustomLayout = LayoutFileStore.layoutExists(context, layout)
+                    val canDelete = layout != "qwerty" && isCustomLayout
                     
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(72.dp)
-                            .clickable {
-                                selectedLayout = layout
-                                SettingsManager.setKeyboardLayout(context, layout)
-                            }
+                            .padding(vertical = 4.dp)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.Keyboard,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        text = metadata?.name ?: layout.replaceFirstChar { it.uppercase() },
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1
-                                    )
-                                    if (hasMultiTap) {
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.secondaryContainer,
-                                            shape = MaterialTheme.shapes.small,
-                                            modifier = Modifier.height(18.dp)
-                                        ) {
-                                            Text(
-                                                text = "multitap",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                                Text(
-                                    text = metadata?.description ?: getLayoutDescription(context, layout),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2
-                                )
-                            }
+                            // Header row with layout info
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                IconButton(
-                                    onClick = { previewLayout = layout }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Visibility,
-                                        contentDescription = stringResource(R.string.keyboard_layout_viewer_open),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                Icon(
+                                    imageVector = Icons.Filled.Keyboard,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = metadata?.name ?: layout.replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                        if (hasMultiTap) {
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                                shape = MaterialTheme.shapes.small,
+                                                modifier = Modifier.height(18.dp)
+                                            ) {
+                                                Text(
+                                                    text = "multitap",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Text(
+                                        text = metadata?.description ?: getLayoutDescription(context, layout),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
                                     )
                                 }
-                                Checkbox(
-                                    checked = enabledLayouts.contains(layout),
-                                    onCheckedChange = { enabled ->
-                                        enabledLayouts = if (enabled) {
-                                            (enabledLayouts + layout).toMutableSet()
-                                        } else {
-                                            (enabledLayouts - layout).toMutableSet()
-                                        }
-                                        SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
-                                    }
-                                )
                                 RadioButton(
                                     selected = selectedLayout == layout,
                                     onClick = {
@@ -435,6 +420,87 @@ fun KeyboardLayoutSettingsScreen(
                                     }
                                 )
                             }
+                            
+                            // Actions row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // View mapping button
+                                OutlinedButton(
+                                    onClick = { previewLayout = layout },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Visibility,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(R.string.layout_view_mapping),
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                                
+                                // Delete button (only for custom layouts)
+                                if (canDelete) {
+                                    OutlinedButton(
+                                        onClick = { layoutToDelete = layout },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.outlinedButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Delete,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.layout_delete),
+                                            style = MaterialTheme.typography.labelMedium
+                                        )
+                                    }
+                                }
+                                
+                                // Enable for cycling checkbox with label
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable {
+                                            val enabled = !enabledLayouts.contains(layout)
+                                            enabledLayouts = if (enabled) {
+                                                (enabledLayouts + layout).toMutableSet()
+                                            } else {
+                                                (enabledLayouts - layout).toMutableSet()
+                                            }
+                                            SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                                        }
+                                ) {
+                                    Checkbox(
+                                        checked = enabledLayouts.contains(layout),
+                                        onCheckedChange = { enabled ->
+                                            enabledLayouts = if (enabled) {
+                                                (enabledLayouts + layout).toMutableSet()
+                                            } else {
+                                                (enabledLayouts - layout).toMutableSet()
+                                            }
+                                            SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                                        }
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.layout_enable_for_cycling),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -442,6 +508,63 @@ fun KeyboardLayoutSettingsScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+    
+    // Delete confirmation dialog
+    layoutToDelete?.let { layoutName ->
+        val metadata = LayoutFileStore.getLayoutMetadata(context, layoutName)
+            ?: LayoutFileStore.getLayoutMetadataFromAssets(context.assets, layoutName)
+        val displayName = metadata?.name ?: layoutName.replaceFirstChar { it.uppercase() }
+        
+        AlertDialog(
+            onDismissRequest = { layoutToDelete = null },
+            title = {
+                Text(stringResource(R.string.layout_delete_confirmation_title))
+            },
+            text = {
+                Text(stringResource(R.string.layout_delete_confirmation_message, displayName))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val success = LayoutFileStore.deleteLayout(context, layoutName)
+                        layoutToDelete = null
+                        
+                        if (success) {
+                            // If deleted layout was selected, switch to qwerty
+                            if (selectedLayout == layoutName) {
+                                selectedLayout = "qwerty"
+                                SettingsManager.setKeyboardLayout(context, "qwerty")
+                            }
+                            
+                            // Remove from enabled layouts if present
+                            if (enabledLayouts.contains(layoutName)) {
+                                enabledLayouts = (enabledLayouts - layoutName).toMutableSet()
+                                SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                            }
+                            
+                            refreshTrigger++
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(context.getString(R.string.layout_delete_success))
+                            }
+                        } else {
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(context.getString(R.string.layout_delete_failed))
+                            }
+                        }
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { layoutToDelete = null }
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
     }
 }
 

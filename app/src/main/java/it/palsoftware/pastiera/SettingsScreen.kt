@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +27,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.activity.compose.BackHandler
+import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import android.net.Uri
@@ -62,8 +62,31 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val activity = context as? ComponentActivity
     
     var checkingForUpdates by remember { mutableStateOf(false) }
+    var navigationDirection by remember { mutableStateOf(NavigationDirection.Push) }
+    val navigationStack = remember {
+        mutableStateListOf<SettingsDestination>(SettingsDestination.Main)
+    }
+    val currentDestination by remember {
+        derivedStateOf { navigationStack.last() }
+    }
+    
+    fun navigateTo(destination: SettingsDestination) {
+        if (currentDestination == destination) return
+        navigationDirection = NavigationDirection.Push
+        navigationStack.add(destination)
+    }
+    
+    fun navigateBack() {
+        if (navigationStack.size > 1) {
+            navigationDirection = NavigationDirection.Pop
+            navigationStack.removeLast()
+        } else {
+            activity?.finish()
+        }
+    }
     
     // Automatic update check on screen open (only once, respecting dismissed releases)
     LaunchedEffect(Unit) {
@@ -78,37 +101,26 @@ fun SettingsScreen(
         }
     }
     
-    // State for navigation to category screens
-    var currentDestination by remember { mutableStateOf<SettingsDestination>(SettingsDestination.Main) }
-    
     // Handle system back button
-    BackHandler {
-        when (currentDestination) {
-            is SettingsDestination.Main -> {
-                // Get activity from context to finish it
-                val activity = (context as? androidx.activity.ComponentActivity)
-                activity?.finish()
-            }
-            else -> {
-                currentDestination = SettingsDestination.Main
-            }
-        }
-    }
+    BackHandler { navigateBack() }
     
-    // AnimatedContent per gestire le transizioni slide
     AnimatedContent(
         targetState = currentDestination,
         transitionSpec = {
-            // Navigazione in avanti: slide in da destra, slide out verso sinistra
-            slideInHorizontally(
-                initialOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(300)
-            ) togetherWith slideOutHorizontally(
-                targetOffsetX = { fullWidth -> -fullWidth },
-                animationSpec = tween(300)
-            )
+            if (navigationDirection == NavigationDirection.Push) {
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300)
+                ) togetherWith ExitTransition.None
+            } else {
+                EnterTransition.None togetherWith slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300)
+                )
+            }
         },
-        label = "settings_navigation"
+        label = "settings_navigation",
+        contentKey = { it::class }
     ) { destination ->
         when (destination) {
             is SettingsDestination.Main -> {
@@ -117,49 +129,51 @@ fun SettingsScreen(
                     context = context,
                     checkingForUpdates = checkingForUpdates,
                     onCheckingForUpdatesChange = { checkingForUpdates = it },
-                    onKeyboardTimingClick = { currentDestination = SettingsDestination.KeyboardTiming },
-                    onTextInputClick = { currentDestination = SettingsDestination.TextInput },
-                    onAutoCorrectionClick = { currentDestination = SettingsDestination.AutoCorrection },
-                    onCustomizationClick = { currentDestination = SettingsDestination.Customization },
-                    onAdvancedClick = { currentDestination = SettingsDestination.Advanced },
-                    onBackClick = {
-                        val activity = (context as? androidx.activity.ComponentActivity)
-                        activity?.finish()
-                    }
+                    onKeyboardTimingClick = { navigateTo(SettingsDestination.KeyboardTiming) },
+                    onTextInputClick = { navigateTo(SettingsDestination.TextInput) },
+                    onAutoCorrectionClick = { navigateTo(SettingsDestination.AutoCorrection) },
+                    onCustomizationClick = { navigateTo(SettingsDestination.Customization) },
+                    onAdvancedClick = { navigateTo(SettingsDestination.Advanced) },
+                    onBackClick = { navigateBack() }
                 )
             }
             is SettingsDestination.KeyboardTiming -> {
                 KeyboardTimingSettingsScreen(
                     modifier = modifier,
-                    onBack = { currentDestination = SettingsDestination.Main }
+                    onBack = { navigateBack() }
                 )
             }
             is SettingsDestination.TextInput -> {
                 TextInputSettingsScreen(
                     modifier = modifier,
-                    onBack = { currentDestination = SettingsDestination.Main }
+                    onBack = { navigateBack() }
                 )
             }
             is SettingsDestination.AutoCorrection -> {
                 AutoCorrectionCategoryScreen(
                     modifier = modifier,
-                    onBack = { currentDestination = SettingsDestination.Main }
+                    onBack = { navigateBack() }
                 )
             }
             is SettingsDestination.Customization -> {
                 CustomizationSettingsScreen(
                     modifier = modifier,
-                    onBack = { currentDestination = SettingsDestination.Main }
+                    onBack = { navigateBack() }
                 )
             }
             is SettingsDestination.Advanced -> {
                 AdvancedSettingsScreen(
                     modifier = modifier,
-                    onBack = { currentDestination = SettingsDestination.Main }
+                    onBack = { navigateBack() }
                 )
             }
         }
     }
+}
+
+private enum class NavigationDirection {
+    Push,
+    Pop
 }
 
 @Composable

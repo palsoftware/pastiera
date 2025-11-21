@@ -308,7 +308,7 @@
     
     <!-- Settings Categories -->
     <string name="settings_category_keyboard_timing">Keyboard &amp; Timing</string>
-    <string name="settings_category_text_input">Text Input</string>
+    <string name="settings_category_text_input">Smart Features</string>
     <string name="settings_category_auto_correction">Auto-correction</string>
     <string name="settings_category_customization">Customization</string>
     <string name="settings_category_advanced">Advanced</string>
@@ -325,6 +325,16 @@
     <string name="layout_save_error">Error saving layout: %1$s</string>
     <string name="layout_imported_name">Imported Layout</string>
     <string name="layout_imported_description">Imported from file</string>
+    <string name="layout_delete_content_description">Delete layout</string>
+    <string name="layout_delete_confirmation_title">Delete Layout</string>
+    <string name="layout_delete_confirmation_message">Are you sure you want to delete the layout \"%1$s\"? This action cannot be undone.</string>
+    <string name="layout_delete_success">Layout deleted successfully</string>
+    <string name="layout_delete_failed">Failed to delete layout</string>
+    <string name="layout_view_mapping">View mapping</string>
+    <string name="layout_delete">Delete</string>
+    <string name="layout_enable_for_cycling">Enable for cycling (long-press Space)</string>
+    <string name="layout_select_as_active">Select as active layout</string>
+    <string name="delete">Delete</string>
     
     <!-- Main Activity Event Display -->
     <string name="modifier_alt">ALT</string>

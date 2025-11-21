@@ -287,7 +287,7 @@
     
     <!-- Settings Categories -->
     <string name="settings_category_keyboard_timing">Tastiera &amp; Temporizzazione</string>
-    <string name="settings_category_text_input">Input Testo</string>
+    <string name="settings_category_text_input">Smart Features</string>
     <string name="settings_category_auto_correction">Auto-correzione</string>
     <string name="settings_category_customization">Personalizzazione</string>
     <string name="settings_category_advanced">Avanzate</string>
@@ -304,6 +304,15 @@
     <string name="layout_save_error">Errore nel salvataggio del layout: %1$s</string>
     <string name="layout_imported_name">Layout Importato</string>
     <string name="layout_imported_description">Importato da file</string>
+    <string name="layout_delete_content_description">Elimina layout</string>
+    <string name="layout_delete_confirmation_title">Elimina Layout</string>
+    <string name="layout_delete_confirmation_message">Sei sicuro di voler eliminare il layout \"%1$s\"? Questa azione non può essere annullata.</string>
+    <string name="layout_delete_success">Layout eliminato con successo</string>
+    <string name="layout_delete_failed">Impossibile eliminare il layout</string>
+    <string name="layout_view_mapping">Visualizza mappa</string>
+    <string name="layout_delete">Elimina</string>
+    <string name="layout_enable_for_cycling">Abilita per ciclo (Space lungo)</string>
+    <string name="layout_select_as_active">Seleziona come layout attivo</string>
     
     <!-- Main Activity Event Display -->
     <string name="modifier_alt">ALT</string>

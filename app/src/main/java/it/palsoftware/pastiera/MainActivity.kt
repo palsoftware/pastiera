@@ -1,5 +1,6 @@
 package it.palsoftware.pastiera
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -236,6 +237,7 @@ fun KeyboardSetupScreen(
             onSettingsClick = {
                 val settingsIntent = Intent(context, SettingsActivity::class.java)
                 context.startActivity(settingsIntent)
+                (context as? Activity)?.overridePendingTransition(R.anim.slide_in_from_right, 0)
             },
             modifier = Modifier.fillMaxWidth()
         )
