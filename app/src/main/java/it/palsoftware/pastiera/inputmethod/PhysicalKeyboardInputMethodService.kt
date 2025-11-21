@@ -25,6 +25,8 @@ import it.palsoftware.pastiera.core.NavModeController
 import it.palsoftware.pastiera.core.SymLayoutController
 import it.palsoftware.pastiera.core.TextInputController
 import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
+import it.palsoftware.pastiera.data.layout.LayoutFileStore
+import it.palsoftware.pastiera.data.layout.LayoutMapping
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.data.variation.VariationRepository
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
@@ -123,6 +125,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Current package name
     private var currentPackageName: String? = null
     
+    // Constants
+    private val DOUBLE_TAP_THRESHOLD = 500L
+    private val CURSOR_UPDATE_DELAY = 50L
+    private val MULTI_TAP_TIMEOUT_MS = 250L
+
     // Modifier/nav/SYM controllers
     private lateinit var modifierStateController: ModifierStateController
     private lateinit var navModeController: NavModeController
@@ -135,11 +142,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var launcherShortcutController: LauncherShortcutController
     private var clearAltOnSpaceEnabled: Boolean = false
 
+    // Space long-press for layout cycling
+    private val spaceLongPressHandler = Handler(Looper.getMainLooper())
+    private var spaceLongPressRunnable: Runnable? = null
+    private var spaceLongPressTriggered: Boolean = false
+
+    private val multiTapHandler = Handler(Looper.getMainLooper())
+    private val multiTapController = MultiTapController(
+        handler = multiTapHandler,
+        timeoutMs = MULTI_TAP_TIMEOUT_MS
+    )
+
     private val motionEventController = MotionEventController(logTag = TAG)
-    
-    // Constants
-    private val DOUBLE_TAP_THRESHOLD = 500L
-    private val CURSOR_UPDATE_DELAY = 50L
 
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
@@ -266,6 +280,78 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private fun getCharacterStringFromLayout(keyCode: Int, event: KeyEvent?, isShift: Boolean): String {
         val char = getCharacterFromLayout(keyCode, event, isShift)
         return char?.toString() ?: ""
+    }
+
+    private fun cancelSpaceLongPress() {
+        spaceLongPressRunnable?.let { spaceLongPressHandler.removeCallbacks(it) }
+        spaceLongPressRunnable = null
+        spaceLongPressTriggered = false
+    }
+
+    private fun scheduleSpaceLongPress() {
+        if (spaceLongPressRunnable != null) {
+            return
+        }
+        spaceLongPressTriggered = false
+        val threshold = SettingsManager.getLongPressThreshold(this)
+        val runnable = Runnable {
+            spaceLongPressRunnable = null
+
+            // Clear Alt if active so layout switching does not leave Alt latched.
+            val hadAlt = altLatchActive || altOneShot || altPressed
+            if (hadAlt) {
+                modifierStateController.clearAltState()
+                altLatchActive = false
+                altOneShot = false
+                altPressed = false
+                updateStatusBarText()
+            }
+
+            val nextLayout = SettingsManager.cycleKeyboardLayout(this)
+            if (nextLayout != null) {
+                LayoutMappingRepository.loadLayout(assets, nextLayout, this)
+
+                // Show toast only when cycling among multiple layouts.
+                try {
+                    val metadata = LayoutFileStore.getLayoutMetadataFromAssets(assets, nextLayout)
+                        ?: LayoutFileStore.getLayoutMetadata(this, nextLayout)
+                    val displayName = metadata?.name ?: nextLayout
+                    android.widget.Toast.makeText(this, displayName, android.widget.Toast.LENGTH_SHORT)
+                        .show()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error showing layout switch toast", e)
+                }
+
+                spaceLongPressTriggered = true
+                updateStatusBarText()
+            } else {
+                spaceLongPressTriggered = false
+            }
+        }
+        spaceLongPressRunnable = runnable
+        spaceLongPressHandler.postDelayed(runnable, threshold)
+    }
+
+    private fun handleMultiTapCommit(
+        keyCode: Int,
+        mapping: LayoutMapping,
+        useUppercase: Boolean,
+        inputConnection: InputConnection?,
+        allowLongPress: Boolean
+    ): Boolean {
+        val ic = inputConnection ?: return false
+        val handled = multiTapController.handleTap(keyCode, mapping, useUppercase, ic)
+        if (handled && allowLongPress) {
+            val committedText = LayoutMappingRepository.resolveText(
+                mapping,
+                multiTapController.state.useUppercase,
+                multiTapController.state.tapIndex
+            )
+            if (!committedText.isNullOrEmpty()) {
+                altSymManager.scheduleLongPressOnly(keyCode, ic, committedText)
+            }
+        }
+        return handled
     }
     
     private fun reloadNavModeMappings() {
@@ -491,6 +577,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
         speechResultReceiver = null
+        cancelSpaceLongPress()
+        multiTapController.cancelAll()
         
     }
 
@@ -676,6 +764,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         super.onFinishInput()
         isInputViewActive = false
         inputContextState = InputContextState.EMPTY
+        multiTapController.cancelAll()
+        cancelSpaceLongPress()
         resetModifierStates(preserveNavMode = true)
     }
     
@@ -683,6 +773,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         super.onFinishInputView(finishingInput)
         isInputViewActive = false
         if (finishingInput) {
+            multiTapController.cancelAll()
+            cancelSpaceLongPress()
             resetModifierStates(preserveNavMode = true)
         }
     }
@@ -694,6 +786,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     override fun onWindowHidden() {
         super.onWindowHidden()
+        multiTapController.finalizeCycle()
+        cancelSpaceLongPress()
         resetModifierStates(preserveNavMode = true)
     }
     
@@ -773,6 +867,43 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             keyCode == KeyEvent.KEYCODE_CTRL_RIGHT ||
             keyCode == KeyEvent.KEYCODE_ALT_LEFT ||
             keyCode == KeyEvent.KEYCODE_ALT_RIGHT
+        // Handle Ctrl+Space layout switching even when Alt is active.
+        if (
+            hasEditableField &&
+            keyCode == KeyEvent.KEYCODE_SPACE &&
+            (event?.isCtrlPressed == true || ctrlPressed || ctrlLatchActive || ctrlOneShot)
+        ) {
+            // Clear Alt state if active so we don't leave Alt latched.
+            val hadAlt = altLatchActive || altOneShot || altPressed
+            if (hadAlt) {
+                modifierStateController.clearAltState()
+                altLatchActive = false
+                altOneShot = false
+                altPressed = false
+                updateStatusBarText()
+            }
+
+            val nextLayout = SettingsManager.cycleKeyboardLayout(this)
+            if (nextLayout != null) {
+                LayoutMappingRepository.loadLayout(assets, nextLayout, this)
+                try {
+                    val metadata = LayoutFileStore.getLayoutMetadataFromAssets(assets, nextLayout)
+                        ?: LayoutFileStore.getLayoutMetadata(this, nextLayout)
+                    val displayName = metadata?.name ?: nextLayout
+                    android.widget.Toast.makeText(
+                        this,
+                        displayName,
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error showing layout switch toast", e)
+                }
+                updateStatusBarText()
+            }
+            return true
+        }
+
+        multiTapController.resetForNewKey(keyCode)
         if (!isModifierKey) {
             modifierStateController.registerNonModifierKey()
         }
@@ -883,7 +1014,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 callSuperWithKey = { defaultKeyCode, defaultEvent ->
                     super.onKeyDown(defaultKeyCode, defaultEvent)
                 },
-                startSpeechRecognition = { startSpeechRecognition() }
+                startSpeechRecognition = { startSpeechRecognition() },
+                getMapping = { code -> LayoutMappingRepository.getMapping(code) },
+                handleMultiTapCommit = { code, mapping, uppercase, inputConnection, allowLongPress ->
+                    handleMultiTapCommit(code, mapping, uppercase, inputConnection, allowLongPress)
+                },
+                isLongPressSuppressed = { code ->
+                    multiTapController.isLongPressSuppressed(code)
+                }
             )
         )
 

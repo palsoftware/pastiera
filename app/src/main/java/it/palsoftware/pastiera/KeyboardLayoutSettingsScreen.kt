@@ -47,6 +47,11 @@ fun KeyboardLayoutSettingsScreen(
     var selectedLayout by remember { 
         mutableStateOf(SettingsManager.getKeyboardLayout(context))
     }
+
+    // Layouts enabled for cycling (space long-press)
+    var enabledLayouts by remember {
+        mutableStateOf(SettingsManager.getKeyboardLayoutList(context).toMutableSet())
+    }
     
     // Refresh trigger for custom layouts
     var refreshTrigger by remember { mutableStateOf(0) }
@@ -244,6 +249,10 @@ fun KeyboardLayoutSettingsScreen(
                         .clickable {
                             selectedLayout = "qwerty"
                             SettingsManager.setKeyboardLayout(context, "qwerty")
+                            if (!enabledLayouts.contains("qwerty")) {
+                                enabledLayouts = (enabledLayouts + "qwerty").toMutableSet()
+                                SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                            }
                         }
                 ) {
                     Row(
@@ -273,13 +282,33 @@ fun KeyboardLayoutSettingsScreen(
                                 maxLines = 2
                             )
                         }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Checkbox(
+                                checked = enabledLayouts.contains("qwerty"),
+                                onCheckedChange = { enabled ->
+                                    enabledLayouts = if (enabled) {
+                                        (enabledLayouts + "qwerty").toMutableSet()
+                                    } else {
+                                        (enabledLayouts - "qwerty").toMutableSet()
+                                    }
+                                    SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                                }
+                            )
                         RadioButton(
                             selected = selectedLayout == "qwerty",
                             onClick = {
                                 selectedLayout = "qwerty"
                                 SettingsManager.setKeyboardLayout(context, "qwerty")
+                                if (!enabledLayouts.contains("qwerty")) {
+                                    enabledLayouts = (enabledLayouts + "qwerty").toMutableSet()
+                                    SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                                }
                             }
                         )
+                        }
                     }
                 }
                 
@@ -341,13 +370,33 @@ fun KeyboardLayoutSettingsScreen(
                                     maxLines = 2
                                 )
                             }
-                        RadioButton(
-                            selected = selectedLayout == layout,
-                            onClick = {
-                                selectedLayout = layout
-                                SettingsManager.setKeyboardLayout(context, layout)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Checkbox(
+                                    checked = enabledLayouts.contains(layout),
+                                    onCheckedChange = { enabled ->
+                                        enabledLayouts = if (enabled) {
+                                            (enabledLayouts + layout).toMutableSet()
+                                        } else {
+                                            (enabledLayouts - layout).toMutableSet()
+                                        }
+                                        SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                                    }
+                                )
+                                RadioButton(
+                                    selected = selectedLayout == layout,
+                                    onClick = {
+                                        selectedLayout = layout
+                                        SettingsManager.setKeyboardLayout(context, layout)
+                                        if (!enabledLayouts.contains(layout)) {
+                                            enabledLayouts = (enabledLayouts + layout).toMutableSet()
+                                            SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                                        }
+                                    }
+                                )
                             }
-                        )
                         }
                     }
                 }
@@ -376,4 +425,3 @@ private fun getLayoutDescription(context: Context, layoutName: String): String {
     )
     return assetsMetadata?.description ?: ""
 }
-

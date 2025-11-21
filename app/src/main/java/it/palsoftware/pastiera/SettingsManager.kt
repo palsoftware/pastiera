@@ -32,6 +32,7 @@ object SettingsManager {
     private const val KEY_AUTO_CAPITALIZE_AFTER_PERIOD = "auto_capitalize_after_period"
     private const val KEY_LONG_PRESS_MODIFIER = "long_press_modifier" // "alt" or "shift"
     private const val KEY_KEYBOARD_LAYOUT = "keyboard_layout" // "qwerty", "azerty", etc.
+    private const val KEY_KEYBOARD_LAYOUT_LIST = "keyboard_layout_list" // JSON array of layout ids for cycling
     private const val KEY_RESTORE_SYM_PAGE = "restore_sym_page" // SYM page to restore when returning from settings
     private const val KEY_PENDING_RESTORE_SYM_PAGE = "pending_restore_sym_page" // Temporary SYM page state saved when opening settings
     private const val KEY_SYM_PAGES_CONFIG = "sym_pages_config" // Order/enabled pages for SYM
@@ -917,6 +918,70 @@ object SettingsManager {
             .putString(KEY_KEYBOARD_LAYOUT, layoutName)
             .apply()
     }
+
+    /**
+     * Returns the list of keyboard layouts configured for cycling.
+     * Falls back to a single-entry list using the current layout if no list is stored.
+     */
+    fun getKeyboardLayoutList(context: Context): List<String> {
+        val prefs = getPreferences(context)
+        val jsonString = prefs.getString(KEY_KEYBOARD_LAYOUT_LIST, null) ?: return listOf(getKeyboardLayout(context))
+        return try {
+            val array = org.json.JSONArray(jsonString)
+            val result = mutableListOf<String>()
+            for (i in 0 until array.length()) {
+                val name = array.optString(i, null)
+                if (!name.isNullOrBlank()) {
+                    result.add(name)
+                }
+            }
+            if (result.isEmpty()) {
+                listOf(getKeyboardLayout(context))
+            } else {
+                result.toList()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing keyboard layout list, falling back to single layout", e)
+            listOf(getKeyboardLayout(context))
+        }
+    }
+
+    /**
+     * Saves the list of keyboard layouts used for cycling.
+     * The caller is responsible for also selecting the active layout via setKeyboardLayout().
+     */
+    fun setKeyboardLayoutList(context: Context, layouts: List<String>) {
+        val normalized = layouts.filter { it.isNotBlank() }
+        if (normalized.isEmpty()) {
+            // Clear the list to fall back to single-layout behaviour.
+            getPreferences(context).edit()
+                .remove(KEY_KEYBOARD_LAYOUT_LIST)
+                .apply()
+            return
+        }
+        val array = org.json.JSONArray()
+        normalized.forEach { array.put(it) }
+        getPreferences(context).edit()
+            .putString(KEY_KEYBOARD_LAYOUT_LIST, array.toString())
+            .apply()
+    }
+
+    /**
+     * Cycles to the next keyboard layout in the configured list and returns its id.
+     * If only a single layout is configured, returns null and leaves the current layout unchanged.
+     */
+    fun cycleKeyboardLayout(context: Context): String? {
+        val current = getKeyboardLayout(context)
+        val layouts = getKeyboardLayoutList(context)
+        if (layouts.size <= 1) {
+            return null
+        }
+        val currentIndex = layouts.indexOf(current).let { if (it >= 0) it else 0 }
+        val nextIndex = (currentIndex + 1) % layouts.size
+        val nextLayout = layouts[nextIndex]
+        setKeyboardLayout(context, nextLayout)
+        return nextLayout
+    }
     
     /**
      * Sets the SYM page to restore when returning from settings.
@@ -1090,4 +1155,3 @@ object SettingsManager {
         return getDismissedReleases(context).contains(tagName)
     }
 }
-

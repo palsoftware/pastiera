@@ -249,6 +249,22 @@ class AltSymManager(
         longPressRunnables.remove(keyCode)?.let { handler.removeCallbacks(it) }
     }
 
+    /**
+     * Schedules a long-press without committing a new character, reusing the
+     * same runnable logic used by handleKeyWithAltMapping. This is used so
+     * multi-tap commits can still trigger Alt/Shift long-press behaviour.
+     */
+    fun scheduleLongPressOnly(
+        keyCode: Int,
+        inputConnection: InputConnection,
+        insertedChar: String
+    ) {
+        pressedKeys[keyCode] = System.currentTimeMillis()
+        longPressActivated[keyCode] = false
+        insertedNormalChars[keyCode] = insertedChar
+        scheduleLongPress(keyCode, inputConnection)
+    }
+
     private fun scheduleLongPress(
         keyCode: Int,
         inputConnection: InputConnection
@@ -271,7 +287,7 @@ class AltSymManager(
                         val upperChar = LayoutMappingRepository.getUppercase(keyCode)
                         if (upperChar != null) {
                             longPressActivated[keyCode] = true
-                            val upperCharString = upperChar.toString()
+                            val upperCharString = upperChar
                             
                             // Delete the previously inserted character and insert uppercase from JSON
                             inputConnection.deleteSurroundingText(1, 0)
@@ -281,7 +297,7 @@ class AltSymManager(
                             longPressRunnables.remove(keyCode)
                             Log.d(TAG, "Long press Shift per keyCode $keyCode -> $upperCharString")
                             // Notify that a character was inserted
-                            onAltCharInserted?.invoke(upperChar)
+                            upperChar.firstOrNull()?.let { onAltCharInserted?.invoke(it) }
                         }
                     } else if (insertedChar != null && insertedChar.isNotEmpty() && insertedChar[0].isLetter()) {
                         // Fallback for unmapped keys only: use Kotlin uppercase (not ideal but necessary)
@@ -328,5 +344,3 @@ class AltSymManager(
         handler.postDelayed(runnable, longPressThreshold)
     }
 }
-
-

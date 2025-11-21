@@ -96,10 +96,30 @@ object LayoutFileStore {
                 val keyCode = keyboardLayoutNameToKeyCode[keyName]
                 if (keyCode != null) {
                     val mappingObj = mappingsObject.getJSONObject(keyName)
-                    val lowercase = mappingObj.getString("lowercase")
-                    val uppercase = mappingObj.getString("uppercase")
-                    if (lowercase.length == 1 && uppercase.length == 1) {
-                        layout[keyCode] = LayoutMapping(lowercase[0], uppercase[0])
+                    val lowercase = mappingObj.optString("lowercase", "")
+                    val uppercase = mappingObj.optString("uppercase", "")
+                    val multiTapEnabled = mappingObj.optBoolean("multiTapEnabled", false)
+                    val taps = mutableListOf<TapMapping>()
+                    val tapsArray = mappingObj.optJSONArray("taps")
+                    if (tapsArray != null) {
+                        for (i in 0 until tapsArray.length()) {
+                            val tapObj = tapsArray.optJSONObject(i) ?: continue
+                            val tapLower = tapObj.optString("lowercase", "")
+                            val tapUpper = tapObj.optString("uppercase", "")
+                            if (tapLower.isNotEmpty() || tapUpper.isNotEmpty()) {
+                                taps.add(TapMapping(tapLower, tapUpper))
+                            }
+                        }
+                    }
+                    val normalizedTaps = if (multiTapEnabled && taps.size > 1) taps else emptyList()
+                    val normalizedMultiTapFlag = multiTapEnabled && normalizedTaps.size > 1
+                    if (lowercase.isNotEmpty() && uppercase.isNotEmpty()) {
+                        layout[keyCode] = LayoutMapping(
+                            lowercase = lowercase,
+                            uppercase = uppercase,
+                            multiTapEnabled = normalizedMultiTapFlag,
+                            taps = normalizedTaps
+                        )
                     }
                 }
             }
@@ -147,8 +167,19 @@ object LayoutFileStore {
             val keyName = keyboardLayoutKeyCodeToName[keyCode]
             if (keyName != null) {
                 val mappingObj = JSONObject()
-                mappingObj.put("lowercase", mapping.lowercase.toString())
-                mappingObj.put("uppercase", mapping.uppercase.toString())
+                mappingObj.put("lowercase", mapping.lowercase)
+                mappingObj.put("uppercase", mapping.uppercase)
+                if (mapping.multiTapEnabled && mapping.taps.isNotEmpty()) {
+                    mappingObj.put("multiTapEnabled", true)
+                    val tapsArray = org.json.JSONArray()
+                    mapping.taps.forEach { tap ->
+                        val tapObj = JSONObject()
+                        tapObj.put("lowercase", tap.lowercase)
+                        tapObj.put("uppercase", tap.uppercase)
+                        tapsArray.put(tapObj)
+                    }
+                    mappingObj.put("taps", tapsArray)
+                }
                 mappingsObject.put(keyName, mappingObj)
             }
         }
@@ -286,4 +317,3 @@ object LayoutFileStore {
         val description: String
     )
 }
-

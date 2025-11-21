@@ -19,7 +19,9 @@ import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import it.palsoftware.pastiera.inputmethod.TextSelectionHelper
 import android.view.inputmethod.ExtractedText
 import android.view.inputmethod.ExtractedTextRequest
+import it.palsoftware.pastiera.data.layout.LayoutMapping
 import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
+import it.palsoftware.pastiera.data.layout.isRealMultiTap
 
 /**
  * Routes IME key events to the appropriate handlers so that the service can
@@ -171,7 +173,10 @@ class InputEventRouter(
         val isAlphabeticKey: (Int) -> Boolean,
         val callSuper: () -> Boolean,
         val callSuperWithKey: (Int, KeyEvent?) -> Boolean,
-        val startSpeechRecognition: () -> Unit
+        val startSpeechRecognition: () -> Unit,
+        val getMapping: (Int) -> LayoutMapping?,
+        val handleMultiTapCommit: (Int, LayoutMapping, Boolean, InputConnection?, Boolean) -> Boolean,
+        val isLongPressSuppressed: (Int) -> Boolean
     )
 
     fun routeEditableFieldKeyDown(
@@ -349,11 +354,43 @@ class InputEventRouter(
             }
         }
 
+        val mapping = callbacks.getMapping(keyCode)
+        val resolvedUppercase = mapping?.let {
+            when {
+                shiftOneShotActive -> true
+                params.capsLockEnabled && event?.isShiftPressed != true -> true
+                event?.isShiftPressed == true -> true
+                else -> false
+            }
+        } ?: false
+
+        // Compute long-press eligibility up front so multi-tap can still schedule it.
+        val longPressSuppressed = callbacks.isLongPressSuppressed(keyCode)
         val useShiftForLongPress = SettingsManager.isLongPressShift(context)
         val hasLongPressSupport = if (useShiftForLongPress) {
-            event != null && event.unicodeChar != 0 && event.unicodeChar.toChar().isLetter()
+            !longPressSuppressed && event != null && event.unicodeChar != 0 && event.unicodeChar.toChar().isLetter()
         } else {
-            controllers.altSymManager.hasAltMapping(keyCode)
+            !longPressSuppressed && controllers.altSymManager.hasAltMapping(keyCode)
+        }
+
+        // Ignore system-generated repeats on multi-tap keys so holding the key
+        // won't churn through tap levels. Legacy keys keep their normal repeat.
+        if (mapping?.isRealMultiTap == true && (event?.repeatCount ?: 0) > 0) {
+            return EditableFieldRoutingResult.Consume
+        }
+
+        // Multi-tap: commit immediately and replace within the timeout window.
+        if (mapping?.isRealMultiTap == true && ic != null) {
+            if (callbacks.handleMultiTapCommit(keyCode, mapping, resolvedUppercase, ic, hasLongPressSupport)) {
+                if (shiftOneShotActive) {
+                    callbacks.disableShiftOneShot()
+                    shiftOneShotActive = false
+                }
+                Handler(Looper.getMainLooper()).postDelayed({
+                    callbacks.updateStatusBar()
+                }, params.cursorUpdateDelayMs)
+                return EditableFieldRoutingResult.Consume
+            }
         }
 
         if (hasLongPressSupport) {
@@ -771,4 +808,3 @@ class InputEventRouter(
         return false
     }
 }
-
