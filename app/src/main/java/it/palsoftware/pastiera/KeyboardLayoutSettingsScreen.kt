@@ -27,6 +27,9 @@ import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
 import it.palsoftware.pastiera.R
 import kotlinx.coroutines.launch
 import java.util.Locale
+import android.content.res.AssetManager
+import org.json.JSONObject
+import java.io.InputStream
 
 private data class PendingLayoutSave(
     val fileName: String,
@@ -142,7 +145,9 @@ fun KeyboardLayoutSettingsScreen(
     Scaffold(
         topBar = {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars),
                 tonalElevation = 1.dp
             ) {
                 Row(
@@ -230,7 +235,6 @@ fun KeyboardLayoutSettingsScreen(
                 modifier = modifier
                     .fillMaxWidth()
                     .padding(paddingValues)
-                    .windowInsetsPadding(WindowInsets.statusBars)
                     .verticalScroll(rememberScrollState())
             ) {
                 // Description
@@ -312,27 +316,14 @@ fun KeyboardLayoutSettingsScreen(
                     }
                 }
                 
-                // Layout Conversions Section
-                Text(
-                    text = stringResource(R.string.keyboard_layout_conversions_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-                
-                Text(
-                    text = stringResource(R.string.keyboard_layout_conversions_description),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-                
                 // Available layout conversions
                 availableLayouts.forEach { layout ->
                     val metadata = LayoutFileStore.getLayoutMetadataFromAssets(
                         context.assets,
                         layout
                     ) ?: LayoutFileStore.getLayoutMetadata(context, layout)
+                    
+                    val hasMultiTap = hasLayoutMultiTap(context.assets, context, layout)
                     
                     Surface(
                         modifier = Modifier
@@ -357,12 +348,31 @@ fun KeyboardLayoutSettingsScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = metadata?.name ?: layout.replaceFirstChar { it.uppercase() },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = metadata?.name ?: layout.replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    if (hasMultiTap) {
+                                        Surface(
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                            shape = MaterialTheme.shapes.small,
+                                            modifier = Modifier.height(18.dp)
+                                        ) {
+                                            Text(
+                                                text = "multitap",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
                                 Text(
                                     text = metadata?.description ?: getLayoutDescription(context, layout),
                                     style = MaterialTheme.typography.bodySmall,
@@ -424,4 +434,49 @@ private fun getLayoutDescription(context: Context, layoutName: String): String {
         layoutName
     )
     return assetsMetadata?.description ?: ""
+}
+
+/**
+ * Checks if a layout has multiTap enabled by reading the JSON file.
+ * Returns true if at least one mapping has multiTapEnabled set to true.
+ */
+private fun hasLayoutMultiTap(assets: AssetManager, context: Context, layoutName: String): Boolean {
+    return try {
+        // Try custom layout first
+        val customFile = LayoutFileStore.getLayoutFile(context, layoutName)
+        if (customFile.exists() && customFile.canRead()) {
+            val jsonString = customFile.readText()
+            val jsonObject = JSONObject(jsonString)
+            val mappingsObject = jsonObject.optJSONObject("mappings") ?: return false
+            
+            val keys = mappingsObject.keys()
+            while (keys.hasNext()) {
+                val keyName = keys.next()
+                val mappingObj = mappingsObject.optJSONObject(keyName) ?: continue
+                if (mappingObj.optBoolean("multiTapEnabled", false)) {
+                    return true
+                }
+            }
+            false
+        } else {
+            // Fallback to assets
+            val filePath = "common/layouts/$layoutName.json"
+            val inputStream: InputStream = assets.open(filePath)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val jsonObject = JSONObject(jsonString)
+            val mappingsObject = jsonObject.optJSONObject("mappings") ?: return false
+            
+            val keys = mappingsObject.keys()
+            while (keys.hasNext()) {
+                val keyName = keys.next()
+                val mappingObj = mappingsObject.optJSONObject(keyName) ?: continue
+                if (mappingObj.optBoolean("multiTapEnabled", false)) {
+                    return true
+                }
+            }
+            false
+        }
+    } catch (e: Exception) {
+        false
+    }
 }

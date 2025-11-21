@@ -134,7 +134,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     // Constants
     private val DOUBLE_TAP_THRESHOLD = 500L
     private val CURSOR_UPDATE_DELAY = 50L
-    private val MULTI_TAP_TIMEOUT_MS = 250L
+    private val MULTI_TAP_TIMEOUT_MS = 400L
 
     // Modifier/nav/SYM controllers
     private lateinit var modifierStateController: ModifierStateController

@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
-    <cloud-backup/>
+    <cloud-backup>
+        <!-- Include SharedPreferences for cloud backup -->
+        <include domain="sharedpref" path="."/>
+        
+        <!-- Include custom keyboard layouts directory -->
+        <include domain="file" path="keyboard_layouts/"/>
+        
+        <!-- Include nav mode mappings file -->
+        <include domain="file" path="ctrl_key_mappings.json"/>
+    </cloud-backup>
 </data-extraction-rules>

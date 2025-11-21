@@ -19,6 +19,9 @@ import androidx.compose.material.icons.filled.TouchApp
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.inputmethod.MotionEventTracker
 
@@ -81,7 +84,9 @@ fun TrackpadDebugScreen(
         ) {
             // Header
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars),
                 tonalElevation = 1.dp
             ) {
                 Row(

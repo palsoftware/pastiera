@@ -1,13 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Backup rules for Pastiera keyboard app.
+   Ensures user customizations (layouts, mappings, settings) are preserved during updates.
+   See https://developer.android.com/guide/topics/data/autobackup for details.
    Note: This file is ignored for devices older than API 31
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Include all SharedPreferences (contains SYM mappings, auto-corrections, settings) -->
+    <include domain="sharedpref" path="."/>
+    
+    <!-- Include custom keyboard layouts directory -->
+    <include domain="file" path="keyboard_layouts/"/>
+    
+    <!-- Include nav mode mappings file -->
+    <include domain="file" path="ctrl_key_mappings.json"/>
 </full-backup-content>
