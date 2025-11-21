@@ -275,6 +275,21 @@ class ModifierStateController(
         }
     }
 
+    /**
+     * Clears Ctrl state (latch/one-shot/nav mode flags) and, when requested,
+     * resets pressed tracking to avoid leaving Ctrl active after shortcuts.
+     */
+    fun clearCtrlState(resetPressedState: Boolean = false) {
+        ctrlState.latchActive = false
+        ctrlState.oneShot = false
+        ctrlState.latchFromNavMode = false
+        ctrlState.lastReleaseTime = 0
+        if (resetPressedState) {
+            ctrlState.pressed = false
+            ctrlState.physicallyPressed = false
+        }
+    }
+
     fun requestShiftOneShotFromAutoCap(): Boolean {
         return shiftStateMachine.requestOneShot()
     }
@@ -315,4 +330,3 @@ class ModifierStateController(
         modifierKeyHandler.resetAltState(altState)
     }
 }
-

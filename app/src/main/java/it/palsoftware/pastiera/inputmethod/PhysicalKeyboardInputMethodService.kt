@@ -53,6 +53,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     // Keycode for the SYM key
     private val KEYCODE_SYM = 63
+
+    // Single instance to show layout switch toasts without overlapping
+    private var layoutSwitchToast: android.widget.Toast? = null
     
     // Mapping Ctrl+key -> action or keycode (loaded from JSON)
     private val ctrlKeyMap = mutableMapOf<Int, KeyMappingLoader.CtrlMapping>()
@@ -312,12 +315,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 LayoutMappingRepository.loadLayout(assets, nextLayout, this)
 
                 // Show toast only when cycling among multiple layouts.
+                layoutSwitchToast?.cancel()
                 try {
                     val metadata = LayoutFileStore.getLayoutMetadataFromAssets(assets, nextLayout)
                         ?: LayoutFileStore.getLayoutMetadata(this, nextLayout)
                     val displayName = metadata?.name ?: nextLayout
-                    android.widget.Toast.makeText(this, displayName, android.widget.Toast.LENGTH_SHORT)
-                        .show()
+                    layoutSwitchToast = android.widget.Toast.makeText(
+                        this,
+                        displayName,
+                        android.widget.Toast.LENGTH_SHORT
+                    )
+                    layoutSwitchToast?.show()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error showing layout switch toast", e)
                 }
@@ -873,14 +881,28 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             keyCode == KeyEvent.KEYCODE_SPACE &&
             (event?.isCtrlPressed == true || ctrlPressed || ctrlLatchActive || ctrlOneShot)
         ) {
+            var shouldUpdateStatusBar = false
+
             // Clear Alt state if active so we don't leave Alt latched.
             val hadAlt = altLatchActive || altOneShot || altPressed
             if (hadAlt) {
-                modifierStateController.clearAltState()
-                altLatchActive = false
-                altOneShot = false
-                altPressed = false
-                updateStatusBarText()
+                modifierStateController.clearAltState(resetPressedState = true)
+                shouldUpdateStatusBar = true
+            }
+
+            // Always reset Ctrl state after Ctrl+Space to avoid leaving it active.
+            val hadCtrl = ctrlLatchActive ||
+                ctrlOneShot ||
+                ctrlPressed ||
+                ctrlPhysicallyPressed ||
+                ctrlLatchFromNavMode
+            if (hadCtrl) {
+                val navModeLatched = ctrlLatchFromNavMode
+                modifierStateController.clearCtrlState(resetPressedState = true)
+                if (navModeLatched) {
+                    navModeController.cancelNotification()
+                }
+                shouldUpdateStatusBar = true
             }
 
             val nextLayout = SettingsManager.cycleKeyboardLayout(this)
@@ -890,14 +912,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     val metadata = LayoutFileStore.getLayoutMetadataFromAssets(assets, nextLayout)
                         ?: LayoutFileStore.getLayoutMetadata(this, nextLayout)
                     val displayName = metadata?.name ?: nextLayout
-                    android.widget.Toast.makeText(
+                    layoutSwitchToast?.cancel()
+                    layoutSwitchToast = android.widget.Toast.makeText(
                         this,
                         displayName,
                         android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    )
+                    layoutSwitchToast?.show()
                 } catch (e: Exception) {
                     Log.e(TAG, "Error showing layout switch toast", e)
                 }
+                shouldUpdateStatusBar = true
+            }
+
+            if (shouldUpdateStatusBar) {
                 updateStatusBarText()
             }
             return true

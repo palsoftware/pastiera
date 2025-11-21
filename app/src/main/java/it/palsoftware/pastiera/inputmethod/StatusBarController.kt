@@ -885,6 +885,7 @@ class StatusBarController(
         modifiersContainerView.visibility = View.GONE
         ledStatusView.update(snapshot)
         val variationsBar = if (!forceMinimalUi) variationBarView else null
+        val variationsWrapperView = if (!forceMinimalUi) variationsWrapper else null
         
         if (snapshot.symPage > 0 && symMappings != null) {
             updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
@@ -895,7 +896,7 @@ class StatusBarController(
                 layout.background = ColorDrawable(DEFAULT_BACKGROUND)
             }
             (layout.background as? ColorDrawable)?.alpha = 255
-            variationsWrapper?.apply {
+            variationsWrapperView?.apply {
                 visibility = View.INVISIBLE // keep space to avoid shrink/flash
                 isEnabled = false
                 isClickable = false
@@ -925,7 +926,7 @@ class StatusBarController(
         
         if (emojiKeyboardView.visibility == View.VISIBLE) {
             animateEmojiKeyboardOut(emojiKeyboardView, layout) {
-                variationsWrapper?.apply {
+                variationsWrapperView?.apply {
                     visibility = View.VISIBLE
                     isEnabled = true
                     isClickable = true
@@ -936,7 +937,7 @@ class StatusBarController(
             wasSymActive = false
         } else {
             emojiKeyboardView.visibility = View.GONE
-            variationsWrapper?.apply {
+            variationsWrapperView?.apply {
                 visibility = View.VISIBLE
                 isEnabled = true
                 isClickable = true
