@@ -16,7 +16,6 @@ import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
-import android.view.MotionEvent
 import android.view.View
 import it.palsoftware.pastiera.core.AutoCorrectionManager
 import it.palsoftware.pastiera.core.InputContextState
@@ -162,8 +161,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         timeoutMs = MULTI_TAP_TIMEOUT_MS
     )
     private val uiHandler = Handler(Looper.getMainLooper())
-
-    private val motionEventController = MotionEventController(logTag = TAG)
 
     private val symPage: Int
         get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
@@ -1212,17 +1209,4 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         altSymManager.removeAltKeyMapping(keyCode)
     }
     
-    /**
-     * Intercepts trackpad/touch-sensitive keyboard motion events.
-     * The Unihertz Titan 2 keyboard can act as a trackpad, sending MotionEvents
-     * for scrolling, cursor movement, and gestures.
-     */
-    override fun onGenericMotionEvent(event: MotionEvent?): Boolean {
-        val handled = motionEventController.handle(event)
-        if (handled != null) {
-            return handled
-        }
-
-        return super.onGenericMotionEvent(event)
-    }
 }

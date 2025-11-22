@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -230,27 +230,6 @@
     <string name="unicode_category_misc">Verschiedenes</string>
     <string name="unicode_category_variations">Variationen</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Trackpad-Debug</string>
-    <string name="trackpad_debug_motion_events_status">Status der Motion-Ereignisse</string>
-    <string name="trackpad_debug_intercepting_events">Ereignisse abfangen ✓ (%1$d Ereignisse empfangen)</string>
-    <string name="trackpad_debug_waiting_events">Warten auf Ereignisse… (Versuchen Sie, Ihren Finger auf der Tastatur zu bewegen)</string>
-    <string name="trackpad_debug_test_field_title">Testfeld</string>
-    <string name="trackpad_debug_test_field_description">Fokussieren Sie dieses Feld und versuchen Sie, das Trackpad auf Ihrer Tastatur zu verwenden</string>
-    <string name="trackpad_debug_test_field_placeholder">Hier tippen oder Trackpad-Gesten verwenden…</string>
-    <string name="trackpad_debug_last_event_title">Letztes Motion-Ereignis</string>
-    <string name="trackpad_debug_action">Aktion:</string>
-    <string name="trackpad_debug_source">Quelle:</string>
-    <string name="trackpad_debug_device">Gerät:</string>
-    <string name="trackpad_debug_device_id">Geräte-ID: %1$d</string>
-    <string name="trackpad_debug_position">Position:</string>
-    <string name="trackpad_debug_scroll">Scrollen:</string>
-    <string name="trackpad_debug_pressure">Druck:</string>
-    <string name="trackpad_debug_size">Größe:</string>
-    <string name="trackpad_debug_button_state">Tastenstatus:</string>
-    <string name="trackpad_debug_timestamp">Zeitstempel: %1$d</string>
-    <string name="trackpad_debug_no_events">Noch keine Motion-Ereignisse erkannt</string>
-    <string name="trackpad_debug_no_events_description">Versuchen Sie, Ihren Finger auf der berührungsempfindlichen Tastatur zu bewegen</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -264,8 +243,6 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Auf Ko-fi unterstützen</string>
     <string name="settings_nav_mode_configure">Tastenzuordnungen für Navigationsmodus konfigurieren</string>
-    <string name="settings_trackpad_debug_title">Trackpad-Debug</string>
-    <string name="settings_trackpad_debug_description">Trackpad/berührungsempfindliche Tastatur-Ereignisse testen</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>

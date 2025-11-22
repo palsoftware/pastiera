@@ -737,6 +737,40 @@ object SettingsManager {
     }
     
     /**
+     * Scambia le scorciatoie del launcher tra due tasti (operazione atomica).
+     * Se uno dei tasti non ha uno shortcut, lo shortcut viene spostato.
+     */
+    fun swapLauncherShortcuts(context: Context, fromKeyCode: Int, toKeyCode: Int) {
+        val prefs = getPreferences(context)
+        val shortcutsJson = prefs.getString(KEY_LAUNCHER_SHORTCUTS, "{}") ?: "{}"
+        
+        try {
+            val shortcuts = JSONObject(shortcutsJson)
+            
+            // Get current shortcuts (if any)
+            val fromShortcutObj = shortcuts.optJSONObject(fromKeyCode.toString())
+            val toShortcutObj = shortcuts.optJSONObject(toKeyCode.toString())
+            
+            // Swap: remove both first
+            shortcuts.remove(fromKeyCode.toString())
+            shortcuts.remove(toKeyCode.toString())
+            
+            // Add swapped shortcuts
+            if (fromShortcutObj != null) {
+                shortcuts.put(toKeyCode.toString(), fromShortcutObj)
+            }
+            if (toShortcutObj != null) {
+                shortcuts.put(fromKeyCode.toString(), toShortcutObj)
+            }
+            
+            // Save atomically
+            prefs.edit().putString(KEY_LAUNCHER_SHORTCUTS, shortcuts.toString()).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Errore nello scambio delle scorciatoie tra tasti $fromKeyCode e $toKeyCode", e)
+        }
+    }
+    
+    /**
      * Ottiene tutte le scorciatoie del launcher salvate.
      */
     fun getLauncherShortcuts(context: Context): Map<Int, LauncherShortcut> {

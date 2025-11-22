@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -230,27 +230,6 @@
     <string name="unicode_category_misc">Varios</string>
     <string name="unicode_category_variations">Variaciones</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Depuración de Trackpad</string>
-    <string name="trackpad_debug_motion_events_status">Estado de Eventos de Movimiento</string>
-    <string name="trackpad_debug_intercepting_events">Interceptando eventos ✓ (%1$d eventos recibidos)</string>
-    <string name="trackpad_debug_waiting_events">Esperando eventos… (Intente mover el dedo en el teclado)</string>
-    <string name="trackpad_debug_test_field_title">Campo de Prueba</string>
-    <string name="trackpad_debug_test_field_description">Enfóquese en este campo e intente usar el trackpad en su teclado</string>
-    <string name="trackpad_debug_test_field_placeholder">Escriba aquí o use gestos del trackpad…</string>
-    <string name="trackpad_debug_last_event_title">Último Evento de Movimiento</string>
-    <string name="trackpad_debug_action">Acción:</string>
-    <string name="trackpad_debug_source">Fuente:</string>
-    <string name="trackpad_debug_device">Dispositivo:</string>
-    <string name="trackpad_debug_device_id">ID del Dispositivo: %1$d</string>
-    <string name="trackpad_debug_position">Posición:</string>
-    <string name="trackpad_debug_scroll">Desplazamiento:</string>
-    <string name="trackpad_debug_pressure">Presión:</string>
-    <string name="trackpad_debug_size">Tamaño:</string>
-    <string name="trackpad_debug_button_state">Estado del Botón:</string>
-    <string name="trackpad_debug_timestamp">Marca de Tiempo: %1$d</string>
-    <string name="trackpad_debug_no_events">Aún no se han detectado eventos de movimiento</string>
-    <string name="trackpad_debug_no_events_description">Intente mover el dedo en el teclado táctil</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -264,8 +243,6 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Apoyar en Ko-fi</string>
     <string name="settings_nav_mode_configure">Configurar asignaciones de teclas del modo de navegación</string>
-    <string name="settings_trackpad_debug_title">Depuración de Trackpad</string>
-    <string name="settings_trackpad_debug_description">Probar eventos de trackpad/teclado táctil</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>

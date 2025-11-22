@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -230,27 +230,6 @@
     <string name="unicode_category_misc">Divers</string>
     <string name="unicode_category_variations">Variations</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Débogage Trackpad</string>
-    <string name="trackpad_debug_motion_events_status">État des Événements Motion</string>
-    <string name="trackpad_debug_intercepting_events">Interception d\'événements ✓ (%1$d événements reçus)</string>
-    <string name="trackpad_debug_waiting_events">En attente d\'événements… (Essayez de bouger votre doigt sur le clavier)</string>
-    <string name="trackpad_debug_test_field_title">Champ de Test</string>
-    <string name="trackpad_debug_test_field_description">Mettez ce champ en focus et essayez d\'utiliser le trackpad sur votre clavier</string>
-    <string name="trackpad_debug_test_field_placeholder">Tapez ici ou utilisez les gestes du trackpad…</string>
-    <string name="trackpad_debug_last_event_title">Dernier Événement Motion</string>
-    <string name="trackpad_debug_action">Action :</string>
-    <string name="trackpad_debug_source">Source :</string>
-    <string name="trackpad_debug_device">Appareil :</string>
-    <string name="trackpad_debug_device_id">ID Appareil : %1$d</string>
-    <string name="trackpad_debug_position">Position :</string>
-    <string name="trackpad_debug_scroll">Défilement :</string>
-    <string name="trackpad_debug_pressure">Pression :</string>
-    <string name="trackpad_debug_size">Taille :</string>
-    <string name="trackpad_debug_button_state">État du Bouton :</string>
-    <string name="trackpad_debug_timestamp">Horodatage : %1$d</string>
-    <string name="trackpad_debug_no_events">Aucun événement motion détecté pour le moment</string>
-    <string name="trackpad_debug_no_events_description">Essayez de bouger votre doigt sur le clavier tactile</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -264,8 +243,6 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Soutenir sur Ko-fi</string>
     <string name="settings_nav_mode_configure">Configurer les mappages des touches du mode navigation</string>
-    <string name="settings_trackpad_debug_title">Débogage Trackpad</string>
-    <string name="settings_trackpad_debug_description">Tester les événements trackpad/clavier tactile</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>

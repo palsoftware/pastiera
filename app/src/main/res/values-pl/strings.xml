@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -230,27 +230,6 @@
     <string name="unicode_category_misc">Różne</string>
     <string name="unicode_category_variations">Wariacje</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Debug Trackpada</string>
-    <string name="trackpad_debug_motion_events_status">Status Zdarzeń Ruchu</string>
-    <string name="trackpad_debug_intercepting_events">Przechwytywanie zdarzeń ✓ (%1$d zdarzeń odebranych)</string>
-    <string name="trackpad_debug_waiting_events">Oczekiwanie na zdarzenia… (Spróbuj przesunąć palec po klawiaturze)</string>
-    <string name="trackpad_debug_test_field_title">Pole Testowe</string>
-    <string name="trackpad_debug_test_field_description">Skoncentruj się na tym polu i spróbuj użyć trackpada na klawiaturze</string>
-    <string name="trackpad_debug_test_field_placeholder">Wpisz tutaj lub użyj gestów trackpada…</string>
-    <string name="trackpad_debug_last_event_title">Ostatnie Zdarzenie Ruchu</string>
-    <string name="trackpad_debug_action">Akcja:</string>
-    <string name="trackpad_debug_source">Źródło:</string>
-    <string name="trackpad_debug_device">Urządzenie:</string>
-    <string name="trackpad_debug_device_id">ID Urządzenia: %1$d</string>
-    <string name="trackpad_debug_position">Pozycja:</string>
-    <string name="trackpad_debug_scroll">Przewijanie:</string>
-    <string name="trackpad_debug_pressure">Ciśnienie:</string>
-    <string name="trackpad_debug_size">Rozmiar:</string>
-    <string name="trackpad_debug_button_state">Stan Przycisku:</string>
-    <string name="trackpad_debug_timestamp">Znacznik Czasu: %1$d</string>
-    <string name="trackpad_debug_no_events">Nie wykryto jeszcze zdarzeń ruchu</string>
-    <string name="trackpad_debug_no_events_description">Spróbuj przesunąć palec po dotykowej klawiaturze</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -264,8 +243,6 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Wsparcie na Ko-fi</string>
     <string name="settings_nav_mode_configure">Skonfiguruj mapowania klawiszy trybu nawigacji</string>
-    <string name="settings_trackpad_debug_title">Debug Trackpada</string>
-    <string name="settings_trackpad_debug_description">Testuj zdarzenia trackpada/dotykowej klawiatury</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>

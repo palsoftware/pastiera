@@ -2,7 +2,7 @@
 <resources>
 
     <style name="Theme.Pastiera" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/splash_background_light</item>
+        <item name="android:windowBackground">@drawable/splash_screen</item>
         <item name="android:statusBarColor">@color/splash_background_light</item>
         <item name="android:navigationBarColor">@color/splash_background_light</item>
     </style>

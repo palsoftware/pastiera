@@ -621,6 +621,8 @@ private fun SettingsMainScreen(
                             .aspectRatio(1f)
                     )
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

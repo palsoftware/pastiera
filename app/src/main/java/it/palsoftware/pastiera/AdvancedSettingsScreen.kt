@@ -446,48 +446,6 @@ fun AdvancedSettingsScreen(
                             }
                         }
                     
-                        // Trackpad Debug
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .clickable { navigateTo(AdvancedDestination.TrackpadDebug) }
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.TouchApp,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = stringResource(R.string.trackpad_debug_title),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.settings_trackpad_debug_description),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-                                }
-                                Icon(
-                                    imageVector = Icons.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    
                         // Swipe Incremental Threshold
                         Surface(
                             modifier = Modifier
@@ -596,12 +554,6 @@ fun AdvancedSettingsScreen(
                 )
             }
             
-            AdvancedDestination.TrackpadDebug -> {
-                TrackpadDebugScreen(
-                    modifier = modifier,
-                    onBack = { navigateBack() }
-                )
-            }
         }
     }
 }
@@ -609,7 +561,6 @@ fun AdvancedSettingsScreen(
 private sealed class AdvancedDestination {
     object Main : AdvancedDestination()
     object LauncherShortcuts : AdvancedDestination()
-    object TrackpadDebug : AdvancedDestination()
 }
 
 private enum class AdvancedNavigationDirection {

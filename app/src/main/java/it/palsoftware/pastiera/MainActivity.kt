@@ -30,6 +30,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.WindowInsets
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
@@ -160,12 +164,24 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             PastieraTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    KeyboardSetupScreen(
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        KeyboardSetupScreen(
+                            modifier = Modifier
+                                .padding(innerPadding)
+                                .fillMaxSize(),
+                            activity = this@MainActivity
+                        )
+                    }
+                    
+                    // Status bar overlay
+                    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                    
+                    Box(
                         modifier = Modifier
-                            .padding(innerPadding)
-                            .fillMaxSize(),
-                        activity = this@MainActivity
+                            .fillMaxWidth()
+                            .height(statusBarHeight)
+                            .background(Color.Black.copy(alpha = 0.3f))
                     )
                 }
             }

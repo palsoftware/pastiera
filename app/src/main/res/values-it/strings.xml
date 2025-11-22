@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera</string>
     <string name="input_method_name_en">English</string>
@@ -258,28 +258,6 @@
     <string name="unicode_category_misc">Varie</string>
     <string name="unicode_category_variations">Variazioni</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Trackpad Debug</string>
-    <string name="trackpad_debug_motion_events_status">Stato Eventi Motion</string>
-    <string name="trackpad_debug_intercepting_events">Intercettando eventi ✓ (%1$d eventi ricevuti)</string>
-    <string name="trackpad_debug_waiting_events">In attesa di eventi... (Prova a muovere il dito sulla tastiera)</string>
-    <string name="trackpad_debug_test_field_title">Campo di Test</string>
-    <string name="trackpad_debug_test_field_description">Metti a fuoco questo campo e prova a usare il trackpad sulla tua tastiera</string>
-    <string name="trackpad_debug_test_field_placeholder">Digita qui o usa i gesti del trackpad...</string>
-    <string name="trackpad_debug_last_event_title">Ultimo Evento Motion</string>
-    <string name="trackpad_debug_action">Azione:</string>
-    <string name="trackpad_debug_source">Sorgente:</string>
-    <string name="trackpad_debug_device">Dispositivo:</string>
-    <string name="trackpad_debug_device_id">ID Dispositivo: %1$d</string>
-    <string name="trackpad_debug_position">Posizione:</string>
-    <string name="trackpad_debug_scroll">Scroll:</string>
-    <string name="trackpad_debug_pressure">Pressione:</string>
-    <string name="trackpad_debug_size">Dimensione:</string>
-    <string name="trackpad_debug_button_state">Stato Pulsante:</string>
-    <string name="trackpad_debug_timestamp">Timestamp: %1$d</string>
-    <string name="trackpad_debug_no_events">Nessun evento motion rilevato ancora</string>
-    <string name="trackpad_debug_no_events_description">Prova a muovere il dito sulla tastiera touch-sensitive</string>
-    
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
     <string name="sym_tab_characters">Caratteri</string>
@@ -292,8 +270,6 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Supporta su Ko-fi</string>
     <string name="settings_nav_mode_configure">Configura le mappature dei tasti della modalità navigazione</string>
-    <string name="settings_trackpad_debug_title">Trackpad Debug</string>
-    <string name="settings_trackpad_debug_description">Testa eventi trackpad/tastiera touch-sensitive</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>

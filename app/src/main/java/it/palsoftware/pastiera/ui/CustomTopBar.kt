@@ -63,7 +63,7 @@ fun CustomTopBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp)
+                    .padding(horizontal = 16.dp, vertical = 32.dp)
             ) {
                 // Centered title and subtitle
                 Column(
@@ -72,13 +72,13 @@ fun CustomTopBar(
                 ) {
                     Text(
                         text = "Pastiera",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
                         text = "La Tastiera per la tua Tastiera",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.9f),
                         fontWeight = FontWeight.Medium
                     )
@@ -89,8 +89,8 @@ fun CustomTopBar(
                     onClick = onSettingsClick,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(16.dp))
                         .background(
                             color = PastieraBeige.copy(alpha = 0.9f)
                         )
@@ -99,7 +99,7 @@ fun CustomTopBar(
                         imageVector = Icons.Filled.Settings,
                         contentDescription = stringResource(R.string.settings_content_description),
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(36.dp)
                     )
                 }
             }

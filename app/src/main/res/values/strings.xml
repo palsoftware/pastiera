@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -273,28 +273,6 @@
     <string name="unicode_category_misc">Miscellaneous</string>
     <string name="unicode_category_variations">Variations</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Trackpad Debug</string>
-    <string name="trackpad_debug_motion_events_status">Motion Events Status</string>
-    <string name="trackpad_debug_intercepting_events">Intercepting events ✓ (%1$d events received)</string>
-    <string name="trackpad_debug_waiting_events">Waiting for events... (Try moving your finger on the keyboard)</string>
-    <string name="trackpad_debug_test_field_title">Test Text Field</string>
-    <string name="trackpad_debug_test_field_description">Focus this field and try using the trackpad on your keyboard</string>
-    <string name="trackpad_debug_test_field_placeholder">Type here or use trackpad gestures...</string>
-    <string name="trackpad_debug_last_event_title">Last Motion Event</string>
-    <string name="trackpad_debug_action">Action:</string>
-    <string name="trackpad_debug_source">Source:</string>
-    <string name="trackpad_debug_device">Device:</string>
-    <string name="trackpad_debug_device_id">Device ID: %1$d</string>
-    <string name="trackpad_debug_position">Position:</string>
-    <string name="trackpad_debug_scroll">Scroll:</string>
-    <string name="trackpad_debug_pressure">Pressure:</string>
-    <string name="trackpad_debug_size">Size:</string>
-    <string name="trackpad_debug_button_state">Button State:</string>
-    <string name="trackpad_debug_timestamp">Timestamp: %1$d</string>
-    <string name="trackpad_debug_no_events">No motion events detected yet</string>
-    <string name="trackpad_debug_no_events_description">Try moving your finger on the touch-sensitive keyboard</string>
-    
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
     <string name="sym_tab_characters">Characters</string>
@@ -307,8 +285,6 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Support on Ko-fi</string>
     <string name="settings_nav_mode_configure">Configure navigation mode key mappings</string>
-    <string name="settings_trackpad_debug_title">Trackpad Debug</string>
-    <string name="settings_trackpad_debug_description">Test trackpad/touch-sensitive keyboard events</string>
     <string name="settings_update_section_title">Updates</string>
     <string name="settings_update_section_description">Check the latest release on GitHub.</string>
     <string name="settings_update_button">Check for updates</string>
