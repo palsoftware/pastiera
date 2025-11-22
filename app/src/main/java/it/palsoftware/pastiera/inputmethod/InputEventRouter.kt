@@ -56,10 +56,11 @@ class InputEventRouter(
         currentPackageName: String?
     ): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BACK) {
-            if (navModeController.isNavModeActive()) {
-                navModeController.exitNavMode()
-                return false
-            }
+            // Commented out: Nav mode is now persistent and won't close on back button press
+            // if (navModeController.isNavModeActive()) {
+            //     navModeController.exitNavMode()
+            //     return false
+            // }
             return callbacks.callSuper()
         }
 
@@ -574,14 +575,18 @@ class InputEventRouter(
         val ic = inputConnection ?: return false
 
         // Numeric fields always use the Alt mapping for every key press (short press included).
+        // However, if Ctrl is active, let Ctrl handling take precedence (e.g., for copy/paste).
         if (isNumericField) {
-            val altChar = altSymManager.getAltMappings()[keyCode]
-            if (altChar != null) {
-                ic.commitText(altChar, 1)
-                Handler(Looper.getMainLooper()).postDelayed({
-                    updateStatusBar()
-                }, cursorUpdateDelayMs)
-                return true
+            val isCtrlActive = event?.isCtrlPressed == true || ctrlLatchActive || ctrlOneShot
+            if (!isCtrlActive) {
+                val altChar = altSymManager.getAltMappings()[keyCode]
+                if (altChar != null) {
+                    ic.commitText(altChar, 1)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        updateStatusBar()
+                    }, cursorUpdateDelayMs)
+                    return true
+                }
             }
         }
 
