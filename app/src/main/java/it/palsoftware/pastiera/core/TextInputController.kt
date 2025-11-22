@@ -10,6 +10,11 @@ import it.palsoftware.pastiera.inputmethod.AutoCapitalizeHelper
  * Orchestrates text-level helpers such as double-space-to-period and
  * auto-capitalization triggers. Keeps state like double-space timing isolated
  * from the IME service.
+ *
+ * Important: this controller never decides long-term Shift state on its own.
+ * For smart auto-cap (Shift one-shot for the next character), it always
+ * delegates to [AutoCapitalizeHelper] and [ModifierStateController] so that
+ * there is a single source of truth for modifier state.
  */
 class TextInputController(
     private val context: Context,
@@ -25,6 +30,10 @@ class TextInputController(
         shouldDisableSmartFeatures: Boolean,
         onStatusBarUpdate: () -> Unit
     ): Boolean {
+        // Detects a "double space" pattern and replaces the trailing space
+        // with ". ". The decision to enable Shift one-shot after that is
+        // delegated to AutoCapitalizeHelper so it can be tracked as a
+        // smart auto-capitalization (and cleared when context changes).
         if (keyCode != KeyEvent.KEYCODE_SPACE || shouldDisableSmartFeatures) {
             if (lastSpacePressTime > 0) {
                 val currentTime = System.currentTimeMillis()
@@ -75,8 +84,14 @@ class TextInputController(
 
         inputConnection.deleteSurroundingText(1, 0)
         inputConnection.commitText(". ", 1)
-        modifierStateController.shiftOneShot = true
-        onStatusBarUpdate()
+        AutoCapitalizeHelper.enableAfterPunctuation(
+            context = context,
+            inputConnection = inputConnection,
+            shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+            onEnableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+            disableShift = { modifierStateController.consumeShiftOneShot() },
+            onUpdateStatusBar = onStatusBarUpdate
+        )
         lastSpacePressTime = 0
         return true
     }
@@ -87,15 +102,19 @@ class TextInputController(
         shouldDisableSmartFeatures: Boolean,
         onStatusBarUpdate: () -> Unit
     ) {
-        val autoCapitalizeAfterPeriodEnabled =
-            SettingsManager.getAutoCapitalizeAfterPeriod(context) && !shouldDisableSmartFeatures
-        if (autoCapitalizeAfterPeriodEnabled &&
-            keyCode == KeyEvent.KEYCODE_SPACE &&
+        // If user presses Space after punctuation and Shift is not already
+        // one-shot (e.g. pressed manually), delegate to AutoCapitalizeHelper.
+        // The helper inspects the surrounding text and user settings to decide
+        // whether to enable smart Shift for the next character.
+        if (keyCode == KeyEvent.KEYCODE_SPACE &&
             !modifierStateController.shiftOneShot
         ) {
             AutoCapitalizeHelper.enableAfterPunctuation(
-                inputConnection,
+                context = context,
+                inputConnection = inputConnection,
+                shouldDisableSmartFeatures = shouldDisableSmartFeatures,
                 onEnableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+                disableShift = { modifierStateController.consumeShiftOneShot() },
                 onUpdateStatusBar = onStatusBarUpdate
             )
         }
@@ -107,15 +126,18 @@ class TextInputController(
         shouldDisableSmartFeatures: Boolean,
         onStatusBarUpdate: () -> Unit
     ) {
+        // After Enter, we reuse the same smart auto-cap logic used for
+        // "first letter in empty field" by delegating to AutoCapitalizeHelper.
+        // This keeps all "start of sentence" detection in a single place.
         if (keyCode == KeyEvent.KEYCODE_ENTER && !shouldDisableSmartFeatures) {
             AutoCapitalizeHelper.enableAfterEnter(
                 context,
                 inputConnection,
                 shouldDisableSmartFeatures,
                 onEnableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+                disableShift = { modifierStateController.consumeShiftOneShot() },
                 onUpdateStatusBar = onStatusBarUpdate
             )
         }
     }
 }
-

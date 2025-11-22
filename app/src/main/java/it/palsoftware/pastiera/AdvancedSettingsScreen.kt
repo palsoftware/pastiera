@@ -45,6 +45,10 @@ fun AdvancedSettingsScreen(
     var powerShortcutsEnabled by remember { 
         mutableStateOf(SettingsManager.getPowerShortcutsEnabled(context))
     }
+    // Store the actual value (3 to 25), but display it inverted in the slider (25 to 3)
+    var swipeIncrementalThreshold by remember { 
+        mutableStateOf(SettingsManager.getSwipeIncrementalThreshold(context))
+    }
     var navigationDirection by remember { mutableStateOf(AdvancedNavigationDirection.Push) }
     val navigationStack = remember {
         mutableStateListOf<AdvancedDestination>(AdvancedDestination.Main)
@@ -193,50 +197,6 @@ fun AdvancedSettingsScreen(
                             }
                         }
                     
-                        // Launcher Shortcuts Settings (only if enabled)
-                        if (launcherShortcutsEnabled) {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(64.dp)
-                                    .clickable { navigateTo(AdvancedDestination.LauncherShortcuts) }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Keyboard,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.launcher_shortcuts_configure),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = stringResource(R.string.launcher_shortcuts_configure_description),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    
                         // Power Shortcuts Toggle
                         Surface(
                             modifier = Modifier
@@ -280,6 +240,48 @@ fun AdvancedSettingsScreen(
                             }
                         }
                     
+                        // Launcher Shortcuts Settings (always visible)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .clickable { navigateTo(AdvancedDestination.LauncherShortcuts) }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Keyboard,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.launcher_shortcuts_configure),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.launcher_shortcuts_configure_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    
                         // Trackpad Debug
                         Surface(
                             modifier = Modifier
@@ -318,6 +320,58 @@ fun AdvancedSettingsScreen(
                                     imageVector = Icons.Filled.ArrowForward,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    
+                        // Swipe Incremental Threshold
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.TouchApp,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.swipe_incremental_threshold_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "${String.format("%.1f", swipeIncrementalThreshold)} DIP",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Slider(
+                                    value = SettingsManager.getMaxSwipeIncrementalThreshold() + 
+                                        SettingsManager.getMinSwipeIncrementalThreshold() - swipeIncrementalThreshold,
+                                    onValueChange = { newInvertedValue ->
+                                        // Invert the slider value (25 to 3) back to stored value (3 to 25)
+                                        val actualValue = SettingsManager.getMaxSwipeIncrementalThreshold() + 
+                                            SettingsManager.getMinSwipeIncrementalThreshold() - newInvertedValue
+                                        swipeIncrementalThreshold = actualValue
+                                        SettingsManager.setSwipeIncrementalThreshold(context, actualValue)
+                                    },
+                                    valueRange = SettingsManager.getMinSwipeIncrementalThreshold()..SettingsManager.getMaxSwipeIncrementalThreshold(),
+                                    steps = 16,
+                                    modifier = Modifier
+                                        .weight(1.5f)
+                                        .height(24.dp)
                                 )
                             }
                         }

@@ -22,6 +22,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.SettingsActivity
+import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.inputmethod.StatusBarController
 import it.palsoftware.pastiera.inputmethod.TextSelectionHelper
 import it.palsoftware.pastiera.inputmethod.VariationButtonHandler
@@ -286,11 +287,6 @@ class VariationBarView(
             6f,
             context.resources.displayMetrics
         )
-        val incrementalThreshold = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            9.6f,
-            context.resources.displayMetrics
-        )
 
         overlayView.setOnTouchListener { _, motionEvent ->
             if (isSymModeActive) {
@@ -328,6 +324,13 @@ class VariationBarView(
                         if (isSwipeInProgress && swipeDirection != null) {
                             val inputConnection = currentInputConnection
                             if (inputConnection != null) {
+                                // Read the threshold value dynamically to support real-time changes
+                                val incrementalThresholdDp = SettingsManager.getSwipeIncrementalThreshold(context)
+                                val incrementalThreshold = TypedValue.applyDimension(
+                                    TypedValue.COMPLEX_UNIT_DIP,
+                                    incrementalThresholdDp,
+                                    context.resources.displayMetrics
+                                )
                                 val movementInDirection = if (swipeDirection == 1) incrementalDeltaX else -incrementalDeltaX
                                 if (movementInDirection > incrementalThreshold) {
                                     val moved = if (swipeDirection == 1) {

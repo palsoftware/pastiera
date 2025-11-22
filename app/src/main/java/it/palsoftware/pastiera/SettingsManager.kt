@@ -39,11 +39,15 @@ object SettingsManager {
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Whether the first-run tutorial has been completed
+    private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Distance in DIP for cursor movement
     
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
     private const val MIN_LONG_PRESS_THRESHOLD = 50L
     private const val MAX_LONG_PRESS_THRESHOLD = 1000L
+    private const val DEFAULT_SWIPE_INCREMENTAL_THRESHOLD = 9.6f
+    private const val MIN_SWIPE_INCREMENTAL_THRESHOLD = 3f
+    private const val MAX_SWIPE_INCREMENTAL_THRESHOLD = 25f
     private const val DEFAULT_AUTO_CAPITALIZE_FIRST_LETTER = true
     private const val DEFAULT_DOUBLE_SPACE_TO_PERIOD = true
     private const val DEFAULT_SWIPE_TO_DELETE = false
@@ -96,6 +100,40 @@ object SettingsManager {
      * Returns the default value for the long-press threshold.
      */
     fun getDefaultLongPressThreshold(): Long = DEFAULT_LONG_PRESS_THRESHOLD
+    
+    /**
+     * Returns the swipe incremental threshold in DIP.
+     * This is the distance that must be traveled to move the cursor one position.
+     */
+    fun getSwipeIncrementalThreshold(context: Context): Float {
+        return getPreferences(context).getFloat(KEY_SWIPE_INCREMENTAL_THRESHOLD, DEFAULT_SWIPE_INCREMENTAL_THRESHOLD)
+    }
+    
+    /**
+     * Sets the swipe incremental threshold in DIP.
+     * The value is automatically clamped between MIN and MAX.
+     */
+    fun setSwipeIncrementalThreshold(context: Context, threshold: Float) {
+        val clampedValue = threshold.coerceIn(MIN_SWIPE_INCREMENTAL_THRESHOLD, MAX_SWIPE_INCREMENTAL_THRESHOLD)
+        getPreferences(context).edit()
+            .putFloat(KEY_SWIPE_INCREMENTAL_THRESHOLD, clampedValue)
+            .apply()
+    }
+    
+    /**
+     * Returns the minimum allowed value for the swipe incremental threshold.
+     */
+    fun getMinSwipeIncrementalThreshold(): Float = MIN_SWIPE_INCREMENTAL_THRESHOLD
+    
+    /**
+     * Returns the maximum allowed value for the swipe incremental threshold.
+     */
+    fun getMaxSwipeIncrementalThreshold(): Float = MAX_SWIPE_INCREMENTAL_THRESHOLD
+    
+    /**
+     * Returns the default value for the swipe incremental threshold.
+     */
+    fun getDefaultSwipeIncrementalThreshold(): Float = DEFAULT_SWIPE_INCREMENTAL_THRESHOLD
     
     /**
      * Returns the state of auto-capitalization for the first letter.

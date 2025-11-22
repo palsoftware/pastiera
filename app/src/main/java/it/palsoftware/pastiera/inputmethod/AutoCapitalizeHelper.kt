@@ -4,29 +4,91 @@ import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.SettingsManager
 
 /**
- * Helper for handling auto-capitalization logic.
- * Each entry point toggles Shift through the provided callbacks so only one
- * source of truth tracks the modifier state.
+ * Central helper for all smart auto-capitalization rules.
+ *
+ * It never manipulates modifier state directly, but instead:
+ * - asks the caller to enable Shift one-shot via callbacks, and
+ * - tracks whether that Shift came from a "smart" rule so it can be cleared
+ *   on selection / context changes without affecting manually pressed Shift.
+ *
+ * All auto-cap entry points (field start, after Enter, after punctuation,
+ * selection changes, restarts) should be routed through this helper so
+ * there is a single place that decides "should Shift one-shot be active?".
  */
 object AutoCapitalizeHelper {
-    private var firstLetterShiftRequested = false
+    /**
+     * Tracks whether the current Shift one-shot was requested by a smart
+     * auto-capitalization rule (first letter / after punctuation / double-space).
+     * This allows selection/field changes to clear only smart one-shot Shift
+     * without interfering with manually pressed Shift.
+     */
+    private var smartShiftRequested = false
 
-    private fun shouldAutoCapitalizeFirstLetter(inputConnection: InputConnection): Boolean {
-        val textBeforeCursor = inputConnection.getTextBeforeCursor(1, 0) ?: return false
+    /**
+     * Returns true if, given the current cursor position, smart auto-cap rules
+     * (first-letter / after-period) suggest enabling Shift one-shot.
+     *
+     * This is the single place where we look at:
+     * - user settings (first-letter / after-period),
+     * - smart-features disabled flag,
+     * - surrounding text (start of field, after newline, after ". ! ?").
+     */
+    private fun shouldApplySmartAutoCap(
+        context: android.content.Context,
+        inputConnection: InputConnection,
+        shouldDisableSmartFeatures: Boolean
+    ): Boolean {
+        if (shouldDisableSmartFeatures) {
+            return false
+        }
+
+        val autoCapFirstLetter = SettingsManager.getAutoCapitalizeFirstLetter(context)
+        val autoCapAfterPeriod = SettingsManager.getAutoCapitalizeAfterPeriod(context)
+        if (!autoCapFirstLetter && !autoCapAfterPeriod) {
+            return false
+        }
+
+        val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0) ?: return false
         val textAfterCursor = inputConnection.getTextAfterCursor(1, 0) ?: ""
+
         val isCursorAtStart = textBeforeCursor.isEmpty()
         val isFieldEmpty = isCursorAtStart && textAfterCursor.isEmpty()
         val isAfterNewline = textBeforeCursor.lastOrNull() == '\n'
-        return isFieldEmpty || isAfterNewline
+
+        if (autoCapFirstLetter && (isFieldEmpty || isAfterNewline)) {
+            return true
+        }
+
+        if (autoCapAfterPeriod && textBeforeCursor.isNotEmpty()) {
+            // Look for the last non-whitespace character before the cursor
+            val lastNonWhitespaceIndex = textBeforeCursor.indexOfLast { !it.isWhitespace() }
+            if (lastNonWhitespaceIndex >= 0) {
+                val lastNonWhitespaceChar = textBeforeCursor[lastNonWhitespaceIndex]
+                val isSentencePunctuation = when (lastNonWhitespaceChar) {
+                    '.' -> {
+                        // Avoid treating "..." as end of sentence.
+                        val prevIndex = lastNonWhitespaceIndex - 1
+                        !(prevIndex >= 0 && textBeforeCursor[prevIndex] == '.')
+                    }
+                    '!', '?' -> true
+                    else -> false
+                }
+                if (isSentencePunctuation) {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
-    private fun clearFirstLetterShift(
+    private fun clearSmartShift(
         disableShift: () -> Boolean,
         onUpdateStatusBar: () -> Unit
     ) {
-        if (firstLetterShiftRequested) {
+        if (smartShiftRequested) {
             val changed = disableShift()
-            firstLetterShiftRequested = false
+            smartShiftRequested = false
             if (changed) onUpdateStatusBar()
         }
     }
@@ -39,25 +101,19 @@ object AutoCapitalizeHelper {
         disableShift: () -> Boolean,
         onUpdateStatusBar: () -> Unit
     ) {
-        val autoCapEnabled = SettingsManager.getAutoCapitalizeFirstLetter(context)
-        if (!autoCapEnabled || shouldDisableSmartFeatures) {
-            clearFirstLetterShift(disableShift, onUpdateStatusBar)
-            return
-        }
-
         val ic = inputConnection ?: run {
-            clearFirstLetterShift(disableShift, onUpdateStatusBar)
+            clearSmartShift(disableShift, onUpdateStatusBar)
             return
         }
 
-        val shouldCapitalize = shouldAutoCapitalizeFirstLetter(ic)
+        val shouldCapitalize = shouldApplySmartAutoCap(context, ic, shouldDisableSmartFeatures)
         if (shouldCapitalize) {
             if (enableShift()) {
-                firstLetterShiftRequested = true
+                smartShiftRequested = true
                 onUpdateStatusBar()
             }
         } else {
-            clearFirstLetterShift(disableShift, onUpdateStatusBar)
+            clearSmartShift(disableShift, onUpdateStatusBar)
         }
     }
 
@@ -92,7 +148,10 @@ object AutoCapitalizeHelper {
         onUpdateStatusBar: () -> Unit
     ) {
         if (newSelStart != newSelEnd) {
-            if (disableShift()) onUpdateStatusBar()
+            if (disableShift()) {
+                smartShiftRequested = false
+                onUpdateStatusBar()
+            }
             return
         }
         applyAutoCapitalizeFirstLetter(
@@ -124,25 +183,28 @@ object AutoCapitalizeHelper {
     }
 
     fun enableAfterPunctuation(
+        context: android.content.Context,
         inputConnection: InputConnection?,
+        shouldDisableSmartFeatures: Boolean,
         onEnableShift: () -> Boolean,
+        disableShift: () -> Boolean,
         onUpdateStatusBar: () -> Unit
-    ): Boolean {
-        val textBeforeCursor = inputConnection?.getTextBeforeCursor(100, 0) ?: return false
-        if (textBeforeCursor.isEmpty()) return false
-
-        val lastChar = textBeforeCursor.last()
-        val shouldCapitalize = when (lastChar) {
-            '.' -> textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2] != '.'
-            '!', '?' -> true
-            else -> false
+    ) {
+        val ic = inputConnection ?: run {
+            clearSmartShift(disableShift, onUpdateStatusBar)
+            return
         }
 
-        if (shouldCapitalize && onEnableShift()) {
+        val shouldCapitalize = shouldApplySmartAutoCap(context, ic, shouldDisableSmartFeatures)
+        if (!shouldCapitalize) {
+            clearSmartShift(disableShift, onUpdateStatusBar)
+            return
+        }
+
+        if (onEnableShift()) {
+            smartShiftRequested = true
             onUpdateStatusBar()
-            return true
         }
-        return false
     }
 
     fun enableAfterEnter(
@@ -150,6 +212,7 @@ object AutoCapitalizeHelper {
         inputConnection: InputConnection?,
         shouldDisableSmartFeatures: Boolean,
         onEnableShift: () -> Boolean,
+        disableShift: () -> Boolean,
         onUpdateStatusBar: () -> Unit
     ) {
         applyAutoCapitalizeFirstLetter(
@@ -157,7 +220,7 @@ object AutoCapitalizeHelper {
             inputConnection = inputConnection,
             shouldDisableSmartFeatures = shouldDisableSmartFeatures,
             enableShift = onEnableShift,
-            disableShift = { false },
+            disableShift = disableShift,
             onUpdateStatusBar = onUpdateStatusBar
         )
     }

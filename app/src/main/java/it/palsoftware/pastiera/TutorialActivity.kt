@@ -34,6 +34,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import it.palsoftware.pastiera.ui.theme.PastieraTheme
+import it.palsoftware.pastiera.BuildConfig
+import it.palsoftware.pastiera.update.checkForUpdate
+import it.palsoftware.pastiera.update.showUpdateDialog
 
 class TutorialActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -155,6 +158,19 @@ fun TutorialScreen(
             checkImeStatus(context) { enabled, selected ->
                 isPastieraEnabled = enabled
                 isPastieraSelected = selected
+            }
+        }
+    }
+    
+    // Automatic update check at tutorial start (only once, respecting dismissed releases)
+    LaunchedEffect(Unit) {
+        checkForUpdate(
+            context = context,
+            currentVersion = BuildConfig.VERSION_NAME,
+            ignoreDismissedReleases = true
+        ) { hasUpdate, latestVersion, downloadUrl ->
+            if (hasUpdate && latestVersion != null) {
+                showUpdateDialog(context, latestVersion, downloadUrl)
             }
         }
     }

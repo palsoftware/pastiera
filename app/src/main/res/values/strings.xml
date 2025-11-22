@@ -38,6 +38,10 @@
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Enable Swipe to Delete</string>
     
+    <!-- Swipe Incremental Threshold Section -->
+    <string name="swipe_incremental_threshold_title">Swipe Bar Sensitivity</string>
+    <string name="swipe_incremental_threshold_description">Distance required to move cursor one position. Lower values make the cursor move faster.</string>
+    
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Auto Show Keyboard</string>
     
@@ -189,16 +193,14 @@
     <string name="about_title">About</string>
     
     <!-- Launcher Shortcuts Section -->
-    <string name="launcher_shortcuts_title">Launcher Shortcuts</string>
+    <string name="launcher_shortcuts_title">Shortcuts</string>
     <string name="launcher_shortcuts_experimental">Experimental</string>
-    <string name="launcher_shortcuts_description">Enable keyboard shortcuts in the launcher</string>
+    <string name="launcher_shortcuts_description">Enable keyboard shortcuts</string>
     <string name="launcher_shortcuts_configure">Configure Shortcuts</string>
-    <string name="launcher_shortcuts_configure_description">Assign keys to open apps in the launcher</string>
+    <string name="launcher_shortcuts_configure_description">Assign keys to open apps</string>
     
     <!-- Launcher Shortcuts Screen -->
-    <string name="launcher_shortcuts_screen_title">Launcher Shortcuts</string>
-    <string name="launcher_shortcuts_screen_assign_title">Assign shortcuts to apps</string>
-    <string name="launcher_shortcuts_screen_assign_description">When you are in the launcher and not in a text field, you can press a key to open an assigned app.</string>
+    <string name="launcher_shortcuts_screen_title">Shortcuts</string>
     <string name="launcher_shortcuts_not_assigned">Not assigned</string>
     <string name="launcher_shortcuts_remove">Remove</string>
     <string name="launcher_shortcuts_app_name_unavailable">App (name unavailable)</string>
@@ -226,6 +228,12 @@
     <string name="notification_nav_mode_channel_description">Notifications for Pastiera nav mode</string>
     <string name="notification_nav_mode_activated_title">Nav Mode Activated</string>
     <string name="notification_nav_mode_activated_text">Nav mode activated</string>
+    
+    <!-- Update Notifications -->
+    <string name="notification_update_channel_name">Pastiera Updates</string>
+    <string name="notification_update_channel_description">Notifications about new Pastiera versions</string>
+    <string name="notification_update_available_title">Pastiera - New update available</string>
+    <string name="notification_update_available_text">A new version of Pastiera is available (%1$s)</string>
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Speak now...</string>

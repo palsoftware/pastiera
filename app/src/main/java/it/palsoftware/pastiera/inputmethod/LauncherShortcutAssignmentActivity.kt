@@ -49,6 +49,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 class LauncherShortcutAssignmentActivity : ComponentActivity() {
     companion object {
         const val EXTRA_KEY_CODE = "key_code"
+        const val EXTRA_SKIP_LAUNCH = "skip_launch"
         const val RESULT_ASSIGNED = 1
     }
     
@@ -74,6 +75,8 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
             return
         }
         
+        val skipLaunch = intent.getBooleanExtra(EXTRA_SKIP_LAUNCH, false)
+        
         // Usa un tema trasparente per mostrare il bottom sheet sopra il launcher
         setContent {
             MaterialTheme {
@@ -85,6 +88,7 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
                 ) {
                     LauncherShortcutAssignmentBottomSheet(
                         keyCode = keyCode,
+                        skipLaunch = skipLaunch,
                         onAppSelected = { app ->
                             // Save the shortcut
                             SettingsManager.setLauncherShortcut(
@@ -94,8 +98,10 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
                                 app.appName
                             )
                             
-                            // Launch the app immediately
-                            launchApp(app.packageName)
+                            // Launch the app only if not called from settings screen
+                            if (!skipLaunch) {
+                                launchApp(app.packageName)
+                            }
                             
                             setResult(RESULT_ASSIGNED)
                             finish()
@@ -147,6 +153,7 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
 @Composable
 private fun LauncherShortcutAssignmentBottomSheet(
     keyCode: Int,
+    skipLaunch: Boolean = false,
     onAppSelected: (InstalledApp) -> Unit,
     onDismiss: () -> Unit
 ) {

@@ -34,6 +34,10 @@
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Abilita Swipe per Cancellare</string>
     
+    <!-- Swipe Incremental Threshold Section -->
+    <string name="swipe_incremental_threshold_title">Sensibilità Swipe Bar</string>
+    <string name="swipe_incremental_threshold_description">Distanza necessaria per spostare il cursore di una posizione. Valori più bassi rendono il cursore più veloce.</string>
+    
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Mostra Automaticamente la Tastiera</string>
     
@@ -174,16 +178,14 @@
     <string name="about_title">Informazioni</string>
     
     <!-- Launcher Shortcuts Section -->
-    <string name="launcher_shortcuts_title">Scorciatoie Launcher</string>
+    <string name="launcher_shortcuts_title">Scorciatoie</string>
     <string name="launcher_shortcuts_experimental">Experimental</string>
-    <string name="launcher_shortcuts_description">Abilita le scorciatoie da tastiera nel launcher</string>
+    <string name="launcher_shortcuts_description">Abilita le scorciatoie da tastiera</string>
     <string name="launcher_shortcuts_configure">Configura scorciatoie</string>
-    <string name="launcher_shortcuts_configure_description">Assegna tasti per aprire app nel launcher</string>
+    <string name="launcher_shortcuts_configure_description">Assegna tasti per aprire app</string>
     
     <!-- Launcher Shortcuts Screen -->
-    <string name="launcher_shortcuts_screen_title">Scorciatoie Launcher</string>
-    <string name="launcher_shortcuts_screen_assign_title">Assegna scorciatoie alle app</string>
-    <string name="launcher_shortcuts_screen_assign_description">Quando sei nel launcher e non in un campo di testo, puoi premere un tasto per aprire un\'app assegnata.</string>
+    <string name="launcher_shortcuts_screen_title">Scorciatoie</string>
     <string name="launcher_shortcuts_not_assigned">Non assegnato</string>
     <string name="launcher_shortcuts_remove">Rimuovi</string>
     <string name="launcher_shortcuts_app_name_unavailable">App (nome non disponibile)</string>
@@ -211,6 +213,12 @@
     <string name="notification_nav_mode_channel_description">Notifiche per il nav mode di Pastiera</string>
     <string name="notification_nav_mode_activated_title">Nav Mode Attivato</string>
     <string name="notification_nav_mode_activated_text">Nav mode attivato</string>
+    
+    <!-- Update Notifications -->
+    <string name="notification_update_channel_name">Aggiornamenti Pastiera</string>
+    <string name="notification_update_channel_description">Notifiche sui nuovi aggiornamenti di Pastiera</string>
+    <string name="notification_update_available_title">Pastiera - nuovo aggiornamento disponibile</string>
+    <string name="notification_update_available_text">Una nuova versione di Pastiera è disponibile (%1$s)</string>
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Parla ora...</string>
@@ -344,4 +352,3 @@
     <string name="nav_mode_keycode_tab">Tab</string>
     <string name="nav_mode_key_unknown">?</string>
 </resources>
-

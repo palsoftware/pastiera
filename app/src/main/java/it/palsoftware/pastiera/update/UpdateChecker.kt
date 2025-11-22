@@ -15,9 +15,9 @@ import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
 
-private const val GITHUB_RELEASES_URL =
+const val GITHUB_RELEASES_URL =
     "https://api.github.com/repos/palsoftware/pastiera/releases/latest"
-private const val GITHUB_LATEST_RELEASE_PAGE =
+const val GITHUB_LATEST_RELEASE_PAGE =
     "https://github.com/palsoftware/pastiera/releases/latest"
 
 private val client = OkHttpClient()
@@ -138,4 +138,3 @@ private fun openUrl(context: Context, url: String) {
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     context.startActivity(intent)
 }
-
