@@ -96,6 +96,7 @@ class StatusBarController(
     private var emojiKeyButtons: MutableList<View> = mutableListOf()
     private var lastSymPageRendered: Int = 0
     private var lastSymMappingsRendered: Map<Int, String>? = null
+    private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
     private var wasSymActive: Boolean = false
     private var symShown: Boolean = false
     private val ledStatusView = LedStatusView(context)
@@ -297,7 +298,9 @@ class StatusBarController(
      */
     private fun updateEmojiKeyboard(symMappings: Map<Int, String>, page: Int, inputConnection: android.view.inputmethod.InputConnection? = null) {
         val container = emojiKeyboardContainer ?: return
-        if (lastSymPageRendered == page && lastSymMappingsRendered == symMappings) {
+        val inputConnectionChanged = lastInputConnectionUsed != inputConnection
+        val inputConnectionBecameAvailable = lastInputConnectionUsed == null && inputConnection != null
+        if (lastSymPageRendered == page && lastSymMappingsRendered == symMappings && !inputConnectionChanged && !inputConnectionBecameAvailable) {
             return
         }
         
@@ -445,6 +448,7 @@ class StatusBarController(
         // Cache what was rendered to avoid rebuilding on each status refresh
         lastSymPageRendered = page
         lastSymMappingsRendered = HashMap(symMappings)
+        lastInputConnectionUsed = inputConnection
     }
     
     /**
