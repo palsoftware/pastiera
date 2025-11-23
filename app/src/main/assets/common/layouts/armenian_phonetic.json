@@ -1,0 +1,213 @@
+{
+  "name": "Armenian phonetic (multi-tap)",
+  "description": "Based on xkb-phonetic Eastern Armenian layout",
+  "mappings": {
+    "KEYCODE_Q": {
+      "lowercase": "ք",
+      "uppercase": "Ք"
+    },
+    "KEYCODE_W": {
+      "lowercase": "ո",
+      "uppercase": "Ո"
+    },
+    "KEYCODE_E": {
+      "lowercase": "ե",
+      "uppercase": "Ե",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "ե",
+          "uppercase": "Ե"
+        },
+        {
+          "lowercase": "է",
+          "uppercase": "Է"
+        }
+      ]
+    },
+    "KEYCODE_R": {
+      "lowercase": "ր",
+      "uppercase": "Ր",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "ր",
+          "uppercase": "Ր"
+        },
+        {
+          "lowercase": "ռ",
+          "uppercase": "Ռ"
+        }
+      ]
+    },
+    "KEYCODE_T": {
+      "lowercase": "տ",
+      "uppercase": "Տ",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "տ",
+          "uppercase": "Տ"
+        },
+        {
+          "lowercase": "թ",
+          "uppercase": "Թ"
+        },
+        {
+          "lowercase": "ճ",
+          "uppercase": "Ճ"
+        }
+      ]
+    },
+    "KEYCODE_Y": {
+      "lowercase": "ը",
+      "uppercase": "Ը"
+    },
+    "KEYCODE_U": {
+      "lowercase": "ւ",
+      "uppercase": "Ւ"
+    },
+    "KEYCODE_I": {
+      "lowercase": "ի",
+      "uppercase": "Ի"
+    },
+    "KEYCODE_O": {
+      "lowercase": "օ",
+      "uppercase": "Օ"
+    },
+    "KEYCODE_P": {
+      "lowercase": "պ",
+      "uppercase": "Պ",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "պ",
+          "uppercase": "Պ"
+        },
+        {
+          "lowercase": "փ",
+          "uppercase": "Փ"
+        }
+      ]
+    },
+    "KEYCODE_A": {
+      "lowercase": "ա",
+      "uppercase": "Ա"
+    },
+    "KEYCODE_S": {
+      "lowercase": "ս",
+      "uppercase": "Ս"
+    },
+    "KEYCODE_D": {
+      "lowercase": "դ",
+      "uppercase": "Դ",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "դ",
+          "uppercase": "Դ"
+        },
+        {
+          "lowercase": "ձ",
+          "uppercase": "Ձ"
+        }
+      ]
+    },
+    "KEYCODE_F": {
+      "lowercase": "ֆ",
+      "uppercase": "Ֆ"
+    },
+    "KEYCODE_G": {
+      "lowercase": "գ",
+      "uppercase": "Գ"
+    },
+    "KEYCODE_H": {
+      "lowercase": "հ",
+      "uppercase": "Հ",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "հ",
+          "uppercase": "Հ"
+        },
+        {
+          "lowercase": "չ",
+          "uppercase": "Չ"
+        }
+      ]
+    },
+    "KEYCODE_J": {
+      "lowercase": "յ",
+      "uppercase": "Յ",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "յ",
+          "uppercase": "Յ"
+        },
+        {
+          "lowercase": "ջ",
+          "uppercase": "Ջ"
+        }
+      ]
+    },
+    "KEYCODE_K": {
+      "lowercase": "կ",
+      "uppercase": "Կ"
+    },
+    "KEYCODE_L": {
+      "lowercase": "լ",
+      "uppercase": "Լ"
+    },
+    "KEYCODE_Z": {
+      "lowercase": "զ",
+      "uppercase": "Զ",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "զ",
+          "uppercase": "Զ"
+        },
+        {
+          "lowercase": "ժ",
+          "uppercase": "Ժ"
+        }
+      ]
+    },
+    "KEYCODE_X": {
+      "lowercase": "ղ",
+      "uppercase": "Ղ"
+    },
+    "KEYCODE_C": {
+      "lowercase": "ց",
+      "uppercase": "Ց"
+    },
+    "KEYCODE_V": {
+      "lowercase": "վ",
+      "uppercase": "Վ",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "վ",
+          "uppercase": "Վ"
+        },
+        {
+          "lowercase": "և",
+          "uppercase": "և"
+        }
+      ]
+    },
+    "KEYCODE_B": {
+      "lowercase": "բ",
+      "uppercase": "Բ"
+    },
+    "KEYCODE_N": {
+      "lowercase": "ն",
+      "uppercase": "Ն"
+    },
+    "KEYCODE_M": {
+      "lowercase": "մ",
+      "uppercase": "Մ"
+    }
+  }
+}
