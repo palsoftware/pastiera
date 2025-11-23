@@ -24,6 +24,7 @@ import it.palsoftware.pastiera.core.NavModeController
 import it.palsoftware.pastiera.core.SymLayoutController
 import it.palsoftware.pastiera.core.TextInputController
 import it.palsoftware.pastiera.core.suggestions.SuggestionController
+import it.palsoftware.pastiera.core.suggestions.SuggestionResult
 import it.palsoftware.pastiera.core.suggestions.SuggestionSettings
 import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
 import it.palsoftware.pastiera.data.layout.LayoutFileStore
@@ -151,6 +152,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var inputEventRouter: InputEventRouter
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
+    private var latestSuggestions: List<String> = emptyList()
     private var clearAltOnSpaceEnabled: Boolean = false
     // Stato per ricordare se il nav mode era attivo prima di entrare in un campo di testo
     private var navModeWasActiveBeforeEditableField: Boolean = false
@@ -200,6 +202,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             autoReplaceOnSpaceEnter = SettingsManager.getAutoReplaceOnSpaceEnter(this),
             maxSuggestions = 3
         )
+    }
+
+    private fun handleSuggestionsUpdated(suggestions: List<SuggestionResult>) {
+        latestSuggestions = suggestions.map { it.candidate }
+        uiHandler.post { updateStatusBarText() }
     }
     
     
@@ -503,7 +510,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             context = this,
             assets = assets,
             settingsProvider = { getSuggestionSettings() }
-        ) { _ -> }
+        ) { suggestions -> handleSuggestionsUpdated(suggestions) }
         inputEventRouter.suggestionController = suggestionController
 
         candidatesBarController = CandidatesBarController(this)
@@ -762,6 +769,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             altOneShot = modifierSnapshot.altOneShot,
             symPage = symPage,
             variations = variationSnapshot.variations,
+            suggestions = if (SettingsManager.getSuggestionsEnabled(this)) latestSuggestions else emptyList(),
             lastInsertedChar = variationSnapshot.lastInsertedChar,
             shouldDisableSmartFeatures = shouldDisableSmartFeatures
         )

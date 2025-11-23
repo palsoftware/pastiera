@@ -75,6 +75,7 @@ class StatusBarController(
         val altOneShot: Boolean,
         val symPage: Int, // 0=disattivato, 1=pagina1 emoji, 2=pagina2 caratteri
         val variations: List<String> = emptyList(),
+        val suggestions: List<String> = emptyList(),
         val lastInsertedChar: Char? = null,
         val shouldDisableSmartFeatures: Boolean = false
     ) {

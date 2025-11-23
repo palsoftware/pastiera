@@ -194,13 +194,17 @@ class VariationBarView(
         wrapperView.visibility = View.VISIBLE
         overlayView.visibility = if (isSymModeActive) View.GONE else View.VISIBLE
 
-        // Decide whether to use dynamic variations (from cursor) or static utility keys.
+        // Decide whether to use suggestions, dynamic variations (from cursor) or static utility keys.
         val staticModeEnabled = SettingsManager.isStaticVariationBarModeEnabled(context)
+        val suggestionsEnabled = !snapshot.shouldDisableSmartFeatures && snapshot.suggestions.isNotEmpty()
         val useDynamicVariations = !staticModeEnabled && !snapshot.shouldDisableSmartFeatures
 
         val effectiveVariations: List<String>
         val isStaticContent: Boolean
-        if (useDynamicVariations && snapshot.variations.isNotEmpty() && snapshot.lastInsertedChar != null) {
+        if (suggestionsEnabled) {
+            effectiveVariations = snapshot.suggestions
+            isStaticContent = false
+        } else if (useDynamicVariations && snapshot.variations.isNotEmpty() && snapshot.lastInsertedChar != null) {
             effectiveVariations = snapshot.variations
             isStaticContent = false
         } else {
