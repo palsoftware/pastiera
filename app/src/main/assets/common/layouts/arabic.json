@@ -1,0 +1,112 @@
+{
+  "name": "Arabic",
+  "description": "Arabic keyboard layout (Unihertz Titan 2)",
+  "mappings": {
+    "KEYCODE_Q": {
+      "lowercase": "ض",
+      "uppercase": "ض",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ض", "uppercase": "ض" },
+        { "lowercase": "ص", "uppercase": "ص" }
+      ]
+    },
+    "KEYCODE_W": { "lowercase": "ث", "uppercase": "ث" },
+    "KEYCODE_E": { "lowercase": "ق", "uppercase": "ق" },
+    "KEYCODE_R": { "lowercase": "ف", "uppercase": "ف" },
+    "KEYCODE_T": {
+      "lowercase": "غ",
+      "uppercase": "غ",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "غ", "uppercase": "غ" },
+        { "lowercase": "إ", "uppercase": "إ" }
+      ]
+    },
+    "KEYCODE_Y": {
+      "lowercase": "ع",
+      "uppercase": "ع",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ع", "uppercase": "ع" },
+        { "lowercase": "آ", "uppercase": "آ" }
+      ]
+    },
+    "KEYCODE_U": { "lowercase": "ه", "uppercase": "ه" },
+    "KEYCODE_I": { "lowercase": "خ", "uppercase": "خ" },
+    "KEYCODE_O": { "lowercase": "ح", "uppercase": "ح" },
+    "KEYCODE_P": { "lowercase": "ج", "uppercase": "ج" },
+    "KEYCODE_A": {
+      "lowercase": "س",
+      "uppercase": "س",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "س", "uppercase": "س" },
+        { "lowercase": "ش", "uppercase": "ش" }
+      ]
+    },
+    "KEYCODE_S": {
+      "lowercase": "ي",
+      "uppercase": "ي",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ي", "uppercase": "ي" },
+        { "lowercase": "ى", "uppercase": "ى" }
+      ]
+    },
+    "KEYCODE_D": { "lowercase": "ب", "uppercase": "ب" },
+    "KEYCODE_F": { "lowercase": "ل", "uppercase": "ل" },
+    "KEYCODE_G": {
+      "lowercase": "ا",
+      "uppercase": "ا",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ا", "uppercase": "ا" },
+        { "lowercase": "أ", "uppercase": "أ" }
+      ]
+    },
+    "KEYCODE_H": {
+      "lowercase": "ت",
+      "uppercase": "ت",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ت", "uppercase": "ت" },
+        { "lowercase": "ة", "uppercase": "ة" }
+      ]
+    },
+    "KEYCODE_J": { "lowercase": "ن", "uppercase": "ن" },
+    "KEYCODE_K": { "lowercase": "م", "uppercase": "م" },
+    "KEYCODE_L": { "lowercase": "ك", "uppercase": "ك" },
+    "KEYCODE_Z": {
+      "lowercase": "ذ",
+      "uppercase": "ذ",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ذ", "uppercase": "ذ" },
+        { "lowercase": "ء", "uppercase": "ء" }
+      ]
+    },
+    "KEYCODE_X": { "lowercase": "د", "uppercase": "د" },
+    "KEYCODE_C": {
+      "lowercase": "ر",
+      "uppercase": "ر",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ر", "uppercase": "ر" },
+        { "lowercase": "ئ", "uppercase": "ئ" }
+      ]
+    },
+    "KEYCODE_V": {
+      "lowercase": "و",
+      "uppercase": "و",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "و", "uppercase": "و" },
+        { "lowercase": "ؤ", "uppercase": "ؤ" }
+      ]
+    },
+    "KEYCODE_B": { "lowercase": "ز", "uppercase": "ز" },
+    "KEYCODE_N": { "lowercase": "ظ", "uppercase": "ظ" },
+    "KEYCODE_M": { "lowercase": "ط", "uppercase": "ط" }
+  }
+}

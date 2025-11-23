@@ -21,7 +21,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Keyboard
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import it.palsoftware.pastiera.R
@@ -40,6 +39,20 @@ fun SymCustomizationScreen(
     // Load saved auto-close SYM value
     var symAutoClose by remember { 
         mutableStateOf(SettingsManager.getSymAutoClose(context))
+    }
+    
+    // Load SYM pages configuration (enabled pages + order)
+    var symPagesConfig by remember {
+        mutableStateOf(SettingsManager.getSymPagesConfig(context))
+    }
+    fun persistSymPagesConfig(config: SymPagesConfig) {
+        symPagesConfig = config
+        SettingsManager.setSymPagesConfig(context, config)
+    }
+    val symOrderLabel = if (symPagesConfig.emojiFirst) {
+        stringResource(R.string.sym_order_emoji_first)
+    } else {
+        stringResource(R.string.sym_order_symbols_first)
     }
     
     // Selected tab (0 = Emoji, 1 = Characters)
@@ -118,10 +131,8 @@ fun SymCustomizationScreen(
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var resetPage by remember { mutableStateOf<Int?>(null) } // 1 for page1, 2 for page2
     
-    // Handle the system back button
-    BackHandler {
-        onBack()
-    }
+    // Note: System back button is handled by Activity.onBackPressedDispatcher
+    // to follow Android history. This BackHandler is removed to allow default behavior.
     
     // Helper function to convert keycode to letter
     fun getLetterFromKeyCode(keyCode: Int): String {
@@ -194,7 +205,7 @@ fun SymCustomizationScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
         
-        // Auto-Close SYM Layout option
+        // Auto-Close SYM Layout option (in alto)
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -239,7 +250,7 @@ fun SymCustomizationScreen(
         
         HorizontalDivider()
         
-        // Tab selector
+        // Tab selector (visualizzazione del layout)
         TabRow(selectedTabIndex = selectedTab) {
             Tab(
                 selected = selectedTab == 0,
@@ -271,28 +282,6 @@ fun SymCustomizationScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Reset button for page 1
-                Button(
-                    onClick = {
-                        resetPage = 1
-                        showResetConfirmDialog = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text(
-                        stringResource(R.string.sym_reset_to_default), 
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onError
-                    )
-                }
             }
             1 -> {
                 // Characters tab
@@ -307,27 +296,156 @@ fun SymCustomizationScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Reset button for page 2
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Reset button (ripristina predefiniti)
+        Button(
+            onClick = {
+                resetPage = selectedTab + 1 // 1 for emoji tab, 2 for characters tab
+                showResetConfirmDialog = true
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            )
+        ) {
+            Text(
+                stringResource(R.string.sym_reset_to_default), 
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onError
+            )
+        }
+        
+        HorizontalDivider()
+        
+        // Emoji page toggle
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sym_enable_emoji_page_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = stringResource(R.string.sym_enable_emoji_page_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+                Switch(
+                    checked = symPagesConfig.emojiEnabled,
+                    onCheckedChange = { enabled ->
+                        persistSymPagesConfig(symPagesConfig.copy(emojiEnabled = enabled))
+                    }
+                )
+            }
+        }
+        
+        // Symbols page toggle
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sym_enable_symbols_page_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = stringResource(R.string.sym_enable_symbols_page_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+                Switch(
+                    checked = symPagesConfig.symbolsEnabled,
+                    onCheckedChange = { enabled ->
+                        persistSymPagesConfig(symPagesConfig.copy(symbolsEnabled = enabled))
+                    }
+                )
+            }
+        }
+        
+        // Swap order control
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sym_swap_pages_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = stringResource(R.string.sym_swap_pages_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
                 Button(
                     onClick = {
-                        resetPage = 2
-                        showResetConfirmDialog = true
+                        persistSymPagesConfig(symPagesConfig.copy(emojiFirst = !symPagesConfig.emojiFirst))
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
+                    enabled = symPagesConfig.emojiEnabled && symPagesConfig.symbolsEnabled
                 ) {
-                    Text(
-                        stringResource(R.string.sym_reset_to_default), 
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onError
-                    )
+                    Text(symOrderLabel)
                 }
             }
         }
@@ -423,4 +541,3 @@ fun SymCustomizationScreen(
         }
     }
 }
-

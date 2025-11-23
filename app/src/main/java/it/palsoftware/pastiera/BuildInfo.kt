@@ -21,16 +21,16 @@ object BuildInfo {
     }
     
     /**
-     * Ottiene la stringa formattata con build number e data.
-     * Formato: "build X - DD MMM YYYY"
+     * Ottiene la stringa formattata con versione, build number e data.
+     * Formato: "Ver. X.X - Build X - DD MMM YYYY"
      */
     fun getBuildInfoString(): String {
+        val version = BuildConfig.VERSION_NAME
         val buildNumber = getBuildNumber()
         val buildDate = getBuildDate()
-        return if (buildDate.isNotEmpty()) {
-            "build $buildNumber - $buildDate"
-        } else {
-            "build $buildNumber"
+        return when {
+            buildDate.isNotEmpty() -> "Ver. $version - Build $buildNumber - $buildDate"
+            else -> "Ver. $version - Build $buildNumber"
         }
     }
 }

@@ -1,0 +1,64 @@
+{
+  "name": "Bulgarian Phonetic (Traditional)",
+  "description": "Standard Bulgarian phonetic traditional mapping (Cyrillic-first).",
+  "mappings": {
+    "KEYCODE_Q": { "lowercase": "я", "uppercase": "Я" },
+    "KEYCODE_W": { "lowercase": "в", "uppercase": "В" },
+    "KEYCODE_E": { "lowercase": "е", "uppercase": "Е" },
+    "KEYCODE_R": { "lowercase": "р", "uppercase": "Р" },
+    "KEYCODE_T": {
+      "lowercase": "т",
+      "uppercase": "Т",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "т", "uppercase": "Т" },
+        { "lowercase": "щ", "uppercase": "Щ" }
+      ]
+    },
+    "KEYCODE_Y": { "lowercase": "ъ", "uppercase": "Ъ" },
+    "KEYCODE_U": {
+      "lowercase": "у",
+      "uppercase": "У",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "у", "uppercase": "У" },
+        { "lowercase": "ю", "uppercase": "Ю" }
+      ]
+    },
+    "KEYCODE_I": { "lowercase": "и", "uppercase": "И" },
+    "KEYCODE_O": { "lowercase": "о", "uppercase": "О" },
+    "KEYCODE_P": { "lowercase": "п", "uppercase": "П" },
+    "KEYCODE_A": { "lowercase": "а", "uppercase": "А" },
+    "KEYCODE_S": {
+      "lowercase": "с",
+      "uppercase": "С",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "с", "uppercase": "С" },
+        { "lowercase": "ш", "uppercase": "Ш" }
+      ]
+    },
+    "KEYCODE_D": { "lowercase": "д", "uppercase": "Д" },
+    "KEYCODE_F": { "lowercase": "ф", "uppercase": "Ф" },
+    "KEYCODE_G": { "lowercase": "г", "uppercase": "Г" },
+    "KEYCODE_H": { "lowercase": "х", "uppercase": "Х" },
+    "KEYCODE_J": { "lowercase": "й", "uppercase": "Й" },
+    "KEYCODE_K": { "lowercase": "к", "uppercase": "К" },
+    "KEYCODE_L": { "lowercase": "л", "uppercase": "Л" },
+    "KEYCODE_Z": { "lowercase": "з", "uppercase": "З" },
+    "KEYCODE_X": { "lowercase": "ь", "uppercase": "Ь" },
+    "KEYCODE_C": {
+      "lowercase": "ц",
+      "uppercase": "Ц",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "ц", "uppercase": "Ц" },
+        { "lowercase": "ч", "uppercase": "Ч" }
+      ]
+    },
+    "KEYCODE_V": { "lowercase": "ж", "uppercase": "Ж" },
+    "KEYCODE_B": { "lowercase": "б", "uppercase": "Б" },
+    "KEYCODE_N": { "lowercase": "н", "uppercase": "Н" },
+    "KEYCODE_M": { "lowercase": "м", "uppercase": "М" }
+  }
+}

@@ -1,5 +1,6 @@
 package it.palsoftware.pastiera
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -29,11 +30,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.WindowInsets
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
 import it.palsoftware.pastiera.ui.CustomTopBar
 import it.palsoftware.pastiera.ui.theme.PastieraTheme
+import it.palsoftware.pastiera.BuildConfig
+import it.palsoftware.pastiera.update.checkForUpdate
+import it.palsoftware.pastiera.update.showUpdateDialog
+import it.palsoftware.pastiera.update.UpdateCheckWorker
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Settings
@@ -140,15 +149,39 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Check if tutorial has been completed
+        if (!SettingsManager.isTutorialCompleted(this)) {
+            val intent = Intent(this, TutorialActivity::class.java)
+            startActivity(intent)
+            finish()
+            return
+        }
+        
+        // Schedule periodic background update checks (every 24 hours).
+        UpdateCheckWorker.schedule(applicationContext)
+        
         enableEdgeToEdge()
         setContent {
             PastieraTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    KeyboardSetupScreen(
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                        KeyboardSetupScreen(
+                            modifier = Modifier
+                                .padding(innerPadding)
+                                .fillMaxSize(),
+                            activity = this@MainActivity
+                        )
+                    }
+                    
+                    // Status bar overlay
+                    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                    
+                    Box(
                         modifier = Modifier
-                            .padding(innerPadding)
-                            .fillMaxSize(),
-                        activity = this@MainActivity
+                            .fillMaxWidth()
+                            .height(statusBarHeight)
+                            .background(Color.Black.copy(alpha = 0.3f))
                     )
                 }
             }
@@ -223,6 +256,19 @@ fun KeyboardSetupScreen(
         }
     }
     
+    // Automatic update check on screen open (only once, respecting dismissed releases)
+    LaunchedEffect(Unit) {
+        checkForUpdate(
+            context = context,
+            currentVersion = BuildConfig.VERSION_NAME,
+            ignoreDismissedReleases = true
+        ) { hasUpdate, latestVersion, downloadUrl ->
+            if (hasUpdate && latestVersion != null) {
+                showUpdateDialog(context, latestVersion, downloadUrl)
+            }
+        }
+    }
+    
     // Main screen
     Column(
         modifier = Modifier
@@ -236,6 +282,7 @@ fun KeyboardSetupScreen(
             onSettingsClick = {
                 val settingsIntent = Intent(context, SettingsActivity::class.java)
                 context.startActivity(settingsIntent)
+                (context as? Activity)?.overridePendingTransition(R.anim.slide_in_from_right, 0)
             },
             modifier = Modifier.fillMaxWidth()
         )
@@ -406,13 +453,13 @@ fun KeyboardSetupScreen(
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
-                        text = "Unicode: ${event.unicodeChar} (${if (event.unicodeChar != 0) event.unicodeChar.toChar() else "N/A"})",
+                        text = "${stringResource(R.string.event_unicode_label)}${event.unicodeChar} (${if (event.unicodeChar != 0) event.unicodeChar.toChar() else stringResource(R.string.event_not_available)})",
                         style = MaterialTheme.typography.bodyMedium,
                         fontFamily = FontFamily.Monospace
                     )
                     if (event.outputKeyCodeName != null) {
                         Text(
-                            text = "Output: ${event.outputKeyCodeName}${if (event.outputKeyCode != null) " (${event.outputKeyCode})" else ""}",
+                            text = "${stringResource(R.string.event_output_label)}${event.outputKeyCodeName}${if (event.outputKeyCode != null) " (${event.outputKeyCode})" else ""}",
                             style = MaterialTheme.typography.bodyMedium,
                             fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.primary
@@ -454,7 +501,7 @@ fun KeyboardSetupScreen(
                                     shape = MaterialTheme.shapes.small
                                 ) {
                                     Text(
-                                        text = "ALT",
+                                        text = stringResource(R.string.modifier_alt),
                                         style = MaterialTheme.typography.labelSmall,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         fontWeight = FontWeight.Medium

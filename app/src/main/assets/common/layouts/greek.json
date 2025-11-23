@@ -1,0 +1,34 @@
+{
+  "name": "Greek",
+  "description": "Modern Greek keyboard layout (Polytonic)",
+  "mappings": {
+    "KEYCODE_Q": { "lowercase": ";", "uppercase": ":" },
+    "KEYCODE_W": { "lowercase": "ς", "uppercase": "Σ" },
+    "KEYCODE_E": { "lowercase": "ε", "uppercase": "Ε" },
+    "KEYCODE_R": { "lowercase": "ρ", "uppercase": "Ρ" },
+    "KEYCODE_T": { "lowercase": "τ", "uppercase": "Τ" },
+    "KEYCODE_Y": { "lowercase": "υ", "uppercase": "Υ" },
+    "KEYCODE_U": { "lowercase": "θ", "uppercase": "Θ" },
+    "KEYCODE_I": { "lowercase": "ι", "uppercase": "Ι" },
+    "KEYCODE_O": { "lowercase": "ο", "uppercase": "Ο" },
+    "KEYCODE_P": { "lowercase": "π", "uppercase": "Π" },
+    "KEYCODE_A": { "lowercase": "α", "uppercase": "Α" },
+    "KEYCODE_S": { "lowercase": "σ", "uppercase": "Σ" },
+    "KEYCODE_D": { "lowercase": "δ", "uppercase": "Δ" },
+    "KEYCODE_F": { "lowercase": "φ", "uppercase": "Φ" },
+    "KEYCODE_G": { "lowercase": "γ", "uppercase": "Γ" },
+    "KEYCODE_H": { "lowercase": "η", "uppercase": "Η" },
+    "KEYCODE_J": { "lowercase": "ξ", "uppercase": "Ξ" },
+    "KEYCODE_K": { "lowercase": "κ", "uppercase": "Κ" },
+    "KEYCODE_L": { "lowercase": "λ", "uppercase": "Λ" },
+    "KEYCODE_Z": { "lowercase": "ζ", "uppercase": "Ζ" },
+    "KEYCODE_X": { "lowercase": "χ", "uppercase": "Χ" },
+    "KEYCODE_C": { "lowercase": "ψ", "uppercase": "Ψ" },
+    "KEYCODE_V": { "lowercase": "ω", "uppercase": "Ω" },
+    "KEYCODE_B": { "lowercase": "β", "uppercase": "Β" },
+    "KEYCODE_N": { "lowercase": "ν", "uppercase": "Ν" },
+    "KEYCODE_M": { "lowercase": "μ", "uppercase": "Μ" }
+  }
+}
+
+

@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+---
+1. Never break Android framework conventions.
+2. Never introduce new architecture patterns unless explicitly instructed.
+3. Always follow the existing project structure, naming and conventions.
+4. If something is unclear or ambiguous: ask for clarification. No guessing.
+5. All output MUST be valid, compilable Kotlin.
+6. Never modify files or logic not directly related to the requested change.
+7. No large refactors unless the request explicitly asks for them.
+8. If a solution violates Android best practices, propose a compliant alternative.
+9. the app should be optimized for square screen 1440x1440
+

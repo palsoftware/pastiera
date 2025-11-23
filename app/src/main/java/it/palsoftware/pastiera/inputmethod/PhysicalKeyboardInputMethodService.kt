@@ -10,20 +10,25 @@ import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.util.Log
 import android.view.KeyEvent
-import android.view.View
-import android.widget.LinearLayout
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import androidx.core.content.ContextCompat
-import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
-import android.view.MotionEvent
-import android.view.InputDevice
-import it.palsoftware.pastiera.inputmethod.MotionEventTracker
+import android.view.View
+import it.palsoftware.pastiera.core.AutoCorrectionManager
+import it.palsoftware.pastiera.core.InputContextState
+import it.palsoftware.pastiera.core.ModifierStateController
+import it.palsoftware.pastiera.core.NavModeController
+import it.palsoftware.pastiera.core.SymLayoutController
+import it.palsoftware.pastiera.core.TextInputController
+import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
+import it.palsoftware.pastiera.data.layout.LayoutFileStore
+import it.palsoftware.pastiera.data.layout.LayoutMapping
+import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
+import it.palsoftware.pastiera.data.variation.VariationRepository
+import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
 
 /**
  * Input method service specialized for physical keyboards.
@@ -43,243 +48,172 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     // Broadcast receiver for speech recognition
     private var speechResultReceiver: BroadcastReceiver? = null
-    private lateinit var statusBarController: StatusBarController
-    private lateinit var candidatesViewController: StatusBarController
+    private lateinit var candidatesBarController: CandidatesBarController
 
     // Keycode for the SYM key
     private val KEYCODE_SYM = 63
+
+    // Single instance to show layout switch toasts without overlapping
+    private var layoutSwitchToast: android.widget.Toast? = null
+    private var lastLayoutToastText: String? = null
+    private var lastLayoutToastTime: Long = 0
+    private var suppressNextLayoutReload: Boolean = false
     
-    // State to track the active SYM page (0=disabled, 1=page1 emoji, 2=page2 characters)
-    private var symPage = 0
+    // Aggiungi per Power Shortcuts
+    private var powerShortcutToast: android.widget.Toast? = null
     
     // Mapping Ctrl+key -> action or keycode (loaded from JSON)
     private val ctrlKeyMap = mutableMapOf<Int, KeyMappingLoader.CtrlMapping>()
     
-    // Mapping of character variations (loaded from JSON)
-    private val variationsMap = mutableMapOf<Char, List<String>>()
-    
-    // Last inserted character and its available variations
-    private var lastInsertedChar: Char? = null
-    private var availableVariations: List<String> = emptyList()
-    private var variationsActive = false
-    
     // Accessor properties for backwards compatibility with existing code
     private var capsLockEnabled: Boolean
-        get() = shiftState.latchActive
-        set(value) { shiftState.latchActive = value }
+        get() = modifierStateController.capsLockEnabled
+        set(value) { modifierStateController.capsLockEnabled = value }
     
     private var shiftPressed: Boolean
-        get() = shiftState.pressed
-        set(value) { shiftState.pressed = value }
+        get() = modifierStateController.shiftPressed
+        set(value) { modifierStateController.shiftPressed = value }
     
     private var ctrlLatchActive: Boolean
-        get() = ctrlState.latchActive
-        set(value) { ctrlState.latchActive = value }
+        get() = modifierStateController.ctrlLatchActive
+        set(value) { modifierStateController.ctrlLatchActive = value }
     
     private var altLatchActive: Boolean
-        get() = altState.latchActive
-        set(value) { altState.latchActive = value }
+        get() = modifierStateController.altLatchActive
+        set(value) { modifierStateController.altLatchActive = value }
     
     private var ctrlPressed: Boolean
-        get() = ctrlState.pressed
-        set(value) { ctrlState.pressed = value }
+        get() = modifierStateController.ctrlPressed
+        set(value) { modifierStateController.ctrlPressed = value }
     
     private var altPressed: Boolean
-        get() = altState.pressed
-        set(value) { altState.pressed = value }
+        get() = modifierStateController.altPressed
+        set(value) { modifierStateController.altPressed = value }
     
     private var shiftPhysicallyPressed: Boolean
-        get() = shiftState.physicallyPressed
-        set(value) { shiftState.physicallyPressed = value }
+        get() = modifierStateController.shiftPhysicallyPressed
+        set(value) { modifierStateController.shiftPhysicallyPressed = value }
     
     private var ctrlPhysicallyPressed: Boolean
-        get() = ctrlState.physicallyPressed
-        set(value) { ctrlState.physicallyPressed = value }
+        get() = modifierStateController.ctrlPhysicallyPressed
+        set(value) { modifierStateController.ctrlPhysicallyPressed = value }
     
     private var altPhysicallyPressed: Boolean
-        get() = altState.physicallyPressed
-        set(value) { altState.physicallyPressed = value }
+        get() = modifierStateController.altPhysicallyPressed
+        set(value) { modifierStateController.altPhysicallyPressed = value }
     
     private var shiftOneShot: Boolean
-        get() = autoCapitalizeState.shiftOneShot
-        set(value) { autoCapitalizeState.shiftOneShot = value }
-    
+        get() = modifierStateController.shiftOneShot
+        set(value) { modifierStateController.shiftOneShot = value }
+
     private var ctrlOneShot: Boolean
-        get() = ctrlState.oneShot
-        set(value) { ctrlState.oneShot = value }
+        get() = modifierStateController.ctrlOneShot
+        set(value) { modifierStateController.ctrlOneShot = value }
     
     private var altOneShot: Boolean
-        get() = altState.oneShot
-        set(value) { altState.oneShot = value }
-    
-    private var shiftOneShotEnabledTime: Long
-        get() = autoCapitalizeState.shiftOneShotEnabledTime
-        set(value) { autoCapitalizeState.shiftOneShotEnabledTime = value }
+        get() = modifierStateController.altOneShot
+        set(value) { modifierStateController.altOneShot = value }
     
     private var ctrlLatchFromNavMode: Boolean
-        get() = ctrlState.latchFromNavMode
-        set(value) { ctrlState.latchFromNavMode = value }
-    
-    // Double-tap tracking on space to insert period and space
-    private var lastSpacePressTime: Long = 0
+        get() = modifierStateController.ctrlLatchFromNavMode
+        set(value) { modifierStateController.ctrlLatchFromNavMode = value }
     
     // Flag to track whether we are in a valid input context
     private var isInputViewActive = false
     
-    // Flag to track whether we are in a numeric field
-    private var isNumericField = false
+    // Snapshot of the current input context (numeric/password/restricted fields, etc.)
+    private var inputContextState: InputContextState = InputContextState.EMPTY
     
-    // Flag to track whether we are in a field that should have smart features disabled
-    // (password, URL, email, filter, codes, OTP, tokens, etc.)
-    private var shouldDisableSmartFeatures = false
+    private val isNumericField: Boolean
+        get() = inputContextState.isNumericField
     
-    
-    // Cache for launcher packages
-    private var cachedLauncherPackages: Set<String>? = null
+    private val shouldDisableSmartFeatures: Boolean
+        get() = inputContextState.shouldDisableSmartFeatures
     
     // Current package name
     private var currentPackageName: String? = null
     
-    // Modifier key handler
-    private lateinit var modifierKeyHandler: ModifierKeyHandler
-    private val shiftState = ModifierKeyHandler.ShiftState()
-    private val ctrlState = ModifierKeyHandler.CtrlState()
-    private val altState = ModifierKeyHandler.AltState()
-    
-    // Auto-capitalize helper state
-    private val autoCapitalizeState = AutoCapitalizeHelper.AutoCapitalizeState()
-    
     // Constants
     private val DOUBLE_TAP_THRESHOLD = 500L
     private val CURSOR_UPDATE_DELAY = 50L
+    private val MULTI_TAP_TIMEOUT_MS = 400L
+
+    // Modifier/nav/SYM controllers
+    private lateinit var modifierStateController: ModifierStateController
+    private lateinit var navModeController: NavModeController
+    private lateinit var symLayoutController: SymLayoutController
+    private lateinit var textInputController: TextInputController
+    private lateinit var autoCorrectionManager: AutoCorrectionManager
+    private lateinit var variationStateController: VariationStateController
+    private lateinit var inputEventRouter: InputEventRouter
+    private lateinit var keyboardVisibilityController: KeyboardVisibilityController
+    private lateinit var launcherShortcutController: LauncherShortcutController
+    private var clearAltOnSpaceEnabled: Boolean = false
+
+    // Space long-press for layout cycling
+    private val spaceLongPressHandler = Handler(Looper.getMainLooper())
+    private var spaceLongPressRunnable: Runnable? = null
+    private var spaceLongPressTriggered: Boolean = false
+
+    private val multiTapHandler = Handler(Looper.getMainLooper())
+    private val multiTapController = MultiTapController(
+        handler = multiTapHandler,
+        timeoutMs = MULTI_TAP_TIMEOUT_MS
+    )
+    private val uiHandler = Handler(Looper.getMainLooper())
+
+    private val symPage: Int
+        get() = if (::symLayoutController.isInitialized) symLayoutController.currentSymPage() else 0
+
+    private fun updateInputContextState(info: EditorInfo?) {
+        inputContextState = InputContextState.fromEditorInfo(info)
+    }
 
     private fun refreshStatusBar() {
         updateStatusBarText()
     }
     
-    /**
-     * Syncs shiftState.oneShot with autoCapitalizeState.shiftOneShot.
-     * This ensures both states stay synchronized when Shift is manually pressed.
-     * When shiftOneShot is enabled/disabled by user action (Shift key press),
-     * both states are updated.
-     */
-    private fun syncShiftOneShotFromShiftState() {
-        autoCapitalizeState.shiftOneShot = shiftState.oneShot
-        if (shiftState.oneShot && shiftState.oneShotEnabledTime > 0) {
-            autoCapitalizeState.shiftOneShotEnabledTime = shiftState.oneShotEnabledTime
-        } else if (!shiftState.oneShot) {
-            autoCapitalizeState.shiftOneShotEnabledTime = 0
+    private fun startSpeechRecognition() {
+        try {
+            val intent = Intent(this, SpeechRecognitionActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_NO_HISTORY or
+                        Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+            }
+            startActivity(intent)
+            Log.d(TAG, "Speech recognition started via Alt+Ctrl shortcut")
+        } catch (e: Exception) {
+            Log.e(TAG, "Unable to launch speech recognition", e)
         }
     }
     
-    /**
-     * Syncs autoCapitalizeState.shiftOneShot with shiftState.oneShot.
-     * This ensures both states stay synchronized when shiftOneShot is used (letter typed)
-     * or disabled by other logic.
-     */
-    private fun syncShiftOneShotToShiftState() {
-        shiftState.oneShot = autoCapitalizeState.shiftOneShot
-        if (autoCapitalizeState.shiftOneShot && autoCapitalizeState.shiftOneShotEnabledTime > 0) {
-            shiftState.oneShotEnabledTime = autoCapitalizeState.shiftOneShotEnabledTime
-        } else if (!autoCapitalizeState.shiftOneShot) {
-            shiftState.oneShotEnabledTime = 0
-        }
-    }
     
-    /**
-     * Checks if the given EditorInfo represents a field that should have smart features disabled.
-     * This includes:
-     * - Password fields (TYPE_TEXT_VARIATION_PASSWORD, TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, 
-     *   TYPE_TEXT_VARIATION_WEB_PASSWORD, TYPE_NUMBER_VARIATION_PASSWORD)
-     * - URL fields (TYPE_TEXT_VARIATION_URI)
-     * - Email fields (TYPE_TEXT_VARIATION_EMAIL_ADDRESS)
-     * - Filter/search fields (TYPE_TEXT_VARIATION_FILTER)
-     * 
-     * Note: We do NOT check for TYPE_TEXT_FLAG_NO_SUGGESTIONS because we set it on all editable
-     * fields to prevent Android's suggestion popup, so it's not a reliable indicator.
-     * 
-     * For these fields, all smart features are disabled:
-     * - Autocorrection
-     * - Suggestions
-     * - Predictive text
-     * - Auto-capitalize
-     * - Double-space to period
-     * - Variations (long-press variants)
-     * 
-     * @param info The EditorInfo to check
-     * @return true if smart features should be disabled, false otherwise
-     */
-    private fun shouldDisableSmartFeatures(info: EditorInfo?): Boolean {
-        if (info == null) return false
-        val inputType = info.inputType
-        val inputVariation = inputType and android.text.InputType.TYPE_MASK_VARIATION
-        
-        // Check for password field types
-        val isPasswordType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD ||
-                            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-                            inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
-                            inputVariation == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
-        
-        // Check for URL fields
-        val isUriType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_URI
-        
-        // Check for email fields
-        val isEmailType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-        
-        // Check for filter/search fields
-        val isFilterType = inputVariation == android.text.InputType.TYPE_TEXT_VARIATION_FILTER
-        
-        // Only check specific field types, not flags (since we set NO_SUGGESTIONS on all fields)
-        return isPasswordType || isUriType || isEmailType || isFilterType
-    }
-    
-    private fun checkFieldEditability(info: EditorInfo?): Pair<Boolean, Boolean> {
-        val isEditable = info?.let { editorInfo ->
-            val inputType = editorInfo.inputType
-            val isTextInput = inputType and android.text.InputType.TYPE_MASK_CLASS != android.text.InputType.TYPE_NULL
-            val isNotNoInput = inputType and android.text.InputType.TYPE_MASK_CLASS != 0
-            isTextInput && isNotNoInput
-        } ?: false
-        
-        val isReallyEditable = isEditable && info?.let { editorInfo ->
-            val inputType = editorInfo.inputType
-            val inputClass = inputType and android.text.InputType.TYPE_MASK_CLASS
-            inputClass == android.text.InputType.TYPE_CLASS_TEXT ||
-            inputClass == android.text.InputType.TYPE_CLASS_NUMBER ||
-            inputClass == android.text.InputType.TYPE_CLASS_PHONE ||
-            inputClass == android.text.InputType.TYPE_CLASS_DATETIME
-        } ?: false
-        
-        return Pair(isEditable, isReallyEditable)
-    }
 
     /**
      * Initializes the input context for a field.
      * This method contains all common initialization logic that must run
      * regardless of whether input view or candidates view is shown.
      */
-    private fun initializeInputContext(info: EditorInfo?, restarting: Boolean) {
+    private fun initializeInputContext(restarting: Boolean) {
         if (restarting) {
             return
         }
         
-        val (isEditable, isReallyEditable) = checkFieldEditability(info)
-        val canCheckAutoCapitalize = isEditable && !shouldDisableSmartFeatures
+        val state = inputContextState
+        val isEditable = state.isEditable
+        val isReallyEditable = state.isReallyEditable
+        val canCheckAutoCapitalize = isEditable && !state.shouldDisableSmartFeatures
         
         if (!isReallyEditable) {
-            if (ctrlLatchFromNavMode && ctrlLatchActive) {
-                isInputViewActive = false
-            } else {
-                isInputViewActive = false
-            }
+            isInputViewActive = false
             
             if (canCheckAutoCapitalize) {
                 AutoCapitalizeHelper.checkAndEnableAutoCapitalize(
                     this,
                     currentInputConnection,
                     shouldDisableSmartFeatures,
-                    autoCapitalizeState,
-                    delayMs = 100L,
+                    enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+                    disableShift = { modifierStateController.consumeShiftOneShot() },
                     onUpdateStatusBar = { updateStatusBarText() }
                 )
             }
@@ -288,25 +222,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         isInputViewActive = true
         
-        isNumericField = info?.let { editorInfo ->
-            val inputType = editorInfo.inputType
-            val inputClass = inputType and android.text.InputType.TYPE_MASK_CLASS
-            inputClass == android.text.InputType.TYPE_CLASS_NUMBER
-        } ?: false
-        
-        shouldDisableSmartFeatures = shouldDisableSmartFeatures(info)
-        
-        if (shouldDisableSmartFeatures) {
-            setCandidatesViewShown(false)
-            deactivateVariations()
-        }
+        enforceSmartFeatureDisabledState()
         
         if (ctrlLatchFromNavMode && ctrlLatchActive) {
             val inputConnection = currentInputConnection
             if (inputConnection != null) {
-                ctrlLatchFromNavMode = false
-                ctrlLatchActive = false
-                NotificationHelper.cancelNavModeNotification(this)
+                navModeController.exitNavMode()
             }
         }
         
@@ -314,27 +235,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             this,
             currentInputConnection,
             shouldDisableSmartFeatures,
-            autoCapitalizeState,
-            delayMs = 100L,
+            enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+            disableShift = { modifierStateController.consumeShiftOneShot() },
             onUpdateStatusBar = { updateStatusBarText() }
         )
         
-        // Restore SYM layout if it was active when SymCustomizationActivity was opened
-        val restoreSymPage = SettingsManager.getRestoreSymPage(this)
-        if (restoreSymPage > 0) {
-            symPage = restoreSymPage
-            // Save current symPage to SharedPreferences
-            prefs.edit().putInt("current_sym_page", symPage).apply()
-            // Clear restore state after restoring
-            SettingsManager.clearRestoreSymPage(this)
-            // Update status bar to show SYM layout
-            Handler(Looper.getMainLooper()).post {
-                updateStatusBarText()
-            }
-        }
+        symLayoutController.restoreSymPageIfNeeded { updateStatusBarText() }
         
         altSymManager.reloadLongPressThreshold()
         altSymManager.resetTransientState()
+    }
+    
+    private fun enforceSmartFeatureDisabledState() {
+        if (!shouldDisableSmartFeatures) {
+            return
+        }
+        setCandidatesViewShown(false)
+        deactivateVariations()
     }
     
     /**
@@ -342,8 +259,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun loadKeyboardLayout() {
         val layoutName = SettingsManager.getKeyboardLayout(this)
-        val layout = KeyboardLayoutManager.loadLayout(assets, layoutName)
-        KeyboardLayoutManager.setLayout(layout)
+        val layout = LayoutMappingRepository.loadLayout(assets, layoutName, this)
         Log.d(TAG, "Keyboard layout loaded: $layoutName")
     }
     
@@ -355,7 +271,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun getCharacterFromLayout(keyCode: Int, event: KeyEvent?, isShift: Boolean): Char? {
         // First, try to get the character from the selected layout
-        val layoutChar = KeyboardLayoutManager.getCharacter(keyCode, isShift)
+        val layoutChar = LayoutMappingRepository.getCharacter(keyCode, isShift)
         if (layoutChar != null) {
             return layoutChar
         }
@@ -374,6 +290,126 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val char = getCharacterFromLayout(keyCode, event, isShift)
         return char?.toString() ?: ""
     }
+
+    private fun switchToLayout(layoutName: String, showToast: Boolean) {
+        LayoutMappingRepository.loadLayout(assets, layoutName, this)
+        if (showToast) {
+            val metadata = try {
+                LayoutFileStore.getLayoutMetadataFromAssets(assets, layoutName)
+                    ?: LayoutFileStore.getLayoutMetadata(this, layoutName)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting layout metadata for toast", e)
+                null
+            }
+            val displayName = metadata?.name ?: layoutName
+            showLayoutSwitchToast(displayName)
+        }
+        updateStatusBarText()
+    }
+
+    private fun cycleLayoutFromShortcut() {
+        suppressNextLayoutReload = true
+        val nextLayout = SettingsManager.cycleKeyboardLayout(this)
+        if (nextLayout != null) {
+            switchToLayout(nextLayout, showToast = true)
+        }
+    }
+
+    private fun showLayoutSwitchToast(displayName: String) {
+        uiHandler.post {
+            val now = System.currentTimeMillis()
+            // Avoid spamming identical toasts and keep a minimum gap to satisfy system quota.
+            val sameText = lastLayoutToastText == displayName
+            val sinceLast = now - lastLayoutToastTime
+            if (sinceLast < 1000 || (sameText && sinceLast < 4000)) {
+                return@post
+            }
+
+            lastLayoutToastText = displayName
+            lastLayoutToastTime = now
+            layoutSwitchToast?.cancel()
+            layoutSwitchToast = android.widget.Toast.makeText(
+                applicationContext,
+                displayName,
+                android.widget.Toast.LENGTH_SHORT
+            )
+            layoutSwitchToast?.show()
+        }
+    }
+    
+    private fun showPowerShortcutToast(message: String) {
+        uiHandler.post {
+            val now = System.currentTimeMillis()
+            val sameText = lastLayoutToastText == message
+            val sinceLast = now - lastLayoutToastTime
+            
+            if (!sameText || sinceLast > 1000) {
+                lastLayoutToastText = message
+                lastLayoutToastTime = now
+                powerShortcutToast?.cancel()
+                powerShortcutToast = android.widget.Toast.makeText(
+                    applicationContext,
+                    message,
+                    android.widget.Toast.LENGTH_SHORT
+                )
+                powerShortcutToast?.show()
+            }
+        }
+    }
+
+    private fun cancelSpaceLongPress() {
+        spaceLongPressRunnable?.let { spaceLongPressHandler.removeCallbacks(it) }
+        spaceLongPressRunnable = null
+        spaceLongPressTriggered = false
+    }
+
+    private fun scheduleSpaceLongPress() {
+        if (spaceLongPressRunnable != null) {
+            return
+        }
+        spaceLongPressTriggered = false
+        val threshold = SettingsManager.getLongPressThreshold(this)
+        val runnable = Runnable {
+            spaceLongPressRunnable = null
+
+            // Clear Alt if active so layout switching does not leave Alt latched.
+            val hadAlt = altLatchActive || altOneShot || altPressed
+            if (hadAlt) {
+                modifierStateController.clearAltState()
+                altLatchActive = false
+                altOneShot = false
+                altPressed = false
+                updateStatusBarText()
+            }
+
+            cycleLayoutFromShortcut()
+            spaceLongPressTriggered = true
+        }
+        spaceLongPressRunnable = runnable
+        spaceLongPressHandler.postDelayed(runnable, threshold)
+    }
+
+    private fun handleMultiTapCommit(
+        keyCode: Int,
+        mapping: LayoutMapping,
+        useUppercase: Boolean,
+        inputConnection: InputConnection?,
+        allowLongPress: Boolean
+    ): Boolean {
+        val ic = inputConnection ?: return false
+        val handled = multiTapController.handleTap(keyCode, mapping, useUppercase, ic)
+        if (handled && allowLongPress) {
+            val committedText = LayoutMappingRepository.resolveText(
+                mapping,
+                multiTapController.state.useUppercase,
+                multiTapController.state.tapIndex
+            )
+            if (!committedText.isNullOrEmpty()) {
+                altSymManager.scheduleLongPressOnly(keyCode, ic, committedText)
+            }
+        }
+        return handled
+    }
     
     private fun reloadNavModeMappings() {
         try {
@@ -383,56 +419,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             Log.d(TAG, "Nav mode mappings reloaded successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error reloading nav mode mappings", e)
-        }
-    }
-    
-    /**
-     * Verifica se il package corrente è un launcher.
-     */
-    private fun isLauncher(packageName: String?): Boolean {
-        if (packageName == null) return false
-        
-        // Cache la lista dei launcher per evitare query ripetute
-        if (cachedLauncherPackages == null) {
-            try {
-                val pm = packageManager
-                val intent = Intent(Intent.ACTION_MAIN).apply {
-                    addCategory(Intent.CATEGORY_HOME)
-                }
-                
-                val resolveInfos: List<ResolveInfo> = pm.queryIntentActivities(intent, 0)
-                cachedLauncherPackages = resolveInfos.map { it.activityInfo.packageName }.toSet()
-                Log.d(TAG, "Launcher packages trovati: $cachedLauncherPackages")
-            } catch (e: Exception) {
-                Log.e(TAG, "Errore nel rilevamento dei launcher", e)
-                cachedLauncherPackages = emptySet()
-            }
-        }
-        
-        val isLauncher = cachedLauncherPackages?.contains(packageName) ?: false
-        Log.d(TAG, "isLauncher($packageName) = $isLauncher")
-        return isLauncher
-    }
-    
-    /**
-     * Apre un'app tramite package name.
-     */
-    private fun launchApp(packageName: String): Boolean {
-        try {
-            val pm = packageManager
-            val intent = pm.getLaunchIntentForPackage(packageName)
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                Log.d(TAG, "App aperta: $packageName")
-                return true
-            } else {
-                Log.w(TAG, "Nessun launch intent trovato per: $packageName")
-                return false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Errore nell'apertura dell'app $packageName", e)
-            return false
         }
     }
     
@@ -472,66 +458,24 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
     }
     
-    /**
-     * Handles launcher shortcuts when not in a text field.
-     */
-    private fun handleLauncherShortcut(keyCode: Int): Boolean {
-        val shortcut = SettingsManager.getLauncherShortcut(this, keyCode)
-        if (shortcut != null) {
-            // Gestisci diversi tipi di azioni
-            when (shortcut.type) {
-                SettingsManager.LauncherShortcut.TYPE_APP -> {
-                    if (shortcut.packageName != null) {
-                        val success = launchApp(shortcut.packageName)
-                        if (success) {
-                            Log.d(TAG, "Scorciatoia launcher eseguita: tasto $keyCode -> ${shortcut.packageName}")
-                            return true // Consumiamo l'evento
-                        }
-                    }
-                }
-                SettingsManager.LauncherShortcut.TYPE_SHORTCUT -> {
-                    // TODO: Gestire scorciatoie in futuro
-                    Log.d(TAG, "Tipo scorciatoia non ancora implementato: ${shortcut.type}")
-                }
-                else -> {
-                    Log.d(TAG, "Tipo azione sconosciuto: ${shortcut.type}")
-                }
-            }
-        } else {
-            // Tasto non assegnato: mostra dialog per assegnare un'app
-            showLauncherShortcutAssignmentDialog(keyCode)
-            return true // Consumiamo l'evento per evitare che venga gestito altrove
-        }
-        return false // Non consumiamo l'evento
-    }
-    
-    /**
-     * Mostra il dialog per assegnare un'app a un tasto.
-     */
-    private fun showLauncherShortcutAssignmentDialog(keyCode: Int) {
-        try {
-            val intent = Intent(this, LauncherShortcutAssignmentActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra(LauncherShortcutAssignmentActivity.EXTRA_KEY_CODE, keyCode)
-            }
-            startActivity(intent)
-            Log.d(TAG, "Dialog assegnazione mostrato per tasto $keyCode")
-        } catch (e: Exception) {
-            Log.e(TAG, "Errore nel mostrare il dialog di assegnazione", e)
-        }
-    }
-
     override fun onCreate() {
         super.onCreate()
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
+        clearAltOnSpaceEnabled = SettingsManager.getClearAltOnSpace(this)
         
         NotificationHelper.createNotificationChannel(this)
         
-        modifierKeyHandler = ModifierKeyHandler(DOUBLE_TAP_THRESHOLD)
+        modifierStateController = ModifierStateController(DOUBLE_TAP_THRESHOLD)
+        navModeController = NavModeController(this, modifierStateController)
+        inputEventRouter = InputEventRouter(this, navModeController)
+        textInputController = TextInputController(
+            context = this,
+            modifierStateController = modifierStateController,
+            doubleTapThreshold = DOUBLE_TAP_THRESHOLD
+        )
+        autoCorrectionManager = AutoCorrectionManager(this)
         
-        statusBarController = StatusBarController(this)
-        candidatesViewController = StatusBarController(this)
+        candidatesBarController = CandidatesBarController(this)
 
         // Register listener for variation selection (both controllers)
         val variationListener = object : VariationButtonHandler.OnVariationSelectedListener {
@@ -540,15 +484,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 updateStatusBarText()
             }
         }
-        statusBarController.onVariationSelectedListener = variationListener
-        candidatesViewController.onVariationSelectedListener = variationListener
+        candidatesBarController.onVariationSelectedListener = variationListener
 
         // Register listener for cursor movement (both controllers)
         val cursorListener = {
             updateStatusBarText()
         }
-        statusBarController.onCursorMovedListener = cursorListener
-        candidatesViewController.onCursorMovedListener = cursorListener
+        candidatesBarController.onCursorMovedListener = cursorListener
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
@@ -557,6 +499,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         altSymManager.onAltCharInserted = { char ->
             updateStatusBarText()
         }
+        symLayoutController = SymLayoutController(this, prefs, altSymManager)
+        keyboardVisibilityController = KeyboardVisibilityController(
+            candidatesBarController = candidatesBarController,
+            symLayoutController = symLayoutController,
+            isInputViewActive = { isInputViewActive },
+            isNavModeLatched = { ctrlLatchFromNavMode },
+            currentInputConnection = { currentInputConnection },
+            isInputViewShown = { isInputViewShown },
+            attachInputView = { view -> setInputView(view) },
+            setCandidatesViewShown = { shown -> setCandidatesViewShown(shown) },
+            requestShowInputView = { requestShowSelf(0) },
+            refreshStatusBar = { refreshStatusBar() }
+        )
+        launcherShortcutController = LauncherShortcutController(this)
+        // Configura callbacks per gestire nav mode durante power shortcuts
+        launcherShortcutController.setNavModeCallbacks(
+            exitNavMode = { navModeController.exitNavMode() },
+            enterNavMode = { navModeController.enterNavMode() }
+        )
         
         // Initialize keyboard layout
         loadKeyboardLayout()
@@ -564,7 +525,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Initialize nav mode mappings file if needed
         it.palsoftware.pastiera.SettingsManager.initializeNavModeMappingsFile(this)
         ctrlKeyMap.putAll(KeyMappingLoader.loadCtrlKeyMappings(assets, this))
-        variationsMap.putAll(KeyMappingLoader.loadVariations(assets))
+        variationStateController = VariationStateController(VariationRepository.loadVariations(assets))
         
         // Load auto-correction rules
         AutoCorrector.loadCorrections(assets, this)
@@ -587,6 +548,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Handler(Looper.getMainLooper()).post {
                     updateStatusBarText()
                 }
+            } else if (key == "sym_pages_config") {
+                Log.d(TAG, "SYM pages configuration changed, refreshing status bar...")
+                Handler(Looper.getMainLooper()).post {
+                    updateStatusBarText()
+                }
+            } else if (key == "clear_alt_on_space") {
+                clearAltOnSpaceEnabled = SettingsManager.getClearAltOnSpace(this)
             } else if (key != null && (key.startsWith("auto_correct_custom_") || key == "auto_correct_enabled_languages")) {
                 Log.d(TAG, "Auto-correction rules changed, reloading...")
                 // Reload auto-corrections (including new custom languages)
@@ -596,9 +564,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 // Reload nav mode key mappings
                 reloadNavModeMappings()
             } else if (key == "keyboard_layout") {
-                Log.d(TAG, "Keyboard layout changed, reloading...")
-                // Reload keyboard layout
-                loadKeyboardLayout()
+                if (suppressNextLayoutReload) {
+                    Log.d(TAG, "Keyboard layout change observed, reload suppressed")
+                    suppressNextLayoutReload = false
+                } else {
+                    Log.d(TAG, "Keyboard layout changed, reloading...")
+                    val layoutName = SettingsManager.getKeyboardLayout(this)
+                    switchToLayout(layoutName, showToast = true)
+                }
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
@@ -671,46 +644,28 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
         speechResultReceiver = null
+        cancelSpaceLongPress()
+        multiTapController.cancelAll()
         
     }
 
-    override fun onCreateInputView(): View? {
-        val layout = statusBarController.getOrCreateLayout(altSymManager.buildEmojiMapText())
-        
-        if (layout.parent != null) {
-            (layout.parent as? android.view.ViewGroup)?.removeView(layout)
-        }
-        
-        refreshStatusBar()
-        return layout
-    }
+    override fun onCreateInputView(): View? = keyboardVisibilityController.onCreateInputView()
 
     /**
      * Creates the candidates view shown when the soft keyboard is disabled.
      * Uses a separate StatusBarController instance to provide identical functionality.
      */
-    override fun onCreateCandidatesView(): View? {
-        val layout = candidatesViewController.getOrCreateLayout(altSymManager.buildEmojiMapText())
-
-        if (layout.parent != null) {
-            (layout.parent as? android.view.ViewGroup)?.removeView(layout)
-        }
-
-        refreshStatusBar()
-        return layout
-    }
+    override fun onCreateCandidatesView(): View? = keyboardVisibilityController.onCreateCandidatesView()
 
     /**
      * Determines whether the input view (soft keyboard) should be shown.
-     * Always returns true to ensure the entire IME area is touchable, even in candidates mode.
-     * This allows the sym board (emoji grid) to be clickable when using touch screen.
+     * Respects the system flag (e.g. "Mostra tastiera virtuale" off for tastiere fisiche):
+     * when the system asks for candidate-only mode we hide the main status UI and
+     * expose the slim candidates view (LED strip + SYM layout on demand).
      */
     override fun onEvaluateInputViewShown(): Boolean {
-        // Always return true to force Android to treat the input view as shown.
-        // This makes the entire IME area touchable, not just the bottom bar.
-        // Hide candidates view to avoid conflicts.
-        setCandidatesViewShown(false)
-        return true
+        val shouldShowInputView = super.onEvaluateInputViewShown()
+        return keyboardVisibilityController.onEvaluateInputViewShown(shouldShowInputView)
     }
 
     /**
@@ -733,34 +688,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * @param preserveNavMode If true, keeps Ctrl latch active when nav mode is enabled.
      */
     private fun resetModifierStates(preserveNavMode: Boolean = false) {
-        val savedCtrlLatch = if (preserveNavMode && (ctrlLatchActive || ctrlLatchFromNavMode)) {
-            if (ctrlLatchActive) {
-                ctrlLatchFromNavMode = true
-                true
-            } else if (ctrlLatchFromNavMode) {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
+        modifierStateController.resetModifiers(
+            preserveNavMode = preserveNavMode,
+            onNavModeCancelled = { navModeController.cancelNotification() }
+        )
         
-        modifierKeyHandler.resetShiftState(shiftState)
-        capsLockEnabled = false
-        AutoCapitalizeHelper.reset(autoCapitalizeState)
-        
-        if (preserveNavMode && savedCtrlLatch) {
-            ctrlLatchActive = true
-        } else {
-            if (ctrlLatchFromNavMode || ctrlLatchActive) {
-                NotificationHelper.cancelNavModeNotification(this)
-            }
-            modifierKeyHandler.resetCtrlState(ctrlState, preserveNavMode = false)
-        }
-        modifierKeyHandler.resetAltState(altState)
-        
-        symPage = 0
+        symLayoutController.reset()
         altSymManager.resetTransientState()
         deactivateVariations()
         refreshStatusBar()
@@ -773,281 +706,50 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * IMPORTANT: UI is never shown in nav mode.
      */
     private fun ensureInputViewCreated() {
-        if (ctrlLatchFromNavMode && !isInputViewActive) {
-            return
-        }
-        
-        if (!isInputViewActive) {
-            return
-        }
-        
-        val inputConnection = currentInputConnection
-        if (inputConnection == null) {
-            return
-        }
-        
-        val layout = statusBarController.getOrCreateLayout(altSymManager.buildEmojiMapText())
-        refreshStatusBar()
-
-        if (layout.parent == null) {
-            setInputView(layout)
-        }
-
-        // Only call requestShowSelf if the input view is not already shown
-        // and we are in a valid state (not in nav mode, input view is active)
-        if (!isInputViewShown && isInputViewActive && !ctrlLatchFromNavMode) {
-            try {
-                requestShowSelf(0)
-            } catch (_: Exception) {
-                // Silently catch exceptions to avoid crashes
-            }
-        }
+        keyboardVisibilityController.ensureInputViewCreated()
     }
-    
-    
-    private fun isInputConnectionAvailable(): Boolean {
-        return currentInputConnection != null
-    }
-
-    private fun isNavModeActive(): Boolean {
-        return ctrlLatchActive && ctrlLatchFromNavMode
-    }
-
-    private fun isNavModeKey(keyCode: Int): Boolean {
-        val navModeEnabled = SettingsManager.getNavModeEnabled(this)
-        val navModeActive = isNavModeActive()
-        if (!navModeEnabled && !navModeActive) {
-            return false
-        }
-        val isCtrlKey = keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT
-        return isCtrlKey || navModeActive
-    }
-
-    private fun sendMappedDpadKey(mappedKeyCode: Int, event: KeyEvent?): Boolean {
-        val inputConnection = currentInputConnection ?: return false
-        val downTime = event?.downTime ?: SystemClock.uptimeMillis()
-        val eventTime = event?.eventTime ?: downTime
-        val metaState = event?.metaState ?: 0
-
-        val downEvent = KeyEvent(
-            downTime,
-            eventTime,
-            KeyEvent.ACTION_DOWN,
-            mappedKeyCode,
-            0,
-            metaState
-        )
-        val upEvent = KeyEvent(
-            downTime,
-            eventTime,
-            KeyEvent.ACTION_UP,
-            mappedKeyCode,
-            0,
-            metaState
-        )
-        inputConnection.sendKeyEvent(downEvent)
-        inputConnection.sendKeyEvent(upEvent)
-        Log.d(TAG, "Nav mode: dispatched DPAD keycode $mappedKeyCode")
-        return true
-    }
-
-    private fun applyNavModeResult(result: NavModeHandler.NavModeResult) {
-        result.ctrlLatchActive?.let { latchActive ->
-            ctrlLatchActive = latchActive
-            if (latchActive) {
-                ctrlLatchFromNavMode = true
-                NotificationHelper.showNavModeActivatedNotification(this)
-            } else if (ctrlLatchFromNavMode) {
-                ctrlLatchFromNavMode = false
-                NotificationHelper.cancelNavModeNotification(this)
-            }
-        }
-        result.ctrlPhysicallyPressed?.let { ctrlPhysicallyPressed = it }
-        result.ctrlPressed?.let { ctrlPressed = it }
-        result.lastCtrlReleaseTime?.let { ctrlState.lastReleaseTime = it }
-    }
-
-    private fun handleNavModeKey(keyCode: Int, event: KeyEvent?, isKeyDown: Boolean): Boolean {
-        val navModeEnabled = SettingsManager.getNavModeEnabled(this)
-        val navModeActive = isNavModeActive()
-        if (!navModeEnabled && !navModeActive) {
-            return false
-        }
-
-        val isCtrlKey = keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT
-        if (isCtrlKey) {
-            if (isKeyDown) {
-                val (shouldConsume, result) = NavModeHandler.handleCtrlKeyDown(
-                    keyCode,
-                    ctrlPressed,
-                    ctrlLatchActive,
-                    ctrlState.lastReleaseTime
-                )
-                applyNavModeResult(result)
-                if (shouldConsume) {
-                    ctrlPressed = true
-                }
-                return shouldConsume
-            } else {
-                val result = NavModeHandler.handleCtrlKeyUp()
-                applyNavModeResult(result)
-                ctrlPressed = false
-                return true
-            }
-        }
-
-        if (!isKeyDown) {
-            return isNavModeActive()
-        }
-
-        if (!isNavModeActive()) {
-            return false
-        }
-
-        if (!isInputConnectionAvailable()) {
-            return false
-        }
-
-        val ctrlMapping = ctrlKeyMap[keyCode] ?: return false
-        if (ctrlMapping.type != "keycode") {
-            return false
-        }
-
-        val mappedKeyCode = when (ctrlMapping.value) {
-            "DPAD_UP" -> KeyEvent.KEYCODE_DPAD_UP
-            "DPAD_DOWN" -> KeyEvent.KEYCODE_DPAD_DOWN
-            "DPAD_LEFT" -> KeyEvent.KEYCODE_DPAD_LEFT
-            "DPAD_RIGHT" -> KeyEvent.KEYCODE_DPAD_RIGHT
-            else -> null
-        } ?: return false
-
-        return sendMappedDpadKey(mappedKeyCode, event)
-    }
-    
-    /**
-     * Updates variations by checking the character immediately to the left of the cursor.
-     * 
-     * This function:
-     * 1. Checks if there is an active text selection (if so, disables variations)
-     * 2. Gets the character immediately before the cursor using getTextBeforeCursor(1, 0)
-     *    - getTextBeforeCursor(1, 0) returns exactly 1 character to the left of the cursor
-     *    - The last character of the returned string is the character immediately before the cursor
-     * 3. Looks up variations for that character and updates the UI accordingly
-     * 
-     * Note: This always checks the character to the LEFT of the cursor (in LTR languages),
-     * regardless of how the cursor was moved (keyboard, swipe pad, mouse, etc.).
-     */
-    private fun updateVariationsFromCursor() {
-        // Disable variations for restricted fields
-        if (shouldDisableSmartFeatures) {
-            deactivateVariations()
-            return
-        }
-        
-        val inputConnection = currentInputConnection
-        if (inputConnection == null) {
-            deactivateVariations()
-            return
-        }
-        
-        // Check if there is an active selection (more than one character selected).
-        // If there is a selection, completely disable variations.
-        try {
-            val extractedText = inputConnection.getExtractedText(
-                android.view.inputmethod.ExtractedTextRequest().apply {
-                    flags = android.view.inputmethod.ExtractedText.FLAG_SELECTING
-                },
-                0
-            )
-            
-            if (extractedText != null) {
-                val selectionStart = extractedText.selectionStart
-                val selectionEnd = extractedText.selectionEnd
-                
-                // If there is an active selection (selectionStart != selectionEnd), disable variations
-                if (selectionStart >= 0 && selectionEnd >= 0 && selectionStart != selectionEnd) {
-                    // Active selection detected, disable variations
-                    variationsActive = false
-                    lastInsertedChar = null
-                    availableVariations = emptyList()
-                    return
-                }
-            }
-        } catch (e: Exception) {
-            // If there is any error while checking the selection, keep normal logic.
-            Log.d(TAG, "Error while checking selection state: ${e.message}")
-        }
-        
-        // Get the character immediately before the cursor (to the left in LTR languages)
-        // getTextBeforeCursor(1, 0) returns exactly 1 character before the cursor position
-        val textBeforeCursor = inputConnection.getTextBeforeCursor(1, 0)
-        if (textBeforeCursor != null && textBeforeCursor.isNotEmpty()) {
-            // The last character of the returned string is the character immediately before the cursor
-            val charBeforeCursor = textBeforeCursor[textBeforeCursor.length - 1]
-            // Check whether the character has variations
-            val variations = variationsMap[charBeforeCursor]
-            if (variations != null && variations.isNotEmpty()) {
-                lastInsertedChar = charBeforeCursor
-                availableVariations = variations
-                variationsActive = true
-            } else {
-                // No variations available for this character
-                variationsActive = false
-                lastInsertedChar = null
-                availableVariations = emptyList()
-            }
-        } else {
-            // No character before the cursor (cursor is at the start of text)
-            variationsActive = false
-            lastInsertedChar = null
-            availableVariations = emptyList()
-        }
-    }
-    
     /**
      * Aggiorna la status bar delegando al controller dedicato.
      */
     private fun updateStatusBarText() {
-        // Aggiorna le variazioni controllando il carattere prima del cursore
-        updateVariationsFromCursor()
+        val variationSnapshot = variationStateController.refreshFromCursor(
+            currentInputConnection,
+            shouldDisableSmartFeatures
+        )
         
+        val modifierSnapshot = modifierStateController.snapshot()
         val snapshot = StatusBarController.StatusSnapshot(
-            capsLockEnabled = capsLockEnabled,
-            shiftPhysicallyPressed = shiftPhysicallyPressed,
-            shiftOneShot = shiftOneShot,
-            ctrlLatchActive = ctrlLatchActive,
-            ctrlPhysicallyPressed = ctrlPhysicallyPressed,
-            ctrlOneShot = ctrlOneShot,
-            ctrlLatchFromNavMode = ctrlLatchFromNavMode,
-            altLatchActive = altLatchActive,
-            altPhysicallyPressed = altPhysicallyPressed,
-            altOneShot = altOneShot,
+            capsLockEnabled = modifierSnapshot.capsLockEnabled,
+            shiftPhysicallyPressed = modifierSnapshot.shiftPhysicallyPressed,
+            shiftOneShot = modifierSnapshot.shiftOneShot,
+            ctrlLatchActive = modifierSnapshot.ctrlLatchActive,
+            ctrlPhysicallyPressed = modifierSnapshot.ctrlPhysicallyPressed,
+            ctrlOneShot = modifierSnapshot.ctrlOneShot,
+            ctrlLatchFromNavMode = modifierSnapshot.ctrlLatchFromNavMode,
+            altLatchActive = modifierSnapshot.altLatchActive,
+            altPhysicallyPressed = modifierSnapshot.altPhysicallyPressed,
+            altOneShot = modifierSnapshot.altOneShot,
             symPage = symPage,
-            variations = if (variationsActive) availableVariations else emptyList(),
-            lastInsertedChar = lastInsertedChar,
+            variations = variationSnapshot.variations,
+            lastInsertedChar = variationSnapshot.lastInsertedChar,
             shouldDisableSmartFeatures = shouldDisableSmartFeatures
         )
         // Passa anche la mappa emoji quando SYM è attivo (solo pagina 1)
-        val emojiMapText = if (symPage == 1) altSymManager.buildEmojiMapText() else ""
+        val emojiMapText = symLayoutController.emojiMapText()
         // Passa le mappature SYM per la griglia emoji/caratteri
-        val symMappings = when (symPage) {
-            1 -> altSymManager.getSymMappings()
-            2 -> altSymManager.getSymMappings2()
-            else -> null
-        }
+        val symMappings = symLayoutController.currentSymMappings()
         // Passa l'inputConnection per rendere i pulsanti clickabili
         val inputConnection = currentInputConnection
-        statusBarController.update(snapshot, emojiMapText, inputConnection, symMappings)
-        candidatesViewController.update(snapshot, emojiMapText, inputConnection, symMappings)
+        candidatesBarController.updateStatusBars(snapshot, emojiMapText, inputConnection, symMappings)
     }
     
     /**
      * Disattiva le variazioni.
      */
     private fun deactivateVariations() {
-        variationsActive = false
-        lastInsertedChar = null
-        availableVariations = emptyList()
+        if (::variationStateController.isInitialized) {
+            variationStateController.clear()
+        }
     }
     
 
@@ -1056,20 +758,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         currentPackageName = info?.packageName
         
-        val (isEditable, isReallyEditable) = checkFieldEditability(info)
+        updateInputContextState(info)
+        val state = inputContextState
+        val isEditable = state.isEditable
+        val isReallyEditable = state.isReallyEditable
         isInputViewActive = isEditable
         
-        isNumericField = info?.let { editorInfo ->
-            val inputType = editorInfo.inputType
-            val inputClass = inputType and android.text.InputType.TYPE_MASK_CLASS
-            inputClass == android.text.InputType.TYPE_CLASS_NUMBER
-        } ?: false
-        
-        shouldDisableSmartFeatures = shouldDisableSmartFeatures(info)
-        
-        if (shouldDisableSmartFeatures) {
-            setCandidatesViewShown(false)
-            deactivateVariations()
+        if (restarting) {
+            enforceSmartFeatureDisabledState()
         }
         
         if (info != null && isEditable) {
@@ -1091,9 +787,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 val hasValidInputConnection = inputConnection != null
                 
                 if (isReallyEditable && hasValidInputConnection) {
-                    NotificationHelper.cancelNavModeNotification(this)
-                    ctrlLatchFromNavMode = false
-                    ctrlLatchActive = false
+                    navModeController.exitNavMode()
                     resetModifierStates(preserveNavMode = false)
                 }
             } else if (isEditable || !ctrlLatchFromNavMode) {
@@ -1101,14 +795,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
         }
         
-        initializeInputContext(info, restarting)
+        initializeInputContext(restarting)
         
         if (restarting && isEditable && !shouldDisableSmartFeatures) {
             AutoCapitalizeHelper.checkAutoCapitalizeOnRestart(
                 this,
                 currentInputConnection,
                 shouldDisableSmartFeatures,
-                autoCapitalizeState,
+                enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+                disableShift = { modifierStateController.consumeShiftOneShot() },
                 onUpdateStatusBar = { updateStatusBarText() }
             )
         }
@@ -1117,16 +812,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
 
-        initializeInputContext(info, restarting)
+        updateInputContextState(info)
+        initializeInputContext(restarting)
         
-        val (isEditable, _) = checkFieldEditability(info)
+        val isEditable = inputContextState.isEditable
         
         if (restarting && isEditable && !shouldDisableSmartFeatures) {
             AutoCapitalizeHelper.checkAutoCapitalizeOnRestart(
                 this,
                 currentInputConnection,
                 shouldDisableSmartFeatures,
-                autoCapitalizeState,
+                enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+                disableShift = { modifierStateController.consumeShiftOneShot() },
                 onUpdateStatusBar = { updateStatusBarText() }
             )
         }
@@ -1135,7 +832,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     override fun onFinishInput() {
         super.onFinishInput()
         isInputViewActive = false
-        isNumericField = false
+        inputContextState = InputContextState.EMPTY
+        multiTapController.cancelAll()
+        cancelSpaceLongPress()
         resetModifierStates(preserveNavMode = true)
     }
     
@@ -1143,6 +842,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         super.onFinishInputView(finishingInput)
         isInputViewActive = false
         if (finishingInput) {
+            multiTapController.cancelAll()
+            cancelSpaceLongPress()
             resetModifierStates(preserveNavMode = true)
         }
     }
@@ -1154,6 +855,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     override fun onWindowHidden() {
         super.onWindowHidden()
+        multiTapController.finalizeCycle()
+        cancelSpaceLongPress()
         resetModifierStates(preserveNavMode = true)
     }
     
@@ -1183,11 +886,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             this,
             currentInputConnection,
             shouldDisableSmartFeatures,
-            autoCapitalizeState,
             oldSelStart,
             oldSelEnd,
             newSelStart,
             newSelEnd,
+            enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
+            disableShift = { modifierStateController.consumeShiftOneShot() },
             onUpdateStatusBar = { updateStatusBarText() }
         )
     }
@@ -1219,67 +923,113 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         // Check if we have an editable field at the very start
         val info = currentInputEditorInfo
-        val ic = currentInputConnection
+        val initialInputConnection = currentInputConnection
         val inputType = info?.inputType ?: EditorInfo.TYPE_NULL
-        val hasEditableField = ic != null && inputType != EditorInfo.TYPE_NULL
+        val hasEditableField = initialInputConnection != null && inputType != EditorInfo.TYPE_NULL
+        if (hasEditableField && !isInputViewActive) {
+            isInputViewActive = true
+        }
+
+        val isModifierKey = keyCode == KeyEvent.KEYCODE_SHIFT_LEFT ||
+            keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT ||
+            keyCode == KeyEvent.KEYCODE_CTRL_LEFT ||
+            keyCode == KeyEvent.KEYCODE_CTRL_RIGHT ||
+            keyCode == KeyEvent.KEYCODE_ALT_LEFT ||
+            keyCode == KeyEvent.KEYCODE_ALT_RIGHT
+        // Handle Ctrl+Space layout switching even when Alt is active.
+        if (
+            hasEditableField &&
+            keyCode == KeyEvent.KEYCODE_SPACE &&
+            (event?.isCtrlPressed == true || ctrlPressed || ctrlLatchActive || ctrlOneShot)
+        ) {
+            var shouldUpdateStatusBar = false
+
+            // Clear Alt state if active so we don't leave Alt latched.
+            val hadAlt = altLatchActive || altOneShot || altPressed
+            if (hadAlt) {
+                modifierStateController.clearAltState(resetPressedState = true)
+                shouldUpdateStatusBar = true
+            }
+
+            // Always reset Ctrl state after Ctrl+Space to avoid leaving it active.
+            val hadCtrl = ctrlLatchActive ||
+                ctrlOneShot ||
+                ctrlPressed ||
+                ctrlPhysicallyPressed ||
+                ctrlLatchFromNavMode
+            if (hadCtrl) {
+                val navModeLatched = ctrlLatchFromNavMode
+                modifierStateController.clearCtrlState(resetPressedState = true)
+                if (navModeLatched) {
+                    navModeController.cancelNotification()
+                }
+                shouldUpdateStatusBar = true
+            }
+
+            cycleLayoutFromShortcut()
+            shouldUpdateStatusBar = true
+
+            if (shouldUpdateStatusBar) {
+                updateStatusBarText()
+            }
+            return true
+        }
+
+        multiTapController.resetForNewKey(keyCode)
+        if (!isModifierKey) {
+            modifierStateController.registerNonModifierKey()
+        }
         
         // If NO editable field is active, handle ONLY nav mode
         if (!hasEditableField) {
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                if (isNavModeActive()) {
-                    ctrlLatchActive = false
-                    ctrlLatchFromNavMode = false
-                    NotificationHelper.cancelNavModeNotification(this)
-                    return false
-                }
-                return super.onKeyDown(keyCode, event)
-            }
-
-            if (isNavModeKey(keyCode)) {
-                return handleNavModeKey(keyCode, event, isKeyDown = true)
-            }
-            
-            // Handle launcher shortcuts (only when nav mode is not active)
-            if (!ctrlLatchActive && SettingsManager.getLauncherShortcutsEnabled(this)) {
-                val packageName = info?.packageName ?: currentPackageName
-                if (isLauncher(packageName) && isAlphabeticKey(keyCode)) {
-                    if (handleLauncherShortcut(keyCode)) {
-                        return true // Shortcut executed, consume the event
-                    }
-                }
-            }
-            
-            // Not handled by nav mode, pass to Android and STOP
-            // Do NOT execute any IME logic (no ensureInputViewCreated, no status bar, etc.)
-            return super.onKeyDown(keyCode, event)
+            val powerShortcutsEnabled = SettingsManager.getPowerShortcutsEnabled(this)
+            return inputEventRouter.handleKeyDownWithNoEditableField(
+                keyCode = keyCode,
+                event = event,
+                ctrlKeyMap = ctrlKeyMap,
+                callbacks = InputEventRouter.NoEditableFieldCallbacks(
+                    isAlphabeticKey = { code -> isAlphabeticKey(code) },
+                    isLauncherPackage = { pkg -> launcherShortcutController.isLauncher(pkg) },
+                    handleLauncherShortcut = { key -> launcherShortcutController.handleLauncherShortcut(key) },
+                    handlePowerShortcut = { key -> launcherShortcutController.handlePowerShortcut(key) },
+                    togglePowerShortcutMode = { message, isNavModeActive -> 
+                        launcherShortcutController.togglePowerShortcutMode(
+                            showToast = { showPowerShortcutToast(it) },
+                            isNavModeActive = isNavModeActive
+                        )
+                    },
+                    callSuper = { super.onKeyDown(keyCode, event) },
+                    currentInputConnection = { currentInputConnection }
+                ),
+                ctrlLatchActive = ctrlLatchActive,
+                editorInfo = info,
+                currentPackageName = currentPackageName,
+                powerShortcutsEnabled = powerShortcutsEnabled
+            )
         }
         
-        // If we have an editable field, nav mode must NOT be active
-        // Deactivate nav mode if it was active
-        if (ctrlLatchFromNavMode && ctrlLatchActive) {
-            ctrlLatchActive = false
-            ctrlLatchFromNavMode = false
-            NotificationHelper.cancelNavModeNotification(this)
+        val routingResult = inputEventRouter.handleEditableFieldKeyDownPrelude(
+            keyCode = keyCode,
+            params = InputEventRouter.EditableFieldKeyDownParams(
+                ctrlLatchFromNavMode = ctrlLatchFromNavMode,
+                ctrlLatchActive = ctrlLatchActive,
+                isInputViewActive = isInputViewActive,
+                isInputViewShown = isInputViewShown,
+                hasInputConnection = initialInputConnection != null
+            ),
+            callbacks = InputEventRouter.EditableFieldKeyDownCallbacks(
+                exitNavMode = { navModeController.exitNavMode() },
+                ensureInputViewCreated = { keyboardVisibilityController.ensureInputViewCreated() },
+                callSuper = { super.onKeyDown(keyCode, event) }
+            )
+        )
+        when (routingResult) {
+            InputEventRouter.EditableFieldRoutingResult.Consume -> return true
+            InputEventRouter.EditableFieldRoutingResult.CallSuper -> return super.onKeyDown(keyCode, event)
+            InputEventRouter.EditableFieldRoutingResult.Continue -> {}
         }
         
-        // Continue with normal IME logic for text fields
-        val isBackKey = keyCode == KeyEvent.KEYCODE_BACK
-        
-        // Handle Back to hide candidates view or close keyboard
-        if (isBackKey) {
-            if (isInputViewActive && !onEvaluateInputViewShown()) {
-                setCandidatesViewShown(false)
-                return true
-            }
-            // Always let Back key pass through to close keyboard, even with modifiers active
-            return super.onKeyDown(keyCode, event)
-        }
-        
-        // If we have a valid InputConnection but the keyboard is hidden,
-        // ensure it's shown and continue with normal processing
-        if (ic != null && !isInputViewShown && isInputViewActive) {
-            ensureInputViewCreated()
-        }
+        val ic = currentInputConnection
         
         // Continue with normal IME logic
         KeyboardEventTracker.notifyKeyEvent(keyCode, event, "KEY_DOWN")
@@ -1287,765 +1037,80 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             ensureInputViewCreated()
         }
         
-        // ========== AUTO-CORRECTION HANDLING ==========
-        // Skip all auto-correction, suggestions, and text modifications for restricted fields
         val isAutoCorrectEnabled = SettingsManager.getAutoCorrectEnabled(this) && !shouldDisableSmartFeatures
-        
-        // HANDLE BACKSPACE TO UNDO AUTO-CORRECTION (BEFORE normal handling)
-        if (isAutoCorrectEnabled && keyCode == KeyEvent.KEYCODE_DEL) {
-            // Check whether there is a correction to undo
-            val correction = AutoCorrector.getLastCorrection()
-            
-            if (correction != null) {
-                // Get the text before the cursor to verify that it matches the correction
-                val textBeforeCursor = ic.getTextBeforeCursor(
-                    correction.correctedWord.length + 2, // +2 per sicurezza (spazio/punteggiatura)
-                    0
-                )
-                
-                if (textBeforeCursor != null && 
-                    textBeforeCursor.length >= correction.correctedWord.length) {
-                    
-                    // Extract the last characters (they may include space/punctuation)
-                    val lastChars = textBeforeCursor.substring(
-                        maxOf(0, textBeforeCursor.length - correction.correctedWord.length - 1)
-                    )
-                    
-                    // Verify that the text matches the correction.
-                    // The corrected word may be followed by space or punctuation.
-                    if (lastChars.endsWith(correction.correctedWord) ||
-                        lastChars.trimEnd().endsWith(correction.correctedWord)) {
-                        
-                        // Delete the corrected word (and any trailing space/punctuation).
-                        // First count how many characters must be deleted.
-                        val charsToDelete = if (lastChars.endsWith(correction.correctedWord)) {
-                            correction.correctedWord.length
-                        } else {
-                            // C'è spazio/punteggiatura dopo, cancelliamo anche quello
-                            var deleteCount = correction.correctedWord.length
-                            var i = textBeforeCursor.length - 1
-                            while (i >= 0 && i >= textBeforeCursor.length - deleteCount - 1 &&
-                                   (textBeforeCursor[i].isWhitespace() || 
-                                    textBeforeCursor[i] in ".,;:!?()[]{}\"'")) {
-                                deleteCount++
-                                i--
-                            }
-                            deleteCount
-                        }
-                        
-                        // Delete characters
-                        ic.deleteSurroundingText(charsToDelete, 0)
-                        
-                        // Reinsert the original word
-                        ic.commitText(correction.originalWord, 1)
-                        
-                        // Undo the correction
-                        AutoCorrector.undoLastCorrection()
-                        
-                        Log.d(TAG, "Auto-correction undone: '${correction.correctedWord}' → '${correction.originalWord}'")
-                        updateStatusBarText()
-                        return true // Consume the event, do not handle backspace further
-                    }
-                }
-            }
+        if (
+            inputEventRouter.handleTextInputPipeline(
+                keyCode = keyCode,
+                event = event,
+                inputConnection = ic,
+                shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+                isAutoCorrectEnabled = isAutoCorrectEnabled,
+                textInputController = textInputController,
+                autoCorrectionManager = autoCorrectionManager
+            ) { updateStatusBarText() }
+        ) {
+            return true
         }
         
-        // HANDLE DOUBLE-TAP SPACE TO INSERT PERIOD AND SPACE (BEFORE auto-correction)
-        // Disabled for restricted fields
-        val isSpace = keyCode == KeyEvent.KEYCODE_SPACE
-        if (isSpace && !shouldDisableSmartFeatures) {
-            val doubleSpaceToPeriodEnabled = SettingsManager.getDoubleSpaceToPeriod(this)
-            if (doubleSpaceToPeriodEnabled) {
-                val currentTime = System.currentTimeMillis()
-                // Check whether this is a double-tap on space (second tap within DOUBLE_TAP_THRESHOLD)
-                val isDoubleTap = lastSpacePressTime > 0 && 
-                                 (currentTime - lastSpacePressTime) < DOUBLE_TAP_THRESHOLD
-                
-                if (isDoubleTap) {
-                    // When space is pressed the second time, in onKeyDown the second space has NOT yet been inserted.
-                    // So we check whether there is already a space before the cursor (from the first tap).
-                    val textBeforeCursor = ic.getTextBeforeCursor(100, 0)
-                    if (textBeforeCursor != null && textBeforeCursor.endsWith(" ")) {
-                        // Exception: if there are already multiple consecutive spaces,
-                        // do not trigger replacement. Check if there is another space before.
-                        if (textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2] == ' ') {
-                            // Multiple spaces already present, do not trigger replacement.
-                            Log.d(TAG, "Double-tap space ignored: multiple spaces already present")
-                            // Do not reset lastSpacePressTime here so that the next space is still a potential double-tap.
-                        } else {
-                            // Find the last non-space character before the space
-                            var lastCharIndex = textBeforeCursor.length - 2 // Index of last character before space
-                            while (lastCharIndex >= 0 && textBeforeCursor[lastCharIndex].isWhitespace()) {
-                                lastCharIndex--
-                            }
-                            
-                            // Check whether the last non-space character is alphabetical
-                            if (lastCharIndex >= 0) {
-                                val lastChar = textBeforeCursor[lastCharIndex]
-                                if (lastChar.isLetter()) {
-                                    // Last character is a letter, proceed with replacement.
-                                    // There is a space from the first tap; delete it and insert ". "
-                                    ic.deleteSurroundingText(1, 0)
-                                    ic.commitText(". ", 1)
-                                    
-                                    // Enable shiftOneShot to capitalize the next letter
-                                    shiftOneShot = true
-                                    shiftOneShotEnabledTime = System.currentTimeMillis()
-                                    updateStatusBarText()
-                                    
-                                    Log.d(TAG, "Double-tap space: inserted '. ' and enabled shiftOneShot (last character: '$lastChar')")
-                                    
-                                    // Reset to avoid triple-tap
-                                    lastSpacePressTime = 0
-                                    return true // Consume the event to prevent space insertion
-                                } else {
-                                    // Last character is not alphabetical (punctuation, number, etc.).
-                                    // Do not trigger replacement, let the space be inserted normally.
-                                    Log.d(TAG, "Double-tap space ignored: last character is not alphabetical ('$lastChar')")
-                                    // Do not reset lastSpacePressTime here so that the next space is still a potential double-tap.
-                                }
-                            } else {
-                                // No character found before space (empty field).
-                                // Insert ". " anyway.
-                                ic.deleteSurroundingText(1, 0)
-                                ic.commitText(". ", 1)
-                                
-                                // Enable shiftOneShot to capitalize the next letter
-                                shiftOneShot = true
-                                shiftOneShotEnabledTime = System.currentTimeMillis()
-                                updateStatusBarText()
-                                
-                                Log.d(TAG, "Double-tap space: inserted '. ' and enabled shiftOneShot (empty field)")
-                                
-                                // Reset to avoid triple-tap
-                                lastSpacePressTime = 0
-                                return true // Consume the event to prevent space insertion
-                            }
-                        }
-                    } else {
-                        // No space found before the cursor (edge case).
-                        // This should not happen in a normal double-tap, but handle it anyway:
-                        // do nothing special and let the space be inserted normally.
-                        Log.d(TAG, "Double-tap space: no space found before cursor")
-                    }
+        val routingDecision = inputEventRouter.routeEditableFieldKeyDown(
+            keyCode = keyCode,
+            event = event,
+            params = InputEventRouter.EditableFieldKeyDownHandlingParams(
+                inputConnection = ic,
+                isNumericField = isNumericField,
+                isInputViewActive = isInputViewActive,
+                shiftPressed = shiftPressed,
+                ctrlPressed = ctrlPressed,
+                altPressed = altPressed,
+                ctrlLatchActive = ctrlLatchActive,
+                altLatchActive = altLatchActive,
+                ctrlLatchFromNavMode = ctrlLatchFromNavMode,
+                ctrlKeyMap = ctrlKeyMap,
+                ctrlOneShot = ctrlOneShot,
+                altOneShot = altOneShot,
+                clearAltOnSpaceEnabled = clearAltOnSpaceEnabled,
+                shiftOneShot = shiftOneShot,
+                capsLockEnabled = capsLockEnabled,
+                cursorUpdateDelayMs = CURSOR_UPDATE_DELAY
+            ),
+            controllers = InputEventRouter.EditableFieldKeyDownControllers(
+                modifierStateController = modifierStateController,
+                symLayoutController = symLayoutController,
+                altSymManager = altSymManager,
+                variationStateController = variationStateController
+            ),
+            callbacks = InputEventRouter.EditableFieldKeyDownHandlingCallbacks(
+                updateStatusBar = { updateStatusBarText() },
+                refreshStatusBar = { refreshStatusBar() },
+                disableShiftOneShot = {
+                    modifierStateController.consumeShiftOneShot()
+                },
+                clearAltOneShot = { altOneShot = false },
+                clearCtrlOneShot = { ctrlOneShot = false },
+                getCharacterFromLayout = { code, keyEvent, isShiftPressed ->
+                    getCharacterFromLayout(code, keyEvent, isShiftPressed)
+                },
+                isAlphabeticKey = { code -> isAlphabeticKey(code) },
+                callSuper = { super.onKeyDown(keyCode, event) },
+                callSuperWithKey = { defaultKeyCode, defaultEvent ->
+                    super.onKeyDown(defaultKeyCode, defaultEvent)
+                },
+                startSpeechRecognition = { startSpeechRecognition() },
+                getMapping = { code -> LayoutMappingRepository.getMapping(code) },
+                handleMultiTapCommit = { code, mapping, uppercase, inputConnection, allowLongPress ->
+                    handleMultiTapCommit(code, mapping, uppercase, inputConnection, allowLongPress)
+                },
+                isLongPressSuppressed = { code ->
+                    multiTapController.isLongPressSuppressed(code)
                 }
-                
-                // Update timestamp of last space press
-                lastSpacePressTime = currentTime
-            } else {
-                // If the feature is disabled, reset timestamp
-                lastSpacePressTime = 0
-            }
-        } else {
-            // If this is not space, reset timestamp after a certain time
-            // (to avoid late double-tap detection)
-            if (lastSpacePressTime > 0) {
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastSpacePressTime >= DOUBLE_TAP_THRESHOLD) {
-                    lastSpacePressTime = 0
-                }
-            }
-        }
+            )
+        )
 
-        // ========== AUTO-CAPITALIZE AFTER PERIOD ==========
-        val autoCapitalizeAfterPeriodEnabled = SettingsManager.getAutoCapitalizeAfterPeriod(this) && !shouldDisableSmartFeatures
-        if (autoCapitalizeAfterPeriodEnabled &&
-            keyCode == KeyEvent.KEYCODE_SPACE && !shiftOneShot) {
-            AutoCapitalizeHelper.enableAfterPunctuation(
-                ic,
-                autoCapitalizeState,
-                onUpdateStatusBar = { updateStatusBarText() }
-            )
+        return when (routingDecision) {
+            InputEventRouter.EditableFieldRoutingResult.Consume -> true
+            InputEventRouter.EditableFieldRoutingResult.CallSuper -> super.onKeyDown(keyCode, event)
+            InputEventRouter.EditableFieldRoutingResult.Continue -> super.onKeyDown(keyCode, event)
         }
-
-        // HANDLE AUTO-CORRECTION FOR SPACE AND PUNCTUATION
-        if (isAutoCorrectEnabled) {
-            // Controlla se è spazio o punteggiatura
-            val isPunctuation = event?.unicodeChar != null &&
-                               event.unicodeChar != 0 &&
-                               event.unicodeChar.toChar() in ".,;:!?()[]{}\"'"
-            
-            if (isSpace || isPunctuation) {
-                // Get text before cursor
-                val textBeforeCursor = ic.getTextBeforeCursor(100, 0)
-                
-                // Process and obtain correction if available
-                val correction = AutoCorrector.processText(textBeforeCursor, context = this)
-                
-                if (correction != null) {
-                    val (wordToReplace, correctedWord) = correction
-                    
-                    // Delete the word to be corrected
-                    ic.deleteSurroundingText(wordToReplace.length, 0)
-                    
-                    // Insert the corrected word
-                    ic.commitText(correctedWord, 1)
-                    
-                    // Record the correction so it can be undone
-                    AutoCorrector.recordCorrection(
-                        originalWord = wordToReplace,
-                        correctedWord = correctedWord
-                    )
-                    
-                    // If it was space, insert it after the correction
-                    if (isSpace) {
-                        ic.commitText(" ", 1)
-                    } else if (isPunctuation && event?.unicodeChar != null && event.unicodeChar != 0) {
-                        // If it was punctuation, insert it after the correction
-                        val punctChar = event.unicodeChar.toChar().toString()
-                        ic.commitText(punctChar, 1)
-                    }
-                    
-                    updateStatusBarText()
-                    return true // Consume the event
-                }
-            }
-        }
-        
-        // ACCEPT CORRECTION WHEN ANY OTHER KEY IS PRESSED
-        // (except backspace, which is already handled above)
-        if (isAutoCorrectEnabled && keyCode != KeyEvent.KEYCODE_DEL) {
-            // Any key other than backspace accepts the correction.
-            // This includes characters, modifiers, arrows, etc.
-            AutoCorrector.acceptLastCorrection()
-            
-            // If a normal character (not a modifier) is typed, reset rejected words
-            // because the user may have changed the text.
-            if (event != null && event.unicodeChar != 0) {
-                val char = event.unicodeChar.toChar()
-                // Solo per caratteri alfabetici o numerici (non modificatori, frecce, ecc.)
-                if (char.isLetterOrDigit()) {
-                    AutoCorrector.clearRejectedWords()
-                }
-            }
-        }
-        // ========== END AUTO-CORRECTION HANDLING ==========
-        
-        // ========== AUTO-CAPITALIZE AFTER ENTER ==========
-        if (keyCode == KeyEvent.KEYCODE_ENTER && !shouldDisableSmartFeatures) {
-            AutoCapitalizeHelper.enableAfterEnter(
-                this,
-                ic,
-                shouldDisableSmartFeatures,
-                autoCapitalizeState,
-                onUpdateStatusBar = { updateStatusBarText() }
-            )
-        }
-        
-        // Handle double-tap Shift to toggle Caps Lock
-        if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
-            if (!shiftPressed) {
-                val result = modifierKeyHandler.handleShiftKeyDown(keyCode, shiftState)
-                // Sync shiftState.oneShot with autoCapitalizeState.shiftOneShot
-                // User manually pressed Shift - sync from shiftState to autoCapitalizeState
-                syncShiftOneShotFromShiftState()
-                shiftPressed = true
-                if (result.shouldUpdateStatusBar) {
-                    updateStatusBarText()
-                } else if (result.shouldRefreshStatusBar) {
-                    refreshStatusBar()
-                }
-            }
-            return super.onKeyDown(keyCode, event)
-        }
-        
-        // Handle double-tap Ctrl to toggle Ctrl latch
-        if (keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT) {
-            if (!ctrlPressed) {
-                val result = modifierKeyHandler.handleCtrlKeyDown(
-                    keyCode,
-                    ctrlState,
-                    isInputViewActive,
-                    onNavModeDeactivated = {
-                        NotificationHelper.cancelNavModeNotification(this)
-                    }
-                )
-                ctrlPressed = true
-                if (result.shouldConsume) {
-                    if (result.shouldUpdateStatusBar) {
-                        updateStatusBarText()
-                    }
-                    return true
-                } else if (result.shouldUpdateStatusBar) {
-                    updateStatusBarText()
-                }
-            }
-            return super.onKeyDown(keyCode, event)
-        }
-        
-        // Handle double-tap Alt to toggle Alt latch
-        if (keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
-            if (!altPressed) {
-                val result = modifierKeyHandler.handleAltKeyDown(keyCode, altState)
-                altPressed = true
-                if (result.shouldUpdateStatusBar) {
-                    updateStatusBarText()
-                }
-            }
-            return true  // Consume Alt event to prevent Android symbol picker popup
-        }
-        
-        // Handle SYM key (toggle/latch with 3 states: disabled -> page1 -> page2 -> disabled)
-        if (keyCode == KEYCODE_SYM) {
-            // Cycle between the 3 states: 0 -> 1 -> 2 -> 0
-            symPage = (symPage + 1) % 3
-            // Save current symPage to SharedPreferences for potential restore
-            prefs.edit().putInt("current_sym_page", symPage).apply()
-            updateStatusBarText()
-            // Consume the event to prevent Android from handling it
-            return true
-        }
-        
-        // Handle keycode 322 to delete the last word (swipe to delete)
-        if (keyCode == 322) {
-            val swipeToDeleteEnabled = SettingsManager.getSwipeToDelete(this)
-                if (swipeToDeleteEnabled) {
-                if (TextSelectionHelper.deleteLastWord(ic)) {
-                    // Consumiamo l'evento
-                    return true
-                }
-                    } else {
-                // Feature disabled, still consume the event to avoid unwanted behavior
-                return true
-            }
-        }
-        
-        // If the key is already pressed, consume the event to avoid repeats and popups
-        if (altSymManager.hasPendingPress(keyCode)) {
-            return true
-        }
-        
-        // If SYM is active, check SYM mappings first (they take precedence over Alt and Ctrl)
-        // When SYM is active, all other modifiers are bypassed
-        if (symPage > 0) {
-            // Check if auto-close is enabled
-            val autoCloseEnabled = SettingsManager.getSymAutoClose(this)
-            
-            // Handle Back key: always close keyboard, even when SYM is active
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                // Close SYM layout first
-                symPage = 0
-                prefs.edit().putInt("current_sym_page", 0).apply()
-                updateStatusBarText()
-                // Pass Back event to close keyboard
-                return super.onKeyDown(keyCode, event)
-            }
-            
-            // Handle Enter key: close SYM and pass Enter event normally if auto-close is enabled
-            if (keyCode == KeyEvent.KEYCODE_ENTER && autoCloseEnabled) {
-                // Close SYM layout first
-                symPage = 0
-                prefs.edit().putInt("current_sym_page", 0).apply()
-                updateStatusBarText()
-                // Pass Enter event normally (as if SYM was never active)
-                return super.onKeyDown(keyCode, event)
-            }
-            
-            // Handle Alt key: close SYM if auto-close is enabled (but not if Ctrl or Shift are also pressed)
-            // Only close if Alt is pressed alone (not with other keys)
-            if ((keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) && 
-                autoCloseEnabled && 
-                !(event?.isCtrlPressed == true || event?.isShiftPressed == true)) {
-                symPage = 0
-                prefs.edit().putInt("current_sym_page", 0).apply()
-                updateStatusBarText()
-                // Consume Alt to prevent it from being handled as Alt+key combination
-                return true
-            }
-            
-            val symChar = when (symPage) {
-                1 -> altSymManager.getSymMappings()[keyCode]
-                2 -> altSymManager.getSymMappings2()[keyCode]
-                else -> null
-            }
-            if (symChar != null) {
-                // Insert emoji or character from SYM map
-                ic.commitText(symChar, 1)
-                
-                // Auto-close SYM after inserting character if enabled and no modifiers are pressed
-                if (autoCloseEnabled && 
-                    !(event?.isCtrlPressed == true || event?.isShiftPressed == true || 
-                      event?.isAltPressed == true || ctrlLatchActive || altLatchActive)) {
-                    symPage = 0
-                    prefs.edit().putInt("current_sym_page", 0).apply()
-                    updateStatusBarText()
-                }
-                
-                // Consume the event
-                return true
-            }
-        }
-        
-        // If Alt is pressed or Alt latch / Alt one-shot are active, handle Alt+key combination
-        // Alt has priority over Ctrl
-        if (event?.isAltPressed == true || altLatchActive || altOneShot) {
-            altSymManager.cancelPendingLongPress(keyCode)
-            if (altOneShot) {
-                altOneShot = false
-                refreshStatusBar()
-            }
-            
-            // Eccezione per Back: chiude sempre la tastiera anche con Alt premuto
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                // Lascia passare Back anche con Alt premuto per chiudere la tastiera
-                return super.onKeyDown(keyCode, event)
-            }
-            
-            // FIX: Consumiamo Alt+Spazio per evitare il popup di selezione simboli di Android
-            // Questo gestisce i casi: Spazio->Alt, Alt->Spazio, Alt->tasto alfabetico->Spazio
-            // Inseriamo uno spazio nel campo di testo
-            if (keyCode == KeyEvent.KEYCODE_SPACE) {
-                ic.commitText(" ", 1)
-                updateStatusBarText()
-                return true  // Consumiamo l'evento senza passarlo ad Android
-            }
-            
-            val result = altSymManager.handleAltCombination(
-                keyCode,
-                ic,
-                event
-            ) { defaultKeyCode, defaultEvent ->
-                // FIX: Anche se non c'è una mappatura Alt per questo tasto,
-                // consumiamo l'evento quando Alt è attivo e il tasto è Spazio
-                // per evitare comportamenti indesiderati di Android
-                // Inseriamo uno spazio nel campo di testo
-                if (keyCode == KeyEvent.KEYCODE_SPACE) {
-                    ic.commitText(" ", 1)
-                    updateStatusBarText()
-                    return@handleAltCombination true
-                }
-                super.onKeyDown(defaultKeyCode, defaultEvent)
-            }
-            // If an Alt character has been inserted, update variations
-            if (result) {
-                updateStatusBarText()
-            }
-            return result
-        }
-        
-        // Handle Ctrl+key shortcuts (checks both physical Ctrl, Ctrl latch and one-shot).
-        // IMPORTANT: If we are in nav mode (ctrlLatchFromNavMode), Ctrl latch MUST NOT be disabled here.
-        // BUT: in a text field, nav mode is already disabled, so treat Ctrl latch as normal.
-        if (event?.isCtrlPressed == true || ctrlLatchActive || ctrlOneShot) {
-            // If it was one-shot, disable it after use (but NOT when in nav mode)
-            val wasOneShot = ctrlOneShot
-            if (wasOneShot && !ctrlLatchFromNavMode) {
-                ctrlOneShot = false
-                updateStatusBarText()
-            }
-            // IMPORTANT: In nav mode never disable Ctrl latch after using a key;
-            // Ctrl latch stays active until nav mode is exited.
-            
-            // Check whether a Ctrl mapping exists for this key
-            val ctrlMapping = ctrlKeyMap[keyCode]
-            if (ctrlMapping != null) {
-                when (ctrlMapping.type) {
-                    "action" -> {
-                        // Handle special custom actions
-                        when (ctrlMapping.value) {
-                            "expand_selection_left" -> {
-                                // Try to expand selection to the left.
-                                // Always consume the event to avoid inserting 'W'.
-                                KeyboardEventTracker.notifyKeyEvent(
-                                    keyCode,
-                                    event,
-                                    "KEY_DOWN",
-                                    outputKeyCode = null,
-                                    outputKeyCodeName = "expand_selection_left"
-                                )
-                                TextSelectionHelper.expandSelectionLeft(ic)
-                                return true
-                            }
-                            "expand_selection_right" -> {
-                                // Try to expand selection to the right.
-                                // Always consume the event to avoid inserting 'R'.
-                                KeyboardEventTracker.notifyKeyEvent(
-                                    keyCode,
-                                    event,
-                                    "KEY_DOWN",
-                                    outputKeyCode = null,
-                                    outputKeyCodeName = "expand_selection_right"
-                                )
-                                TextSelectionHelper.expandSelectionRight(ic)
-                                return true
-                            }
-                            else -> {
-                                // Execute standard context menu action
-                                val actionId = when (ctrlMapping.value) {
-                                    "copy" -> android.R.id.copy
-                                    "paste" -> android.R.id.paste
-                                    "cut" -> android.R.id.cut
-                                    "undo" -> android.R.id.undo
-                                    "select_all" -> android.R.id.selectAll
-                                    else -> null
-                                }
-                                if (actionId != null) {
-                                    // Notify the event with the action name
-                                    KeyboardEventTracker.notifyKeyEvent(
-                                        keyCode,
-                                        event,
-                                        "KEY_DOWN",
-                                        outputKeyCode = null,
-                                        outputKeyCodeName = ctrlMapping.value
-                                    )
-                                    ic.performContextMenuAction(actionId)
-                                    return true
-                                } else {
-                                    // Unknown action, consume the event to avoid inserting characters
-                                    return true
-                                }
-                            }
-                        }
-                    }
-                    "keycode" -> {
-                        // Send the mapped keycode
-                        val mappedKeyCode = when (ctrlMapping.value) {
-                            "DPAD_UP" -> KeyEvent.KEYCODE_DPAD_UP
-                            "DPAD_DOWN" -> KeyEvent.KEYCODE_DPAD_DOWN
-                            "DPAD_LEFT" -> KeyEvent.KEYCODE_DPAD_LEFT
-                            "DPAD_RIGHT" -> KeyEvent.KEYCODE_DPAD_RIGHT
-                            "TAB" -> KeyEvent.KEYCODE_TAB
-                            "PAGE_UP" -> KeyEvent.KEYCODE_PAGE_UP
-                            "PAGE_DOWN" -> KeyEvent.KEYCODE_PAGE_DOWN
-                            "ESCAPE" -> KeyEvent.KEYCODE_ESCAPE
-                            else -> null
-                        }
-                        if (mappedKeyCode != null) {
-                            // Notify the event with the output keycode
-                            KeyboardEventTracker.notifyKeyEvent(
-                                keyCode,
-                                event,
-                                "KEY_DOWN",
-                                outputKeyCode = mappedKeyCode,
-                                outputKeyCodeName = KeyboardEventTracker.getOutputKeyCodeName(mappedKeyCode)
-                            )
-                            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, mappedKeyCode))
-                            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, mappedKeyCode))
-                            
-                            // Update variations after cursor movement or other operations.
-                            // Use a delayed post to ensure Android has completed the operation.
-                            if (mappedKeyCode in listOf(
-                                KeyEvent.KEYCODE_DPAD_UP,
-                                KeyEvent.KEYCODE_DPAD_DOWN,
-                                KeyEvent.KEYCODE_DPAD_LEFT,
-                                KeyEvent.KEYCODE_DPAD_RIGHT,
-                                KeyEvent.KEYCODE_PAGE_UP,
-                                KeyEvent.KEYCODE_PAGE_DOWN
-                            )) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                    updateStatusBarText()
-                                }, 50) // 50ms per dare tempo ad Android di aggiornare la posizione del cursore
-                            }
-                            
-                            return true
-                        } else {
-                            // Unknown keycode, consume event to avoid inserting characters
-                            return true
-                        }
-                    }
-                }
-            } else {
-                // Ctrl is pressed but this key has no valid mapping.
-                // Special handling for Backspace: delete last word or selected text.
-                if (keyCode == KeyEvent.KEYCODE_DEL) {
-                    // Verifica se c'è del testo selezionato
-                    val extractedText = ic.getExtractedText(
-                        android.view.inputmethod.ExtractedTextRequest().apply {
-                            flags = android.view.inputmethod.ExtractedText.FLAG_SELECTING
-                        },
-                        0
-                    )
-                    
-                    val hasSelection = extractedText?.let {
-                        it.selectionStart >= 0 && it.selectionEnd >= 0 && it.selectionStart != it.selectionEnd
-                    } ?: false
-                    
-                    if (hasSelection) {
-                        // If some text is selected, delete it
-                        KeyboardEventTracker.notifyKeyEvent(
-                            keyCode,
-                            event,
-                            "KEY_DOWN",
-                            outputKeyCode = null,
-                            outputKeyCodeName = "delete_selection"
-                        )
-                        // Delete selected text using commitText with an empty string
-                        ic.commitText("", 0)
-                        return true
-                    } else {
-                        // Ctrl+Backspace deletes last word
-                        KeyboardEventTracker.notifyKeyEvent(
-                            keyCode,
-                            event,
-                            "KEY_DOWN",
-                            outputKeyCode = null,
-                            outputKeyCodeName = "delete_last_word"
-                        )
-                        TextSelectionHelper.deleteLastWord(ic)
-                        return true
-                    }
-                }
-                // Eccezione per Enter: continua a funzionare normalmente
-                if (keyCode == KeyEvent.KEYCODE_ENTER) {
-                    // Lascia passare Enter anche con Ctrl premuto
-                    return super.onKeyDown(keyCode, event)
-                }
-                // Eccezione per Back: chiude sempre la tastiera anche con Ctrl premuto
-                if (keyCode == KeyEvent.KEYCODE_BACK) {
-                    // Lascia passare Back anche con Ctrl premuto per chiudere la tastiera
-                    return super.onKeyDown(keyCode, event)
-                }
-                // For all other keys without mappings, consume the event
-                return true
-            }
-        }
-        
-        // Check whether this key has an Alt mapping or should support long press with Shift.
-        // If it does, handle it with long press (even when shiftOneShot is active).
-        // This avoids inserting the normal character when the user intends a long press.
-        val useShift = SettingsManager.isLongPressShift(this)
-        val hasLongPressSupport = if (useShift) {
-            // With Shift, support long press for any letter key
-            event != null && event.unicodeChar != 0 && event.unicodeChar.toChar().isLetter()
-        } else {
-            // With Alt, only keys with Alt mapping
-            altSymManager.hasAltMapping(keyCode)
-        }
-        
-        if (hasLongPressSupport) {
-            // In numeric fields, only insert Alt character directly if using Alt modifier
-            // (Shift modifier doesn't make sense for numeric fields)
-            if (isNumericField && !useShift) {
-                val altChar = altSymManager.getAltMappings()[keyCode]
-                if (altChar != null) {
-                    ic.commitText(altChar, 1)
-                    // Update variations after insertion (with delay to ensure commitText is completed)
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        updateStatusBarText()
-                    }, 50) // 50ms per dare tempo ad Android di completare commitText e aggiornare il cursore
-                    return true
-                }
-            }
-            // Otherwise use the standard long-press handling
-            val wasShiftOneShot = shiftOneShot
-            // Get character from layout for conversion
-            val layoutChar = getCharacterFromLayout(keyCode, event, event?.isShiftPressed == true)
-            altSymManager.handleKeyWithAltMapping(
-                keyCode,
-                event,
-                capsLockEnabled,
-                ic,
-                shiftOneShot,
-                layoutChar
-            )
-            // Disable shiftOneShot after handling a key with Alt mapping,
-            // so that it does not stay active for the next key.
-            if (wasShiftOneShot) {
-                shiftOneShot = false
-                shiftOneShotEnabledTime = 0
-                // Sync to shiftState
-                syncShiftOneShotToShiftState()
-                updateStatusBarText()
-            }
-            return true
-        }
-        
-        // Handle Shift one-shot for keys without Alt mapping
-        if (shiftOneShot) {
-            val charFromLayout = getCharacterStringFromLayout(keyCode, event, isShift = true)
-            if (charFromLayout.isNotEmpty() && charFromLayout[0].isLetter()) {
-                val char = charFromLayout.uppercase()
-                // Disable shift one-shot (used when letter is typed)
-                shiftOneShot = false
-                shiftOneShotEnabledTime = 0
-                // Sync to shiftState
-                syncShiftOneShotToShiftState()
-                ic.commitText(char, 1)
-                Handler(Looper.getMainLooper()).postDelayed({
-                    updateStatusBarText()
-                }, CURSOR_UPDATE_DELAY)
-                return true
-            }
-        }
-        
-        // When there is no mapping, handle Caps Lock for regular characters.
-        // Apply Caps Lock to alphabetical characters.
-        val charFromLayout = getCharacterStringFromLayout(keyCode, event, event?.isShiftPressed == true)
-        if (charFromLayout.isNotEmpty() && charFromLayout[0].isLetter()) {
-            var char = charFromLayout
-            var shouldConsume = false
-            
-            // Apply Caps Lock when active (but only if Shift is not pressed)
-            if (capsLockEnabled && event?.isShiftPressed != true) {
-                char = char.uppercase()
-                shouldConsume = true
-            } else if (capsLockEnabled && event?.isShiftPressed == true) {
-                // When Caps Lock is active and Shift is pressed, force lowercase
-                char = char.lowercase()
-                shouldConsume = true
-            }
-            
-            if (shouldConsume) {
-                ic.commitText(char, 1)
-                Handler(Looper.getMainLooper()).postDelayed({
-                    updateStatusBarText()
-                }, CURSOR_UPDATE_DELAY)
-                return true
-            }
-        }
-        
-        // When there is no mapping, check whether the character has variations.
-        // If it does, handle it ourselves so we can show variation suggestions.
-        val charForVariations = getCharacterFromLayout(keyCode, event, event?.isShiftPressed == true)
-        if (charForVariations != null) {
-            // Check whether the character has variations
-            if (variationsMap.containsKey(charForVariations)) {
-                // Insert the character ourselves so we can show variations
-                ic.commitText(charForVariations.toString(), 1)
-                Handler(Looper.getMainLooper()).postDelayed({
-                    updateStatusBarText()
-                }, CURSOR_UPDATE_DELAY)
-                return true
-            }
-            // If the character has no variations, previous variations remain visible
-            // (display only, no action)
-        }
-        
-        // Convert all alphabetic characters using the selected keyboard layout
-        // This ensures that layout conversion works even when no special modifiers are active
-        // Check if this is an alphabetic key that should be converted
-        val isAlphabeticKey = isAlphabeticKey(keyCode)
-        if (isAlphabeticKey && KeyboardLayoutManager.isMapped(keyCode)) {
-            val convertedChar = getCharacterFromLayout(keyCode, event, event?.isShiftPressed == true)
-            if (convertedChar != null && convertedChar.isLetter()) {
-                // Get the character from the layout and insert it ourselves
-                // This overrides Android's system layout handling
-                var char = convertedChar.toString()
-                
-                // Apply Caps Lock if enabled (but only if Shift is not pressed)
-                if (capsLockEnabled && event?.isShiftPressed != true) {
-                    char = char.uppercase()
-                } else if (capsLockEnabled && event?.isShiftPressed == true) {
-                    // When Caps Lock is active and Shift is pressed, force lowercase
-                    char = char.lowercase()
-                }
-                
-                
-                // Insert the converted character
-                ic.commitText(char, 1)
-                
-                Handler(Looper.getMainLooper()).postDelayed({
-                    updateStatusBarText()
-                }, CURSOR_UPDATE_DELAY)
-                
-                // Consume the event to prevent Android from handling it
-                return true
-            }
-        }
-        
-        // When there is no mapping, let Android handle the event normally.
-        // Variations will be updated automatically by onUpdateSelection() after Android completes the insertion.
-        return super.onKeyDown(keyCode, event)
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
@@ -2057,11 +1122,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         // If NO editable field is active, handle ONLY nav mode Ctrl release
         if (!hasEditableField) {
-            if (isNavModeKey(keyCode)) {
-                return handleNavModeKey(keyCode, event, isKeyDown = false)
-            }
-            // Not handled by nav mode, pass to Android
-            return super.onKeyUp(keyCode, event)
+            return inputEventRouter.handleKeyUpWithNoEditableField(
+                keyCode = keyCode,
+                event = event,
+                ctrlKeyMap = ctrlKeyMap,
+                callbacks = InputEventRouter.NoEditableFieldCallbacks(
+                    isAlphabeticKey = { code -> isAlphabeticKey(code) },
+                    isLauncherPackage = { pkg -> launcherShortcutController.isLauncher(pkg) },
+                    handleLauncherShortcut = { key -> launcherShortcutController.handleLauncherShortcut(key) },
+                    handlePowerShortcut = { key -> launcherShortcutController.handlePowerShortcut(key) },
+                    togglePowerShortcutMode = { message, isNavModeActive -> 
+                        launcherShortcutController.togglePowerShortcutMode(
+                            showToast = { showPowerShortcutToast(it) },
+                            isNavModeActive = isNavModeActive
+                        )
+                    },
+                    callSuper = { super.onKeyUp(keyCode, event) },
+                    currentInputConnection = { currentInputConnection }
+                )
+            )
         }
         
         // Continue with normal IME logic for text fields
@@ -2073,11 +1152,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Shift release for double-tap
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
             if (shiftPressed) {
-                val result = modifierKeyHandler.handleShiftKeyUp(keyCode, shiftState)
-                // Sync shiftState.oneShot with autoCapitalizeState.shiftOneShot
-                // Shift one-shot remains active until used (when letter is typed)
-                syncShiftOneShotFromShiftState()
-                shiftPressed = false
+                val result = modifierStateController.handleShiftKeyUp(keyCode)
                 if (result.shouldUpdateStatusBar) {
                     updateStatusBarText()
                 }
@@ -2088,8 +1163,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Ctrl release for double-tap
         if (keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT) {
             if (ctrlPressed) {
-                val result = modifierKeyHandler.handleCtrlKeyUp(keyCode, ctrlState)
-                ctrlPressed = false
+                val result = modifierStateController.handleCtrlKeyUp(keyCode)
                 if (result.shouldUpdateStatusBar) {
                     updateStatusBarText()
                 }
@@ -2100,8 +1174,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Alt release for double-tap
         if (keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
             if (altPressed) {
-                val result = modifierKeyHandler.handleAltKeyUp(keyCode, altState)
-                altPressed = false
+                val result = modifierStateController.handleAltKeyUp(keyCode)
                 if (result.shouldUpdateStatusBar) {
                     updateStatusBarText()
                 }
@@ -2115,7 +1188,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return true
         }
         
-        if (altSymManager.handleKeyUp(keyCode, symPage > 0, shiftPressed)) {
+        if (symLayoutController.handleKeyUp(keyCode, shiftPressed)) {
             return true
         }
         
@@ -2136,70 +1209,4 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         altSymManager.removeAltKeyMapping(keyCode)
     }
     
-    /**
-     * Intercepts trackpad/touch-sensitive keyboard motion events.
-     * The Unihertz Titan 2 keyboard can act as a trackpad, sending MotionEvents
-     * for scrolling, cursor movement, and gestures.
-     */
-    override fun onGenericMotionEvent(event: MotionEvent?): Boolean {
-        if (event == null) {
-            return super.onGenericMotionEvent(event)
-        }
-        
-        // Check if this is a trackpad/touch event from the keyboard
-        val source = event.source
-        val isFromTrackpad = (source and InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE ||
-                            (source and InputDevice.SOURCE_TOUCHPAD) == InputDevice.SOURCE_TOUCHPAD
-        
-        // Also check if it's from a keyboard device (touch-sensitive keyboard)
-        val device = event.device
-        val isFromKeyboard = device != null && 
-                            ((source and InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD ||
-                             device.name?.contains("keyboard", ignoreCase = true) == true ||
-                             device.name?.contains("titan", ignoreCase = true) == true)
-        
-        if (isFromTrackpad || isFromKeyboard) {
-            Log.d(TAG, "Motion event intercepted - Action: ${MotionEventTracker.getActionName(event.action)}, " +
-                    "Source: ${MotionEventTracker.getSourceName(source)}, " +
-                    "Device: ${device?.name}, " +
-                    "X: ${event.x}, Y: ${event.y}, " +
-                    "ScrollX: ${event.getAxisValue(MotionEvent.AXIS_HSCROLL)}, " +
-                    "ScrollY: ${event.getAxisValue(MotionEvent.AXIS_VSCROLL)}")
-            
-            // Notify the tracker for debug display
-            MotionEventTracker.notifyMotionEvent(event)
-            
-            // Handle different motion event types
-            when (event.action) {
-                MotionEvent.ACTION_SCROLL -> {
-                    val scrollX = event.getAxisValue(MotionEvent.AXIS_HSCROLL)
-                    val scrollY = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
-                    Log.d(TAG, "Trackpad scroll detected - X: $scrollX, Y: $scrollY")
-                    
-                    // You can handle scroll events here
-                    // For example, convert to cursor movement or scroll actions
-                    // return true to consume the event, false to pass it to Android
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    Log.d(TAG, "Trackpad move detected - X: ${event.x}, Y: ${event.y}")
-                    // Handle cursor movement
-                }
-                MotionEvent.ACTION_DOWN -> {
-                    Log.d(TAG, "Trackpad touch down detected - X: ${event.x}, Y: ${event.y}")
-                    // Handle touch down (click)
-                }
-                MotionEvent.ACTION_UP -> {
-                    Log.d(TAG, "Trackpad touch up detected")
-                    // Handle touch up (release)
-                }
-            }
-            
-            // Return true to consume the event, false to let Android handle it
-            // For now, we'll let Android handle it but log everything for debugging
-            return false
-        }
-        
-        return super.onGenericMotionEvent(event)
-    }
 }
-

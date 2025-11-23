@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera</string>
     <string name="input_method_name_en">English</string>
@@ -33,6 +33,10 @@
     
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Abilita Swipe per Cancellare</string>
+    
+    <!-- Swipe Incremental Threshold Section -->
+    <string name="swipe_incremental_threshold_title">Sensibilità Swipe Bar</string>
+    <string name="swipe_incremental_threshold_description">Distanza necessaria per spostare il cursore di una posizione. Valori più bassi rendono il cursore più veloce.</string>
     
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Mostra Automaticamente la Tastiera</string>
@@ -120,6 +124,14 @@
     <string name="sym_customize_title">Personalizza Tastiera SYM</string>
     <string name="sym_auto_close_title">Chiudi Automaticamente Layout SYM</string>
     <string name="sym_auto_close_description">Chiudi automaticamente il layout SYM dopo aver inserito un carattere, premuto Alt o premuto Invio. Non si chiude con Control o Shift.</string>
+    <string name="sym_enable_emoji_page_title">Abilita Pagina Emoji</string>
+    <string name="sym_enable_emoji_page_description">Mostra il layout SYM emoji durante il ciclo.</string>
+    <string name="sym_enable_symbols_page_title">Abilita Pagina Simboli</string>
+    <string name="sym_enable_symbols_page_description">Mostra il layout SYM simboli durante il ciclo.</string>
+    <string name="sym_swap_pages_title">Scambia Ordine Pagine SYM</string>
+    <string name="sym_swap_pages_description">Scegli quale pagina SYM appare per prima quando si alterna.</string>
+    <string name="sym_order_emoji_first">Emoji prima</string>
+    <string name="sym_order_symbols_first">Simboli prima</string>
     <string name="sym_instructions_title">Istruzioni</string>
     <string name="sym_instructions_text">Tocca un tasto qui sotto per cambiare la sua emoji. Le modifiche vengono salvate automaticamente.</string>
     <string name="sym_reset_to_default">Ripristina Predefiniti</string>
@@ -153,7 +165,7 @@
     
     <!-- Keyboard Layout Section -->
     <string name="keyboard_layout_title">Layout Tastiera</string>
-    <string name="keyboard_layout_description">Seleziona il layout della tastiera. Le mappature ALT, SYM e Ctrl rimangono basate sulla posizione fisica del tasto.</string>
+    <string name="keyboard_layout_description">Seleziona il layout della tastiera. Le mappature ALT, SYM e Ctrl rimangono basate sulla posizione fisica del tasto. Cambia la mappatura rapidamente con CTRL+SPACE.</string>
     <string name="keyboard_layout_no_conversion">Standard</string>
     <string name="keyboard_layout_no_conversion_description">Layout QWERTY standard (nessuna conversione)</string>
     <string name="keyboard_layout_conversions_title">Conversioni Layout</string>
@@ -166,16 +178,14 @@
     <string name="about_title">Informazioni</string>
     
     <!-- Launcher Shortcuts Section -->
-    <string name="launcher_shortcuts_title">Scorciatoie Launcher</string>
+    <string name="launcher_shortcuts_title">Scorciatoie</string>
     <string name="launcher_shortcuts_experimental">Experimental</string>
-    <string name="launcher_shortcuts_description">Abilita le scorciatoie da tastiera nel launcher</string>
+    <string name="launcher_shortcuts_description">Abilita le scorciatoie da tastiera</string>
     <string name="launcher_shortcuts_configure">Configura scorciatoie</string>
-    <string name="launcher_shortcuts_configure_description">Assegna tasti per aprire app nel launcher</string>
+    <string name="launcher_shortcuts_configure_description">Assegna tasti per aprire app</string>
     
     <!-- Launcher Shortcuts Screen -->
-    <string name="launcher_shortcuts_screen_title">Scorciatoie Launcher</string>
-    <string name="launcher_shortcuts_screen_assign_title">Assegna scorciatoie alle app</string>
-    <string name="launcher_shortcuts_screen_assign_description">Quando sei nel launcher e non in un campo di testo, puoi premere un tasto per aprire un\'app assegnata.</string>
+    <string name="launcher_shortcuts_screen_title">Scorciatoie</string>
     <string name="launcher_shortcuts_not_assigned">Non assegnato</string>
     <string name="launcher_shortcuts_remove">Rimuovi</string>
     <string name="launcher_shortcuts_app_name_unavailable">App (nome non disponibile)</string>
@@ -193,11 +203,22 @@
     <string name="launcher_shortcut_assignment_no_results">Nessun risultato per \"%1$s\"</string>
     <string name="launcher_shortcut_assignment_key_name">Tasto %1$d</string>
     
+    <!-- Power Shortcuts Section -->
+    <string name="power_shortcuts_title">Power Shortcuts</string>
+    <string name="power_shortcuts_description">Premi SYM poi un tasto per lanciare scorciatoie quando non sei in un campo di testo</string>
+    <string name="power_shortcuts_press_key">Premi tasto scorciatoia per lanciare</string>
+    
     <!-- Notification Helper -->
     <string name="notification_nav_mode_channel_name">Pastiera Nav Mode</string>
     <string name="notification_nav_mode_channel_description">Notifiche per il nav mode di Pastiera</string>
     <string name="notification_nav_mode_activated_title">Nav Mode Attivato</string>
     <string name="notification_nav_mode_activated_text">Nav mode attivato</string>
+    
+    <!-- Update Notifications -->
+    <string name="notification_update_channel_name">Aggiornamenti Pastiera</string>
+    <string name="notification_update_channel_description">Notifiche sui nuovi aggiornamenti di Pastiera</string>
+    <string name="notification_update_available_title">Pastiera - nuovo aggiornamento disponibile</string>
+    <string name="notification_update_available_text">Una nuova versione di Pastiera è disponibile (%1$s)</string>
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Parla ora...</string>
@@ -235,28 +256,7 @@
     <string name="unicode_category_technical">Simboli Tecnici</string>
     <string name="unicode_category_arrows">Frecce</string>
     <string name="unicode_category_misc">Varie</string>
-    
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Trackpad Debug</string>
-    <string name="trackpad_debug_motion_events_status">Stato Eventi Motion</string>
-    <string name="trackpad_debug_intercepting_events">Intercettando eventi ✓ (%1$d eventi ricevuti)</string>
-    <string name="trackpad_debug_waiting_events">In attesa di eventi... (Prova a muovere il dito sulla tastiera)</string>
-    <string name="trackpad_debug_test_field_title">Campo di Test</string>
-    <string name="trackpad_debug_test_field_description">Metti a fuoco questo campo e prova a usare il trackpad sulla tua tastiera</string>
-    <string name="trackpad_debug_test_field_placeholder">Digita qui o usa i gesti del trackpad...</string>
-    <string name="trackpad_debug_last_event_title">Ultimo Evento Motion</string>
-    <string name="trackpad_debug_action">Azione:</string>
-    <string name="trackpad_debug_source">Sorgente:</string>
-    <string name="trackpad_debug_device">Dispositivo:</string>
-    <string name="trackpad_debug_device_id">ID Dispositivo: %1$d</string>
-    <string name="trackpad_debug_position">Posizione:</string>
-    <string name="trackpad_debug_scroll">Scroll:</string>
-    <string name="trackpad_debug_pressure">Pressione:</string>
-    <string name="trackpad_debug_size">Dimensione:</string>
-    <string name="trackpad_debug_button_state">Stato Pulsante:</string>
-    <string name="trackpad_debug_timestamp">Timestamp: %1$d</string>
-    <string name="trackpad_debug_no_events">Nessun evento motion rilevato ancora</string>
-    <string name="trackpad_debug_no_events_description">Prova a muovere il dito sulla tastiera touch-sensitive</string>
+    <string name="unicode_category_variations">Variazioni</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -270,10 +270,61 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Supporta su Ko-fi</string>
     <string name="settings_nav_mode_configure">Configura le mappature dei tasti della modalità navigazione</string>
-    <string name="settings_trackpad_debug_title">Trackpad Debug</string>
-    <string name="settings_trackpad_debug_description">Testa eventi trackpad/tastiera touch-sensitive</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
+    
+    <!-- Settings Categories -->
+    <string name="settings_category_keyboard_timing">Tastiera &amp; Temporizzazione</string>
+    <string name="settings_category_text_input">Smart Features</string>
+    <string name="settings_category_auto_correction">Auto-correzione</string>
+    <string name="settings_category_customization">Personalizzazione</string>
+    <string name="settings_category_advanced">Avanzate</string>
+    
+    <!-- Keyboard Layout Settings -->
+    <string name="layout_save_content_description">Salva layout</string>
+    <string name="layout_import_content_description">Importa layout</string>
+    <string name="layout_imported_successfully">Layout importato con successo</string>
+    <string name="layout_import_failed">Impossibile importare il layout</string>
+    <string name="layout_invalid_file">File layout non valido</string>
+    <string name="layout_import_error">Errore nell\'importazione del layout: %1$s</string>
+    <string name="layout_save_canceled">Salvataggio annullato</string>
+    <string name="layout_saved_successfully">Layout salvato con successo</string>
+    <string name="layout_save_error">Errore nel salvataggio del layout: %1$s</string>
+    <string name="layout_imported_name">Layout Importato</string>
+    <string name="layout_imported_description">Importato da file</string>
+    <string name="layout_delete_content_description">Elimina layout</string>
+    <string name="layout_delete_confirmation_title">Elimina Layout</string>
+    <string name="layout_delete_confirmation_message">Sei sicuro di voler eliminare il layout \"%1$s\"? Questa azione non può essere annullata.</string>
+    <string name="layout_delete_success">Layout eliminato con successo</string>
+    <string name="layout_delete_failed">Impossibile eliminare il layout</string>
+    <string name="layout_view_mapping">Visualizza mappa</string>
+    <string name="layout_delete">Elimina</string>
+    <string name="layout_enable_for_cycling">Abilita per ciclo (Space lungo)</string>
+    <string name="layout_select_as_active">Seleziona come layout attivo</string>
+    
+    <!-- Main Activity Event Display -->
+    <string name="modifier_alt">ALT</string>
+    <string name="event_unicode_label">Unicode: </string>
+    <string name="event_output_label">Output: </string>
+    <string name="event_not_available">N/D</string>
+    
+    <!-- Nav Mode Key Labels -->
+    <string name="nav_mode_action_copy">Copia</string>
+    <string name="nav_mode_action_paste">Incolla</string>
+    <string name="nav_mode_action_cut">Taglia</string>
+    <string name="nav_mode_action_undo">Annulla</string>
+    <string name="nav_mode_action_select_all">SelTutto</string>
+    <string name="nav_mode_action_expand_selection_left">←Sel</string>
+    <string name="nav_mode_action_expand_selection_right">→Sel</string>
+    <string name="nav_mode_keycode_up">↑</string>
+    <string name="nav_mode_keycode_down">↓</string>
+    <string name="nav_mode_keycode_left">←</string>
+    <string name="nav_mode_keycode_right">→</string>
+    <string name="nav_mode_keycode_center">○</string>
+    <string name="nav_mode_keycode_page_up">PagSu</string>
+    <string name="nav_mode_keycode_page_down">PagGiu</string>
+    <string name="nav_mode_keycode_escape">Esc</string>
+    <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_key_unknown">?</string>
 </resources>
-

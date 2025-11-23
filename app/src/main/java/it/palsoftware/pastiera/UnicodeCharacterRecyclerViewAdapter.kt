@@ -34,10 +34,10 @@ class UnicodeCharacterRecyclerViewAdapter(
             setPadding(0, 0, 0, 0)
             minHeight = (48 * parent.context.resources.displayMetrics.density).toInt() // 40 * 1.2
             minWidth = (48 * parent.context.resources.displayMetrics.density).toInt() // 40 * 1.2
-            // Use theme-aware text color: black for light theme, white for dark theme
-            val isDarkTheme = AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES ||
-                    (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM &&
-                     (parent.context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES)
+            // Use theme-aware text color: white for dark theme, black for light theme
+            // Check UI mode directly from configuration (most reliable method)
+            val nightModeFlags = parent.context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+            val isDarkTheme = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
             setTextColor(if (isDarkTheme) Color.WHITE else Color.BLACK)
             setTypeface(null, Typeface.BOLD)
         }
@@ -55,6 +55,10 @@ class UnicodeCharacterRecyclerViewAdapter(
 
     override fun onBindViewHolder(holder: CharacterViewHolder, position: Int) {
         holder.characterText.text = characters[position]
+        // Ensure theme-aware color is applied on each bind (in case theme changes)
+        val nightModeFlags = holder.itemView.context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        val isDarkTheme = nightModeFlags == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        holder.characterText.setTextColor(if (isDarkTheme) Color.WHITE else Color.BLACK)
     }
 
     override fun getItemCount(): Int = characters.size

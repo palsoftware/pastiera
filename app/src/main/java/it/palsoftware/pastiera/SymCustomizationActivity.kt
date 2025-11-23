@@ -11,18 +11,30 @@ import it.palsoftware.pastiera.ui.theme.PastieraTheme
 class SymCustomizationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) {
+            overridePendingTransition(R.anim.slide_in_from_right, 0)
+        }
         enableEdgeToEdge()
         setContent {
             PastieraTheme {
                 SymCustomizationScreen(
                     modifier = Modifier.fillMaxSize(),
                     onBack = {
-                        // Confirm pending restore when user presses back
+                        // This is only called from the UI back button (arrow icon)
                         SettingsManager.confirmPendingRestoreSymPage(this@SymCustomizationActivity)
                         finish()
                     }
                 )
             }
+        }
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // Confirm pending restore when activity is paused (user navigates away)
+        // This handles both back button and other navigation methods
+        if (isFinishing) {
+            SettingsManager.confirmPendingRestoreSymPage(this)
         }
     }
     
@@ -34,5 +46,9 @@ class SymCustomizationActivity : ComponentActivity() {
             SettingsManager.clearPendingRestoreSymPage(this)
         }
     }
+    
+    override fun finish() {
+        super.finish()
+        overridePendingTransition(0, R.anim.slide_out_to_right)
+    }
 }
-

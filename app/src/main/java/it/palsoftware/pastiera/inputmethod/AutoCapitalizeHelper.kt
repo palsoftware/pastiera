@@ -1,299 +1,227 @@
 package it.palsoftware.pastiera.inputmethod
 
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.SettingsManager
 
 /**
- * Helper for handling auto-capitalization logic.
- * Manages shiftOneShot state based on cursor position and text context.
+ * Central helper for all smart auto-capitalization rules.
+ *
+ * It never manipulates modifier state directly, but instead:
+ * - asks the caller to enable Shift one-shot via callbacks, and
+ * - tracks whether that Shift came from a "smart" rule so it can be cleared
+ *   on selection / context changes without affecting manually pressed Shift.
+ *
+ * All auto-cap entry points (field start, after Enter, after punctuation,
+ * selection changes, restarts) should be routed through this helper so
+ * there is a single place that decides "should Shift one-shot be active?".
  */
 object AutoCapitalizeHelper {
-    private const val TAG = "AutoCapitalizeHelper"
-    private const val PROTECTION_WINDOW_MS = 300L // Protection window for recently enabled shiftOneShot
-    private const val DEFAULT_DELAY_MS = 50L
-    private const val LONG_DELAY_MS = 150L
-    private const val VERY_LONG_DELAY_MS = 200L
-
-    data class AutoCapitalizeState(
-        var shiftOneShot: Boolean = false,
-        var shiftOneShotEnabledTime: Long = 0
-    )
-
-    data class AutoCapitalizeCheckResult(
-        val shouldEnable: Boolean,
-        val reason: String? = null
-    )
+    /**
+     * Tracks whether the current Shift one-shot was requested by a smart
+     * auto-capitalization rule (first letter / after punctuation / double-space).
+     * This allows selection/field changes to clear only smart one-shot Shift
+     * without interfering with manually pressed Shift.
+     */
+    private var smartShiftRequested = false
 
     /**
-     * Checks if cursor is at start or after newline and enables shiftOneShot if needed.
-     * Used in initializeInputContext and onUpdateSelection.
+     * Returns true if, given the current cursor position, smart auto-cap rules
+     * (first-letter / after-period) suggest enabling Shift one-shot.
+     *
+     * This is the single place where we look at:
+     * - user settings (first-letter / after-period),
+     * - smart-features disabled flag,
+     * - surrounding text (start of field, after newline, after ". ! ?").
      */
-    fun checkAndEnableAutoCapitalize(
+    private fun shouldApplySmartAutoCap(
         context: android.content.Context,
-        inputConnection: InputConnection?,
-        shouldDisableSmartFeatures: Boolean,
-        currentState: AutoCapitalizeState,
-        delayMs: Long = DEFAULT_DELAY_MS,
-        onUpdateStatusBar: () -> Unit
-    ) {
-        if (!SettingsManager.getAutoCapitalizeFirstLetter(context)) {
-            return
-        }
-
-        if (shouldDisableSmartFeatures) {
-            return
-        }
-
-        if (inputConnection == null) {
-            return
-        }
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            val textBeforeCursor = inputConnection.getTextBeforeCursor(1, 0)
-            val isCursorAtStart = textBeforeCursor == null || textBeforeCursor.isEmpty()
-            val isAfterNewline = textBeforeCursor != null &&
-                    textBeforeCursor.isNotEmpty() &&
-                    textBeforeCursor[textBeforeCursor.length - 1] == '\n'
-
-            if (isCursorAtStart || isAfterNewline) {
-                if (!currentState.shiftOneShot) {
-                    currentState.shiftOneShot = true
-                    currentState.shiftOneShotEnabledTime = System.currentTimeMillis()
-                    onUpdateStatusBar()
-                }
-            }
-        }, delayMs)
-    }
-
-    /**
-     * Checks auto-capitalize condition after field is cleared (e.g., after sending message).
-     * Used in onUpdateSelection when cursor moves to start.
-     */
-    fun checkAutoCapitalizeOnSelectionChange(
-        context: android.content.Context,
-        inputConnection: InputConnection?,
-        shouldDisableSmartFeatures: Boolean,
-        currentState: AutoCapitalizeState,
-        oldSelStart: Int,
-        oldSelEnd: Int,
-        newSelStart: Int,
-        newSelEnd: Int,
-        onUpdateStatusBar: () -> Unit
-    ) {
-        if (!SettingsManager.getAutoCapitalizeFirstLetter(context)) {
-            disableIfActive(currentState, onUpdateStatusBar)
-            return
-        }
-
-        // Disable if there's a selection
-        if (newSelStart != newSelEnd) {
-            disableIfActive(currentState, onUpdateStatusBar)
-            return
-        }
-
-        // Disable for restricted fields
-        if (shouldDisableSmartFeatures) {
-            disableIfActive(currentState, onUpdateStatusBar)
-            return
-        }
-
-        if (inputConnection == null) {
-            disableIfActive(currentState, onUpdateStatusBar)
-            return
-        }
-
-        val cursorMovedToStart = newSelStart == 0 && oldSelStart != 0
-        val cursorAtStart = newSelStart == 0
-
-        // Use appropriate delay based on context
-        val delay = when {
-            cursorMovedToStart -> VERY_LONG_DELAY_MS
-            cursorAtStart && oldSelStart == 0 && newSelEnd == 0 && oldSelEnd == 0 -> LONG_DELAY_MS
-            else -> DEFAULT_DELAY_MS
-        }
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            val textBeforeCursor = inputConnection.getTextBeforeCursor(1000, 0)
-            val textAfterCursor = inputConnection.getTextAfterCursor(1000, 0)
-
-            val isCursorAtStart = textBeforeCursor == null || textBeforeCursor.isEmpty()
-            val isFieldEmpty = isCursorAtStart && (textAfterCursor == null || textAfterCursor.isEmpty())
-            val isAfterNewline = textBeforeCursor != null &&
-                    textBeforeCursor.isNotEmpty() &&
-                    textBeforeCursor[textBeforeCursor.length - 1] == '\n'
-
-            if (isCursorAtStart || isAfterNewline) {
-                if (!currentState.shiftOneShot) {
-                    currentState.shiftOneShot = true
-                    currentState.shiftOneShotEnabledTime = System.currentTimeMillis()
-                    onUpdateStatusBar()
-                }
-            } else {
-                // Cursor not at start - disable shiftOneShot if protection window expired
-                disableIfActiveAndExpired(currentState, onUpdateStatusBar)
-            }
-        }, delay)
-    }
-
-    /**
-     * Checks if cursor is at start in an empty field (used when restarting input).
-     */
-    fun checkAutoCapitalizeOnRestart(
-        context: android.content.Context,
-        inputConnection: InputConnection?,
-        shouldDisableSmartFeatures: Boolean,
-        currentState: AutoCapitalizeState,
-        onUpdateStatusBar: () -> Unit
-    ) {
-        if (!SettingsManager.getAutoCapitalizeFirstLetter(context)) {
-            return
-        }
-
-        if (shouldDisableSmartFeatures) {
-            return
-        }
-
-        if (inputConnection == null) {
-            return
-        }
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            val textBeforeCursor = inputConnection.getTextBeforeCursor(1000, 0)
-            val textAfterCursor = inputConnection.getTextAfterCursor(1000, 0)
-            val isCursorAtStart = textBeforeCursor == null || textBeforeCursor.isEmpty()
-            val isFieldEmpty = isCursorAtStart && (textAfterCursor == null || textAfterCursor.isEmpty())
-
-            if (isCursorAtStart && isFieldEmpty) {
-                if (!currentState.shiftOneShot) {
-                    currentState.shiftOneShot = true
-                    currentState.shiftOneShotEnabledTime = System.currentTimeMillis()
-                    onUpdateStatusBar()
-                }
-            }
-        }, LONG_DELAY_MS)
-    }
-
-    /**
-     * Enables shiftOneShot after period/exclamation/question mark.
-     * Used when space is pressed after punctuation.
-     */
-    fun enableAfterPunctuation(
-        inputConnection: InputConnection?,
-        currentState: AutoCapitalizeState,
-        onUpdateStatusBar: () -> Unit
+        inputConnection: InputConnection,
+        shouldDisableSmartFeatures: Boolean
     ): Boolean {
-        if (inputConnection == null) {
+        if (shouldDisableSmartFeatures) {
             return false
         }
 
-        if (currentState.shiftOneShot) {
-            return false // Already enabled
-        }
-
-        val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0)
-
-        if (textBeforeCursor == null || textBeforeCursor.isEmpty()) {
+        val autoCapFirstLetter = SettingsManager.getAutoCapitalizeFirstLetter(context)
+        val autoCapAfterPeriod = SettingsManager.getAutoCapitalizeAfterPeriod(context)
+        if (!autoCapFirstLetter && !autoCapAfterPeriod) {
             return false
         }
 
-        val lastChar = textBeforeCursor[textBeforeCursor.length - 1]
-        val shouldCapitalize = when (lastChar) {
-            '.' -> {
-                // Check it's not part of ellipsis
-                textBeforeCursor.length >= 2 && textBeforeCursor[textBeforeCursor.length - 2] != '.'
-            }
-            '!', '?' -> true
-            else -> false
-        }
+        val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0) ?: return false
+        val textAfterCursor = inputConnection.getTextAfterCursor(1, 0) ?: ""
 
-        if (shouldCapitalize) {
-            currentState.shiftOneShot = true
-            currentState.shiftOneShotEnabledTime = System.currentTimeMillis()
-            onUpdateStatusBar()
+        val isCursorAtStart = textBeforeCursor.isEmpty()
+        val isFieldEmpty = isCursorAtStart && textAfterCursor.isEmpty()
+        val isAfterNewline = textBeforeCursor.lastOrNull() == '\n'
+
+        if (autoCapFirstLetter && (isFieldEmpty || isAfterNewline)) {
             return true
+        }
+
+        if (autoCapAfterPeriod && textBeforeCursor.isNotEmpty()) {
+            // Look for the last non-whitespace character before the cursor
+            val lastNonWhitespaceIndex = textBeforeCursor.indexOfLast { !it.isWhitespace() }
+            if (lastNonWhitespaceIndex >= 0) {
+                val lastNonWhitespaceChar = textBeforeCursor[lastNonWhitespaceIndex]
+                val isSentencePunctuation = when (lastNonWhitespaceChar) {
+                    '.' -> {
+                        // Avoid treating "..." as end of sentence.
+                        val prevIndex = lastNonWhitespaceIndex - 1
+                        !(prevIndex >= 0 && textBeforeCursor[prevIndex] == '.')
+                    }
+                    '!', '?' -> true
+                    else -> false
+                }
+                if (isSentencePunctuation) {
+                    return true
+                }
+            }
         }
 
         return false
     }
 
-    /**
-     * Enables shiftOneShot after ENTER key is pressed.
-     */
+    private fun clearSmartShift(
+        disableShift: () -> Boolean,
+        onUpdateStatusBar: () -> Unit
+    ) {
+        if (smartShiftRequested) {
+            val changed = disableShift()
+            smartShiftRequested = false
+            if (changed) onUpdateStatusBar()
+        }
+    }
+
+    private fun applyAutoCapitalizeFirstLetter(
+        context: android.content.Context,
+        inputConnection: InputConnection?,
+        shouldDisableSmartFeatures: Boolean,
+        enableShift: () -> Boolean,
+        disableShift: () -> Boolean,
+        onUpdateStatusBar: () -> Unit
+    ) {
+        val ic = inputConnection ?: run {
+            clearSmartShift(disableShift, onUpdateStatusBar)
+            return
+        }
+
+        val shouldCapitalize = shouldApplySmartAutoCap(context, ic, shouldDisableSmartFeatures)
+        if (shouldCapitalize) {
+            if (enableShift()) {
+                smartShiftRequested = true
+                onUpdateStatusBar()
+            }
+        } else {
+            clearSmartShift(disableShift, onUpdateStatusBar)
+        }
+    }
+
+    fun checkAndEnableAutoCapitalize(
+        context: android.content.Context,
+        inputConnection: InputConnection?,
+        shouldDisableSmartFeatures: Boolean,
+        enableShift: () -> Boolean,
+        disableShift: () -> Boolean = { false },
+        onUpdateStatusBar: () -> Unit
+    ) {
+        applyAutoCapitalizeFirstLetter(
+            context = context,
+            inputConnection = inputConnection,
+            shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+            enableShift = enableShift,
+            disableShift = disableShift,
+            onUpdateStatusBar = onUpdateStatusBar
+        )
+    }
+
+    fun checkAutoCapitalizeOnSelectionChange(
+        context: android.content.Context,
+        inputConnection: InputConnection?,
+        shouldDisableSmartFeatures: Boolean,
+        oldSelStart: Int,
+        oldSelEnd: Int,
+        newSelStart: Int,
+        newSelEnd: Int,
+        enableShift: () -> Boolean,
+        disableShift: () -> Boolean,
+        onUpdateStatusBar: () -> Unit
+    ) {
+        if (newSelStart != newSelEnd) {
+            if (disableShift()) {
+                smartShiftRequested = false
+                onUpdateStatusBar()
+            }
+            return
+        }
+        applyAutoCapitalizeFirstLetter(
+            context = context,
+            inputConnection = inputConnection,
+            shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+            enableShift = enableShift,
+            disableShift = disableShift,
+            onUpdateStatusBar = onUpdateStatusBar
+        )
+    }
+
+    fun checkAutoCapitalizeOnRestart(
+        context: android.content.Context,
+        inputConnection: InputConnection?,
+        shouldDisableSmartFeatures: Boolean,
+        enableShift: () -> Boolean,
+        disableShift: () -> Boolean = { false },
+        onUpdateStatusBar: () -> Unit
+    ) {
+        applyAutoCapitalizeFirstLetter(
+            context = context,
+            inputConnection = inputConnection,
+            shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+            enableShift = enableShift,
+            disableShift = disableShift,
+            onUpdateStatusBar = onUpdateStatusBar
+        )
+    }
+
+    fun enableAfterPunctuation(
+        context: android.content.Context,
+        inputConnection: InputConnection?,
+        shouldDisableSmartFeatures: Boolean,
+        onEnableShift: () -> Boolean,
+        disableShift: () -> Boolean,
+        onUpdateStatusBar: () -> Unit
+    ) {
+        val ic = inputConnection ?: run {
+            clearSmartShift(disableShift, onUpdateStatusBar)
+            return
+        }
+
+        val shouldCapitalize = shouldApplySmartAutoCap(context, ic, shouldDisableSmartFeatures)
+        if (!shouldCapitalize) {
+            clearSmartShift(disableShift, onUpdateStatusBar)
+            return
+        }
+
+        if (onEnableShift()) {
+            smartShiftRequested = true
+            onUpdateStatusBar()
+        }
+    }
+
     fun enableAfterEnter(
         context: android.content.Context,
         inputConnection: InputConnection?,
         shouldDisableSmartFeatures: Boolean,
-        currentState: AutoCapitalizeState,
+        onEnableShift: () -> Boolean,
+        disableShift: () -> Boolean,
         onUpdateStatusBar: () -> Unit
     ) {
-        if (!SettingsManager.getAutoCapitalizeFirstLetter(context)) {
-            return
-        }
-
-        if (shouldDisableSmartFeatures) {
-            return
-        }
-
-        if (inputConnection == null) {
-            return
-        }
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            val textBeforeCursor = inputConnection.getTextBeforeCursor(1, 0)
-            val isAfterNewline = textBeforeCursor != null &&
-                    textBeforeCursor.isNotEmpty() &&
-                    textBeforeCursor[textBeforeCursor.length - 1] == '\n'
-
-            if (isAfterNewline) {
-                currentState.shiftOneShot = true
-                currentState.shiftOneShotEnabledTime = System.currentTimeMillis()
-                onUpdateStatusBar()
-            }
-        }, DEFAULT_DELAY_MS)
-    }
-
-    /**
-     * Disables shiftOneShot if it's active and protection window has expired.
-     */
-    private fun disableIfActiveAndExpired(
-        currentState: AutoCapitalizeState,
-        onUpdateStatusBar: () -> Unit
-    ) {
-        if (!currentState.shiftOneShot) {
-            return
-        }
-
-        val timeSinceEnabled = System.currentTimeMillis() - currentState.shiftOneShotEnabledTime
-        if (timeSinceEnabled > PROTECTION_WINDOW_MS) {
-            currentState.shiftOneShot = false
-            currentState.shiftOneShotEnabledTime = 0
-            onUpdateStatusBar()
-        }
-    }
-
-    /**
-     * Disables shiftOneShot if it's active (regardless of protection window).
-     */
-    private fun disableIfActive(
-        currentState: AutoCapitalizeState,
-        onUpdateStatusBar: () -> Unit
-    ) {
-        if (currentState.shiftOneShot) {
-            currentState.shiftOneShot = false
-            currentState.shiftOneShotEnabledTime = 0
-            onUpdateStatusBar()
-        }
-    }
-
-    /**
-     * Resets auto-capitalize state.
-     */
-    fun reset(state: AutoCapitalizeState) {
-        state.shiftOneShot = false
-        state.shiftOneShotEnabledTime = 0
+        applyAutoCapitalizeFirstLetter(
+            context = context,
+            inputConnection = inputConnection,
+            shouldDisableSmartFeatures = shouldDisableSmartFeatures,
+            enableShift = onEnableShift,
+            disableShift = disableShift,
+            onUpdateStatusBar = onUpdateStatusBar
+        )
     }
 }
-

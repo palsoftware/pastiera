@@ -24,7 +24,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
-import it.palsoftware.pastiera.inputmethod.KeyMappingLoader
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.activity.compose.BackHandler
+import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.R
 
 /**
@@ -55,6 +59,9 @@ fun NavModeSettingsScreen(
         loadAllKeyMappings(context, useDefaults = true)
     }
     
+    // Handle system back button
+    BackHandler { onBack() }
+    
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -62,7 +69,9 @@ fun NavModeSettingsScreen(
     ) {
         // Header
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars),
             tonalElevation = 1.dp
         ) {
             Row(
@@ -413,7 +422,7 @@ private fun KeyMappingDialog(
                     )
                     val keycodes = listOf(
                         "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT",
-                        "TAB", "PAGE_UP", "PAGE_DOWN", "ESCAPE"
+                        "TAB", "PAGE_UP", "PAGE_DOWN", "ESCAPE", "DPAD_CENTER"
                     )
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
@@ -497,6 +506,7 @@ private fun KeyMappingDialog(
     )
 }
 
+@Composable
 private fun getKeyLabel(keyCode: Int): String {
     return when (keyCode) {
         KeyEvent.KEYCODE_Q -> "Q"
@@ -525,7 +535,7 @@ private fun getKeyLabel(keyCode: Int): String {
         KeyEvent.KEYCODE_B -> "B"
         KeyEvent.KEYCODE_N -> "N"
         KeyEvent.KEYCODE_M -> "M"
-        else -> "?"
+        else -> stringResource(R.string.nav_mode_key_unknown)
     }
 }
 
@@ -538,27 +548,29 @@ private fun getMappingLabel(mapping: KeyMappingLoader.CtrlMapping): String? {
     }
 }
 
+@Composable
 private fun getMappingLabelShort(mapping: KeyMappingLoader.CtrlMapping): String? {
     return when (mapping.type) {
         "keycode" -> when (mapping.value) {
-            "DPAD_UP" -> "↑"
-            "DPAD_DOWN" -> "↓"
-            "DPAD_LEFT" -> "←"
-            "DPAD_RIGHT" -> "→"
-            "PAGE_UP" -> "PgUp"
-            "PAGE_DOWN" -> "PgDn"
-            "ESCAPE" -> "Esc"
-            "TAB" -> "Tab"
+            "DPAD_UP" -> stringResource(R.string.nav_mode_keycode_up)
+            "DPAD_DOWN" -> stringResource(R.string.nav_mode_keycode_down)
+            "DPAD_LEFT" -> stringResource(R.string.nav_mode_keycode_left)
+            "DPAD_RIGHT" -> stringResource(R.string.nav_mode_keycode_right)
+            "DPAD_CENTER" -> stringResource(R.string.nav_mode_keycode_center)
+            "PAGE_UP" -> stringResource(R.string.nav_mode_keycode_page_up)
+            "PAGE_DOWN" -> stringResource(R.string.nav_mode_keycode_page_down)
+            "ESCAPE" -> stringResource(R.string.nav_mode_keycode_escape)
+            "TAB" -> stringResource(R.string.nav_mode_keycode_tab)
             else -> mapping.value
         }
         "action" -> when (mapping.value) {
-            "copy" -> "Copy"
-            "paste" -> "Paste"
-            "cut" -> "Cut"
-            "undo" -> "Undo"
-            "select_all" -> "SelAll"
-            "expand_selection_left" -> "←Sel"
-            "expand_selection_right" -> "→Sel"
+            "copy" -> stringResource(R.string.nav_mode_action_copy)
+            "paste" -> stringResource(R.string.nav_mode_action_paste)
+            "cut" -> stringResource(R.string.nav_mode_action_cut)
+            "undo" -> stringResource(R.string.nav_mode_action_undo)
+            "select_all" -> stringResource(R.string.nav_mode_action_select_all)
+            "expand_selection_left" -> stringResource(R.string.nav_mode_action_expand_selection_left)
+            "expand_selection_right" -> stringResource(R.string.nav_mode_action_expand_selection_right)
             else -> mapping.value
         }
         "none" -> null // Don't show label for "none"

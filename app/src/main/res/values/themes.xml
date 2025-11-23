@@ -2,8 +2,23 @@
 <resources>
 
     <style name="Theme.Pastiera" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/splash_background_light</item>
+        <item name="android:windowBackground">@drawable/splash_screen</item>
         <item name="android:statusBarColor">@color/splash_background_light</item>
         <item name="android:navigationBarColor">@color/splash_background_light</item>
+    </style>
+
+    <!-- Overlay dialog theme for launcher shortcut assignment -->
+    <style name="Theme.Pastiera.OverlayDialog" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowCloseOnTouchOutside">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:activityOpenEnterAnimation">@null</item>
+        <item name="android:activityOpenExitAnimation">@null</item>
+        <item name="android:activityCloseEnterAnimation">@null</item>
+        <item name="android:activityCloseExitAnimation">@null</item>
     </style>
 </resources>

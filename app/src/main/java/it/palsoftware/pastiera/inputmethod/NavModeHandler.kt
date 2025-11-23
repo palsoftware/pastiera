@@ -1,8 +1,6 @@
 package it.palsoftware.pastiera.inputmethod
 
 import android.util.Log
-import android.view.KeyEvent
-import android.view.inputmethod.InputConnection
 
 /**
  * Handles nav mode: double-tap Ctrl to enable/disable Ctrl latch
@@ -18,6 +16,7 @@ object NavModeHandler {
      * @param ctrlPressed Whether Ctrl is already pressed
      * @param ctrlLatchActive Whether Ctrl latch is currently active
      * @param lastCtrlReleaseTime Timestamp of the last Ctrl release
+     * @param isConsecutiveTap True when the previous key event was the same Ctrl key
      * @return Pair<Boolean, NavModeResult> where the Boolean indicates if the event is consumed
      *         and NavModeResult contains state changes to apply
      */
@@ -25,14 +24,16 @@ object NavModeHandler {
         keyCode: Int,
         ctrlPressed: Boolean,
         ctrlLatchActive: Boolean,
-        lastCtrlReleaseTime: Long
+        lastCtrlReleaseTime: Long,
+        isConsecutiveTap: Boolean
     ): Pair<Boolean, NavModeResult> {
         if (ctrlPressed) {
-            // Ctrl già premuto, non fare nulla
+            // Ctrl already pressed, ignore
             return Pair(false, NavModeResult())
         }
         
         val currentTime = System.currentTimeMillis()
+        val allowDoubleTap = isConsecutiveTap
         
         if (ctrlLatchActive) {
             // If Ctrl latch is active, a single tap deactivates it
@@ -45,7 +46,7 @@ object NavModeHandler {
             ))
         } else {
             // Check for double tap
-            if (currentTime - lastCtrlReleaseTime < DOUBLE_TAP_THRESHOLD && lastCtrlReleaseTime > 0) {
+            if (allowDoubleTap && currentTime - lastCtrlReleaseTime < DOUBLE_TAP_THRESHOLD && lastCtrlReleaseTime > 0) {
                 // Double tap detected - activate Ctrl latch and show the keyboard
                 Log.d(TAG, "Nav mode: Ctrl latch activated with double tap")
                 return Pair(true, NavModeResult(
@@ -89,4 +90,3 @@ object NavModeHandler {
         val shouldHideKeyboard: Boolean = false
     )
 }
-

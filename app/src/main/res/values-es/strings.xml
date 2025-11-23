@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -118,6 +118,16 @@
     
     <!-- SYM Customization Screen -->
     <string name="sym_customize_title">Personalizar Teclado SYM</string>
+    <string name="sym_auto_close_title">Cerrar Automáticamente el Layout SYM</string>
+    <string name="sym_auto_close_description">Cierra automáticamente el layout SYM después de insertar un carácter, presionar Alt o presionar Enter. No se cierra con Control o Shift.</string>
+    <string name="sym_enable_emoji_page_title">Activar Página Emoji</string>
+    <string name="sym_enable_emoji_page_description">Muestra el layout SYM emoji al alternar.</string>
+    <string name="sym_enable_symbols_page_title">Activar Página Símbolos</string>
+    <string name="sym_enable_symbols_page_description">Muestra el layout SYM símbolos al alternar.</string>
+    <string name="sym_swap_pages_title">Intercambiar Orden de Páginas SYM</string>
+    <string name="sym_swap_pages_description">Elija qué página SYM aparece primero al alternar.</string>
+    <string name="sym_order_emoji_first">Emoji primero</string>
+    <string name="sym_order_symbols_first">Símbolos primero</string>
     <string name="sym_instructions_title">Instrucciones</string>
     <string name="sym_instructions_text">Toque cualquier tecla a continuación para cambiar su emoji. Los cambios se guardan automáticamente.</string>
     <string name="sym_reset_to_default">Restablecer Predeterminado</string>
@@ -159,8 +169,6 @@
     
     <!-- Launcher Shortcuts Screen -->
     <string name="launcher_shortcuts_screen_title">Accesos Rápidos del Lanzador</string>
-    <string name="launcher_shortcuts_screen_assign_title">Asignar accesos rápidos a aplicaciones</string>
-    <string name="launcher_shortcuts_screen_assign_description">Cuando esté en el lanzador y no en un campo de texto, puede presionar una tecla para abrir una aplicación asignada.</string>
     <string name="launcher_shortcuts_not_assigned">No asignado</string>
     <string name="launcher_shortcuts_remove">Eliminar</string>
     <string name="launcher_shortcuts_app_name_unavailable">Aplicación (nombre no disponible)</string>
@@ -220,28 +228,8 @@
     <string name="unicode_category_technical">Símbolos Técnicos</string>
     <string name="unicode_category_arrows">Flechas</string>
     <string name="unicode_category_misc">Varios</string>
+    <string name="unicode_category_variations">Variaciones</string>
     
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Depuración de Trackpad</string>
-    <string name="trackpad_debug_motion_events_status">Estado de Eventos de Movimiento</string>
-    <string name="trackpad_debug_intercepting_events">Interceptando eventos ✓ (%1$d eventos recibidos)</string>
-    <string name="trackpad_debug_waiting_events">Esperando eventos… (Intente mover el dedo en el teclado)</string>
-    <string name="trackpad_debug_test_field_title">Campo de Prueba</string>
-    <string name="trackpad_debug_test_field_description">Enfóquese en este campo e intente usar el trackpad en su teclado</string>
-    <string name="trackpad_debug_test_field_placeholder">Escriba aquí o use gestos del trackpad…</string>
-    <string name="trackpad_debug_last_event_title">Último Evento de Movimiento</string>
-    <string name="trackpad_debug_action">Acción:</string>
-    <string name="trackpad_debug_source">Fuente:</string>
-    <string name="trackpad_debug_device">Dispositivo:</string>
-    <string name="trackpad_debug_device_id">ID del Dispositivo: %1$d</string>
-    <string name="trackpad_debug_position">Posición:</string>
-    <string name="trackpad_debug_scroll">Desplazamiento:</string>
-    <string name="trackpad_debug_pressure">Presión:</string>
-    <string name="trackpad_debug_size">Tamaño:</string>
-    <string name="trackpad_debug_button_state">Estado del Botón:</string>
-    <string name="trackpad_debug_timestamp">Marca de Tiempo: %1$d</string>
-    <string name="trackpad_debug_no_events">Aún no se han detectado eventos de movimiento</string>
-    <string name="trackpad_debug_no_events_description">Intente mover el dedo en el teclado táctil</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -255,11 +243,54 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Apoyar en Ko-fi</string>
     <string name="settings_nav_mode_configure">Configurar asignaciones de teclas del modo de navegación</string>
-    <string name="settings_trackpad_debug_title">Depuración de Trackpad</string>
-    <string name="settings_trackpad_debug_description">Probar eventos de trackpad/teclado táctil</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
+    
+    <!-- Settings Categories -->
+    <string name="settings_category_keyboard_timing">Teclado &amp; Temporización</string>
+    <string name="settings_category_text_input">Entrada de Texto</string>
+    <string name="settings_category_auto_correction">Auto-corrección</string>
+    <string name="settings_category_customization">Personalización</string>
+    <string name="settings_category_advanced">Avanzado</string>
+    
+    <!-- Keyboard Layout Settings -->
+    <string name="layout_save_content_description">Guardar layout</string>
+    <string name="layout_import_content_description">Importar layout</string>
+    <string name="layout_imported_successfully">Layout importado exitosamente</string>
+    <string name="layout_import_failed">Error al importar el layout</string>
+    <string name="layout_invalid_file">Archivo de layout inválido</string>
+    <string name="layout_import_error">Error al importar el layout: %1$s</string>
+    <string name="layout_save_canceled">Guardado cancelado</string>
+    <string name="layout_saved_successfully">Layout guardado exitosamente</string>
+    <string name="layout_save_error">Error al guardar el layout: %1$s</string>
+    <string name="layout_imported_name">Layout Importado</string>
+    <string name="layout_imported_description">Importado desde archivo</string>
+    
+    <!-- Main Activity Event Display -->
+    <string name="modifier_alt">ALT</string>
+    <string name="event_unicode_label">Unicode: </string>
+    <string name="event_output_label">Salida: </string>
+    <string name="event_not_available">N/D</string>
+    
+    <!-- Nav Mode Key Labels -->
+    <string name="nav_mode_action_copy">Copiar</string>
+    <string name="nav_mode_action_paste">Pegar</string>
+    <string name="nav_mode_action_cut">Cortar</string>
+    <string name="nav_mode_action_undo">Deshacer</string>
+    <string name="nav_mode_action_select_all">SelTodo</string>
+    <string name="nav_mode_action_expand_selection_left">←Sel</string>
+    <string name="nav_mode_action_expand_selection_right">→Sel</string>
+    <string name="nav_mode_keycode_up">↑</string>
+    <string name="nav_mode_keycode_down">↓</string>
+    <string name="nav_mode_keycode_left">←</string>
+    <string name="nav_mode_keycode_right">→</string>
+    <string name="nav_mode_keycode_center">○</string>
+    <string name="nav_mode_keycode_page_up">RePág</string>
+    <string name="nav_mode_keycode_page_down">AvPág</string>
+    <string name="nav_mode_keycode_escape">Esc</string>
+    <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_key_unknown">?</string>
 </resources>
 
 

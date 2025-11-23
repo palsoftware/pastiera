@@ -1,4 +1,4 @@
-<resources>
+﻿<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera Physical Keyboard</string>
     <string name="input_method_name_en">English</string>
@@ -30,12 +30,24 @@
     <!-- Double Space to Period Section -->
     <string name="double_space_to_period_title">Double Space to Period</string>
     <string name="double_space_to_period_description">Double tap space to insert a period followed by a space and capitalize the next letter.</string>
+
+    <!-- Clear Alt on Space Section -->
+    <string name="clear_alt_on_space_title">Clear Alt on Space</string>
+    <string name="clear_alt_on_space_description">Automatically disable Alt or Alt-Lock when pressing Space.</string>
     
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Enable Swipe to Delete</string>
     
+    <!-- Swipe Incremental Threshold Section -->
+    <string name="swipe_incremental_threshold_title">Swipe Bar Sensitivity</string>
+    <string name="swipe_incremental_threshold_description">Distance required to move cursor one position. Lower values make the cursor move faster.</string>
+    
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Auto Show Keyboard</string>
+    
+    <!-- Alt+Ctrl Speech Recognition Shortcut Section -->
+    <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl Speech Recognition</string>
+    <string name="alt_ctrl_speech_shortcut_description">Enable Alt+Ctrl keyboard shortcut to start speech recognition</string>
     
     <!-- Info Section -->
     <string name="info_title">Information</string>
@@ -120,6 +132,14 @@
     <string name="sym_customize_title">Customize SYM Keyboard</string>
     <string name="sym_auto_close_title">Auto-Close SYM Layout</string>
     <string name="sym_auto_close_description">Automatically close SYM layout after inserting a character, pressing Alt, or pressing Enter. Does not close with Control or Shift.</string>
+    <string name="sym_enable_emoji_page_title">Enable Emoji Page</string>
+    <string name="sym_enable_emoji_page_description">Show the emoji SYM layout when cycling.</string>
+    <string name="sym_enable_symbols_page_title">Enable Symbols Page</string>
+    <string name="sym_enable_symbols_page_description">Show the symbols SYM layout when cycling.</string>
+    <string name="sym_swap_pages_title">Swap SYM pages order</string>
+    <string name="sym_swap_pages_description">Choose which SYM page appears first when toggling.</string>
+    <string name="sym_order_emoji_first">Emoji first</string>
+    <string name="sym_order_symbols_first">Symbols first</string>
     <string name="sym_instructions_title">Instructions</string>
     <string name="sym_instructions_text">Tap on any key below to change its emoji. Changes are saved automatically.</string>
     <string name="sym_reset_to_default">Reset to Default</string>
@@ -153,11 +173,18 @@
     
     <!-- Keyboard Layout Section -->
     <string name="keyboard_layout_title">Keyboard Layout</string>
-    <string name="keyboard_layout_description">Select your keyboard layout. ALT, SYM and Ctrl mappings remain based on physical key position.</string>
+    <string name="keyboard_layout_description">Select your keyboard layout. ALT, SYM and Ctrl mappings remain based on physical key position. Change mapping quickly with CTRL+SPACE.</string>
     <string name="keyboard_layout_no_conversion">Standard</string>
     <string name="keyboard_layout_no_conversion_description">Standard QWERTY layout (no conversion)</string>
     <string name="keyboard_layout_conversions_title">Layout Conversions</string>
     <string name="keyboard_layout_conversions_description">Convert letter keys to match the selected layout</string>
+    <string name="keyboard_layout_viewer_title">Keyboard map</string>
+    <string name="keyboard_layout_viewer_subtitle">Layout: %1$s</string>
+    <string name="keyboard_layout_viewer_unavailable">Unable to load this layout mapping.</string>
+    <string name="keyboard_layout_viewer_empty">No key mappings found for this layout.</string>
+    <string name="keyboard_layout_viewer_multitap_on">multitap</string>
+    <string name="keyboard_layout_viewer_multitap_off">single</string>
+    <string name="keyboard_layout_viewer_open">View mapping</string>
     <string name="keyboard_layout_settings_button">Keyboard Layout Settings</string>
     
     <!-- About Section -->
@@ -166,16 +193,14 @@
     <string name="about_title">About</string>
     
     <!-- Launcher Shortcuts Section -->
-    <string name="launcher_shortcuts_title">Launcher Shortcuts</string>
+    <string name="launcher_shortcuts_title">Shortcuts</string>
     <string name="launcher_shortcuts_experimental">Experimental</string>
-    <string name="launcher_shortcuts_description">Enable keyboard shortcuts in the launcher</string>
+    <string name="launcher_shortcuts_description">Enable keyboard shortcuts</string>
     <string name="launcher_shortcuts_configure">Configure Shortcuts</string>
-    <string name="launcher_shortcuts_configure_description">Assign keys to open apps in the launcher</string>
+    <string name="launcher_shortcuts_configure_description">Assign keys to open apps</string>
     
     <!-- Launcher Shortcuts Screen -->
-    <string name="launcher_shortcuts_screen_title">Launcher Shortcuts</string>
-    <string name="launcher_shortcuts_screen_assign_title">Assign shortcuts to apps</string>
-    <string name="launcher_shortcuts_screen_assign_description">When you are in the launcher and not in a text field, you can press a key to open an assigned app.</string>
+    <string name="launcher_shortcuts_screen_title">Shortcuts</string>
     <string name="launcher_shortcuts_not_assigned">Not assigned</string>
     <string name="launcher_shortcuts_remove">Remove</string>
     <string name="launcher_shortcuts_app_name_unavailable">App (name unavailable)</string>
@@ -193,11 +218,22 @@
     <string name="launcher_shortcut_assignment_no_results">No results for \"%1$s\"</string>
     <string name="launcher_shortcut_assignment_key_name">Key %1$d</string>
     
+    <!-- Power Shortcuts Section -->
+    <string name="power_shortcuts_title">Power Shortcuts</string>
+    <string name="power_shortcuts_description">Press SYM then a key to launch shortcuts when not in a text field</string>
+    <string name="power_shortcuts_press_key">Press shortcut key to launch</string>
+    
     <!-- Notification Helper -->
     <string name="notification_nav_mode_channel_name">Pastiera Nav Mode</string>
     <string name="notification_nav_mode_channel_description">Notifications for Pastiera nav mode</string>
     <string name="notification_nav_mode_activated_title">Nav Mode Activated</string>
     <string name="notification_nav_mode_activated_text">Nav mode activated</string>
+    
+    <!-- Update Notifications -->
+    <string name="notification_update_channel_name">Pastiera Updates</string>
+    <string name="notification_update_channel_description">Notifications about new Pastiera versions</string>
+    <string name="notification_update_available_title">Pastiera - New update available</string>
+    <string name="notification_update_available_text">A new version of Pastiera is available (%1$s)</string>
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Speak now...</string>
@@ -235,28 +271,7 @@
     <string name="unicode_category_technical">Technical Symbols</string>
     <string name="unicode_category_arrows">Arrows</string>
     <string name="unicode_category_misc">Miscellaneous</string>
-    
-    <!-- Trackpad Debug Screen -->
-    <string name="trackpad_debug_title">Trackpad Debug</string>
-    <string name="trackpad_debug_motion_events_status">Motion Events Status</string>
-    <string name="trackpad_debug_intercepting_events">Intercepting events ✓ (%1$d events received)</string>
-    <string name="trackpad_debug_waiting_events">Waiting for events... (Try moving your finger on the keyboard)</string>
-    <string name="trackpad_debug_test_field_title">Test Text Field</string>
-    <string name="trackpad_debug_test_field_description">Focus this field and try using the trackpad on your keyboard</string>
-    <string name="trackpad_debug_test_field_placeholder">Type here or use trackpad gestures...</string>
-    <string name="trackpad_debug_last_event_title">Last Motion Event</string>
-    <string name="trackpad_debug_action">Action:</string>
-    <string name="trackpad_debug_source">Source:</string>
-    <string name="trackpad_debug_device">Device:</string>
-    <string name="trackpad_debug_device_id">Device ID: %1$d</string>
-    <string name="trackpad_debug_position">Position:</string>
-    <string name="trackpad_debug_scroll">Scroll:</string>
-    <string name="trackpad_debug_pressure">Pressure:</string>
-    <string name="trackpad_debug_size">Size:</string>
-    <string name="trackpad_debug_button_state">Button State:</string>
-    <string name="trackpad_debug_timestamp">Timestamp: %1$d</string>
-    <string name="trackpad_debug_no_events">No motion events detected yet</string>
-    <string name="trackpad_debug_no_events_description">Try moving your finger on the touch-sensitive keyboard</string>
+    <string name="unicode_category_variations">Variations</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -270,9 +285,78 @@
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Support on Ko-fi</string>
     <string name="settings_nav_mode_configure">Configure navigation mode key mappings</string>
-    <string name="settings_trackpad_debug_title">Trackpad Debug</string>
-    <string name="settings_trackpad_debug_description">Test trackpad/touch-sensitive keyboard events</string>
+    <string name="settings_update_section_title">Updates</string>
+    <string name="settings_update_section_description">Check the latest release on GitHub.</string>
+    <string name="settings_update_button">Check for updates</string>
+    <string name="settings_update_checking">Checking for updates…</string>
+    <string name="settings_update_up_to_date">App is up to date.</string>
+    <string name="settings_update_check_failed">Unable to reach GitHub.</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
+    
+    <!-- Settings Categories -->
+    <string name="settings_category_keyboard_timing">Keyboard &amp; Timing</string>
+    <string name="settings_category_text_input">Smart Features</string>
+    <string name="settings_category_auto_correction">Auto-correction</string>
+    <string name="settings_category_customization">Customization</string>
+    <string name="settings_category_advanced">Advanced</string>
+    
+    <!-- Keyboard Layout Settings -->
+    <string name="layout_save_content_description">Save layout</string>
+    <string name="layout_import_content_description">Import layout</string>
+    <string name="layout_imported_successfully">Layout imported successfully</string>
+    <string name="layout_import_failed">Failed to import layout</string>
+    <string name="layout_invalid_file">Invalid layout file</string>
+    <string name="layout_import_error">Error importing layout: %1$s</string>
+    <string name="layout_save_canceled">Save canceled</string>
+    <string name="layout_saved_successfully">Layout saved successfully</string>
+    <string name="layout_save_error">Error saving layout: %1$s</string>
+    <string name="layout_imported_name">Imported Layout</string>
+    <string name="layout_imported_description">Imported from file</string>
+    <string name="layout_delete_content_description">Delete layout</string>
+    <string name="layout_delete_confirmation_title">Delete Layout</string>
+    <string name="layout_delete_confirmation_message">Are you sure you want to delete the layout \"%1$s\"? This action cannot be undone.</string>
+    <string name="layout_delete_success">Layout deleted successfully</string>
+    <string name="layout_delete_failed">Failed to delete layout</string>
+    <string name="layout_view_mapping">View mapping</string>
+    <string name="layout_delete">Delete</string>
+    <string name="layout_enable_for_cycling">Enable for cycling (long-press Space)</string>
+    <string name="layout_select_as_active">Select as active layout</string>
+    <string name="delete">Delete</string>
+    
+    <!-- Main Activity Event Display -->
+    <string name="modifier_alt">ALT</string>
+    <string name="event_unicode_label">Unicode: </string>
+    <string name="event_output_label">Output: </string>
+    <string name="event_not_available">N/A</string>
+    
+    <!-- Nav Mode Key Labels -->
+    <string name="nav_mode_action_copy">Copy</string>
+    <string name="nav_mode_action_paste">Paste</string>
+    <string name="nav_mode_action_cut">Cut</string>
+    <string name="nav_mode_action_undo">Undo</string>
+    <string name="nav_mode_action_select_all">SelAll</string>
+    <string name="nav_mode_action_expand_selection_left">←Sel</string>
+    <string name="nav_mode_action_expand_selection_right">→Sel</string>
+    <string name="nav_mode_keycode_up">↑</string>
+    <string name="nav_mode_keycode_down">↓</string>
+    <string name="nav_mode_keycode_left">←</string>
+    <string name="nav_mode_keycode_right">→</string>
+    <string name="nav_mode_keycode_center">○</string>
+    <string name="nav_mode_keycode_page_up">PgUp</string>
+    <string name="nav_mode_keycode_page_down">PgDn</string>
+    <string name="nav_mode_keycode_escape">Esc</string>
+    <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_key_unknown">?</string>
+
+    <!-- Backup & Restore -->
+    <string name="backup_now">Backup now</string>
+    <string name="backup_now_description">Export all settings and custom layouts to a ZIP</string>
+    <string name="restore_from_file">Restore from file</string>
+    <string name="restore_from_file_description">Import a Pastiera backup ZIP</string>
+    <string name="backup_completed">Backup completed</string>
+    <string name="restore_completed">Restore completed</string>
+    <string name="backup_failed">Backup failed: %1$s</string>
+    <string name="restore_failed">Restore failed: %1$s</string>
 </resources>

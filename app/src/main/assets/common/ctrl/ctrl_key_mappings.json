@@ -32,7 +32,8 @@
       "keycode": "DPAD_UP"
     },
     "KEYCODE_O": {
-      "type": "none"
+      "type": "keycode",
+      "keycode": "DPAD_CENTER"
     },
     "KEYCODE_P": {
       "type": "none"

@@ -22,28 +22,40 @@ import android.util.TypedValue
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.MainActivity
 import it.palsoftware.pastiera.SymCustomizationActivity
-import it.palsoftware.pastiera.SettingsActivity
 import it.palsoftware.pastiera.SettingsManager
 import kotlin.math.max
 import android.view.MotionEvent
 import android.view.KeyEvent
 import kotlin.math.abs
+import it.palsoftware.pastiera.inputmethod.ui.LedStatusView
+import it.palsoftware.pastiera.inputmethod.ui.VariationBarView
 
 /**
  * Manages the status bar shown by the IME, handling view creation
  * and updating text/style based on modifier states.
  */
 class StatusBarController(
-    private val context: Context
+    private val context: Context,
+    private val mode: Mode = Mode.FULL
 ) {
+    enum class Mode {
+        FULL,
+        CANDIDATES_ONLY
+    }
+
     // Listener for variation selection
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
-    
-    // Listener for speech recognition results
-    var onSpeechResultListener: ((String) -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onVariationSelectedListener = value
+        }
     
     // Listener for cursor movement (to update variations)
     var onCursorMovedListener: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onCursorMovedListener = value
+        }
 
     companion object {
         private const val TAG = "StatusBarController"
@@ -81,27 +93,27 @@ class StatusBarController(
     private var modifiersContainer: LinearLayout? = null
     private var emojiMapTextView: TextView? = null
     private var emojiKeyboardContainer: LinearLayout? = null
-    private var variationsContainer: LinearLayout? = null
-    private var variationsOverlay: View? = null
-    private var variationsWrapper: FrameLayout? = null
-    private var variationButtons: MutableList<TextView> = mutableListOf()
-    private var ledContainer: LinearLayout? = null
-    private var shiftLed: View? = null
-    private var ctrlLed: View? = null
-    private var altLed: View? = null
-    private var symLed: View? = null
     private var emojiKeyButtons: MutableList<View> = mutableListOf()
-    private var currentVariationsRow: LinearLayout? = null
-    private var microphoneButtonView: ImageView? = null
-    private var settingsButtonView: ImageView? = null
-    private var lastDisplayedVariations: List<String> = emptyList()
-    private var currentInputConnection: android.view.inputmethod.InputConnection? = null
-    private var isSwipeInProgress = false
-    private var touchStartX = 0f
-    private var touchStartY = 0f
-    private var lastCursorMoveX = 0f // Last X position where cursor was moved
-    private var swipeDirection: Int? = null // 1 for right, -1 for left
-    private var isSymModeActive = false
+    private var lastSymPageRendered: Int = 0
+    private var lastSymMappingsRendered: Map<Int, String>? = null
+    private var wasSymActive: Boolean = false
+    private var symShown: Boolean = false
+    private val ledStatusView = LedStatusView(context)
+    private val variationBarView: VariationBarView? = if (mode == Mode.FULL) VariationBarView(context) else null
+    private var variationsWrapper: View? = null
+    private var forceMinimalUi: Boolean = false
+    fun setForceMinimalUi(force: Boolean) {
+        if (mode != Mode.FULL) {
+            return
+        }
+        if (forceMinimalUi == force) {
+            return
+        }
+        forceMinimalUi = force
+        if (force) {
+            variationBarView?.hideImmediate()
+        }
+    }
 
     fun getLayout(): LinearLayout? = statusBarLayout
 
@@ -173,245 +185,14 @@ class StatusBarController(
                 visibility = View.GONE
             }
 
-            // Container for variation buttons (horizontal, left-aligned).
-            // Fixed height to keep the bar height consistent (increased by 10%).
-            val variationsContainerHeight = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP, 
-                55f, // 50f * 1.1 (aumentata del 10%)
-                context.resources.displayMetrics
-            ).toInt()
-            val variationsVerticalPadding = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP, 
-                8.8f, // 8f * 1.1 (aumentato del 10%)
-                context.resources.displayMetrics
-            ).toInt()
-            
-            variationsContainer = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.START or Gravity.CENTER_VERTICAL
-                // Padding: sinistro invariato (64dp), destro ridotto del 67% (64dp * 0.31 = 19.84dp)
-                val rightPadding = (leftPadding * 0.31f).toInt()
-                setPadding(leftPadding, variationsVerticalPadding, rightPadding, variationsVerticalPadding)
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    variationsContainerHeight // Altezza fissa invece di WRAP_CONTENT
-                )
-                visibility = View.GONE
-            }
-            
-            // Create FrameLayout wrapper for variationsContainer with overlay
-            variationsWrapper = FrameLayout(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    variationsContainerHeight
-                )
-                visibility = View.GONE
-            }
-            
-            // Add variationsContainer to wrapper
-            variationsWrapper?.addView(variationsContainer)
-            
-            // Create transparent overlay for swipe gestures
-            variationsOverlay = View(context).apply {
-                background = ColorDrawable(Color.TRANSPARENT)
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                visibility = View.GONE
-            }
-            
-            // Add overlay to wrapper (on top of variationsContainer)
-            variationsWrapper?.addView(variationsOverlay)
-            
-            // Add OnTouchListener to overlay for swipe gestures
-            val SWIPE_THRESHOLD = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                6f, // dp - reduced threshold to start swipe (was 10f)
-                context.resources.displayMetrics
-            )
-            val INCREMENTAL_THRESHOLD = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                9.6f, // dp - threshold for each incremental cursor movement (8f * 1.2 = 9.6f, 20% slower)
-                context.resources.displayMetrics
-            )
-            
-            variationsOverlay?.setOnTouchListener { view, motionEvent ->
-                // Don't handle swipe if SYM mode is active
-                if (isSymModeActive) {
-                    return@setOnTouchListener false
-                }
-                
-                when (motionEvent.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        isSwipeInProgress = false
-                        swipeDirection = null
-                        touchStartX = motionEvent.x
-                        touchStartY = motionEvent.y
-                        lastCursorMoveX = motionEvent.x
-                        Log.d(TAG, "Touch down on overlay at ($touchStartX, $touchStartY)")
-                        // Intercept all events to handle both swipe and tap
-                        true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val deltaX = motionEvent.x - touchStartX
-                        val deltaY = abs(motionEvent.y - touchStartY)
-                        val incrementalDeltaX = motionEvent.x - lastCursorMoveX
-                        
-                        // If scroll is mainly horizontal and exceeds initial threshold, or swipe is already in progress
-                        if (isSwipeInProgress || (abs(deltaX) > SWIPE_THRESHOLD && abs(deltaX) > deltaY)) {
-                            // Determine or update swipe direction
-                            if (!isSwipeInProgress) {
-                                isSwipeInProgress = true
-                                swipeDirection = if (deltaX > 0) 1 else -1
-                                Log.d(TAG, "Swipe started: ${if (swipeDirection == 1) "RIGHT" else "LEFT"}")
-                            } else {
-                                // Update direction if user changes direction during swipe
-                                // Only change if movement is clearly in opposite direction
-                                val currentDirection = if (incrementalDeltaX > 0) 1 else -1
-                                if (currentDirection != swipeDirection && abs(incrementalDeltaX) > SWIPE_THRESHOLD) {
-                                    swipeDirection = currentDirection
-                                    Log.d(TAG, "Swipe direction changed: ${if (swipeDirection == 1) "RIGHT" else "LEFT"}")
-                                }
-                            }
-                            
-                            // Continue moving cursor as finger moves (in any direction)
-                            if (isSwipeInProgress && swipeDirection != null) {
-                                val inputConnection = currentInputConnection
-                                
-                                if (inputConnection != null) {
-                                    // Check movement in current swipe direction
-                                    val movementInDirection = if (swipeDirection == 1) incrementalDeltaX else -incrementalDeltaX
-                                    
-                                    // Move cursor if movement exceeds threshold in current direction
-                                    if (movementInDirection > INCREMENTAL_THRESHOLD) {
-                                        // Use TextSelectionHelper to move cursor directly (safer than DPAD keys)
-                                        // This only affects the text field, not UI navigation
-                                        val moved = if (swipeDirection == 1) {
-                                            TextSelectionHelper.moveCursorRight(inputConnection)
-                                        } else {
-                                            TextSelectionHelper.moveCursorLeft(inputConnection)
-                                        }
-                                        
-                                        if (moved) {
-                                            // Update last cursor move position
-                                            lastCursorMoveX = motionEvent.x
-                                            
-                                            Log.d(TAG, "Cursor moved: ${if (swipeDirection == 1) "RIGHT" else "LEFT"}")
-                                            
-                                            // Notify listener to update variations after cursor movement
-                                            // Use a delayed post to ensure Android has completed the cursor movement
-                                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                                onCursorMovedListener?.invoke()
-                                            }, 50) // 50ms delay to allow Android to update cursor position
-                                        } else {
-                                            Log.d(TAG, "Cursor movement failed: ${if (swipeDirection == 1) "RIGHT" else "LEFT"} (probably at text boundary)")
-                                        }
-                                    }
-                                }
-                            }
-                            true // Consume the event - swipe continues as long as finger is down
-                        } else {
-                            true // Still intercept to prevent button handling
-                        }
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        if (isSwipeInProgress) {
-                            isSwipeInProgress = false
-                            swipeDirection = null
-                            Log.d(TAG, "Swipe ended on overlay")
-                            true // Consume to prevent button click
-                        } else {
-                            // Not a swipe, find and click button under touch position in variationsContainer
-                            val x = motionEvent.x
-                            val y = motionEvent.y
-                            Log.d(TAG, "Tap detected on overlay at ($x, $y), looking for button")
-                            
-                            // Find clickable view at touch position in variationsContainer
-                            val clickedView = variationsContainer?.let { findClickableViewAt(it, x, y) }
-                            if (clickedView != null) {
-                                Log.d(TAG, "Button clicked via overlay: ${clickedView.javaClass.simpleName}")
-                                clickedView.performClick()
-                            } else {
-                                Log.d(TAG, "No clickable button found at touch position")
-                            }
-                            true // Consume the event
-                        }
-                    }
-                    MotionEvent.ACTION_CANCEL -> {
-                        isSwipeInProgress = false
-                        swipeDirection = null
-                        true
-                    }
-                    else -> true
-                }
-            }
-            
-            // Container for LEDs along the bottom edge
-            val ledHeight = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                5.5f, // Increased from 4f for better visibility
-                context.resources.displayMetrics
-            ).toInt()
-            val ledBottomPadding = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                0f,
-                context.resources.displayMetrics
-            ).toInt()
-            val ledGap = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                1.5f, // Small gap between LED strips
-                context.resources.displayMetrics
-            ).toInt()
-            
-            ledContainer = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.BOTTOM
-                setPadding(0, 0, 0, ledBottomPadding)
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            }
-            
-            // Create LEDs for each modifier in order: SHIFT - SYM - unused - unused - CONTROL - ALT.
-            // We split the width into 6 equal parts.
-            shiftLed = createFlatLed(0, ledHeight, false) // Parte 1
-            symLed = createFlatLed(0, ledHeight, false)   // Parte 2
-            val unused1 = createFlatLed(0, ledHeight, false) // Parte 3 (unused)
-            val unused2 = createFlatLed(0, ledHeight, false) // Parte 4 (unused)
-            ctrlLed = createFlatLed(0, ledHeight, false)  // Parte 5
-            altLed = createFlatLed(0, ledHeight, false)   // Parte 6
-            
-            // Hide unused parts (make them fully transparent)
-            unused1.visibility = View.INVISIBLE
-            unused2.visibility = View.INVISIBLE
-            
-            ledContainer?.apply {
-                // Add LEDs in the correct order, each occupying 1/6 of the width with gaps
-                addView(shiftLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply {
-                    marginEnd = ledGap
-                })
-                addView(symLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply {
-                    marginEnd = ledGap
-                })
-                addView(unused1, LinearLayout.LayoutParams(0, ledHeight, 1f).apply {
-                    marginEnd = ledGap
-                })
-                addView(unused2, LinearLayout.LayoutParams(0, ledHeight, 1f).apply {
-                    marginEnd = ledGap
-                })
-                addView(ctrlLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply {
-                    marginEnd = ledGap
-                })
-                addView(altLed, LinearLayout.LayoutParams(0, ledHeight, 1f))
-            }
+            variationsWrapper = variationBarView?.ensureView()
+            val ledStrip = ledStatusView.ensureView()
             
             statusBarLayout?.apply {
                 addView(modifiersContainer)
-                addView(variationsWrapper) // Use wrapper instead of variationsContainer
+                variationsWrapper?.let { addView(it) }
                 addView(emojiKeyboardContainer) // Griglia emoji prima dei LED
-                addView(ledContainer) // LED sempre in fondo
+                addView(ledStrip) // LED sempre in fondo
             }
         } else if (emojiMapText.isNotEmpty()) {
             emojiMapTextView?.text = emojiMapText
@@ -479,167 +260,6 @@ class StatusBarController(
     }
     
     /**
-     * Crea un LED rettangolare e piatto per un modificatore.
-     */
-    private fun createFlatLed(width: Int, height: Int, isActive: Boolean): View {
-        val cornerRadius = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            2f, // Rounded top corners for modern look
-            context.resources.displayMetrics
-        )
-        
-        val drawable = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(if (isActive) Color.WHITE else Color.argb(80, 255, 255, 255))
-            // Rounded corners only on top
-            cornerRadii = floatArrayOf(
-                cornerRadius, cornerRadius, // Top left
-                cornerRadius, cornerRadius, // Top right
-                0f, 0f, // Bottom left
-                0f, 0f  // Bottom right
-            )
-        }
-        
-        return View(context).apply {
-            background = drawable
-            layoutParams = LinearLayout.LayoutParams(width, height)
-        }
-    }
-    
-    /**
-     * Aggiorna lo stato del LED SYM con colori specifici per pagina.
-     * @param led Il view del LED SYM da aggiornare
-     * @param symPage Il numero di pagina SYM (0=spento, 1=blu, 2=arancione)
-     */
-    private fun updateSymLed(led: View?, symPage: Int) {
-        led?.let {
-            val cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                2f, // Rounded top corners
-                context.resources.displayMetrics
-            )
-            
-            // Colors: blue for page 1, red/orange for page 2, gray when off (same as other LEDs)
-            val color = when (symPage) {
-                1 -> LED_COLOR_BLUE_ACTIVE // Blue for page 1
-                2 -> LED_COLOR_RED_LOCKED // Red/orange for page 2 (same as locked state)
-                else -> LED_COLOR_GRAY_OFF // Gray when off (same as Shift LED)
-            }
-            
-            // Get previous color from tag (if exists)
-            val previousColorTag = it.getTag(R.id.led_previous_color) as? Int
-            val previousColor = previousColorTag ?: LED_COLOR_GRAY_OFF
-            
-            // Save new color to tag
-            it.setTag(R.id.led_previous_color, color)
-            
-            // Animate color change for smooth transitions
-            if (previousColor != color) {
-                val animator = ValueAnimator.ofArgb(previousColor, color).apply {
-                    duration = 200
-                    interpolator = AccelerateDecelerateInterpolator()
-                    addUpdateListener { animation ->
-                        val animatedColor = animation.animatedValue as Int
-                        val animatedDrawable = GradientDrawable().apply {
-                            shape = GradientDrawable.RECTANGLE
-                            setColor(animatedColor)
-                            // Rounded corners only on top
-                            cornerRadii = floatArrayOf(
-                                cornerRadius, cornerRadius, // Top left
-                                cornerRadius, cornerRadius, // Top right
-                                0f, 0f, // Bottom left
-                                0f, 0f  // Bottom right
-                            )
-                        }
-                        it.background = animatedDrawable
-                    }
-                }
-                animator.start()
-            } else {
-                val drawable = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(color)
-                    // Rounded corners only on top
-                    cornerRadii = floatArrayOf(
-                        cornerRadius, cornerRadius, // Top left
-                        cornerRadius, cornerRadius, // Top right
-                        0f, 0f, // Bottom left
-                        0f, 0f  // Bottom right
-                    )
-                }
-                it.background = drawable
-            }
-        }
-    }
-    
-    /**
-     * Aggiorna lo stato di un LED.
-     * @param led Il view del LED da aggiornare
-     * @param isLocked Se true, il LED è rosso (lockato), se false e isActive è true è blu (attivo), altrimenti grigio (spento)
-     * @param isActive Se true e isLocked è false, il LED è blu (attivo)
-     */
-    private fun updateLed(led: View?, isLocked: Boolean, isActive: Boolean = false) {
-        led?.let {
-            val cornerRadius = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                2f, // Rounded top corners
-                context.resources.displayMetrics
-            )
-            
-            // More vibrant colors with better contrast
-            val color = when {
-                isLocked -> LED_COLOR_RED_LOCKED // Orange/red when locked
-                isActive -> LED_COLOR_BLUE_ACTIVE // Blue when active
-                else -> LED_COLOR_GRAY_OFF // Gray when off
-            }
-            
-            // Get previous color from tag (if exists)
-            val previousColorTag = it.getTag(R.id.led_previous_color) as? Int
-            val previousColor = previousColorTag ?: LED_COLOR_GRAY_OFF
-            
-            // Save new color to tag
-            it.setTag(R.id.led_previous_color, color)
-            
-            // Animate color change for smooth transitions
-            if (previousColor != color) {
-                val animator = ValueAnimator.ofArgb(previousColor, color).apply {
-                    duration = 200
-                    interpolator = AccelerateDecelerateInterpolator()
-                    addUpdateListener { animation ->
-                        val animatedColor = animation.animatedValue as Int
-                        val animatedDrawable = GradientDrawable().apply {
-                            shape = GradientDrawable.RECTANGLE
-                            setColor(animatedColor)
-                            // Rounded corners only on top
-                            cornerRadii = floatArrayOf(
-                                cornerRadius, cornerRadius, // Top left
-                                cornerRadius, cornerRadius, // Top right
-                                0f, 0f, // Bottom left
-                                0f, 0f  // Bottom right
-                            )
-                        }
-                        it.background = animatedDrawable
-                    }
-                }
-                animator.start()
-            } else {
-                val drawable = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(color)
-                    // Rounded corners only on top
-                    cornerRadii = floatArrayOf(
-                        cornerRadius, cornerRadius, // Top left
-                        cornerRadius, cornerRadius, // Top right
-                        0f, 0f, // Bottom left
-                        0f, 0f  // Bottom right
-                    )
-                }
-                it.background = drawable
-            }
-        }
-    }
-    
-    /**
      * Crea un indicatore per un modificatore (deprecato, mantenuto per compatibilità).
      */
     private fun createModifierIndicator(text: String, isActive: Boolean): TextView {
@@ -677,6 +297,9 @@ class StatusBarController(
      */
     private fun updateEmojiKeyboard(symMappings: Map<Int, String>, page: Int, inputConnection: android.view.inputmethod.InputConnection? = null) {
         val container = emojiKeyboardContainer ?: return
+        if (lastSymPageRendered == page && lastSymMappingsRendered == symMappings) {
+            return
+        }
         
         // Rimuovi tutti i tasti esistenti
         container.removeAllViews()
@@ -714,8 +337,8 @@ class StatusBarController(
             context.resources.displayMetrics
         ).toInt()
         
-        // Calcola la larghezza fissa dei tasti basata sulla riga più lunga
-        val maxKeysInRow = keyboardRows.maxOfOrNull { it.size } ?: 10
+        // Calcola la larghezza fissa dei tasti basata sulla prima riga (10 caselle)
+        val maxKeysInRow = 10 // Prima riga ha 10 caselle
         val screenWidth = context.resources.displayMetrics.widthPixels
         val horizontalPadding = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -746,6 +369,14 @@ class StatusBarController(
                         bottomMargin = keySpacing
                     }
                 }
+            }
+            
+            // Per la terza riga, aggiungi placeholder trasparente a sinistra
+            if (rowIndex == 2) {
+                val leftPlaceholder = createPlaceholderButton(keyHeight)
+                rowLayout.addView(leftPlaceholder, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply {
+                    marginEnd = keySpacing
+                })
             }
             
             for ((index, keyCode) in row.withIndex()) {
@@ -800,50 +431,72 @@ class StatusBarController(
                 })
             }
             
-            // Aggiungi il pulsante ingranaggio alla fine della terza riga (a destra della M)
+            // Per la terza riga, aggiungi placeholder con icona matita a destra
             if (rowIndex == 2) {
-                val settingsButton = createSettingsButton(keyHeight)
-                val iconSize = TypedValue.applyDimension(
-                    TypedValue.COMPLEX_UNIT_DIP,
-                    24f, // Aumentato del 20% (20f * 1.2 = 24f)
-                    context.resources.displayMetrics
-                ).toInt()
-                rowLayout.addView(settingsButton, LinearLayout.LayoutParams(iconSize, iconSize).apply {
+                val rightPlaceholder = createPlaceholderWithPencilButton(keyHeight)
+                rowLayout.addView(rightPlaceholder, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply {
                     marginStart = keySpacing
-                    gravity = Gravity.CENTER_VERTICAL
                 })
             }
             
             container.addView(rowLayout)
         }
+
+        // Cache what was rendered to avoid rebuilding on each status refresh
+        lastSymPageRendered = page
+        lastSymMappingsRendered = HashMap(symMappings)
     }
     
     /**
-     * Crea il pulsante ingranaggio per aprire la schermata di personalizzazione SYM.
+     * Crea un placeholder trasparente per allineare le righe.
      */
-    private fun createSettingsButton(height: Int): View {
-        // Dimensione aumentata del 20% per l'icona
+    private fun createPlaceholderButton(height: Int): View {
+        return FrameLayout(context).apply {
+            background = null // Trasparente
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                height
+            )
+            isClickable = false
+            isFocusable = false
+        }
+    }
+    
+    /**
+     * Crea un placeholder con icona matita per aprire la schermata di personalizzazione SYM.
+     */
+    private fun createPlaceholderWithPencilButton(height: Int): View {
+        val placeholder = FrameLayout(context).apply {
+            setPadding(0, 0, 0, 0)
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                height
+            )
+        }
+        
+        // Background trasparente
+        placeholder.background = null
+        
+        // Dimensione icona più grande
         val iconSize = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
-            14.4f, // Aumentato del 20% (12f * 1.2 = 14.4f)
+            20f, // Aumentata ulteriormente per maggiore visibilità
             context.resources.displayMetrics
         ).toInt()
         
         val button = ImageView(context).apply {
-            background = null // Nessuno sfondo
+            background = null
             setImageResource(R.drawable.ic_edit_24)
-            // Grigio quasi nero invece di bianco
-            setColorFilter(Color.rgb(40, 40, 40)) // Grigio molto scuro, quasi nero
+            setColorFilter(Color.WHITE) // Bianco
             scaleType = ImageView.ScaleType.FIT_CENTER
-            adjustViewBounds = true // Permette il ridimensionamento
-            maxWidth = iconSize // Limita la larghezza massima
-            maxHeight = iconSize // Limita l'altezza massima
-            setPadding(0, 0, 0, 0) // Nessun padding
-            layoutParams = LinearLayout.LayoutParams(
-                iconSize, // Larghezza fissa basata sulla dimensione dell'icona
-                iconSize  // Altezza fissa basata sulla dimensione dell'icona
+            adjustViewBounds = true
+            maxWidth = iconSize
+            maxHeight = iconSize
+            layoutParams = FrameLayout.LayoutParams(
+                iconSize,
+                iconSize
             ).apply {
-                gravity = Gravity.CENTER_VERTICAL
+                gravity = Gravity.CENTER
             }
             isClickable = true
             isFocusable = true
@@ -869,7 +522,8 @@ class StatusBarController(
             }
         }
         
-        return button
+        placeholder.addView(button)
+        return placeholder
     }
     
     /**
@@ -888,10 +542,15 @@ class StatusBarController(
             )
         }
         
-        // Background del tasto senza angoli arrotondati e senza bordi
+        // Background del tasto con angoli leggermente arrotondati
+        val cornerRadius = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            6f, // Angoli leggermente arrotondati
+            context.resources.displayMetrics
+        )
         val drawable = GradientDrawable().apply {
             setColor(Color.argb(40, 255, 255, 255)) // Bianco semi-trasparente
-            setCornerRadius(0f) // Nessun angolo arrotondato
+            setCornerRadius(cornerRadius)
             // Nessun bordo
         }
         keyLayout.background = drawable
@@ -1014,9 +673,9 @@ class StatusBarController(
             context.resources.displayMetrics
         ).toInt()
         
-        // Calcola la larghezza fissa dei tasti basata sulla riga più lunga
+        // Calcola la larghezza fissa dei tasti basata sulla prima riga (10 caselle)
         // Usa ViewTreeObserver per ottenere la larghezza effettiva del container dopo il layout
-        val maxKeysInRow = keyboardRows.maxOfOrNull { it.size } ?: 10
+        val maxKeysInRow = 10 // Prima riga ha 10 caselle
         
         // Inizializza con una larghezza temporanea, verrà aggiornata dopo il layout
         var fixedKeyWidth = 0
@@ -1075,6 +734,14 @@ class StatusBarController(
                 }
             }
             
+            // Per la terza riga, aggiungi placeholder trasparente a sinistra
+            if (rowIndex == 2) {
+                val leftPlaceholder = createPlaceholderButton(keyHeight)
+                rowLayout.addView(leftPlaceholder, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply {
+                    marginEnd = keySpacing
+                })
+            }
+            
             for ((index, keyCode) in row.withIndex()) {
                 val label = keyLabels[keyCode] ?: ""
                 val emoji = symMappings[keyCode] ?: ""
@@ -1095,6 +762,15 @@ class StatusBarController(
                 })
             }
             
+            // Per la terza riga nella schermata di personalizzazione, aggiungi placeholder trasparente a destra
+            // per mantenere l'allineamento (senza matita e senza click listener)
+            if (rowIndex == 2) {
+                val rightPlaceholder = createPlaceholderButton(keyHeight)
+                rowLayout.addView(rightPlaceholder, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply {
+                    marginStart = keySpacing
+                })
+            }
+            
             container.addView(rowLayout)
         }
         
@@ -1102,36 +778,37 @@ class StatusBarController(
     }
     
     /**
-     * Anima l'apparizione della griglia emoji (slide up + fade in).
-     * @param backgroundView Il view dello sfondo da animare insieme
+     * Anima l'apparizione della griglia emoji solo con slide up (nessun fade).
+     * @param backgroundView Il view dello sfondo da impostare a opaco immediatamente
      */
     private fun animateEmojiKeyboardIn(view: View, backgroundView: View? = null) {
         val height = view.height
         if (height == 0) {
-            // Se l'altezza non è ancora disponibile, usa una stima
             view.measure(
                 View.MeasureSpec.makeMeasureSpec(view.width, View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
             )
         }
         val measuredHeight = view.measuredHeight
-        val startHeight = 0
-        val endHeight = measuredHeight
-        
-        view.alpha = 0f
+
+        view.alpha = 1f
         view.translationY = measuredHeight.toFloat()
         view.visibility = View.VISIBLE
-        
-        // Anima anche lo sfondo se fornito
-        backgroundView?.let { animateBackgroundIn(it) }
-        
-        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+
+        // Set background to opaque immediately without animation
+        backgroundView?.let { bgView ->
+            if (bgView.background !is ColorDrawable) {
+                bgView.background = ColorDrawable(DEFAULT_BACKGROUND)
+            }
+            (bgView.background as? ColorDrawable)?.alpha = 255
+        }
+
+        val animator = ValueAnimator.ofFloat(measuredHeight.toFloat(), 0f).apply {
             duration = 125
             interpolator = AccelerateDecelerateInterpolator()
             addUpdateListener { animation ->
-                val progress = animation.animatedValue as Float
-                view.alpha = progress
-                view.translationY = measuredHeight * (1f - progress)
+                val value = animation.animatedValue as Float
+                view.translationY = value
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
@@ -1145,7 +822,7 @@ class StatusBarController(
     
     /**
      * Anima la scomparsa della griglia emoji (slide down + fade out).
-     * @param backgroundView Il view dello sfondo da animare insieme
+     * @param backgroundView Il view dello sfondo (non animato, rimane opaco)
      * @param onAnimationEnd Callback chiamato quando l'animazione è completata
      */
     private fun animateEmojiKeyboardOut(view: View, backgroundView: View? = null, onAnimationEnd: (() -> Unit)? = null) {
@@ -1156,10 +833,7 @@ class StatusBarController(
             return
         }
 
-        // Anima anche lo sfondo se fornito
-        backgroundView?.let { bgView ->
-            animateBackgroundOut(bgView, null)
-        }
+        // Background remains opaque, no animation
 
         val animator = ValueAnimator.ofFloat(1f, 0f).apply {
             duration = 100
@@ -1181,593 +855,108 @@ class StatusBarController(
         animator.start()
     }
 
-    /**
-     * Anima l'apparizione dei suggerimenti (fade in).
-     */
-    private fun animateVariationsIn(view: View) {
-        view.alpha = 0f
-        view.visibility = View.VISIBLE
-
-        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 75
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animation ->
-                val progress = animation.animatedValue as Float
-                view.alpha = progress
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    view.alpha = 1f
-                }
-            })
-        }
-        animator.start()
-    }
-
-    /**
-     * Anima la scomparsa dei suggerimenti (fade out).
-     * @param onAnimationEnd Callback chiamato quando l'animazione è completata
-     */
-    private fun animateVariationsOut(view: View, onAnimationEnd: (() -> Unit)? = null) {
-        val animator = ValueAnimator.ofFloat(1f, 0f).apply {
-            duration = 50
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animation ->
-                val progress = animation.animatedValue as Float
-                view.alpha = progress
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    view.visibility = View.GONE
-                    view.alpha = 1f
-                    onAnimationEnd?.invoke()
-                }
-            })
-        }
-        animator.start()
-    }
-
-    private fun animateMicrophoneOut(view: View, onAnimationEnd: (() -> Unit)? = null) {
-        if (view.visibility != View.VISIBLE) {
-            view.visibility = View.GONE
-            view.alpha = 1f
-            onAnimationEnd?.invoke()
-            return
-        }
-
-        val animator = ValueAnimator.ofFloat(1f, 0f).apply {
-            duration = 75
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animation ->
-                val progress = animation.animatedValue as Float
-                view.alpha = progress
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    view.visibility = View.GONE
-                    view.alpha = 1f
-                    onAnimationEnd?.invoke()
-                }
-            })
-        }
-        animator.start()
-    }
-
-    /**
-     * Anima l'apparizione dello sfondo nero (fade in).
-     */
-    private fun animateBackgroundIn(view: View) {
-        val colorDrawable = ColorDrawable(DEFAULT_BACKGROUND)
-        view.background = colorDrawable
-        colorDrawable.alpha = 0
-
-        val animator = ValueAnimator.ofInt(0, 255).apply {
-            duration = 125
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animation ->
-                val alpha = animation.animatedValue as Int
-                (view.background as? ColorDrawable)?.alpha = alpha
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    (view.background as? ColorDrawable)?.alpha = 255
-                }
-            })
-        }
-        animator.start()
-    }
-
-    /**
-     * Anima la scomparsa dello sfondo nero (fade out).
-     * @param onAnimationEnd Callback chiamato quando l'animazione è completata
-     */
-    private fun animateBackgroundOut(view: View, onAnimationEnd: (() -> Unit)? = null) {
-        val background = view.background
-        if (background !is ColorDrawable) {
-            // Se non è un ColorDrawable, creane uno nuovo
-            val colorDrawable = ColorDrawable(DEFAULT_BACKGROUND)
-            colorDrawable.alpha = 255
-            view.background = colorDrawable
-        }
-
-        val animator = ValueAnimator.ofInt(255, 0).apply {
-            duration = 100
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animation ->
-                val alpha = animation.animatedValue as Int
-                (view.background as? ColorDrawable)?.alpha = alpha
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    (view.background as? ColorDrawable)?.alpha = 255
-                    onAnimationEnd?.invoke()
-                }
-            })
-        }
-        animator.start()
-    }
     
-    /**
-     * Crea un pulsante per una variazione.
-     */
-    private fun createVariationButton(
-        variation: String,
-        inputConnection: android.view.inputmethod.InputConnection?,
-        buttonWidth: Int
-    ): TextView {
-        // Converti dp in pixel
-        val dp4 = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, 
-            4f,
-            context.resources.displayMetrics
-        ).toInt()
-        val dp6 = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, 
-            6f,
-            context.resources.displayMetrics
-        ).toInt()
-        val dp3 = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, 
-            3f, // Spazio ridotto tra i pulsanti
-            context.resources.displayMetrics
-        ).toInt()
-        
-        // Altezza fissa per tutti i pulsanti (quadrati, stessa della larghezza)
-        val buttonHeight = buttonWidth
-        
-        // Crea il background del pulsante (rettangolo senza angoli arrotondati, scuro)
-        val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(17, 17, 17)) // Grigio quasi nero
-            setCornerRadius(0f) // Nessun angolo arrotondato
-            // Nessun bordo
-        }
-        
-        // Crea un drawable per lo stato pressed (più chiaro)
-        val pressedDrawable = GradientDrawable().apply {
-            setColor(Color.rgb(38, 0, 255)) // azzurro quando pressed
-            setCornerRadius(0f) // Nessun angolo arrotondato
-            // Nessun bordo
-        }
-        
-        // Crea uno StateListDrawable per gestire gli stati (normale e pressed)
-        val stateListDrawable = android.graphics.drawable.StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_pressed), pressedDrawable)
-            addState(intArrayOf(), drawable) // Stato normale
-        }
-        
-        val button = TextView(context).apply {
-            text = variation
-            textSize = 17.6f // 16f * 1.1 (aumentato del 10%)
-            setTextColor(Color.WHITE) // Testo bianco
-            setTypeface(null, android.graphics.Typeface.BOLD) // Testo in grassetto
-            gravity = Gravity.CENTER
-            // Padding
-            setPadding(dp6, dp4, dp6, dp4)
-            background = stateListDrawable
-            layoutParams = LinearLayout.LayoutParams(
-                buttonWidth, // Larghezza calcolata dinamicamente
-                buttonHeight  // Altezza fissa (quadrato)
-            ).apply {
-                marginEnd = dp3 // Margine ridotto tra i pulsanti
-            }
-            // Rendi il pulsante clickabile
-            isClickable = true
-            isFocusable = true
-        }
-        
-        // Aggiungi il listener per il click
-        button.setOnClickListener(
-            VariationButtonHandler.createVariationClickListener(
-                variation,
-                inputConnection,
-                onVariationSelectedListener
-            )
-        )
-        
-        return button
-    }
     
-    /**
-     * Crea il pulsante microfono (usato nei suggerimenti).
-     */
-    private fun createMicrophoneButton(buttonSize: Int): ImageView {
-        val drawable = GradientDrawable().apply {
-            setColor(Color.rgb(17, 17, 17))
-            setCornerRadius(0f)
-        }
-
-        return ImageView(context).apply {
-            setImageResource(R.drawable.ic_baseline_mic_24)
-            setColorFilter(Color.WHITE)
-            background = drawable
-            scaleType = ImageView.ScaleType.CENTER
-            isClickable = true
-            isFocusable = true
-            setPadding(0, 0, 0, 0)
-            layoutParams = LinearLayout.LayoutParams(
-                buttonSize,
-                buttonSize
-            )
-        }
-    }
-    
-    /**
-     * Creates a small settings button for the status bar (placed to the right of the microphone).
-     */
-    private fun createStatusBarSettingsButton(buttonSize: Int): ImageView {
-        // Smaller icon size - 60% of button size, then 10% smaller = 54% of button size
-        val iconSize = (buttonSize * 0.54f).toInt()
-        val dp3 = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            3f,
-            context.resources.displayMetrics
-        ).toInt()
-        
-        return ImageView(context).apply {
-            setImageResource(R.drawable.ic_settings_24)
-            // Dark gray color (not invasive)
-            setColorFilter(Color.rgb(100, 100, 100))
-            background = null // No background
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
-            isClickable = true
-            isFocusable = true
-            setPadding(dp3, dp3, dp3, dp3)
-            layoutParams = LinearLayout.LayoutParams(
-                buttonSize,
-                buttonSize
-            )
-        }
-    }
-    
-    /**
-     * Avvia il riconoscimento vocale di Google Voice Typing.
-     */
-    private fun startSpeechRecognition(inputConnection: android.view.inputmethod.InputConnection?) {
-        try {
-            val intent = Intent(context, SpeechRecognitionActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                       Intent.FLAG_ACTIVITY_NO_HISTORY or
-                       Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-            }
-
-            context.startActivity(intent)
-            Log.d(TAG, "Riconoscimento vocale avviato")
-        } catch (e: Exception) {
-            Log.e(TAG, "Errore nel lancio del riconoscimento vocale", e)
-        }
-    }
-    
-    /**
-     * Gestisce il risultato del riconoscimento vocale.
-     */
-    fun handleSpeechResult(text: String, inputConnection: android.view.inputmethod.InputConnection?) {
-        if (text.isNotEmpty() && inputConnection != null) {
-            Log.d(TAG, "Inserimento testo riconosciuto: $text")
-            inputConnection.commitText(text, 1)
-            // Notifica il listener se presente
-            onSpeechResultListener?.invoke(text)
-        }
-    }
-    
-    /**
-     * Crea un pulsante placeholder trasparente per riempire gli slot vuoti.
-     */
-    private fun createPlaceholderButton(buttonWidth: Int): View {
-        // Larghezza e altezza fissa per tutti i pulsanti (quadrati, circa 48dp)
-        val buttonSize = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, 
-            48f, 
-            context.resources.displayMetrics
-        ).toInt()
-        val dp3 = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP, 
-            3f, // Spazio ridotto tra i pulsanti
-            context.resources.displayMetrics
-        ).toInt()
-        
-        // Altezza fissa per tutti i pulsanti (quadrati, stessa della larghezza)
-        val buttonHeight = buttonWidth
-        
-        // Crea un background trasparente
-        val drawable = GradientDrawable().apply {
-            setColor(Color.TRANSPARENT) // Completamente trasparente
-            setCornerRadius(0f) // Nessun angolo arrotondato
-        }
-        
-        val button = View(context).apply {
-            background = drawable
-            layoutParams = LinearLayout.LayoutParams(
-                buttonWidth, // Larghezza calcolata dinamicamente
-                buttonHeight  // Altezza fissa (quadrato)
-            ).apply {
-                marginEnd = dp3 // Margine ridotto tra i pulsanti
-            }
-            // Non clickabile
-            isClickable = false
-            isFocusable = false
-        }
-        
-        return button
-    }
-
-    /**
-     * Mostra i suggerimenti (variazioni) e il microfono.
-     * Questa funzione viene chiamata dopo che la griglia SYM è completamente collassata.
-     */
-    private fun showVariationsAndMicrophone(snapshot: StatusSnapshot, inputConnection: android.view.inputmethod.InputConnection?) {
-        val variationsContainerView = variationsContainer ?: return
-        variationsContainerView.visibility = View.VISIBLE
-        variationsWrapper?.visibility = View.VISIBLE
-        variationsOverlay?.visibility = View.VISIBLE
-
-        val limitedVariations = if (snapshot.variations.isNotEmpty() && snapshot.lastInsertedChar != null) {
-            snapshot.variations.take(7)
-        } else {
-            emptyList()
-        }
-
-        // Verifica se le variazioni sono le stesse di quelle già visualizzate
-        val variationsChanged = limitedVariations != lastDisplayedVariations
-        val hasExistingRow = currentVariationsRow != null && 
-                            currentVariationsRow?.parent == variationsContainerView &&
-                            currentVariationsRow?.visibility == View.VISIBLE
-
-        // Se le variazioni non sono cambiate e c'è già una riga visualizzata, non fare nulla
-        if (!variationsChanged && hasExistingRow) {
-            return
-        }
-
-        // Le variazioni sono cambiate o non c'è una riga esistente, ricrea tutto
-        variationButtons.clear()
-        currentVariationsRow?.let {
-            variationsContainerView.removeView(it)
-            currentVariationsRow = null
-        }
-
-        val screenWidth = context.resources.displayMetrics.widthPixels
-        val leftPadding = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            64f,
-            context.resources.displayMetrics
-        ).toInt()
-        // Right padding reduced by 67% (from 64dp to 19.84dp)
-        val rightPadding = (leftPadding * 0.31f).toInt()
-        val availableWidth = screenWidth - leftPadding - rightPadding
-
-        val spacingBetweenButtons = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            3f,
-            context.resources.displayMetrics
-        ).toInt()
-        // Total elements: 7 variations + 1 microphone + 1 settings = 9 elements
-        // Total spacing: 8 spaces between 9 elements
-        val totalSpacing = spacingBetweenButtons * 8
-        val buttonWidth = max(1, (availableWidth - totalSpacing) / 9)
-
-        val variationsRow = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.START or Gravity.CENTER_VERTICAL
-        }
-        currentVariationsRow = variationsRow
-
-        val rowLayoutParams = LinearLayout.LayoutParams(
-            0,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            1f
-        )
-        variationsContainerView.addView(variationsRow, 0, rowLayoutParams)
-
-        lastDisplayedVariations = limitedVariations
-
-        for (variation in limitedVariations) {
-            val button = createVariationButton(variation, inputConnection, buttonWidth)
-            variationButtons.add(button)
-            variationsRow.addView(button)
-        }
-
-        val placeholderCount = 7 - limitedVariations.size
-        for (i in 0 until placeholderCount) {
-            val placeholderButton = createPlaceholderButton(buttonWidth)
-            variationsRow.addView(placeholderButton)
-        }
-
-        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(buttonWidth)
-        microphoneButtonView = microphoneButton
-        (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
-        val micParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth)
-        variationsContainerView.addView(microphoneButton, micParams)
-        microphoneButton.setOnClickListener {
-            startSpeechRecognition(inputConnection)
-        }
-        microphoneButton.alpha = 1f
-        microphoneButton.visibility = View.VISIBLE
-        
-        // Add settings button to the right of microphone
-        val settingsButton = settingsButtonView ?: createStatusBarSettingsButton(buttonWidth)
-        settingsButtonView = settingsButton
-        (settingsButton.parent as? ViewGroup)?.removeView(settingsButton)
-        val settingsParams = LinearLayout.LayoutParams(buttonWidth, buttonWidth).apply {
-            // Move icon 10% higher (negative top margin = 10% of button height)
-            topMargin = (-buttonWidth * 0.1f).toInt()
-        }
-        variationsContainerView.addView(settingsButton, settingsParams)
-        settingsButton.setOnClickListener {
-            // Open Settings screen
-            // FLAG_ACTIVITY_NEW_TASK is required when starting activity from a service
-            val intent = Intent(context, SettingsActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            try {
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error opening Settings screen", e)
-            }
-        }
-        settingsButton.alpha = 1f
-        settingsButton.visibility = View.VISIBLE
-
-        // Fai il fade in solo se le variazioni sono cambiate
-        if (variationsChanged) {
-            animateVariationsIn(variationsRow)
-        } else {
-            // Se le variazioni sono le stesse ma non c'era una riga, imposta direttamente la visibilità senza animazione
-            variationsRow.alpha = 1f
-            variationsRow.visibility = View.VISIBLE
-        }
-    }
 
     fun update(snapshot: StatusSnapshot, emojiMapText: String = "", inputConnection: android.view.inputmethod.InputConnection? = null, symMappings: Map<Int, String>? = null) {
-        // Save current inputConnection for swipe gestures
-        currentInputConnection = inputConnection
+        variationBarView?.onVariationSelectedListener = onVariationSelectedListener
+        variationBarView?.onCursorMovedListener = onCursorMovedListener
+        variationBarView?.updateInputConnection(inputConnection)
+        variationBarView?.setSymModeActive(snapshot.symPage > 0)
         
-        // Update SYM mode state (swipe pad disabled when SYM mode is active)
-        isSymModeActive = snapshot.symPage > 0
-        
-        // Ensure layout is created (important for candidates view which may not have been created yet)
         val layout = ensureLayoutCreated(emojiMapText) ?: return
         val modifiersContainerView = modifiersContainer ?: return
         val emojiView = emojiMapTextView ?: return
-        val variationsContainerView = variationsContainer ?: return
         val emojiKeyboardView = emojiKeyboardContainer ?: return
-        emojiView.visibility = View.GONE // Sempre nascosto, usiamo la griglia
-
+        emojiView.visibility = View.GONE
+        
         if (snapshot.navModeActive) {
-            // Nascondi completamente la barra di stato nel nav mode
-            // La notifica è sufficiente per indicare che il nav mode è attivo
             layout.visibility = View.GONE
             return
         }
-        
-        // Mostra la barra quando non siamo in nav mode
         layout.visibility = View.VISIBLE
-
-        // Assicurati che lo sfondo sia un ColorDrawable per poter animare l'alpha
+        
         if (layout.background !is ColorDrawable) {
             layout.background = ColorDrawable(DEFAULT_BACKGROUND)
-        } else {
-            // Se è già un ColorDrawable, assicurati che sia completamente opaco quando non siamo in SYM
-            if (snapshot.symPage == 0) {
-                (layout.background as ColorDrawable).alpha = 255
-            }
+        } else if (snapshot.symPage == 0) {
+            (layout.background as ColorDrawable).alpha = 255
         }
         
-        // Hide modifiers container (no longer needed since red dot indicator is removed)
         modifiersContainerView.visibility = View.GONE
+        ledStatusView.update(snapshot)
+        val variationsBar = if (!forceMinimalUi) variationBarView else null
+        val variationsWrapperView = if (!forceMinimalUi) variationsWrapper else null
         
-        // Aggiorna i LED nel bordo inferiore
-        // Shift: rosso se lockato (Caps Lock), blu se attivo (premuto/one-shot), grigio se spento
-        val shiftLocked = snapshot.capsLockEnabled
-        val shiftActive = (snapshot.shiftPhysicallyPressed || snapshot.shiftOneShot) && !shiftLocked
-        updateLed(shiftLed, shiftLocked, shiftActive)
-        
-        // Ctrl: rosso se lockato, blu se attivo (premuto/one-shot), grigio se spento
-        val ctrlLocked = snapshot.ctrlLatchActive
-        val ctrlActive = (snapshot.ctrlPhysicallyPressed || snapshot.ctrlOneShot) && !ctrlLocked
-        updateLed(ctrlLed, ctrlLocked, ctrlActive)
-        
-        // Alt: rosso se lockato, blu se attivo (premuto/one-shot), grigio se spento
-        val altLocked = snapshot.altLatchActive
-        val altActive = (snapshot.altPhysicallyPressed || snapshot.altOneShot) && !altLocked
-        updateLed(altLed, altLocked, altActive)
-        
-        // SYM: blu per pagina 1, arancione per pagina 2, grigio se spento
-        updateSymLed(symLed, snapshot.symPage)
-        
-        // Gestisci le animazioni tra SYM e suggerimenti
         if (snapshot.symPage > 0 && symMappings != null) {
             updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
-            // Resetta le variazioni visualizzate quando SYM viene attivato
-            lastDisplayedVariations = emptyList()
-            val showSymKeyboard = {
-                if (emojiKeyboardView.visibility != View.VISIBLE) {
-                    animateEmojiKeyboardIn(emojiKeyboardView, layout)
-                }
-                variationsContainerView.visibility = View.GONE
-                variationsWrapper?.visibility = View.GONE
-                variationsOverlay?.visibility = View.GONE
+            variationsBar?.resetVariationsState()
+
+            // Pin background to opaque IME color and hide variations so SYM animates on a solid canvas.
+            if (layout.background !is ColorDrawable) {
+                layout.background = ColorDrawable(DEFAULT_BACKGROUND)
             }
+            (layout.background as? ColorDrawable)?.alpha = 255
+            variationsWrapperView?.apply {
+                visibility = View.INVISIBLE // keep space to avoid shrink/flash
+                isEnabled = false
+                isClickable = false
+            }
+            variationsBar?.hideImmediate()
 
-            if (emojiKeyboardView.visibility != View.VISIBLE) {
-                var pendingAnimations = 0
-                fun animationCompleted() {
-                    pendingAnimations--
-                    if (pendingAnimations == 0) {
-                        showSymKeyboard()
-                    }
-                }
-
-                currentVariationsRow?.let { row ->
-                    if (row.parent == variationsContainerView && row.visibility == View.VISIBLE) {
-                        pendingAnimations++
-                        animateVariationsOut(row) {
-                            (row.parent as? ViewGroup)?.removeView(row)
-                            if (currentVariationsRow == row) {
-                                currentVariationsRow = null
-                            }
-                            animationCompleted()
-                        }
-                    }
-                }
-
-                microphoneButtonView?.let { microphone ->
-                    if (microphone.visibility == View.VISIBLE) {
-                        // Rimuovi immediatamente il microfono dal container per evitare che si muova durante l'animazione
-                        (microphone.parent as? ViewGroup)?.removeView(microphone)
-                        // Nascondi immediatamente senza animazione per evitare movimenti visibili
-                        microphone.visibility = View.GONE
-                        microphone.alpha = 1f
-                        animationCompleted()
-                    }
-                }
-                
-                settingsButtonView?.let { settings ->
-                    if (settings.visibility == View.VISIBLE) {
-                        // Rimuovi immediatamente il pulsante settings dal container
-                        (settings.parent as? ViewGroup)?.removeView(settings)
-                        settings.visibility = View.GONE
-                        settings.alpha = 1f
-                        animationCompleted()
-                    }
-                }
-
-                if (pendingAnimations == 0) {
-                    showSymKeyboard()
-                }
+            val symHeight = ensureEmojiKeyboardMeasuredHeight(emojiKeyboardView, layout)
+            emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
+            emojiKeyboardView.visibility = View.VISIBLE
+            emojiKeyboardView.layoutParams = (emojiKeyboardView.layoutParams ?: LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                symHeight
+            )).apply { height = symHeight }
+            if (!symShown && !wasSymActive) {
+                emojiKeyboardView.alpha = 1f // keep black visible immediately
+                emojiKeyboardView.translationY = symHeight.toFloat()
+                animateEmojiKeyboardIn(emojiKeyboardView, layout)
+                symShown = true
+                wasSymActive = true
             } else {
-                microphoneButtonView?.visibility = View.GONE
-                settingsButtonView?.visibility = View.GONE
+                emojiKeyboardView.alpha = 1f
+                emojiKeyboardView.translationY = 0f
+                wasSymActive = true
             }
             return
         }
-
-        // SYM si sta disattivando
+        
         if (emojiKeyboardView.visibility == View.VISIBLE) {
             animateEmojiKeyboardOut(emojiKeyboardView, layout) {
-                showVariationsAndMicrophone(snapshot, inputConnection)
+                variationsWrapperView?.apply {
+                    visibility = View.VISIBLE
+                    isEnabled = true
+                    isClickable = true
+                }
+                variationsBar?.showVariations(snapshot, inputConnection)
             }
+            symShown = false
+            wasSymActive = false
         } else {
-            showVariationsAndMicrophone(snapshot, inputConnection)
+            emojiKeyboardView.visibility = View.GONE
+            variationsWrapperView?.apply {
+                visibility = View.VISIBLE
+                isEnabled = true
+                isClickable = true
+            }
+            variationsBar?.showVariations(snapshot, inputConnection)
+            symShown = false
+            wasSymActive = false
         }
+    }
+
+    private fun ensureEmojiKeyboardMeasuredHeight(view: View, parent: View): Int {
+        if (view.height > 0) {
+            return view.height
+        }
+        val width = if (parent.width > 0) parent.width else context.resources.displayMetrics.widthPixels
+        val widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
+        val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        view.measure(widthSpec, heightSpec)
+        return view.measuredHeight
     }
 }
 

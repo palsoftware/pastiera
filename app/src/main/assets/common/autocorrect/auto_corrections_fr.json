@@ -1,5 +1,42 @@
-{}
-
-
-
-
+{
+  "parametres": "paramètres",
+  "Ete": "Été",
+  "ete": "été",
+  "C'etait": "C'était",
+  "Cest": "C'est",
+  "cest": "c'est",
+  "Commetn": "Comment",
+  "commetn": "comment",
+  "premieres": "premières",
+  "Premiere": "Première",
+  "Premieres": "Premières",
+  "derniere": "dernière",
+  "Derniere": "Dernière",
+  "Dernieres": "Dernières",
+  "Etre": "Être",
+  "Ca": "Ça",
+  "ca": "ça",
+  "titan": "Titan",
+  "cote": "côté",
+  "Cote": "Côté",
+  "Estce": "Est-ce",
+  "estce": "est-ce",
+  "corections": "corrections",
+  "nai": "n'ai",
+  "nest": "n'est",
+  "Celui_ci": "Celui-ci",
+  "celui_ci": "celui-ci",
+  "Quest-ce": "Qu'est-ce",
+  "meme": "même",
+  "memes": "mêmes",
+  "coeur": "cœur",
+  "coeurs": "cœurs",
+  "Coeur": "Cœur",
+  "Coeurs": "Cœurs",
+  "peutêtre": "peut-être",
+  "Peutêtre": "Peut-être",
+  "soeur": "sœur",
+  "soeurs": "sœurs",
+  "Soeur": "sœur",
+  "Soeurs": "Sœurs"
+}
