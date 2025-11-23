@@ -13,6 +13,9 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -47,6 +50,35 @@ object NotificationHelper {
         }
     }
     
+    /**
+     * Triggers a short vibration for nav mode activation, without showing a notification.
+     */
+    fun vibrateNavModeActivated(context: Context) {
+        try {
+            val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+
+            if (vibrator == null || !vibrator.hasVibrator()) {
+                return
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val effect = VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE)
+                vibrator.vibrate(effect)
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(50)
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("NotificationHelper", "Unable to vibrate for nav mode", e)
+        }
+    }
+
     /**
      * Creates the notification channel (required on Android 8.0+).
      * Uses IMPORTANCE_DEFAULT for normal priority notification.
@@ -142,61 +174,6 @@ object NotificationHelper {
         canvas.drawText("N", canvas.width / 2f, textY, paint)
         
         return bitmap
-    }
-    
-    /**
-     * Shows a notification when nav mode is activated.
-     * Checks permissions before showing it.
-     */
-    fun showNavModeActivatedNotification(context: Context) {
-        // Check permission first
-        if (!hasNotificationPermission(context)) {
-            android.util.Log.w("NotificationHelper", "Notification permission not granted")
-            return
-        }
-        
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        // Create the channel if needed (Android 8.0+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            createNotificationChannel(context)
-        }
-        
-        // Create custom "N" icon for the small icon (status bar)
-        // Standard size for small icon: 24dp converted to pixels
-        val smallIconSize = (24 * context.resources.displayMetrics.density).toInt().coerceAtLeast(24)
-        val smallIconBitmap = createNavModeIcon(smallIconSize, Color.TRANSPARENT, Color.WHITE)
-        val smallIcon = IconCompat.createWithBitmap(smallIconBitmap)
-        
-        // Create large icon for expanded notification
-        val largeIconSize = (64 * context.resources.displayMetrics.density).toInt().coerceAtLeast(64)
-        val largeIconBitmap = createNavModeIcon(largeIconSize, Color.TRANSPARENT, Color.WHITE)
-        
-        val notificationBuilder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setContentTitle(context.getString(R.string.notification_nav_mode_activated_title))
-            .setContentText(context.getString(R.string.notification_nav_mode_activated_text))
-            .setSmallIcon(smallIcon) // Custom "N" icon for status bar
-            .setLargeIcon(largeIconBitmap) // Large "N" icon for expanded notification
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT) // Normal priority notification
-            .setAutoCancel(true) // Automatically dismissed when tapped
-            .setOngoing(true) // Persistent, stays visible
-            .setCategory(NotificationCompat.CATEGORY_STATUS) // Status category for status bar
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // Visible on lock screen
-            // Sound is disabled via channel settings (setSound(null, null))
-        
-        // For Android < 8.0, set vibration pattern directly on notification
-        // (On Android 8.0+ this is controlled by the channel)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            // Vibration pattern: short vibration (50ms)
-            // Pattern: [delay, vibrate, delay, vibrate, ...]
-            // 0 = no delay before first vibration, 50 = vibrate for 50ms
-            @Suppress("DEPRECATION")
-            notificationBuilder.setVibrate(longArrayOf(0, 50))
-        }
-        
-        val notification = notificationBuilder.build()
-        
-        notificationManager.notify(NOTIFICATION_ID, notification)
     }
     
     /**
