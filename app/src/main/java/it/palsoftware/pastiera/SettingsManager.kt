@@ -29,6 +29,9 @@ object SettingsManager {
     private const val KEY_SYM_MAPPINGS_PAGE2_CUSTOM = "sym_mappings_page2_custom"
     private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
     private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
+    private const val KEY_SUGGESTIONS_ENABLED = "suggestions_enabled"
+    private const val KEY_ACCENT_MATCHING_ENABLED = "accent_matching_enabled"
+    private const val KEY_AUTO_REPLACE_ON_SPACE_ENTER = "auto_replace_on_space_enter"
     private const val KEY_AUTO_CAPITALIZE_AFTER_PERIOD = "auto_capitalize_after_period"
     private const val KEY_LONG_PRESS_MODIFIER = "long_press_modifier" // "alt" or "shift"
     private const val KEY_KEYBOARD_LAYOUT = "keyboard_layout" // "qwerty", "azerty", etc.
@@ -56,6 +59,9 @@ object SettingsManager {
     private const val DEFAULT_CLEAR_ALT_ON_SPACE = false
     private const val DEFAULT_ALT_CTRL_SPEECH_SHORTCUT = true
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
+    private const val DEFAULT_SUGGESTIONS_ENABLED = true
+    private const val DEFAULT_ACCENT_MATCHING_ENABLED = true
+    private const val DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER = false
     private const val DEFAULT_AUTO_CAPITALIZE_AFTER_PERIOD = true
     private const val DEFAULT_LONG_PRESS_MODIFIER = "alt"
     private const val DEFAULT_KEYBOARD_LAYOUT = "qwerty"
@@ -475,13 +481,61 @@ object SettingsManager {
     fun getAutoCorrectEnabled(context: Context): Boolean {
         return getPreferences(context).getBoolean(KEY_AUTO_CORRECT_ENABLED, DEFAULT_AUTO_CORRECT_ENABLED)
     }
-    
+
     /**
      * Sets whether auto-correction is enabled.
      */
     fun setAutoCorrectEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_AUTO_CORRECT_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether inline suggestions are enabled.
+     */
+    fun getSuggestionsEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SUGGESTIONS_ENABLED, DEFAULT_SUGGESTIONS_ENABLED)
+    }
+
+    /**
+     * Enables or disables inline suggestions.
+     */
+    fun setSuggestionsEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SUGGESTIONS_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether accent matching should be applied to suggestions and auto-replace.
+     */
+    fun getAccentMatchingEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_ACCENT_MATCHING_ENABLED, DEFAULT_ACCENT_MATCHING_ENABLED)
+    }
+
+    /**
+     * Toggles accent matching for suggestions.
+     */
+    fun setAccentMatchingEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_ACCENT_MATCHING_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether auto-replace on space/enter is enabled.
+     */
+    fun getAutoReplaceOnSpaceEnter(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_AUTO_REPLACE_ON_SPACE_ENTER, DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER)
+    }
+
+    /**
+     * Enables or disables auto-replace on space/enter.
+     */
+    fun setAutoReplaceOnSpaceEnter(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_AUTO_REPLACE_ON_SPACE_ENTER, enabled)
             .apply()
     }
     

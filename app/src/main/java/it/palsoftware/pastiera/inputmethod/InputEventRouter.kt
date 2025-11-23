@@ -33,6 +33,15 @@ class InputEventRouter(
     private val navModeController: NavModeController
 ) {
 
+    var suggestionController: it.palsoftware.pastiera.core.suggestions.SuggestionController? = null
+
+    private fun commitTextWithTracking(ic: InputConnection?, text: CharSequence, trackWord: Boolean = true) {
+        ic?.commitText(text, 1)
+        if (trackWord) {
+            suggestionController?.onCharacterCommitted(text)
+        }
+    }
+
     sealed class EditableFieldRoutingResult {
         object Continue : EditableFieldRoutingResult()
         object Consume : EditableFieldRoutingResult()
@@ -450,7 +459,7 @@ class InputEventRouter(
             )
             if (char.isNotEmpty() && char[0].isLetter()) {
                 callbacks.disableShiftOneShot()
-                ic?.commitText(char, 1)
+                commitTextWithTracking(ic, char)
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -466,7 +475,7 @@ class InputEventRouter(
                 false
             )
             if (char.isNotEmpty() && char[0].isLetter()) {
-                ic?.commitText(char, 1)
+                commitTextWithTracking(ic, char)
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -486,7 +495,7 @@ class InputEventRouter(
         }
         if (charForVariations != null) {
             if (controllers.variationStateController.hasVariationsFor(charForVariations)) {
-                ic?.commitText(charForVariations.toString(), 1)
+                commitTextWithTracking(ic, charForVariations.toString())
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -503,7 +512,7 @@ class InputEventRouter(
                 shiftOneShotActive
             )
             if (char.isNotEmpty() && char[0].isLetter()) {
-                ic?.commitText(char, 1)
+                commitTextWithTracking(ic, char)
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -524,6 +533,11 @@ class InputEventRouter(
         autoCorrectionManager: AutoCorrectionManager,
         updateStatusBar: () -> Unit
     ): Boolean {
+        val isBoundaryKey = keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_ENTER
+        val isPunctuation = event?.unicodeChar != null &&
+            event.unicodeChar != 0 &&
+            event.unicodeChar.toChar() in ".,;:!?()[]{}\"'"
+
         if (
             autoCorrectionManager.handleBackspaceUndo(
                 keyCode,
@@ -532,6 +546,7 @@ class InputEventRouter(
                 onStatusBarUpdate = updateStatusBar
             )
         ) {
+            suggestionController?.onContextReset()
             return true
         }
 
@@ -569,6 +584,12 @@ class InputEventRouter(
                 onStatusBarUpdate = updateStatusBar
             )
         ) {
+            suggestionController?.onContextReset()
+            return true
+        }
+
+        if (!shouldDisableSmartFeatures && inputConnection != null && (isBoundaryKey || isPunctuation) && suggestionController != null) {
+            suggestionController?.onBoundaryKey(keyCode, event, inputConnection)
             return true
         }
 

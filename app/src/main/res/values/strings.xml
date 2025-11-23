@@ -131,6 +131,17 @@
     <string name="auto_correct_language_code_hint">Enter a code and name for your custom language (e.g., \"fr\" / \"French\", \"mydict\" / \"My Dictionary\")</string>
     <string name="auto_correct_language_code_required">Language name is required</string>
     <string name="auto_correct_language_already_exists">This language already exists</string>
+    <string name="auto_correct_suggestions_toggle_title">Suggestions while typing</string>
+    <string name="auto_correct_accent_matching_title">Match accented words</string>
+    <string name="auto_correct_auto_replace_title">Auto-replace on space/enter</string>
+    <string name="auto_correct_manage_user_dict_title">Manage user dictionary</string>
+
+    <!-- User dictionary management -->
+    <string name="user_dict_title">User dictionary</string>
+    <string name="user_dict_add_hint">Add a word</string>
+    <string name="user_dict_add_button">Save word</string>
+    <string name="user_dict_empty_state">No user words saved yet.</string>
+    <string name="user_dict_frequency_label">Uses: %1$d</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_customize_title">Customize SYM Keyboard</string>
