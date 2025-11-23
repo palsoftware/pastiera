@@ -48,7 +48,12 @@
     },
     "KEYCODE_I": {
       "lowercase": "и",
-      "uppercase": "И"
+      "uppercase": "И",
+      "multiTapEnabled": true,
+      "taps": [
+        { "lowercase": "и", "uppercase": "И" },
+        { "lowercase": "й", "uppercase": "Й" }
+      ]
     },
     "KEYCODE_O": {
       "lowercase": "о",
@@ -88,8 +93,7 @@
       "multiTapEnabled": true,
       "taps": [
         { "lowercase": "ь", "uppercase": "Ь" },
-        { "lowercase": "ъ", "uppercase": "Ъ" },
-        { "lowercase": "й", "uppercase": "Й" }
+        { "lowercase": "ъ", "uppercase": "Ъ" }
       ]
     },
     "KEYCODE_K": {
