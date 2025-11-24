@@ -230,6 +230,18 @@
     <string name="unicode_category_misc">Różne</string>
     <string name="unicode_category_variations">Wariacje</string>
     
+    <!-- Variation Customization -->
+    <string name="variation_customize_title">Dostosuj warianty</string>
+    <string name="variation_picker_title">Wybierz wariant dla %1$s</string>
+    <string name="variation_picker_clear">Wyczyść (Puste)</string>
+    <string name="variation_reset_to_default">Przywróć domyślne</string>
+    <string name="variation_reset_confirm_title">Przywróć domyślne</string>
+    <string name="variation_reset_confirm_message">Czy na pewno chcesz przywrócić wszystkie warianty do wartości domyślnych? Tej czynności nie można cofnąć.</string>
+    <string name="variation_reset_confirm_button">Przywróć</string>
+    
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">Statyczny pasek wariantów</string>
+    <string name="static_variation_bar_mode_description">Zawsze wyświetlaj stały zestaw klawiszy narzędziowych w rzędzie wariantów zamiast wariantów kontekstowych.</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>

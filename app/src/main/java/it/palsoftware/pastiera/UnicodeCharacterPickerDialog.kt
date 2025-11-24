@@ -81,16 +81,16 @@ fun UnicodeCharacterPickerDialog(
                         "simboli_matematici" to listOf(
                             "±", "×", "÷", "≠", "≤", "≥", "≈", "∞", "∑", "∏",
                             "√", "∫", "∆", "∇", "∂", "α", "β", "γ", "δ", "ε",
-                            "π", "Ω", "θ", "λ", "μ", "σ", "φ", "ω", "∑", "∏",
+                            "π", "Ω", "θ", "λ", "μ", "σ", "φ", "ω",
                             "½", "¼", "¾", "⅓", "⅔", "⅕", "⅖", "⅗", "⅘", "⅙",
                             "⅚", "⅛", "⅜", "⅝", "⅞", "∝", "∠", "∡", "∢", "∟",
                             "∴", "∵", "∶", "∷", "∼", "∽", "≀", "≁", "≂", "≃",
-                            "≄", "≅", "≆", "≇", "≈", "≉", "≊", "≋", "≌", "≍"
+                            "≄", "≅", "≆", "≇", "≉", "≊", "≋", "≌", "≍"
                         ),
                         "simboli_valuta" to listOf(
                             "€", "£", "¥", "$", "¢", "₹", "₽", "₩", "₪", "₫",
-                            "₦", "₨", "₩", "₪", "₫", "₦", "₨", "₩", "₪", "₫",
-                            "₭", "₮", "₯", "₰", "₱", "₲", "₳", "₴", "₵", "₶"
+                            "₦", "₨", "₭", "₮", "₯", "₰", "₱", "₲", "₳", "₴",
+                            "₵", "₶"
                         ),
                         "simboli_tecnici" to listOf(
                             "~", "`", "{", "}", "[", "]", "<", ">", "^", "%",
@@ -105,69 +105,77 @@ fun UnicodeCharacterPickerDialog(
                             "⇪", "⇫", "⇬", "⇭", "⇮", "⇯", "⇰", "⇱", "⇲", "⇳"
                         ),
                         "variazioni" to listOf(
-                            // A variations
-                            "À", "Á", "Â", "Ã", "Ä", "Å", "Ā", "Ă", "Ą", "à", "á", "â", "ã", "ä", "å", "ā", "ă", "ą",
-                            "Æ", "æ", "Ǣ", "ǣ", "Ǽ", "ǽ",
+                            // A variations - Order: grave, acute, circumflex, tilde, diaeresis, ring, macron, breve, ogonek, hook below
+                            "À", "à", "Á", "á", "Â", "â", "Ã", "ã", "Ä", "ä", "Å", "å", "Ā", "ā", "Ă", "ă", "Ą", "ą",
+                            "Ạ", "ạ", "Ả", "ả", "Ấ", "ấ", "Ầ", "ầ", "Ẩ", "ẩ", "Ẫ", "ẫ", "Ậ", "ậ", "Ắ", "ắ", "Ằ", "ằ", "Ẳ", "ẳ", "Ẵ", "ẵ", "Ặ", "ặ",
+                            "Æ", "æ", "Ǣ", "ǣ", "Ǽ", "ǽ", "",
                             // B variations
-                            "Ɓ", "Ƃ", "ƃ", "Ƅ", "ƅ",
-                            // C variations
-                            "Ç", "Ć", "Ĉ", "ĉ", "Ċ", "ċ", "Č", "č", "Ƈ", "ƈ", "Ȼ", "ȼ",
-                            // D variations
-                            "Ð", "Ď", "ď", "Đ", "đ", "Ɖ", "Ɗ", "Ƌ", "ƌ", "ƍ", "Ǳ", "ǲ", "ǳ", "Ǆ", "ǅ", "ǆ",
-                            // E variations
-                            "È", "É", "Ê", "Ë", "Ē", "Ĕ", "Ė", "ė", "Ę", "ę", "Ě", "ě", "Ǝ", "Ə", "Ɛ", "ǝ", "Ȅ", "ȅ", "Ȇ", "ȇ", "Ȩ", "ȩ", "Ɇ", "ɇ",
+                            "Ɓ", "Ƃ", "ƃ", "Ƅ", "ƅ", "",
+                            // C variations - Order: cedilla, acute, circumflex, dot above, caron
+                            "Ç", "ç", "Ć", "ć", "Ĉ", "ĉ", "Ċ", "ċ", "Č", "č", "Ƈ", "ƈ", "Ȼ", "ȼ", "",
+                            // D variations - Order: eth, caron, d with stroke, dot below, tilde below
+                            "Ð", "ð", "Ď", "ď", "Đ", "đ", "Ɖ", "Ɗ", "Ƌ", "ƌ", "ƍ", "Ḍ", "ḍ", "Ḑ", "ḑ", "Ǳ", "ǲ", "ǳ", "Ǆ", "ǅ", "ǆ", "",
+                            // E variations - Order: grave, acute, circumflex, diaeresis, macron, breve, dot above, ogonek, caron, hook below
+                            "È", "è", "Ȅ", "ȅ", "É", "é", "Ȇ", "ȇ", "Ê", "ê", "Ë", "ë", "Ē", "ē", "Ĕ", "ĕ", "Ė", "ė", "Ę", "ę", "Ě", "ě",
+                            "Ǝ", "Ə", "Ɛ", "ǝ", "Ȩ", "ȩ", "Ɇ", "ɇ",
+                            "Ẹ", "ẹ", "Ẻ", "ẻ", "Ẽ", "ẽ", "Ế", "ế", "Ề", "ề", "Ể", "ể", "Ễ", "ễ", "Ệ", "ệ", "",
                             // F variations
-                            "Ƒ", "ƒ",
-                            // G variations
-                            "Ĝ", "ĝ", "Ğ", "ğ", "Ġ", "ġ", "Ģ", "ģ", "Ɠ", "Ǥ", "ǥ", "Ǧ", "ǧ", "Ǵ", "ǵ", "ɢ",
-                            // H variations
-                            "Ĥ", "ĥ", "Ħ", "ħ", "ƕ", "Ƕ", "Ȟ", "ȟ", "ɦ", "ɧ",
-                            // I variations
-                            "Ì", "Í", "Î", "Ï", "Ĩ", "ĩ", "Ī", "ī", "Ĭ", "ĭ", "Į", "į", "İ", "ı", "Ɨ", "Ɩ", "Ȉ", "ȉ", "Ȋ", "ȋ", "ɨ", "ɩ",
-                            // J variations
-                            "Ĵ", "ĵ", "Ɩ", "ȷ", "Ɉ", "ɉ",
-                            // K variations
-                            "Ķ", "ķ", "ĸ", "Ƙ", "ƙ", "Ǩ", "ǩ", "Ḱ", "ḱ", "Ḳ", "ḳ", "Ḵ", "ḵ",
-                            // L variations
-                            "Ĺ", "ĺ", "Ļ", "ļ", "Ľ", "ľ", "Ŀ", "ŀ", "Ł", "ł", "ƚ", "Ǉ", "ǈ", "ǉ", "Ǌ", "ǋ", "ǌ",
-                            // M variations
-                            "Ɯ", "ɯ", "ɰ",
-                            // N variations
-                            "Ñ", "Ń", "ń", "Ņ", "ņ", "Ň", "ň", "ŉ", "Ŋ", "ŋ", "Ɲ", "ƞ", "Ǌ", "ǋ", "ǌ", "Ƞ", "ȵ", "ɲ", "ɳ", "ɴ",
-                            // O variations
-                            "Ò", "Ó", "Ô", "Õ", "Ö", "Ø", "Ō", "ō", "Ŏ", "ŏ", "Ő", "ő", "Ɵ", "Ơ", "ơ", "Ǒ", "ǒ", "Ǫ", "ǫ", "Ǭ", "ǭ", "Ǿ", "ǿ", "Ȍ", "ȍ", "Ȏ", "ȏ", "Ȯ", "ȯ", "Ȱ", "ȱ", "ɵ",
+                            "Ƒ", "ƒ", "",
+                            // G variations - Order: circumflex, breve, dot above, cedilla
+                            "Ĝ", "ĝ", "Ğ", "ğ", "Ġ", "ġ", "Ģ", "ģ", "Ɠ", "Ǥ", "ǥ", "Ǧ", "ǧ", "Ǵ", "ǵ", "ɢ", "",
+                            // H variations - Order: circumflex, stroke, breve below, line below, tilde below
+                            "Ĥ", "ĥ", "Ħ", "ħ", "ƕ", "Ƕ", "Ȟ", "ȟ", "Ḥ", "ḥ", "Ḫ", "ḫ", "Ḩ", "ḩ", "ɦ", "ɧ", "",
+                            // I variations - Order: grave, acute, circumflex, diaeresis, tilde, macron, breve, ogonek, dot above, hook below
+                            "Ì", "ì", "Ȉ", "ȉ", "Í", "í", "Ȋ", "ȋ", "Î", "î", "Ï", "ï", "Ĩ", "ĩ", "Ī", "ī", "Ĭ", "ĭ", "Į", "į", "İ", "ı",
+                            "Ɨ", "ɨ", "ɩ", "Ị", "ị", "",
+                            // J variations - Order: circumflex
+                            "Ĵ", "ĵ", "ȷ", "Ɉ", "ɉ", "",
+                            // K variations - Order: cedilla, caron, acute, dot below, line below
+                            "Ķ", "ķ", "ĸ", "Ƙ", "ƙ", "Ǩ", "ǩ", "Ḱ", "ḱ", "Ḳ", "ḳ", "Ḵ", "ḵ", "",
+                            // L variations - Order: acute, cedilla, caron, dot above, stroke, ring below
+                            "Ĺ", "ĺ", "Ļ", "ļ", "Ľ", "ľ", "Ŀ", "ŀ", "Ł", "ł", "Ḷ", "ḷ", "Ḹ", "ḹ", "ƚ", "Ǉ", "ǈ", "ǉ", "",
+                            // M variations - Order: grave, acute, circumflex, macron, caron, dot above, dot below
+                            "M̀", "m̀", "Ḿ", "ḿ", "M̂", "m̂", "M̄", "m̄", "M̌", "m̌", "Ṁ", "ṁ", "Ṃ", "ṃ", "Ɱ", "ɱ", "",
+                            // N variations - Order: tilde, acute, cedilla, caron, eng, dot below
+                            "Ñ", "ñ", "Ń", "ń", "Ņ", "ņ", "Ň", "ň", "ŉ", "Ŋ", "ŋ", "Ṇ", "ṇ", "Ɲ", "ƞ", "Ǌ", "ǋ", "ǌ", "Ƞ", "ȵ", "ɲ", "ɳ", "ɴ", "",
+                            // O variations - Order: grave, acute, circumflex, tilde, diaeresis, stroke, macron, breve, double acute, ogonek, hook below, tilde below
+                            "Ò", "ò", "Ȍ", "ȍ", "Ó", "ó", "Ȏ", "ȏ", "Ô", "ô", "Õ", "õ", "Ö", "ö", "Ø", "ø", "Ō", "ō", "Ŏ", "ŏ", "Ő", "ő",
+                            "Ɵ", "Ơ", "ơ", "Ǒ", "ǒ", "Ǫ", "ǫ", "Ǭ", "ǭ", "Ǿ", "ǿ", "Ȯ", "ȯ", "Ȱ", "ȱ", "ɵ",
+                            "Ọ", "ọ", "Ỏ", "ỏ", "Ố", "ố", "Ồ", "ồ", "Ổ", "ổ", "Ỗ", "ỗ", "Ộ", "ộ", "Ớ", "ớ", "Ờ", "ờ", "Ở", "ở", "Ỡ", "ỡ", "Ợ", "ợ", "Ṏ", "ṏ", "",
                             // P variations
-                            "Ƥ", "ƥ", "ᵽ",
+                            "Ƥ", "ƥ", "ᵽ", "",
                             // Q variations
-                            "Ɋ", "ɋ",
-                            // R variations
-                            "Ŕ", "ŕ", "Ŗ", "ŗ", "Ř", "ř", "Ʀ", "Ȑ", "ȑ", "Ȓ", "ȓ", "ɍ", "ɹ", "ɺ", "ɻ", "ɼ", "ɽ", "ɾ", "ɿ",
-                            // S variations
-                            "Ś", "ś", "Ŝ", "ŝ", "Ş", "ş", "Š", "š", "Ţ", "ţ", "Ť", "ť", "Ŧ", "ŧ", "Ʃ", "ƪ", "ƫ", "Ƭ", "ƭ", "Ʈ", "Ș", "ș", "ȿ", "ɀ", "ʃ", "ʅ", "ʆ",
-                            // T variations
-                            "Ţ", "ţ", "Ť", "ť", "Ŧ", "ŧ", "ƫ", "Ƭ", "ƭ", "Ʈ", "Ț", "ț", "ȶ", "Ⱦ", "ȿ", "ɀ", "ʇ", "ʈ",
-                            // U variations
-                            "Ù", "Ú", "Û", "Ü", "Ũ", "ũ", "Ū", "ū", "Ŭ", "ŭ", "Ů", "ů", "Ű", "ű", "Ų", "ų", "Ư", "ư", "Ʋ", "Ƴ", "ƴ", "Ǔ", "ǔ", "Ǖ", "ǖ", "Ǘ", "ǘ", "Ǚ", "ǚ", "Ǜ", "ǜ", "Ȕ", "ȕ", "Ȗ", "ȗ", "Ʉ", "ʉ",
-                            // V variations
-                            "Ʋ", "Ƴ", "ƴ", "Ʌ", "ʌ", "ʋ",
-                            // W variations
-                            "Ŵ", "ŵ", "Ɯ", "Ƿ", "Ǹ", "ǹ", "ɯ", "ɰ", "ʍ",
+                            "Ɋ", "ɋ", "",
+                            // R variations - Order: acute, cedilla, caron
+                            "Ŕ", "ŕ", "Ȑ", "ȑ", "Ȓ", "ȓ", "Ŗ", "ŗ", "Ř", "ř", "Ʀ", "ɍ", "ɹ", "ɺ", "ɻ", "ɼ", "ɽ", "ɾ", "ɿ", "",
+                            // S variations - Order: acute, circumflex, cedilla, caron, dot below
+                            "Ś", "ś", "Ŝ", "ŝ", "Ş", "ş", "Š", "š", "Ṣ", "ṣ", "Ʃ", "ƪ", "Ș", "ș", "ʃ", "ʅ", "ʆ", "",
+                            // T variations - Order: cedilla, caron, stroke, dot below
+                            "Ţ", "ţ", "Ť", "ť", "Ŧ", "ŧ", "Ṭ", "ṭ", "ƫ", "Ƭ", "ƭ", "Ʈ", "Ț", "ț", "ȶ", "Ⱦ", "ʇ", "ʈ", "",
+                            // U variations - Order: grave, acute, circumflex, diaeresis, tilde, macron, breve, ring above, double acute, ogonek, hook below
+                            "Ù", "ù", "Ȕ", "ȕ", "Ú", "ú", "Ȗ", "ȗ", "Û", "û", "Ü", "ü", "Ũ", "ũ", "Ū", "ū", "Ŭ", "ŭ", "Ů", "ů", "Ű", "ű", "Ų", "ų",
+                            "Ư", "ư", "Ǔ", "ǔ", "Ǖ", "ǖ", "Ǘ", "ǘ", "Ǚ", "ǚ", "Ǜ", "ǜ", "Ʉ", "ʉ",
+                            "Ụ", "ụ", "Ủ", "ủ", "Ứ", "ứ", "Ừ", "ừ", "Ử", "ử", "Ữ", "ữ", "Ự", "ự", "",
+                            // V variations - Order: tilde below
+                            "Ʋ", "Ƴ", "ƴ", "Ṽ", "ṽ", "Ʌ", "ʌ", "ʋ", "",
+                            // W variations - Order: circumflex
+                            "Ŵ", "ŵ", "Ɯ", "Ƿ", "Ǹ", "ǹ", "ɯ", "ɰ", "ʍ", "",
                             // X variations
-                            "Ẋ", "ẋ", "Ẍ", "ẍ", "Ƣ", "ƣ", "Ǯ", "ǯ",
-                            // Y variations
-                            "Ý", "ý", "Ŷ", "ŷ", "Ÿ", "ÿ", "Ƴ", "ƴ", "Ȳ", "ȳ", "Ɏ", "ɏ", "ʎ", "ʏ",
-                            // Z variations
+                            "Ẋ", "ẋ", "Ẍ", "ẍ", "Ƣ", "ƣ", "",
+                            // Y variations - Order: acute, circumflex, diaeresis, macron, hook below
+                            "Ý", "ý", "Ŷ", "ŷ", "Ÿ", "ÿ", "Ȳ", "ȳ", "Ỳ", "ỳ", "Ỵ", "ỵ", "Ỷ", "ỷ", "Ỹ", "ỹ", "Ɏ", "ɏ", "ʎ", "ʏ", "",
+                            // Z variations - Order: acute, dot above, caron
                             "Ź", "ź", "Ż", "ż", "Ž", "ž", "Ƶ", "ƶ", "Ʒ", "Ƹ", "ƹ", "ƺ", "Ǯ", "ǯ", "Ȥ", "ȥ", "ɀ", "ʐ", "ʑ", "ʓ"
                         ),
                         "simboli_varie" to listOf(
                             // Mathematical operators and symbols
-                            "∅", "∈", "∉", "∋", "∌", "∏", "∑", "∐", "−", "∓",
-                            "∔", "∕", "∖", "∗", "∘", "∙", "√", "∛", "∜", "∝",
-                            "∞", "∟", "∠", "∡", "∢", "∣", "∤", "∥", "∦", "∧",
-                            "∨", "∩", "∪", "∫", "∬", "∭", "∮", "∯", "∰", "∱",
-                            "∲", "∳", "∴", "∵", "∶", "∷", "∸", "∹", "∺", "∻",
-                            "∼", "∽", "∾", "∿", "≀", "≁", "≂", "≃", "≄", "≅",
-                            "≆", "≇", "≈", "≉", "≊", "≋", "≌", "≍", "≎", "≏",
+                            "∅", "∈", "∉", "∋", "∌", "∐", "−", "∓",
+                            "∔", "∕", "∖", "∗", "∘", "∙", "∛", "∜",
+                            "∣", "∤", "∥", "∦", "∧",
+                            "∨", "∩", "∪", "∬", "∭", "∮", "∯", "∰", "∱",
+                            "∲", "∳", "∸", "∹", "∺", "∻",
+                            "∾", "∿", "≀", "≁", "≂", "≃", "≄", "≅",
+                            "≆", "≇", "≉", "≊", "≋", "≌", "≍", "≎", "≏",
                             // Additional symbols
                             "⊂", "⊃", "⊄", "⊅", "⊆", "⊇", "⊈", "⊉", "⊊", "⊋",
                             "⊌", "⊍", "⊎", "⊏", "⊐", "⊑", "⊒", "⊓", "⊔", "⊕",
@@ -258,12 +266,27 @@ fun UnicodeCharacterPickerDialog(
                                 // Calculate number of columns based on screen width
                                 val columns = (screenWidth / (characterSize + spacing)).coerceAtLeast(4)
                                 
-                                recyclerView.apply {
-                                    layoutManager = GridLayoutManager(context, columns)
-                                    adapter = UnicodeCharacterRecyclerViewAdapter(selectedCharacters) { character ->
-                                        onCharacterSelected(character)
-                                        onDismiss()
+                                val layoutManager = GridLayoutManager(context, columns)
+                                val adapter = UnicodeCharacterRecyclerViewAdapter(selectedCharacters) { character ->
+                                    onCharacterSelected(character)
+                                    onDismiss()
+                                }
+                                
+                                // Configure span size lookup to make separators (empty strings) span full width
+                                layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                                    override fun getSpanSize(position: Int): Int {
+                                        // If it's a separator (empty string), make it span all columns
+                                        return if (position < selectedCharacters.size && selectedCharacters[position].isEmpty()) {
+                                            columns
+                                        } else {
+                                            1
+                                        }
                                     }
+                                }
+                                
+                                recyclerView.apply {
+                                    this.layoutManager = layoutManager
+                                    this.adapter = adapter
                                     setPadding(padding, padding, padding, padding)
                                     clipToPadding = false
                                     // Performance optimizations

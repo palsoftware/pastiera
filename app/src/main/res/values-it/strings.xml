@@ -223,7 +223,7 @@
     <string name="speech_recognition_prompt">Parla ora...</string>
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Barra variazioni statica</string>
-    <string name="static_variation_bar_mode_description">Mostra sempre una serie fissa di tasti di utilità nella barra variazioni invece delle variazioni contestuali. I tasti statici restano disponibili anche quando le smart features sono disabilitate.</string>
+    <string name="static_variation_bar_mode_description">Mostra sempre una serie fissa di tasti di utilità nella barra variazioni invece delle variazioni contestuali.</string>
     
     <!-- Auto Correct Edit Screen -->
     <string name="auto_correct_search_placeholder">Cerca correzioni...</string>
@@ -259,6 +259,15 @@
     <string name="unicode_category_arrows">Frecce</string>
     <string name="unicode_category_misc">Varie</string>
     <string name="unicode_category_variations">Variazioni</string>
+    
+    <!-- Variation Customization -->
+    <string name="variation_customize_title">Personalizza Variazioni</string>
+    <string name="variation_picker_title">Seleziona variazione per %1$s</string>
+    <string name="variation_picker_clear">Svuota (Vuoto)</string>
+    <string name="variation_reset_to_default">Ripristina Predefinito</string>
+    <string name="variation_reset_confirm_title">Ripristina Predefinito</string>
+    <string name="variation_reset_confirm_message">Sei sicuro di voler ripristinare tutte le variazioni ai valori predefiniti? Questa azione non può essere annullata.</string>
+    <string name="variation_reset_confirm_button">Ripristina</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>

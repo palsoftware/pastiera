@@ -585,7 +585,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Initialize nav mode mappings file if needed
         it.palsoftware.pastiera.SettingsManager.initializeNavModeMappingsFile(this)
         ctrlKeyMap.putAll(KeyMappingLoader.loadCtrlKeyMappings(assets, this))
-        variationStateController = VariationStateController(VariationRepository.loadVariations(assets))
+        variationStateController = VariationStateController(VariationRepository.loadVariations(assets, this))
         
         // Load auto-correction rules
         AutoCorrector.loadCorrections(assets, this)
@@ -619,6 +619,14 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Log.d(TAG, "Auto-correction rules changed, reloading...")
                 // Reload auto-corrections (including new custom languages)
                 AutoCorrector.loadCorrections(assets, this)
+            } else if (key == "variations_updated") {
+                Log.d(TAG, "Variations file changed, reloading...")
+                // Reload variations from file
+                variationStateController = VariationStateController(VariationRepository.loadVariations(assets, this))
+                // Update status bar to reflect new variations
+                Handler(Looper.getMainLooper()).post {
+                    updateStatusBarText()
+                }
             } else if (key == "nav_mode_mappings_updated") {
                 Log.d(TAG, "Nav mode mappings changed, reloading...")
                 // Reload nav mode key mappings

@@ -44,6 +44,9 @@ object SettingsManager {
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Whether the first-run tutorial has been completed
     private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Distance in DIP for cursor movement
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Use static variation bar instead of dynamic cursor-based variations
+    private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
+    
+    private const val VARIATIONS_FILE_NAME = "variations.json"
     
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -1399,5 +1402,105 @@ object SettingsManager {
         getPreferences(context).edit()
             .putBoolean(KEY_TUTORIAL_COMPLETED, false)
             .apply()
+    }
+    
+    /**
+     * Returns the File for variations.json in filesDir.
+     */
+    fun getVariationsFile(context: Context): File {
+        return File(context.filesDir, VARIATIONS_FILE_NAME)
+    }
+    
+    /**
+     * Helper to load current JSON from file or assets.
+     */
+    private fun loadCurrentJson(context: Context): JSONObject? {
+        return try {
+            val variationsFile = getVariationsFile(context)
+            val jsonString = if (variationsFile.exists()) {
+                variationsFile.readText()
+            } else {
+                context.assets.open("common/variations/variations.json").bufferedReader().use { it.readText() }
+            }
+            JSONObject(jsonString)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading current JSON", e)
+            null
+        }
+    }
+    
+    /**
+     * Saves variations to variations.json file in filesDir.
+     */
+    fun saveVariations(context: Context, variations: Map<String, List<String>>, staticVariations: List<String>? = null) {
+        try {
+            val variationsObject = JSONObject()
+            for ((letter, chars) in variations) {
+                val variationsArray = org.json.JSONArray()
+                for (char in chars) {
+                    variationsArray.put(char)
+                }
+                variationsObject.put(letter, variationsArray)
+            }
+            
+            val jsonObject = JSONObject()
+            jsonObject.put("variations", variationsObject)
+            
+            // Preserve staticVariations
+            if (staticVariations != null) {
+                val staticArray = org.json.JSONArray()
+                staticVariations.forEach { staticArray.put(it) }
+                jsonObject.put("staticVariations", staticArray)
+            } else {
+                loadCurrentJson(context)?.let { currentJson ->
+                    if (currentJson.has("staticVariations")) {
+                        jsonObject.put("staticVariations", currentJson.getJSONArray("staticVariations"))
+                    }
+                }
+            }
+            
+            FileOutputStream(getVariationsFile(context)).use { outputStream ->
+                outputStream.write(jsonObject.toString(2).toByteArray(Charsets.UTF_8))
+            }
+            
+            // Notify input method service to reload variations
+            getPreferences(context).edit()
+                .putLong(KEY_VARIATIONS_UPDATED, System.currentTimeMillis())
+                .apply()
+            
+            Log.d(TAG, "Variations saved to ${getVariationsFile(context).absolutePath}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving variations", e)
+        }
+    }
+    
+    /**
+     * Resets variations back to defaults by copying defaultvariations.json from assets.
+     */
+    fun resetVariationsToDefault(context: Context) {
+        try {
+            val variationsFile = getVariationsFile(context)
+            val inputStream = context.assets.open("common/variations/defaultvariations.json")
+            FileOutputStream(variationsFile).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+            inputStream.close()
+            
+            // Notify input method service to reload variations
+            getPreferences(context).edit()
+                .putLong(KEY_VARIATIONS_UPDATED, System.currentTimeMillis())
+                .apply()
+            
+            Log.d(TAG, "Variations reset to default from assets")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resetting variations to default", e)
+        }
+    }
+    
+    /**
+     * Returns true if custom variations file exists.
+     */
+    fun hasCustomVariations(context: Context): Boolean {
+        return getVariationsFile(context).exists()
     }
 }

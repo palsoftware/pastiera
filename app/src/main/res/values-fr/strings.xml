@@ -230,6 +230,18 @@
     <string name="unicode_category_misc">Divers</string>
     <string name="unicode_category_variations">Variations</string>
     
+    <!-- Variation Customization -->
+    <string name="variation_customize_title">Personnaliser les variations</string>
+    <string name="variation_picker_title">Sélectionner une variation pour %1$s</string>
+    <string name="variation_picker_clear">Effacer (Vide)</string>
+    <string name="variation_reset_to_default">Rétablir par défaut</string>
+    <string name="variation_reset_confirm_title">Rétablir par défaut</string>
+    <string name="variation_reset_confirm_message">Êtes-vous sûr de vouloir rétablir toutes les variations aux valeurs par défaut? Cette action ne peut pas être annulée.</string>
+    <string name="variation_reset_confirm_button">Rétablir</string>
+    
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">Barre de variations statique</string>
+    <string name="static_variation_bar_mode_description">Toujours afficher un ensemble fixe de touches utilitaires dans la barre de variations au lieu des variations contextuelles.</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>

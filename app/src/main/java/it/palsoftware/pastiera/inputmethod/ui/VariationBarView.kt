@@ -213,7 +213,7 @@ class VariationBarView(
             isStaticContent = false
         } else {
             if (staticVariations.isEmpty()) {
-                staticVariations = VariationRepository.loadStaticVariations(context.assets)
+                staticVariations = VariationRepository.loadStaticVariations(context.assets, context)
             }
             effectiveVariations = staticVariations
             isStaticContent = true
