@@ -8,8 +8,10 @@ import android.view.inputmethod.InputMethodManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +19,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,11 +34,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
 import it.palsoftware.pastiera.ui.theme.PastieraTheme
 import it.palsoftware.pastiera.BuildConfig
 import it.palsoftware.pastiera.update.checkForUpdate
@@ -61,6 +66,12 @@ class TutorialActivity : ComponentActivity() {
 }
 
 sealed class TutorialPageType {
+    data class Welcome(
+        val title: String,
+        val description: String,
+        @DrawableRes val imageRes: Int
+    ) : TutorialPageType()
+    
     data class Standard(
         val title: String,
         val description: String,
@@ -86,11 +97,10 @@ fun TutorialScreen(
 ) {
     val context = LocalContext.current
     val pages = listOf(
-        TutorialPageType.Standard(
+        TutorialPageType.Welcome(
             title = stringResource(R.string.tutorial_page_welcome_title),
             description = stringResource(R.string.tutorial_page_welcome_description),
-            icon = Icons.Filled.Keyboard,
-            iconTint = MaterialTheme.colorScheme.primary
+            imageRes = R.drawable.tutorial_welcome
         ),
         TutorialPageType.EnablePastiera(
             title = stringResource(R.string.tutorial_page_enable_title),
@@ -195,6 +205,12 @@ fun TutorialScreen(
                     .fillMaxWidth()
             ) { page ->
                 when (val pageType = pages[page]) {
+                    is TutorialPageType.Welcome -> {
+                        TutorialWelcomePageContent(
+                            page = pageType,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                     is TutorialPageType.Standard -> {
                         TutorialStandardPageContent(
                             page = pageType,
@@ -331,10 +347,17 @@ fun TutorialScreen(
     }
 }
 
+private val TutorialIconAreaHeight = 110.dp
+private val TutorialIconSurfaceSize = 96.dp
+private val TutorialIconSize = 44.dp
+
 @Composable
-fun TutorialStandardPageContent(
-    page: TutorialPageType.Standard,
-    modifier: Modifier = Modifier
+private fun TutorialPageLayout(
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    iconContent: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
     
@@ -343,50 +366,103 @@ fun TutorialStandardPageContent(
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Icon
-        Surface(
-            modifier = Modifier.size(80.dp),
-            shape = CircleShape,
-            color = page.iconTint.copy(alpha = 0.1f)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(TutorialIconAreaHeight),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = page.icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = page.iconTint
-                )
-            }
+            iconContent()
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(1.dp))
         
-        // Title
         Text(
-            text = page.title,
+            text = title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground
         )
         
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         
-        // Description
         Text(
-            text = page.description,
+            text = description,
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4
+            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.15f
         )
+        
+        content()
     }
+}
+
+@Composable
+private fun TutorialIconSurface(
+    icon: ImageVector,
+    tint: Color
+) {
+    Surface(
+        modifier = Modifier.size(TutorialIconSurfaceSize),
+        shape = CircleShape,
+        color = tint.copy(alpha = 0.1f)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(TutorialIconSize),
+                tint = tint
+            )
+        }
+    }
+}
+
+@Composable
+fun TutorialWelcomePageContent(
+    page: TutorialPageType.Welcome,
+    modifier: Modifier = Modifier
+) {
+    TutorialPageLayout(
+        title = page.title,
+        description = page.description,
+        modifier = modifier,
+        iconContent = {
+            Image(
+                painter = painterResource(id = page.imageRes),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(TutorialIconSurfaceSize)
+                    .clip(RoundedCornerShape(28.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+    )
+}
+
+@Composable
+fun TutorialStandardPageContent(
+    page: TutorialPageType.Standard,
+    modifier: Modifier = Modifier
+) {
+    TutorialPageLayout(
+        title = page.title,
+        description = page.description,
+        modifier = modifier,
+        iconContent = {
+            TutorialIconSurface(
+                icon = page.icon,
+                tint = page.iconTint
+            )
+        }
+    )
 }
 
 @Composable
@@ -396,60 +472,20 @@ fun TutorialEnablePastieraPageContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
     
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Icon
-        Surface(
-            modifier = Modifier.size(80.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Settings,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+    TutorialPageLayout(
+        title = page.title,
+        description = page.description,
+        modifier = modifier,
+        iconContent = {
+            TutorialIconSurface(
+                icon = Icons.Filled.Settings,
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Title
-        Text(
-            text = page.title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        // Description
-        Text(
-            text = page.description,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4
-        )
-        
+    ) {
         Spacer(modifier = Modifier.height(20.dp))
         
-        // Enable button
         Button(
             onClick = {
                 val intent = Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)
@@ -499,60 +535,20 @@ fun TutorialSelectPastieraPageContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scrollState = rememberScrollState()
     
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Icon
-        Surface(
-            modifier = Modifier.size(80.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Keyboard,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.secondary
-                )
-            }
+    TutorialPageLayout(
+        title = page.title,
+        description = page.description,
+        modifier = modifier,
+        iconContent = {
+            TutorialIconSurface(
+                icon = Icons.Filled.Keyboard,
+                tint = MaterialTheme.colorScheme.secondary
+            )
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Title
-        Text(
-            text = page.title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        // Description
-        Text(
-            text = page.description,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = MaterialTheme.typography.bodyMedium.lineHeight * 1.4
-        )
-        
+    ) {
         Spacer(modifier = Modifier.height(20.dp))
         
-        // Select button
         Button(
             onClick = {
                 val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
