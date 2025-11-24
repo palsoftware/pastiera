@@ -45,7 +45,7 @@ import it.palsoftware.pastiera.update.checkForUpdate
 import it.palsoftware.pastiera.update.showUpdateDialog
 import it.palsoftware.pastiera.update.UpdateCheckWorker
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Keyboard
@@ -291,7 +291,18 @@ fun KeyboardSetupScreen(
             onSettingsClick = {
                 val settingsIntent = Intent(context, SettingsActivity::class.java)
                 context.startActivity(settingsIntent)
-                (context as? Activity)?.overridePendingTransition(R.anim.slide_in_from_right, 0)
+                (context as? Activity)?.let { activity ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        activity.overrideActivityTransition(
+                            Activity.OVERRIDE_TRANSITION_OPEN,
+                            R.anim.slide_in_from_right,
+                            0
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        activity.overridePendingTransition(R.anim.slide_in_from_right, 0)
+                    }
+                }
             },
             modifier = Modifier.fillMaxWidth()
         )
@@ -351,7 +362,7 @@ fun KeyboardSetupScreen(
                         }
                     } else {
                         Icon(
-                            imageVector = Icons.Filled.ArrowForward,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -415,7 +426,7 @@ fun KeyboardSetupScreen(
                         }
                     } else {
                         Icon(
-                            imageVector = Icons.Filled.ArrowForward,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )

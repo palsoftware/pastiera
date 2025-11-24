@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Language
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -133,9 +133,9 @@ private fun getLanguageDisplayName(context: Context, languageCode: String): Stri
     
     // If no saved name and not standard, use name generated from locale
     return try {
-        val locale = Locale(languageCode)
-        locale.getDisplayLanguage(locale).replaceFirstChar { 
-            if (it.isLowerCase()) it.titlecase(locale) else it.toString() 
+        val locale = Locale.forLanguageTag(languageCode)
+        locale.getDisplayLanguage(locale).replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(locale) else it.toString()
         }
     } catch (e: Exception) {
         languageCode.uppercase()
@@ -351,7 +351,7 @@ fun AutoCorrectSettingsScreen(
                     ) {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.settings_back_content_description)
                             )
                         }
@@ -564,4 +564,3 @@ fun AutoCorrectSettingsScreen(
         )
     }
 }
-
