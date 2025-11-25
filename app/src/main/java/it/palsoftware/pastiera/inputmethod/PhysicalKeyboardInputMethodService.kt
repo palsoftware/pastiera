@@ -13,16 +13,24 @@ import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import android.view.View
+import it.palsoftware.pastiera.R
+import it.palsoftware.pastiera.inputmethod.NotificationHelper
 import it.palsoftware.pastiera.core.AutoCorrectionManager
 import it.palsoftware.pastiera.core.InputContextState
 import it.palsoftware.pastiera.core.ModifierStateController
 import it.palsoftware.pastiera.core.NavModeController
 import it.palsoftware.pastiera.core.SymLayoutController
 import it.palsoftware.pastiera.core.TextInputController
+import it.palsoftware.pastiera.core.suggestions.SuggestionController
+import it.palsoftware.pastiera.core.suggestions.SuggestionResult
+import it.palsoftware.pastiera.core.suggestions.SuggestionSettings
 import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
 import it.palsoftware.pastiera.data.layout.LayoutFileStore
 import it.palsoftware.pastiera.data.layout.LayoutMapping
@@ -144,11 +152,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var symLayoutController: SymLayoutController
     private lateinit var textInputController: TextInputController
     private lateinit var autoCorrectionManager: AutoCorrectionManager
+    private lateinit var suggestionController: SuggestionController
     private lateinit var variationStateController: VariationStateController
     private lateinit var inputEventRouter: InputEventRouter
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
+    private var latestSuggestions: List<String> = emptyList()
     private var clearAltOnSpaceEnabled: Boolean = false
+    // Stato per ricordare se il nav mode era attivo prima di entrare in un campo di testo
+    private var navModeWasActiveBeforeEditableField: Boolean = false
 
     // Space long-press for layout cycling
     private val spaceLongPressHandler = Handler(Looper.getMainLooper())
@@ -169,6 +181,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         inputContextState = InputContextState.fromEditorInfo(info)
     }
 
+    @Suppress("DEPRECATION")
+    private fun updateNavModeStatusIcon(isActive: Boolean) {
+        // Deprecated but still works on current Android versions; use for quick nav mode indicator.
+        if (isActive) {
+            showStatusIcon(R.drawable.ic_nav_mode_status)
+        } else {
+            hideStatusIcon()
+        }
+    }
+
     private fun refreshStatusBar() {
         updateStatusBarText()
     }
@@ -185,6 +207,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         } catch (e: Exception) {
             Log.e(TAG, "Unable to launch speech recognition", e)
         }
+    }
+
+    private fun getSuggestionSettings(): SuggestionSettings {
+        val suggestionsEnabled = SettingsManager.getSuggestionsEnabled(this)
+        return SuggestionSettings(
+            suggestionsEnabled = suggestionsEnabled,
+            accentMatching = SettingsManager.getAccentMatchingEnabled(this),
+            autoReplaceOnSpaceEnter = SettingsManager.getAutoReplaceOnSpaceEnter(this),
+            maxSuggestions = 3
+        )
+    }
+
+    private fun handleSuggestionsUpdated(suggestions: List<SuggestionResult>) {
+        latestSuggestions = suggestions.map { it.candidate }
+        uiHandler.post { updateStatusBarText() }
     }
     
     
@@ -408,6 +445,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 altSymManager.scheduleLongPressOnly(keyCode, ic, committedText)
             }
         }
+        if (handled) {
+            val committedText = LayoutMappingRepository.resolveText(
+                mapping,
+                multiTapController.state.useUppercase,
+                multiTapController.state.tapIndex
+            )
+            if (!committedText.isNullOrEmpty()) {
+                suggestionController.onCharacterCommitted(committedText, inputConnection)
+            }
+        }
         return handled
     }
     
@@ -462,11 +509,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         super.onCreate()
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
         clearAltOnSpaceEnabled = SettingsManager.getClearAltOnSpace(this)
-        
-        NotificationHelper.createNotificationChannel(this)
-        
+
+        // Clear legacy nav mode notification since we now rely on the status icon only.
+        NotificationHelper.cancelNavModeNotification(this)
+
         modifierStateController = ModifierStateController(DOUBLE_TAP_THRESHOLD)
         navModeController = NavModeController(this, modifierStateController)
+        navModeController.setOnNavModeChangedListener { isActive ->
+            updateNavModeStatusIcon(isActive)
+        }
         inputEventRouter = InputEventRouter(this, navModeController)
         textInputController = TextInputController(
             context = this,
@@ -474,7 +525,16 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             doubleTapThreshold = DOUBLE_TAP_THRESHOLD
         )
         autoCorrectionManager = AutoCorrectionManager(this)
-        
+        val suggestionDebugLogging = SettingsManager.isSuggestionDebugLoggingEnabled(this)
+        suggestionController = SuggestionController(
+            context = this,
+            assets = assets,
+            settingsProvider = { getSuggestionSettings() },
+            isEnabled = { SettingsManager.isExperimentalSuggestionsEnabled(this) },
+            debugLogging = suggestionDebugLogging
+        ) { suggestions -> handleSuggestionsUpdated(suggestions) }
+        inputEventRouter.suggestionController = suggestionController
+
         candidatesBarController = CandidatesBarController(this)
 
         // Register listener for variation selection (both controllers)
@@ -525,7 +585,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Initialize nav mode mappings file if needed
         it.palsoftware.pastiera.SettingsManager.initializeNavModeMappingsFile(this)
         ctrlKeyMap.putAll(KeyMappingLoader.loadCtrlKeyMappings(assets, this))
-        variationStateController = VariationStateController(VariationRepository.loadVariations(assets))
+        variationStateController = VariationStateController(VariationRepository.loadVariations(assets, this))
         
         // Load auto-correction rules
         AutoCorrector.loadCorrections(assets, this)
@@ -559,6 +619,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Log.d(TAG, "Auto-correction rules changed, reloading...")
                 // Reload auto-corrections (including new custom languages)
                 AutoCorrector.loadCorrections(assets, this)
+            } else if (key == "variations_updated") {
+                Log.d(TAG, "Variations file changed, reloading...")
+                // Reload variations from file
+                variationStateController = VariationStateController(VariationRepository.loadVariations(assets, this))
+                candidatesBarController.invalidateStaticVariations()
+                // Update status bar to reflect new variations
+                Handler(Looper.getMainLooper()).post {
+                    updateStatusBarText()
+                }
             } else if (key == "nav_mode_mappings_updated") {
                 Log.d(TAG, "Nav mode mappings changed, reloading...")
                 // Reload nav mode key mappings
@@ -646,6 +715,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         speechResultReceiver = null
         cancelSpaceLongPress()
         multiTapController.cancelAll()
+        updateNavModeStatusIcon(false)
         
     }
 
@@ -697,6 +767,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         altSymManager.resetTransientState()
         deactivateVariations()
         refreshStatusBar()
+        navModeController.refreshNavModeState()
     }
     
     /**
@@ -731,6 +802,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             altOneShot = modifierSnapshot.altOneShot,
             symPage = symPage,
             variations = variationSnapshot.variations,
+            suggestions = if (SettingsManager.isExperimentalSuggestionsEnabled(this) && SettingsManager.getSuggestionsEnabled(this)) latestSuggestions else emptyList(),
             lastInsertedChar = variationSnapshot.lastInsertedChar,
             shouldDisableSmartFeatures = shouldDisableSmartFeatures
         )
@@ -785,8 +857,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (ctrlLatchFromNavMode && ctrlLatchActive) {
                 val inputConnection = currentInputConnection
                 val hasValidInputConnection = inputConnection != null
-                
+
                 if (isReallyEditable && hasValidInputConnection) {
+                    // Ricorda che nav mode era attivo prima di entrare nel campo di testo
+                    navModeWasActiveBeforeEditableField = true
                     navModeController.exitNavMode()
                     resetModifierStates(preserveNavMode = false)
                 }
@@ -794,9 +868,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 resetModifierStates(preserveNavMode = false)
             }
         }
-        
+
         initializeInputContext(restarting)
-        
+        suggestionController.onContextReset()
+
         if (restarting && isEditable && !shouldDisableSmartFeatures) {
             AutoCapitalizeHelper.checkAutoCapitalizeOnRestart(
                 this,
@@ -814,7 +889,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         updateInputContextState(info)
         initializeInputContext(restarting)
-        
+        suggestionController.onContextReset()
+
         val isEditable = inputContextState.isEditable
         
         if (restarting && isEditable && !shouldDisableSmartFeatures) {
@@ -836,6 +912,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         multiTapController.cancelAll()
         cancelSpaceLongPress()
         resetModifierStates(preserveNavMode = true)
+        // Se nav mode era attivo prima di entrare nel campo di testo, riattivalo ora
+        if (navModeWasActiveBeforeEditableField) {
+            navModeController.enterNavMode()
+            navModeWasActiveBeforeEditableField = false
+        }
     }
     
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -845,6 +926,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             multiTapController.cancelAll()
             cancelSpaceLongPress()
             resetModifierStates(preserveNavMode = true)
+            suggestionController.onContextReset()
         }
     }
     
@@ -858,6 +940,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         multiTapController.finalizeCycle()
         cancelSpaceLongPress()
         resetModifierStates(preserveNavMode = true)
+        suggestionController.onContextReset()
     }
     
     /**
@@ -875,7 +958,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         if (!shouldDisableSmartFeatures) {
             val cursorPositionChanged = (oldSelStart != newSelStart) || (oldSelEnd != newSelEnd)
-            if (cursorPositionChanged && newSelStart == newSelEnd) {
+            // Skip the reset when the selection moved forward by 1 as a direct result of our own commit.
+            val movedByCommit = oldSelStart == oldSelEnd &&
+                newSelEnd == newSelStart &&
+                newSelStart == oldSelStart + 1
+            if (cursorPositionChanged && newSelStart == newSelEnd && !movedByCommit) {
+                suggestionController.onCursorMoved(currentInputConnection)
                 Handler(Looper.getMainLooper()).postDelayed({
                     updateStatusBarText()
                 }, CURSOR_UPDATE_DELAY)
@@ -930,6 +1018,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             isInputViewActive = true
         }
 
+        val navModeBefore = navModeController.isNavModeActive()
+
         val isModifierKey = keyCode == KeyEvent.KEYCODE_SHIFT_LEFT ||
             keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT ||
             keyCode == KeyEvent.KEYCODE_CTRL_LEFT ||
@@ -962,6 +1052,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 modifierStateController.clearCtrlState(resetPressedState = true)
                 if (navModeLatched) {
                     navModeController.cancelNotification()
+                    navModeController.refreshNavModeState()
                 }
                 shouldUpdateStatusBar = true
             }
@@ -1015,7 +1106,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 ctrlLatchActive = ctrlLatchActive,
                 isInputViewActive = isInputViewActive,
                 isInputViewShown = isInputViewShown,
-                hasInputConnection = initialInputConnection != null
+                hasInputConnection = hasEditableField
             ),
             callbacks = InputEventRouter.EditableFieldKeyDownCallbacks(
                 exitNavMode = { navModeController.exitNavMode() },
@@ -1105,6 +1196,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 }
             )
         )
+
+        val navModeAfter = navModeController.isNavModeActive()
+        if (navModeBefore != navModeAfter) {
+            suggestionController.onNavModeToggle()
+        }
 
         return when (routingDecision) {
             InputEventRouter.EditableFieldRoutingResult.Consume -> true

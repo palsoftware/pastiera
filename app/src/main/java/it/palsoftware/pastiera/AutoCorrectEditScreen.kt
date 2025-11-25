@@ -4,11 +4,14 @@ import android.content.Context
 import android.content.res.AssetManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -76,7 +79,9 @@ fun AutoCorrectEditScreen(
     Scaffold(
         topBar = {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars),
                 tonalElevation = 1.dp
             ) {
                 Row(
@@ -91,7 +96,7 @@ fun AutoCorrectEditScreen(
                     ) {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Filled.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.settings_back_content_description)
                             )
                         }
@@ -482,12 +487,11 @@ private fun getLanguageDisplayName(context: Context, languageCode: String): Stri
     
     // If there is no saved name, use the name generated from the locale
     return try {
-        val locale = Locale(languageCode)
-        locale.getDisplayLanguage(locale).replaceFirstChar { 
-            if (it.isLowerCase()) it.titlecase(locale) else it.toString() 
+        val locale = Locale.forLanguageTag(languageCode)
+        locale.getDisplayLanguage(locale).replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(locale) else it.toString()
         }
     } catch (e: Exception) {
         languageCode.uppercase()
     }
 }
-

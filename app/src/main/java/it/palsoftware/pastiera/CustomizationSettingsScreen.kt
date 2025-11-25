@@ -2,13 +2,14 @@ package it.palsoftware.pastiera
 
 import android.app.Activity
 import android.content.Intent
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -104,7 +105,7 @@ fun CustomizationSettingsScreen(
                             ) {
                                 IconButton(onClick = { navigateBack() }) {
                                     Icon(
-                                        imageVector = Icons.Filled.ArrowBack,
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                         contentDescription = stringResource(R.string.settings_back_content_description)
                                     )
                                 }
@@ -134,10 +135,21 @@ fun CustomizationSettingsScreen(
                                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                                     }
                                     context.startActivity(intent)
-                                    (context as? Activity)?.overridePendingTransition(
-                                        R.anim.slide_in_from_right,
-                                        0
-                                    )
+                                    (context as? Activity)?.let { activity ->
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                            activity.overrideActivityTransition(
+                                                Activity.OVERRIDE_TRANSITION_OPEN,
+                                                R.anim.slide_in_from_right,
+                                                0
+                                            )
+                                        } else {
+                                            @Suppress("DEPRECATION")
+                                            activity.overridePendingTransition(
+                                                R.anim.slide_in_from_right,
+                                                0
+                                            )
+                                        }
+                                    }
                                 }
                         ) {
                             Row(
@@ -162,7 +174,43 @@ fun CustomizationSettingsScreen(
                                     )
                                 }
                                 Icon(
-                                    imageVector = Icons.Filled.ArrowForward,
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    
+                        // Variations Customization
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .clickable { navigateTo(CustomizationDestination.Variations) }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Keyboard,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.variation_customize_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -204,7 +252,7 @@ fun CustomizationSettingsScreen(
                                     )
                                 }
                                 Icon(
-                                    imageVector = Icons.Filled.ArrowForward,
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -212,6 +260,13 @@ fun CustomizationSettingsScreen(
                         }
                     }
                 }
+            }
+            
+            CustomizationDestination.Variations -> {
+                VariationCustomizationScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
             }
             
             CustomizationDestination.NavMode -> {
@@ -226,6 +281,7 @@ fun CustomizationSettingsScreen(
 
 private sealed class CustomizationDestination {
     object Main : CustomizationDestination()
+    object Variations : CustomizationDestination()
     object NavMode : CustomizationDestination()
 }
 

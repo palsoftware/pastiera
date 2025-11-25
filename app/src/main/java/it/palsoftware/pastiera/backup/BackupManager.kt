@@ -201,6 +201,7 @@ object FileBackupHelper {
     fun restoreFiles(context: Context, extractedFilesDir: File): FileRestoreSummary {
         val restored = mutableListOf<String>()
         val skipped = mutableListOf<String>()
+        var restoredVariations = false
 
         if (!extractedFilesDir.exists()) {
             ensureDefaults(context)
@@ -235,6 +236,9 @@ object FileBackupHelper {
                     }
                     source.copyTo(target, overwrite = true)
                     restored.add(relative)
+                    if (relative.equals("variations.json", ignoreCase = true)) {
+                        restoredVariations = true
+                    }
                 }
         } catch (e: Exception) {
             backups.reversed().forEach { (target, backup) ->
@@ -244,6 +248,9 @@ object FileBackupHelper {
         } finally {
             backups.forEach { (_, backup) -> backup.delete() }
             ensureDefaults(context)
+            if (restoredVariations) {
+                runCatching { SettingsManager.notifyVariationsUpdated(context) }
+            }
         }
 
         return FileRestoreSummary(restoredFiles = restored, skippedFiles = skipped)

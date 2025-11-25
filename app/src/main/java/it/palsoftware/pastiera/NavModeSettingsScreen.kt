@@ -12,24 +12,38 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.window.DialogProperties
 import androidx.activity.compose.BackHandler
-import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.R
+import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
+import kotlin.math.min
 
 /**
  * Nav Mode settings screen with keyboard visualization.
@@ -82,7 +96,7 @@ fun NavModeSettingsScreen(
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = Icons.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.settings_back_content_description)
                     )
                 }
@@ -131,68 +145,64 @@ fun NavModeSettingsScreen(
         
         // Keyboard visualization
         if (navModeEnabled) {
-            Column(
+            val keyboardRows = listOf(
+                listOf(
+                    KeyEvent.KEYCODE_Q, KeyEvent.KEYCODE_W, KeyEvent.KEYCODE_E,
+                    KeyEvent.KEYCODE_R, KeyEvent.KEYCODE_T, KeyEvent.KEYCODE_Y,
+                    KeyEvent.KEYCODE_U, KeyEvent.KEYCODE_I, KeyEvent.KEYCODE_O,
+                    KeyEvent.KEYCODE_P
+                ),
+                listOf(
+                    KeyEvent.KEYCODE_A, KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_D,
+                    KeyEvent.KEYCODE_F, KeyEvent.KEYCODE_G, KeyEvent.KEYCODE_H,
+                    KeyEvent.KEYCODE_J, KeyEvent.KEYCODE_K, KeyEvent.KEYCODE_L
+                ),
+                listOf(
+                    KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_C,
+                    KeyEvent.KEYCODE_V, KeyEvent.KEYCODE_B, KeyEvent.KEYCODE_N,
+                    KeyEvent.KEYCODE_M
+                )
+            )
+            
+            val spacing = 2.dp
+            
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.nav_mode_key_mappings),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                val density = LocalDensity.current
+                val maxKeysInRow = keyboardRows.maxOf { it.size }
+                val maxRowWidthPx = with(density) { maxWidth.toPx() }
+                val spacingPx = with(density) { spacing.toPx() }
+                val desiredSizePx = with(density) { 64.dp.toPx() }
+                val totalSpacingPx = spacingPx * (maxKeysInRow - 1)
+                val availableForKeys = (maxRowWidthPx - totalSpacingPx).coerceAtLeast(0f)
+                val exactSizePx = if (maxKeysInRow > 0) availableForKeys / maxKeysInRow else desiredSizePx
+                val finalSizePx = min(desiredSizePx, exactSizePx)
+                val keySize = with(density) { finalSizePx.toDp() }
+                val keyHeight = keySize * 1.25f
                 
-                Spacer(modifier = Modifier.height(10.dp))
-                
-                // Keyboard rows
-                KeyboardRow(
-                    keys = listOf(
-                        KeyEvent.KEYCODE_Q, KeyEvent.KEYCODE_W, KeyEvent.KEYCODE_E,
-                        KeyEvent.KEYCODE_R, KeyEvent.KEYCODE_T, KeyEvent.KEYCODE_Y,
-                        KeyEvent.KEYCODE_U, KeyEvent.KEYCODE_I, KeyEvent.KEYCODE_O,
-                        KeyEvent.KEYCODE_P
-                    ),
-                    mappings = keyMappings,
-                    defaultMappings = defaultMappings,
-                    onKeyClick = { keyCode ->
-                        selectedKeyCode = keyCode
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(spacing),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    keyboardRows.forEach { row ->
+                        KeyboardRow(
+                            keys = row,
+                            keySize = keySize,
+                            keyHeight = keyHeight,
+                            spacing = spacing,
+                            mappings = keyMappings,
+                            defaultMappings = defaultMappings,
+                            onKeyClick = { keyCode ->
+                                selectedKeyCode = keyCode
+                            }
+                        )
                     }
-                )
-                
-                Spacer(modifier = Modifier.height(6.dp))
-                
-                KeyboardRow(
-                    keys = listOf(
-                        KeyEvent.KEYCODE_A, KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_D,
-                        KeyEvent.KEYCODE_F, KeyEvent.KEYCODE_G, KeyEvent.KEYCODE_H,
-                        KeyEvent.KEYCODE_J, KeyEvent.KEYCODE_K, KeyEvent.KEYCODE_L
-                    ),
-                    mappings = keyMappings,
-                    defaultMappings = defaultMappings,
-                    onKeyClick = { keyCode ->
-                        selectedKeyCode = keyCode
-                    }
-                )
-                
-                Spacer(modifier = Modifier.height(6.dp))
-                
-                KeyboardRow(
-                    keys = listOf(
-                        KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_C,
-                        KeyEvent.KEYCODE_V, KeyEvent.KEYCODE_B, KeyEvent.KEYCODE_N,
-                        KeyEvent.KEYCODE_M
-                    ),
-                    mappings = keyMappings,
-                    defaultMappings = defaultMappings,
-                    onKeyClick = { keyCode ->
-                        selectedKeyCode = keyCode
-                    }
-                )
+                }
             }
-            
-            HorizontalDivider()
-            
             // Revert to default button
             Surface(
                 modifier = Modifier.fillMaxWidth()
@@ -266,6 +276,9 @@ fun NavModeSettingsScreen(
 @Composable
 private fun KeyboardRow(
     keys: List<Int>,
+    keySize: Dp,
+    keyHeight: Dp,
+    spacing: Dp,
     mappings: Map<Int, KeyMappingLoader.CtrlMapping>,
     defaultMappings: Map<Int, KeyMappingLoader.CtrlMapping>,
     onKeyClick: (Int) -> Unit
@@ -277,14 +290,16 @@ private fun KeyboardRow(
     ) {
         keys.forEachIndexed { index, keyCode ->
             if (index > 0) {
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(spacing))
             }
             KeyButton(
                 keyCode = keyCode,
                 mapping = mappings[keyCode],
                 hasDefault = defaultMappings.containsKey(keyCode),
                 onClick = { onKeyClick(keyCode) },
-                modifier = Modifier.size(56.dp)
+                modifier = Modifier
+                    .width(keySize)
+                    .height(keyHeight)
             )
         }
     }
@@ -301,30 +316,76 @@ private fun KeyButton(
     val keyLabel = getKeyLabel(keyCode)
     val mappingLabel = mapping?.let { getMappingLabelShort(it) }
     val hasMapping = mapping != null && mapping.type != "none"
+    val backgroundColor = if (hasMapping) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val borderColor = if (hasMapping) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    }
+    val keyTextColor = if (hasMapping) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    }
+    val mappingTextColor = if (hasMapping) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+    }
+    val mappingIcon: ImageVector?
+    val mappingIconDesc: String?
+    if (mapping?.type == "keycode") {
+        when (mapping.value) {
+            "DPAD_UP" -> {
+                mappingIcon = Icons.Filled.KeyboardArrowUp
+                mappingIconDesc = mappingLabel
+            }
+            "DPAD_DOWN" -> {
+                mappingIcon = Icons.Filled.KeyboardArrowDown
+                mappingIconDesc = mappingLabel
+            }
+            "DPAD_LEFT" -> {
+                mappingIcon = Icons.AutoMirrored.Filled.KeyboardArrowLeft
+                mappingIconDesc = mappingLabel
+            }
+            "DPAD_RIGHT" -> {
+                mappingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight
+                mappingIconDesc = mappingLabel
+            }
+            "DPAD_CENTER" -> {
+                mappingIcon = Icons.Filled.RadioButtonUnchecked
+                mappingIconDesc = mappingLabel
+            }
+            else -> {
+                mappingIcon = null
+                mappingIconDesc = null
+            }
+        }
+    } else {
+        mappingIcon = null
+        mappingIconDesc = null
+    }
     
     Surface(
         modifier = modifier
-            .size(56.dp)
             .clip(RoundedCornerShape(8.dp))
             .border(
                 width = 1.dp,
-                color = if (hasMapping) 
-                    MaterialTheme.colorScheme.primary 
-                else 
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                color = borderColor,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable(onClick = onClick),
-        color = if (hasMapping) 
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        else 
-            MaterialTheme.colorScheme.surface,
+        color = backgroundColor,
         tonalElevation = if (hasMapping) 2.dp else 0.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp, vertical = 6.dp),
+                .padding(horizontal = 3.dp, vertical = 3.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -332,17 +393,30 @@ private fun KeyButton(
                 text = keyLabel,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                fontSize = 12.8.sp
+                fontSize = 13.sp,
+                color = keyTextColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
             )
-            if (mappingLabel != null) {
+            if (mappingIcon != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Icon(
+                    imageVector = mappingIcon,
+                    contentDescription = mappingIconDesc,
+                    tint = mappingTextColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            } else if (mappingLabel != null) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = mappingLabel,
                     style = MaterialTheme.typography.labelSmall,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontSize = 11.sp,
+                    color = mappingTextColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
                 )
             } else if (hasDefault) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -350,13 +424,17 @@ private fun KeyButton(
                     text = stringResource(R.string.nav_mode_default),
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun KeyMappingDialog(
     keyCode: Int,
@@ -368,142 +446,178 @@ private fun KeyMappingDialog(
     val keyLabel = getKeyLabel(keyCode)
     var selectedType by remember { mutableStateOf<String?>(currentMapping?.type) }
     var selectedValue by remember { mutableStateOf<String?>(currentMapping?.value) }
+    val defaultLabel = defaultMapping?.let { getMappingLabel(it) }
+    val dialogMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.9f
+    val gridMaxHeight = dialogMaxHeight * 0.6f
     
-    AlertDialog(
+    BasicAlertDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(stringResource(R.string.nav_mode_configure_key, keyLabel))
-        },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .heightIn(max = dialogMaxHeight),
+            shape = AlertDialogDefaults.shape,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
+            color = AlertDialogDefaults.containerColor,
+            contentColor = AlertDialogDefaults.textContentColor
+        ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Type selection
                 Text(
-                    text = stringResource(R.string.nav_mode_type),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium
+                    text = stringResource(R.string.nav_mode_configure_key, keyLabel),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FilterChip(
-                        selected = selectedType == "keycode",
-                        onClick = {
-                            selectedType = "keycode"
-                            selectedValue = null
-                        },
-                        label = { Text(stringResource(R.string.nav_mode_keycode)) }
-                    )
-                    FilterChip(
-                        selected = selectedType == "action",
-                        onClick = {
-                            selectedType = "action"
-                            selectedValue = null
-                        },
-                        label = { Text(stringResource(R.string.nav_mode_action)) }
-                    )
-                    FilterChip(
-                        selected = selectedType == "none",
-                        onClick = {
-                            selectedType = "none"
-                            selectedValue = null
-                        },
-                        label = { Text(stringResource(R.string.nav_mode_none)) }
-                    )
-                }
-                
-                // Value selection based on type
-                if (selectedType == "keycode") {
+                    // Type selection
                     Text(
-                        text = stringResource(R.string.nav_mode_keycode),
+                        text = stringResource(R.string.nav_mode_type),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
-                    val keycodes = listOf(
-                        "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT",
-                        "TAB", "PAGE_UP", "PAGE_DOWN", "ESCAPE", "DPAD_CENTER"
-                    )
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.height(200.dp)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        items(keycodes) { keycode ->
-                            FilterChip(
-                                selected = selectedValue == keycode,
-                                onClick = { selectedValue = keycode },
-                                label = { Text(keycode) },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                        FilterChip(
+                            selected = selectedType == "keycode",
+                            onClick = {
+                                selectedType = "keycode"
+                                selectedValue = null
+                            },
+                            label = { Text(stringResource(R.string.nav_mode_keycode)) }
+                        )
+                        FilterChip(
+                            selected = selectedType == "action",
+                            onClick = {
+                                selectedType = "action"
+                                selectedValue = null
+                            },
+                            label = { Text(stringResource(R.string.nav_mode_action)) }
+                        )
+                        FilterChip(
+                            selected = selectedType == "none",
+                            onClick = {
+                                selectedType = "none"
+                                selectedValue = null
+                            },
+                            label = { Text(stringResource(R.string.nav_mode_none)) }
+                        )
+                        if (defaultLabel != null) {
+                            TextButton(
+                                onClick = {
+                                    selectedType = defaultMapping?.type
+                                    selectedValue = defaultMapping?.value
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.nav_mode_use_default, defaultLabel),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textDecoration = TextDecoration.Underline
+                                )
+                            }
                         }
                     }
-                } else if (selectedType == "action") {
-                    Text(
-                        text = stringResource(R.string.nav_mode_action),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Medium
-                    )
-                    val actions = listOf(
-                        "copy", "paste", "cut", "undo",
-                        "select_all", "expand_selection_left", "expand_selection_right"
-                    )
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.height(200.dp)
-                    ) {
-                        items(actions) { action ->
-                            FilterChip(
-                                selected = selectedValue == action,
-                                onClick = { selectedValue = action },
-                                label = { Text(action) },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                    
+                    // Value selection based on type
+                    if (selectedType == "keycode") {
+                        val keycodes = listOf(
+                            "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT",
+                            "TAB", "PAGE_UP", "PAGE_DOWN", "ESCAPE", "DPAD_CENTER",
+                            "FORWARD_DEL"
+                        )
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(1.dp),
+                            modifier = Modifier.heightIn(max = gridMaxHeight)
+                        ) {
+                            items(keycodes) { keycode ->
+                                FilterChip(
+                                    selected = selectedValue == keycode,
+                                    onClick = { selectedValue = keycode },
+                                    label = { Text(keycode) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    } else if (selectedType == "action") {
+                        val actions = listOf(
+                            "copy", "paste", "cut", "undo",
+                            "select_all", "expand_selection_left", "expand_selection_right"
+                        )
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(1.dp),
+                            modifier = Modifier.heightIn(max = gridMaxHeight)
+                        ) {
+                            items(actions) { action ->
+                                FilterChip(
+                                    selected = selectedValue == action,
+                                    onClick = { selectedValue = action },
+                                    label = { Text(action) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
                     }
                 }
                 
-                // Default mapping info
-                if (defaultMapping != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(stringResource(R.string.nav_mode_cancel))
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     TextButton(
                         onClick = {
-                            selectedType = defaultMapping.type
-                            selectedValue = defaultMapping.value
-                        }
+                            val mapping = when (selectedType) {
+                                "keycode" -> selectedValue?.let {
+                                    KeyMappingLoader.CtrlMapping("keycode", it)
+                                }
+                                "action" -> selectedValue?.let {
+                                    KeyMappingLoader.CtrlMapping("action", it)
+                                }
+                                "none" -> KeyMappingLoader.CtrlMapping("none", "")
+                                else -> null
+                            }
+                            onSave(mapping)
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text(stringResource(R.string.nav_mode_use_default, getMappingLabel(defaultMapping) ?: ""))
+                        Text(stringResource(R.string.nav_mode_save))
                     }
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val mapping = when (selectedType) {
-                        "keycode" -> selectedValue?.let {
-                            KeyMappingLoader.CtrlMapping("keycode", it)
-                        }
-                        "action" -> selectedValue?.let {
-                            KeyMappingLoader.CtrlMapping("action", it)
-                        }
-                        "none" -> KeyMappingLoader.CtrlMapping("none", "")
-                        else -> null
-                    }
-                    onSave(mapping)
-                }
-            ) {
-                Text(stringResource(R.string.nav_mode_save))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.nav_mode_cancel))
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -561,6 +675,7 @@ private fun getMappingLabelShort(mapping: KeyMappingLoader.CtrlMapping): String?
             "PAGE_DOWN" -> stringResource(R.string.nav_mode_keycode_page_down)
             "ESCAPE" -> stringResource(R.string.nav_mode_keycode_escape)
             "TAB" -> stringResource(R.string.nav_mode_keycode_tab)
+            "FORWARD_DEL" -> stringResource(R.string.nav_mode_keycode_forward_delete)
             else -> mapping.value
         }
         "action" -> when (mapping.value) {
@@ -605,4 +720,3 @@ private fun loadAllKeyMappings(context: Context, useDefaults: Boolean = false): 
         loadedMappings[keyCode] ?: KeyMappingLoader.CtrlMapping("none", "")
     }
 }
-

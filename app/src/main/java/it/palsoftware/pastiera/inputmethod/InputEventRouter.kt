@@ -3,6 +3,7 @@ package it.palsoftware.pastiera.inputmethod
 import android.content.Context
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
+import android.util.Log
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.SettingsManager
@@ -32,6 +33,16 @@ class InputEventRouter(
     private val context: Context,
     private val navModeController: NavModeController
 ) {
+
+    var suggestionController: it.palsoftware.pastiera.core.suggestions.SuggestionController? = null
+
+    private fun commitTextWithTracking(ic: InputConnection?, text: CharSequence, trackWord: Boolean = true) {
+        ic?.commitText(text, 1)
+        Log.d("PastieraIME", "commitTextWithTracking: '$text', trackWord=$trackWord")
+        if (trackWord) {
+            suggestionController?.onCharacterCommitted(text, ic)
+        }
+    }
 
     sealed class EditableFieldRoutingResult {
         object Continue : EditableFieldRoutingResult()
@@ -114,6 +125,10 @@ class InputEventRouter(
         ctrlKeyMap: Map<Int, KeyMappingLoader.CtrlMapping>,
         callbacks: NoEditableFieldCallbacks
     ): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            return callbacks.callSuper()
+        }
+
         if (navModeController.isNavModeKey(keyCode)) {
             return navModeController.handleNavModeKey(
                 keyCode,
@@ -418,6 +433,16 @@ class InputEventRouter(
 
         if (hasLongPressSupport) {
             val wasShiftOneShot = shiftOneShotActive
+            val trackedChar = if (LayoutMappingRepository.isMapped(keyCode)) {
+                LayoutMappingRepository.getCharacterStringWithModifiers(
+                    keyCode,
+                    event?.isShiftPressed == true,
+                    params.capsLockEnabled,
+                    shiftOneShotActive
+                )
+            } else {
+                event?.unicodeChar?.takeIf { it != 0 }?.toChar()?.toString() ?: ""
+            }
             val layoutChar = callbacks.getCharacterFromLayout(
                 keyCode,
                 event,
@@ -432,6 +457,12 @@ class InputEventRouter(
                     shiftOneShotActive,
                     layoutChar
                 )
+                if (trackedChar.isNotEmpty() && trackedChar[0].isLetter()) {
+                    suggestionController?.onCharacterCommitted(trackedChar, ic)
+                }
+                Handler(Looper.getMainLooper()).postDelayed({
+                    callbacks.updateStatusBar()
+                }, params.cursorUpdateDelayMs)
             }
             if (wasShiftOneShot) {
                 callbacks.disableShiftOneShot()
@@ -450,7 +481,7 @@ class InputEventRouter(
             )
             if (char.isNotEmpty() && char[0].isLetter()) {
                 callbacks.disableShiftOneShot()
-                ic?.commitText(char, 1)
+                commitTextWithTracking(ic, char)
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -466,7 +497,7 @@ class InputEventRouter(
                 false
             )
             if (char.isNotEmpty() && char[0].isLetter()) {
-                ic?.commitText(char, 1)
+                commitTextWithTracking(ic, char)
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -486,7 +517,7 @@ class InputEventRouter(
         }
         if (charForVariations != null) {
             if (controllers.variationStateController.hasVariationsFor(charForVariations)) {
-                ic?.commitText(charForVariations.toString(), 1)
+                commitTextWithTracking(ic, charForVariations.toString())
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -503,7 +534,24 @@ class InputEventRouter(
                 shiftOneShotActive
             )
             if (char.isNotEmpty() && char[0].isLetter()) {
-                ic?.commitText(char, 1)
+                Log.d("PastieraIME", "layout commit: '$char'")
+                commitTextWithTracking(ic, char)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    callbacks.updateStatusBar()
+                }, params.cursorUpdateDelayMs)
+                return EditableFieldRoutingResult.Consume
+            }
+        }
+
+        // Fallback: if we reach this point and the key actually produced
+        // a letter character, commit it with tracking so that the
+        // suggestion pipeline can still work even when the key is not
+        // covered by the current layout mappings.
+        if (ic != null && event != null && event.unicodeChar != 0) {
+            val ch = event.unicodeChar.toChar()
+            if (ch.isLetter()) {
+                Log.d("PastieraIME", "fallback commit: '$ch'")
+                commitTextWithTracking(ic, ch.toString())
                 Handler(Looper.getMainLooper()).postDelayed({
                     callbacks.updateStatusBar()
                 }, params.cursorUpdateDelayMs)
@@ -524,6 +572,11 @@ class InputEventRouter(
         autoCorrectionManager: AutoCorrectionManager,
         updateStatusBar: () -> Unit
     ): Boolean {
+        val isBoundaryKey = keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_ENTER
+        val isPunctuation = event?.unicodeChar != null &&
+            event.unicodeChar != 0 &&
+            event.unicodeChar.toChar() in ".,;:!?()[]{}\"'"
+
         if (
             autoCorrectionManager.handleBackspaceUndo(
                 keyCode,
@@ -532,7 +585,12 @@ class InputEventRouter(
                 onStatusBarUpdate = updateStatusBar
             )
         ) {
+            suggestionController?.onContextReset()
             return true
+        }
+
+        if (keyCode == KeyEvent.KEYCODE_DEL && !shouldDisableSmartFeatures && inputConnection != null) {
+            suggestionController?.refreshFromInputConnection(inputConnection)
         }
 
         if (
@@ -569,6 +627,12 @@ class InputEventRouter(
                 onStatusBarUpdate = updateStatusBar
             )
         ) {
+            suggestionController?.onContextReset()
+            return true
+        }
+
+        if (!shouldDisableSmartFeatures && inputConnection != null && (isBoundaryKey || isPunctuation) && suggestionController != null) {
+            suggestionController?.onBoundaryKey(keyCode, event, inputConnection)
             return true
         }
 
@@ -653,43 +717,6 @@ class InputEventRouter(
         // Consume Alt+Space to avoid Android's symbol picker and just insert a space.
         if (keyCode == KeyEvent.KEYCODE_SPACE) {
             ic.commitText(" ", 1)
-            updateStatusBar()
-            return true
-        }
-
-        // Alt+Backspace: act as forward delete (Delete key)
-        if (keyCode == KeyEvent.KEYCODE_DEL) {
-            val extractedText: ExtractedText? = ic.getExtractedText(
-                ExtractedTextRequest().apply {
-                    flags = ExtractedText.FLAG_SELECTING
-                },
-                0
-            )
-
-            val hasSelection = extractedText?.let {
-                it.selectionStart >= 0 && it.selectionEnd >= 0 && it.selectionStart != it.selectionEnd
-            } ?: false
-
-            if (hasSelection) {
-                KeyboardEventTracker.notifyKeyEvent(
-                    keyCode,
-                    event,
-                    "KEY_DOWN",
-                    outputKeyCode = null,
-                    outputKeyCodeName = "alt_delete_selection_forward"
-                )
-                ic.commitText("", 0)
-            } else {
-                KeyboardEventTracker.notifyKeyEvent(
-                    keyCode,
-                    event,
-                    "KEY_DOWN",
-                    outputKeyCode = null,
-                    outputKeyCodeName = "alt_forward_delete"
-                )
-                ic.deleteSurroundingText(0, 1)
-            }
-
             updateStatusBar()
             return true
         }
@@ -794,6 +821,7 @@ class InputEventRouter(
                         "PAGE_UP" -> KeyEvent.KEYCODE_PAGE_UP
                         "PAGE_DOWN" -> KeyEvent.KEYCODE_PAGE_DOWN
                         "ESCAPE" -> KeyEvent.KEYCODE_ESCAPE
+                        "FORWARD_DEL" -> KeyEvent.KEYCODE_FORWARD_DEL
                         else -> null
                     }
                     if (mappedKeyCode != null) {

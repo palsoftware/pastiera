@@ -1,0 +1,203 @@
+{
+  "name": "Cyrillic Translite ",
+  "description": "Cyrillic transliteration layout",
+  "mappings": {
+    "KEYCODE_Q": {
+      "lowercase": "я",
+      "uppercase": "Я",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "я",
+          "uppercase": "Я"
+        },
+        {
+          "lowercase": "э",
+          "uppercase": "Э"
+        },
+        {
+          "lowercase": "",
+          "uppercase": ""
+        }
+      ]
+    },
+    "KEYCODE_W": {
+      "lowercase": "ш",
+      "uppercase": "Ш",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "ш",
+          "uppercase": "Ш"
+        },
+        {
+          "lowercase": "щ",
+          "uppercase": "Щ"
+        }
+      ]
+    },
+    "KEYCODE_E": {
+      "lowercase": "е",
+      "uppercase": "Е",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "е",
+          "uppercase": "Е"
+        },
+        {
+          "lowercase": "ё",
+          "uppercase": "Ё"
+        },
+        {
+          "lowercase": "",
+          "uppercase": ""
+        }
+      ]
+    },
+    "KEYCODE_R": {
+      "lowercase": "р",
+      "uppercase": "Р"
+    },
+    "KEYCODE_T": {
+      "lowercase": "т",
+      "uppercase": "Т"
+    },
+    "KEYCODE_Y": {
+      "lowercase": "ы",
+      "uppercase": "Ы"
+    },
+    "KEYCODE_U": {
+      "lowercase": "у",
+      "uppercase": "У",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "у",
+          "uppercase": "У"
+        },
+        {
+          "lowercase": "ю",
+          "uppercase": "Ю"
+        },
+        {
+          "lowercase": "",
+          "uppercase": ""
+        }
+      ]
+    },
+    "KEYCODE_I": {
+      "lowercase": "и",
+      "uppercase": "И",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "и",
+          "uppercase": "И"
+        },
+        {
+          "lowercase": "й",
+          "uppercase": "Й"
+        },
+        {
+          "lowercase": "",
+          "uppercase": ""
+        }
+      ]
+    },
+    "KEYCODE_O": {
+      "lowercase": "о",
+      "uppercase": "О"
+    },
+    "KEYCODE_P": {
+      "lowercase": "п",
+      "uppercase": "П"
+    },
+    "KEYCODE_A": {
+      "lowercase": "а",
+      "uppercase": "А"
+    },
+    "KEYCODE_S": {
+      "lowercase": "с",
+      "uppercase": "С"
+    },
+    "KEYCODE_D": {
+      "lowercase": "д",
+      "uppercase": "Д"
+    },
+    "KEYCODE_F": {
+      "lowercase": "ф",
+      "uppercase": "Ф"
+    },
+    "KEYCODE_G": {
+      "lowercase": "г",
+      "uppercase": "Г"
+    },
+    "KEYCODE_H": {
+      "lowercase": "х",
+      "uppercase": "Х"
+    },
+    "KEYCODE_J": {
+      "lowercase": "ж",
+      "uppercase": "Ж"
+    },
+    "KEYCODE_K": {
+      "lowercase": "к",
+      "uppercase": "К"
+    },
+    "KEYCODE_L": {
+      "lowercase": "л",
+      "uppercase": "Л"
+    },
+    "KEYCODE_Z": {
+      "lowercase": "з",
+      "uppercase": "З"
+    },
+    "KEYCODE_X": {
+      "lowercase": "ь",
+      "uppercase": "Ь",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "ь",
+          "uppercase": "Ь"
+        },
+        {
+          "lowercase": "ъ",
+          "uppercase": "Ъ"
+        }
+      ]
+    },
+    "KEYCODE_C": {
+      "lowercase": "ц",
+      "uppercase": "Ц",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "ц",
+          "uppercase": "Ц"
+        },
+        {
+          "lowercase": "ч",
+          "uppercase": "Ч"
+        }
+      ]
+    },
+    "KEYCODE_V": {
+      "lowercase": "в",
+      "uppercase": "В"
+    },
+    "KEYCODE_B": {
+      "lowercase": "б",
+      "uppercase": "Б"
+    },
+    "KEYCODE_N": {
+      "lowercase": "н",
+      "uppercase": "Н"
+    },
+    "KEYCODE_M": {
+      "lowercase": "м",
+      "uppercase": "М"
+    }
+  }
+}

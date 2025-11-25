@@ -2,12 +2,5 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Background color -->
     <item android:drawable="@color/splash_background_dark" />
-    
-    <!-- Launcher icon centered -->
-    <item
-        android:drawable="@mipmap/ic_launcher"
-        android:gravity="center"
-        android:width="144dp"
-        android:height="144dp" />
 </layer-list>
 

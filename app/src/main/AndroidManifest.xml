@@ -5,6 +5,9 @@
     <!-- Permesso per le notifiche (richiesto da Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
+    <!-- Permesso per la vibrazione (richiesto per haptic feedback) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
     <!-- Permesso per il riconoscimento vocale -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     

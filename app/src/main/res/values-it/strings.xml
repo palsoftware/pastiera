@@ -36,7 +36,6 @@
     
     <!-- Swipe Incremental Threshold Section -->
     <string name="swipe_incremental_threshold_title">Sensibilità Swipe Bar</string>
-    <string name="swipe_incremental_threshold_description">Distanza necessaria per spostare il cursore di una posizione. Valori più bassi rendono il cursore più veloce.</string>
     
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Mostra Automaticamente la Tastiera</string>
@@ -222,6 +221,9 @@
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Parla ora...</string>
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">Barra variazioni statica</string>
+    <string name="static_variation_bar_mode_description">Mostra sempre una serie fissa di tasti di utilità nella barra variazioni invece delle variazioni contestuali.</string>
     
     <!-- Auto Correct Edit Screen -->
     <string name="auto_correct_search_placeholder">Cerca correzioni...</string>
@@ -257,6 +259,15 @@
     <string name="unicode_category_arrows">Frecce</string>
     <string name="unicode_category_misc">Varie</string>
     <string name="unicode_category_variations">Variazioni</string>
+    
+    <!-- Variation Customization -->
+    <string name="variation_customize_title">Personalizza Variazioni</string>
+    <string name="variation_picker_title">Seleziona variazione per %1$s</string>
+    <string name="variation_picker_clear">Svuota (Vuoto)</string>
+    <string name="variation_reset_to_default">Ripristina Predefinito</string>
+    <string name="variation_reset_confirm_title">Ripristina Predefinito</string>
+    <string name="variation_reset_confirm_message">Sei sicuro di voler ripristinare tutte le variazioni ai valori predefiniti? Questa azione non può essere annullata.</string>
+    <string name="variation_reset_confirm_button">Ripristina</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -326,6 +337,7 @@
     <string name="nav_mode_keycode_page_down">PagGiu</string>
     <string name="nav_mode_keycode_escape">Esc</string>
     <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_keycode_forward_delete">Del→</string>
     <string name="nav_mode_key_unknown">?</string>
     
     <!-- Tutorial -->
@@ -334,17 +346,17 @@
     <string name="tutorial_next">Successivo</string>
     <string name="tutorial_finish">Fine</string>
     <string name="tutorial_page_welcome_title">Benvenuto in Pastiera</string>
-    <string name="tutorial_page_welcome_description">Pastiera è una tastiera fisica avanzata per Android con supporto per modificatori, LED indicatori e modalità di navigazione.</string>
+    <string name="tutorial_page_welcome_description">Pastiera è un metodo di input avanzato per dispositivi Android con tastiera fisica, con supporto per Nav Mode, scorciatoie, mappature personalizzate e altro ancora.</string>
     <string name="tutorial_page_enable_title">Abilita Pastiera</string>
     <string name="tutorial_page_enable_description">Per iniziare, devi abilitare Pastiera come metodo di input nelle Impostazioni Android. Tocca il pulsante qui sotto per aprire le impostazioni.</string>
     <string name="tutorial_page_select_title">Seleziona Pastiera</string>
-    <string name="tutorial_page_select_description">Dopo aver abilitato Pastiera, selezionala come tastiera predefinita. Tocca il pulsante qui sotto per scegliere il metodo di input.</string>
+    <string name="tutorial_page_select_description">Per usare Pastiera selezionala fra i metodi di input. Puoi scegliere la modalità IME completa con il toggle &quot;Use on-screen keyboard&quot; su ON oppure la modalità minimale &quot;Pastierina&quot; con il toggle su OFF.</string>
     <string name="tutorial_page_led_title">LED Indicator</string>
-    <string name="tutorial_page_led_description">Pastiera mostra 5 LED nella barra di stato che indicano lo stato dei modificatori:\n\n• Shift: blu quando attivo, rosso quando bloccato\n• SYM: blu per emoji, rosso per caratteri speciali\n• Ctrl: blu quando attivo, rosso quando bloccato\n• Alt: blu quando attivo, rosso quando bloccato\n\nI LED grigi indicano che il modificatore è spento.</string>
+    <string name="tutorial_page_led_description">Per sfruttare al meglio Pastiera, imposta il tasto Fn come Ctrl dalle impostazioni di sistema. La barra IME mostra quattro LED: diventano blu quando il modificatore è attivo one-shot e arancioni quando è locked. Il LED del layout SYM è blu nella pagina emoji e arancione nella pagina symbols.</string>
     <string name="tutorial_page_nav_mode_title">Nav Mode</string>
-    <string name="tutorial_page_nav_mode_description">Il Nav Mode permette di navigare usando i tasti alfabetici come scorciatoie.\n\nPer attivarlo:\n• Premi Ctrl due volte rapidamente\n• I tasti alfabetici vengono mappati a funzioni di navigazione\n• Premi Ctrl di nuovo per disattivare\n\nPuoi personalizzare le mappature nelle impostazioni avanzate.</string>
+    <string name="tutorial_page_nav_mode_description">Il Nav Mode ti fa navigare nell\'interfaccia con scorciatoie come IJKL o ESDF.\nPer attivarlo:\n• Premi Ctrl due volte rapidamente\n• I tasti alfabetici diventano controlli di navigazione\n• Premi Ctrl di nuovo per uscire\nOgni scorciatoia è rimappabile nelle impostazioni avanzate.</string>
     <string name="tutorial_page_customization_title">Personalizzazione</string>
-    <string name="tutorial_page_customization_description">Pastiera offre molte opzioni di personalizzazione:\n\n• Layout tastiera personalizzabili\n• Scorciatoie del launcher\n• Correzione automatica\n• Mappature personalizzate per Nav Mode\n\nEsplora le impostazioni per trovare la configurazione perfetta per te!</string>
+    <string name="tutorial_page_customization_description">Pastiera offre molte opzioni di personalizzazione:\n• Layout tastiera personalizzabili\n• Scorciatoie del launcher e Power Shortcuts\n• La barra IME può funzionare come swipe bar per spostare il cursore\n• Mappature personalizzate per Nav Mode\nEsplora le impostazioni per trovare la configurazione perfetta per te!</string>
     <string name="tutorial_page_ready_title">Pronto per Iniziare</string>
     <string name="tutorial_page_ready_description">Ora sei pronto a usare Pastiera! Ricorda che puoi sempre tornare alle impostazioni per personalizzare ulteriormente la tastiera secondo le tue esigenze.</string>
     <string name="tutorial_enable_button">Abilita Pastiera</string>
@@ -354,4 +366,18 @@
     <string name="tutorial_selected_message">Pastiera è selezionata!</string>
     <string name="tutorial_show">Mostra Tutorial</string>
     <string name="tutorial_review_description">Rivedi il tutorial introduttivo</string>
+    
+    <!-- Backup & Restore -->
+    <string name="backup_now">Backup ora</string>
+    <string name="backup_now_description">Esporta tutte le impostazioni e i layout personalizzati in un file ZIP</string>
+    <string name="restore_from_file">Ripristina da file</string>
+    <string name="restore_from_file_description">Importa un backup ZIP di Pastiera</string>
+    <string name="backup_completed">Backup completato</string>
+    <string name="restore_completed">Ripristino completato</string>
+    <string name="backup_failed">Backup fallito: %1$s</string>
+    <string name="restore_failed">Ripristino fallito: %1$s</string>
+    
+    <!-- Swipe Incremental Threshold -->
+    <string name="swipe_incremental_threshold_description">Distanza necessaria per spostare il cursore di una posizione. Valori più bassi rendono il cursore più veloce.</string>
+    <string name="dip_unit">DIP</string>
 </resources>

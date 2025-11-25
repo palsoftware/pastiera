@@ -29,6 +29,7 @@ import android.view.KeyEvent
 import kotlin.math.abs
 import it.palsoftware.pastiera.inputmethod.ui.LedStatusView
 import it.palsoftware.pastiera.inputmethod.ui.VariationBarView
+import it.palsoftware.pastiera.inputmethod.suggestions.ui.FullSuggestionsBar
 
 /**
  * Manages the status bar shown by the IME, handling view creation
@@ -56,17 +57,14 @@ class StatusBarController(
             field = value
             variationBarView?.onCursorMovedListener = value
         }
+    
+    fun invalidateStaticVariations() {
+        variationBarView?.invalidateStaticVariations()
+    }
 
     companion object {
         private const val TAG = "StatusBarController"
-        private const val NAV_MODE_LABEL = "NAV MODE"
         private val DEFAULT_BACKGROUND = Color.parseColor("#000000")
-        private val NAV_MODE_BACKGROUND = Color.argb(100, 0, 0, 0)
-        
-        // LED colors
-        private val LED_COLOR_GRAY_OFF = Color.argb(26, 255, 255, 255) // Gray when LED is off
-        private val LED_COLOR_RED_LOCKED = Color.rgb(247, 99, 0) // Orange/red when locked
-        private val LED_COLOR_BLUE_ACTIVE = Color.rgb(100, 150, 255) // Blue when active
     }
 
     data class StatusSnapshot(
@@ -82,6 +80,7 @@ class StatusBarController(
         val altOneShot: Boolean,
         val symPage: Int, // 0=disattivato, 1=pagina1 emoji, 2=pagina2 caratteri
         val variations: List<String> = emptyList(),
+        val suggestions: List<String> = emptyList(),
         val lastInsertedChar: Char? = null,
         val shouldDisableSmartFeatures: Boolean = false
     ) {
@@ -103,6 +102,8 @@ class StatusBarController(
     private val variationBarView: VariationBarView? = if (mode == Mode.FULL) VariationBarView(context) else null
     private var variationsWrapper: View? = null
     private var forceMinimalUi: Boolean = false
+    private var fullSuggestionsBar: FullSuggestionsBar? = null
+
     fun setForceMinimalUi(force: Boolean) {
         if (mode != Mode.FULL) {
             return
@@ -190,6 +191,9 @@ class StatusBarController(
             val ledStrip = ledStatusView.ensureView()
             
             statusBarLayout?.apply {
+                // Full-width suggestions bar above the rest
+                fullSuggestionsBar = FullSuggestionsBar(context)
+                addView(fullSuggestionsBar?.ensureView())
                 addView(modifiersContainer)
                 variationsWrapper?.let { addView(it) }
                 addView(emojiKeyboardContainer) // Griglia emoji prima dei LED
@@ -393,35 +397,40 @@ class StatusBarController(
                 if (content.isNotEmpty() && inputConnection != null) {
                     keyButton.isClickable = true
                     keyButton.isFocusable = true
-                    keyButton.setOnClickListener {
-                        // Inserisci il carattere/emoji quando si clicca
-                        inputConnection.commitText(content, 1)
-                        Log.d(TAG, "Clicked SYM button for keyCode $keyCode: $content")
-                    }
                     
-                    // Aggiungi feedback visivo quando il pulsante viene premuto
-                    val originalBackground = keyButton.background
-                    keyButton.setOnTouchListener { view, motionEvent ->
-                        when (motionEvent.action) {
-                            android.view.MotionEvent.ACTION_DOWN -> {
-                                // Dimmer lo sfondo quando premuto
-                                if (originalBackground is GradientDrawable) {
-                                    val pressedColor = Color.argb(80, 255, 255, 255) // Più opaco
+                    // Usa solo OnTouchListener per feedback + click (più efficiente)
+                    val originalBackground = keyButton.background as? GradientDrawable
+                    if (originalBackground != null) {
+                        val normalColor = Color.argb(40, 255, 255, 255)
+                        val pressedColor = Color.argb(80, 255, 255, 255)
+                        
+                        keyButton.setOnTouchListener { view, motionEvent ->
+                            when (motionEvent.action) {
+                                android.view.MotionEvent.ACTION_DOWN -> {
                                     originalBackground.setColor(pressedColor)
+                                    view.postInvalidate()
+                                    true // Consuma per feedback immediato
                                 }
-                                view.invalidate()
-                            }
-                            android.view.MotionEvent.ACTION_UP,
-                            android.view.MotionEvent.ACTION_CANCEL -> {
-                                // Ripristina lo sfondo originale
-                                if (originalBackground is GradientDrawable) {
-                                    val normalColor = Color.argb(40, 255, 255, 255) // Sfondo normale
+                                android.view.MotionEvent.ACTION_UP -> {
                                     originalBackground.setColor(normalColor)
+                                    view.postInvalidate()
+                                    // Esegui commitText direttamente qui (più veloce)
+                                    inputConnection.commitText(content, 1)
+                                    true
                                 }
-                                view.invalidate()
+                                android.view.MotionEvent.ACTION_CANCEL -> {
+                                    originalBackground.setColor(normalColor)
+                                    view.postInvalidate()
+                                    true
+                                }
+                                else -> false
                             }
                         }
-                        false // Non consumare l'evento, lascia che il click listener funzioni
+                    } else {
+                        // Fallback: solo click listener se non c'è background
+                        keyButton.setOnClickListener {
+                            inputConnection.commitText(content, 1)
+                        }
                     }
                 }
                 
@@ -890,6 +899,14 @@ class StatusBarController(
         ledStatusView.update(snapshot)
         val variationsBar = if (!forceMinimalUi) variationBarView else null
         val variationsWrapperView = if (!forceMinimalUi) variationsWrapper else null
+        val experimentalEnabled = SettingsManager.isExperimentalSuggestionsEnabled(context)
+        val suggestionsEnabledSetting = SettingsManager.getSuggestionsEnabled(context)
+        val showFullBar = !forceMinimalUi &&
+            experimentalEnabled &&
+            suggestionsEnabledSetting &&
+            !snapshot.shouldDisableSmartFeatures &&
+            snapshot.symPage == 0
+        fullSuggestionsBar?.update(snapshot.suggestions, showFullBar, inputConnection, onVariationSelectedListener)
         
         if (snapshot.symPage > 0 && symMappings != null) {
             updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
@@ -935,7 +952,10 @@ class StatusBarController(
                     isEnabled = true
                     isClickable = true
                 }
-                variationsBar?.showVariations(snapshot, inputConnection)
+                val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
+                    snapshot.copy(suggestions = emptyList())
+                } else snapshot
+                variationsBar?.showVariations(snapshotForVariations, inputConnection)
             }
             symShown = false
             wasSymActive = false
@@ -946,7 +966,10 @@ class StatusBarController(
                 isEnabled = true
                 isClickable = true
             }
-            variationsBar?.showVariations(snapshot, inputConnection)
+            val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
+                snapshot.copy(suggestions = emptyList())
+            } else snapshot
+            variationsBar?.showVariations(snapshotForVariations, inputConnection)
             symShown = false
             wasSymActive = false
         }
@@ -962,6 +985,5 @@ class StatusBarController(
         view.measure(widthSpec, heightSpec)
         return view.measuredHeight
     }
+
 }
-
-

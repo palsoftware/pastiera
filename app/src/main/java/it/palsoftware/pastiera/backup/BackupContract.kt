@@ -192,6 +192,9 @@ object PreferenceSchemas {
             "sym_mappings_page2_custom" to PreferenceValueType.STRING,
             "auto_correct_enabled" to PreferenceValueType.BOOLEAN,
             "auto_correct_enabled_languages" to PreferenceValueType.STRING,
+            "suggestions_enabled" to PreferenceValueType.BOOLEAN,
+            "accent_matching_enabled" to PreferenceValueType.BOOLEAN,
+            "auto_replace_on_space_enter" to PreferenceValueType.BOOLEAN,
             "auto_capitalize_after_period" to PreferenceValueType.BOOLEAN,
             "long_press_modifier" to PreferenceValueType.STRING,
             "keyboard_layout" to PreferenceValueType.STRING,
@@ -203,11 +206,15 @@ object PreferenceSchemas {
             "dismissed_releases" to PreferenceValueType.STRING,
             "tutorial_completed" to PreferenceValueType.BOOLEAN,
             "swipe_incremental_threshold" to PreferenceValueType.FLOAT,
+            "static_variation_bar_mode" to PreferenceValueType.BOOLEAN,
+            "variations_updated" to PreferenceValueType.LONG,
             "launcher_shortcuts" to PreferenceValueType.STRING,
             "launcher_shortcuts_enabled" to PreferenceValueType.BOOLEAN,
             "nav_mode_enabled" to PreferenceValueType.BOOLEAN,
             "nav_mode_mappings_updated" to PreferenceValueType.LONG,
-            "power_shortcuts_enabled" to PreferenceValueType.BOOLEAN
+            "power_shortcuts_enabled" to PreferenceValueType.BOOLEAN,
+            "experimental_suggestions_enabled" to PreferenceValueType.BOOLEAN,
+            "suggestion_debug_logging" to PreferenceValueType.BOOLEAN
         ),
         dynamicKeys = listOf(
             PreferenceFileSchema.DynamicKey(

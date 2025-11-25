@@ -29,6 +29,9 @@ object SettingsManager {
     private const val KEY_SYM_MAPPINGS_PAGE2_CUSTOM = "sym_mappings_page2_custom"
     private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
     private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
+    private const val KEY_SUGGESTIONS_ENABLED = "suggestions_enabled"
+    private const val KEY_ACCENT_MATCHING_ENABLED = "accent_matching_enabled"
+    private const val KEY_AUTO_REPLACE_ON_SPACE_ENTER = "auto_replace_on_space_enter"
     private const val KEY_AUTO_CAPITALIZE_AFTER_PERIOD = "auto_capitalize_after_period"
     private const val KEY_LONG_PRESS_MODIFIER = "long_press_modifier" // "alt" or "shift"
     private const val KEY_KEYBOARD_LAYOUT = "keyboard_layout" // "qwerty", "azerty", etc.
@@ -40,6 +43,10 @@ object SettingsManager {
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Whether the first-run tutorial has been completed
     private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Distance in DIP for cursor movement
+    private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Use static variation bar instead of dynamic cursor-based variations
+    private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
+    
+    private const val VARIATIONS_FILE_NAME = "variations.json"
     
     // Default values
     private const val DEFAULT_LONG_PRESS_THRESHOLD = 300L
@@ -55,11 +62,19 @@ object SettingsManager {
     private const val DEFAULT_CLEAR_ALT_ON_SPACE = false
     private const val DEFAULT_ALT_CTRL_SPEECH_SHORTCUT = true
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
+    private const val DEFAULT_SUGGESTIONS_ENABLED = true
+    private const val DEFAULT_ACCENT_MATCHING_ENABLED = true
+    private const val DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER = false
     private const val DEFAULT_AUTO_CAPITALIZE_AFTER_PERIOD = true
     private const val DEFAULT_LONG_PRESS_MODIFIER = "alt"
     private const val DEFAULT_KEYBOARD_LAYOUT = "qwerty"
     private const val DEFAULT_SYM_AUTO_CLOSE = true
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
+    private const val DEFAULT_STATIC_VARIATION_BAR_MODE = false
+    private const val DEFAULT_EXPERIMENTAL_SUGGESTIONS_ENABLED = false
+    private const val DEFAULT_SUGGESTION_DEBUG_LOGGING = false
+    private const val KEY_EXPERIMENTAL_SUGGESTIONS_ENABLED = "experimental_suggestions_enabled"
+    private const val KEY_SUGGESTION_DEBUG_LOGGING = "suggestion_debug_logging"
     
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -228,6 +243,24 @@ object SettingsManager {
     fun setAltCtrlSpeechShortcutEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_ALT_CTRL_SPEECH_SHORTCUT, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether the static variation bar mode is enabled.
+     * When enabled, the variation row shows a fixed set of utility keys
+     * instead of dynamic cursor-based character variations.
+     */
+    fun isStaticVariationBarModeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_STATIC_VARIATION_BAR_MODE, DEFAULT_STATIC_VARIATION_BAR_MODE)
+    }
+
+    /**
+     * Sets whether the static variation bar mode is enabled.
+     */
+    fun setStaticVariationBarModeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_STATIC_VARIATION_BAR_MODE, enabled)
             .apply()
     }
 
@@ -455,13 +488,88 @@ object SettingsManager {
     fun getAutoCorrectEnabled(context: Context): Boolean {
         return getPreferences(context).getBoolean(KEY_AUTO_CORRECT_ENABLED, DEFAULT_AUTO_CORRECT_ENABLED)
     }
-    
+
     /**
      * Sets whether auto-correction is enabled.
      */
     fun setAutoCorrectEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_AUTO_CORRECT_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether inline suggestions are enabled.
+     */
+    fun getSuggestionsEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SUGGESTIONS_ENABLED, DEFAULT_SUGGESTIONS_ENABLED)
+    }
+
+    /**
+     * Enables or disables inline suggestions.
+     */
+    fun setSuggestionsEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SUGGESTIONS_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether accent matching should be applied to suggestions and auto-replace.
+     */
+    fun getAccentMatchingEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_ACCENT_MATCHING_ENABLED, DEFAULT_ACCENT_MATCHING_ENABLED)
+    }
+
+    /**
+     * Toggles accent matching for suggestions.
+     */
+    fun setAccentMatchingEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_ACCENT_MATCHING_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Master toggle for the experimental dictionary/suggestion engine.
+     * When disabled, the IME will skip initialization and hide suggestion UI.
+     */
+    fun isExperimentalSuggestionsEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_EXPERIMENTAL_SUGGESTIONS_ENABLED, DEFAULT_EXPERIMENTAL_SUGGESTIONS_ENABLED)
+    }
+
+    fun setExperimentalSuggestionsEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_EXPERIMENTAL_SUGGESTIONS_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Optional debug logging for the suggestion engine.
+     */
+    fun isSuggestionDebugLoggingEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SUGGESTION_DEBUG_LOGGING, DEFAULT_SUGGESTION_DEBUG_LOGGING)
+    }
+
+    fun setSuggestionDebugLoggingEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SUGGESTION_DEBUG_LOGGING, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether auto-replace on space/enter is enabled.
+     */
+    fun getAutoReplaceOnSpaceEnter(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_AUTO_REPLACE_ON_SPACE_ENTER, DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER)
+    }
+
+    /**
+     * Enables or disables auto-replace on space/enter.
+     */
+    fun setAutoReplaceOnSpaceEnter(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_AUTO_REPLACE_ON_SPACE_ENTER, enabled)
             .apply()
     }
     
@@ -1293,6 +1401,109 @@ object SettingsManager {
     fun resetTutorialCompleted(context: Context) {
         getPreferences(context).edit()
             .putBoolean(KEY_TUTORIAL_COMPLETED, false)
+            .apply()
+    }
+    
+    /**
+     * Returns the File for variations.json in filesDir.
+     */
+    fun getVariationsFile(context: Context): File {
+        return File(context.filesDir, VARIATIONS_FILE_NAME)
+    }
+    
+    /**
+     * Helper to load current JSON from file or assets.
+     */
+    private fun loadCurrentJson(context: Context): JSONObject? {
+        return try {
+            val variationsFile = getVariationsFile(context)
+            val jsonString = if (variationsFile.exists()) {
+                variationsFile.readText()
+            } else {
+                context.assets.open("common/variations/variations.json").bufferedReader().use { it.readText() }
+            }
+            JSONObject(jsonString)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading current JSON", e)
+            null
+        }
+    }
+    
+    /**
+     * Saves variations to variations.json file in filesDir.
+     */
+    fun saveVariations(context: Context, variations: Map<String, List<String>>, staticVariations: List<String>? = null) {
+        try {
+            val variationsObject = JSONObject()
+            for ((letter, chars) in variations) {
+                val variationsArray = org.json.JSONArray()
+                for (char in chars) {
+                    variationsArray.put(char)
+                }
+                variationsObject.put(letter, variationsArray)
+            }
+            
+            val jsonObject = JSONObject()
+            jsonObject.put("variations", variationsObject)
+            
+            // Preserve staticVariations
+            if (staticVariations != null) {
+                val staticArray = org.json.JSONArray()
+                staticVariations.forEach { staticArray.put(it) }
+                jsonObject.put("staticVariations", staticArray)
+            } else {
+                loadCurrentJson(context)?.let { currentJson ->
+                    if (currentJson.has("staticVariations")) {
+                        jsonObject.put("staticVariations", currentJson.getJSONArray("staticVariations"))
+                    }
+                }
+            }
+            
+            FileOutputStream(getVariationsFile(context)).use { outputStream ->
+                outputStream.write(jsonObject.toString(2).toByteArray(Charsets.UTF_8))
+            }
+            
+            notifyVariationsUpdated(context)
+            
+            Log.d(TAG, "Variations saved to ${getVariationsFile(context).absolutePath}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving variations", e)
+        }
+    }
+    
+    /**
+     * Resets variations back to defaults by copying defaultvariations.json from assets.
+     */
+    fun resetVariationsToDefault(context: Context) {
+        try {
+            val variationsFile = getVariationsFile(context)
+            val inputStream = context.assets.open("common/variations/defaultvariations.json")
+            FileOutputStream(variationsFile).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+            inputStream.close()
+            
+            notifyVariationsUpdated(context)
+            
+            Log.d(TAG, "Variations reset to default from assets")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resetting variations to default", e)
+        }
+    }
+    
+    /**
+     * Returns true if custom variations file exists.
+     */
+    fun hasCustomVariations(context: Context): Boolean {
+        return getVariationsFile(context).exists()
+    }
+    
+    /**
+     * Touch the variations_updated flag so the IME reloads variations/static bar content.
+     */
+    fun notifyVariationsUpdated(context: Context) {
+        getPreferences(context).edit()
+            .putLong(KEY_VARIATIONS_UPDATED, System.currentTimeMillis())
             .apply()
     }
 }

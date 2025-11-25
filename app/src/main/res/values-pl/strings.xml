@@ -230,6 +230,18 @@
     <string name="unicode_category_misc">Różne</string>
     <string name="unicode_category_variations">Wariacje</string>
     
+    <!-- Variation Customization -->
+    <string name="variation_customize_title">Dostosuj warianty</string>
+    <string name="variation_picker_title">Wybierz wariant dla %1$s</string>
+    <string name="variation_picker_clear">Wyczyść (Puste)</string>
+    <string name="variation_reset_to_default">Przywróć domyślne</string>
+    <string name="variation_reset_confirm_title">Przywróć domyślne</string>
+    <string name="variation_reset_confirm_message">Czy na pewno chcesz przywrócić wszystkie warianty do wartości domyślnych? Tej czynności nie można cofnąć.</string>
+    <string name="variation_reset_confirm_button">Przywróć</string>
+    
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">Statyczny pasek wariantów</string>
+    <string name="static_variation_bar_mode_description">Zawsze wyświetlaj stały zestaw klawiszy narzędziowych w rzędzie wariantów zamiast wariantów kontekstowych.</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -299,6 +311,7 @@
     <string name="nav_mode_keycode_page_down">PgDół</string>
     <string name="nav_mode_keycode_escape">Esc</string>
     <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_keycode_forward_delete">Del→</string>
     <string name="nav_mode_key_unknown">?</string>
     
     <!-- Tutorial -->
@@ -307,17 +320,17 @@
     <string name="tutorial_next">Następny</string>
     <string name="tutorial_finish">Zakończ</string>
     <string name="tutorial_page_welcome_title">Witamy w Pastiera</string>
-    <string name="tutorial_page_welcome_description">Pastiera to zaawansowana klawiatura fizyczna dla Androida z obsługą modyfikatorów, wskaźników LED i trybu nawigacji.</string>
+    <string name="tutorial_page_welcome_description">Pastiera to zaawansowana metoda wprowadzania dla urządzeń Android z fizyczną klawiaturą PKB, obsługująca Nav Mode, skróty, własne mapowania klawiszy i wiele więcej.</string>
     <string name="tutorial_page_enable_title">Włącz Pastiera</string>
     <string name="tutorial_page_enable_description">Aby rozpocząć, musisz włączyć Pastiera jako metodę wprowadzania w Ustawieniach Androida. Naciśnij przycisk poniżej, aby otworzyć ustawienia.</string>
     <string name="tutorial_page_select_title">Wybierz Pastiera</string>
-    <string name="tutorial_page_select_description">Po włączeniu Pastiera, wybierz ją jako domyślną klawiaturę. Naciśnij przycisk poniżej, aby wybrać metodę wprowadzania.</string>
+    <string name="tutorial_page_select_description">Aby korzystać z Pastiera, wybierz ją wśród metod wprowadzania. Możesz użyć pełnego interfejsu IME z przełącznikiem &quot;Use on-screen keyboard&quot; na ON albo minimalistycznego trybu &quot;Pastierina&quot; z przełącznikiem na OFF.</string>
     <string name="tutorial_page_led_title">Wskaźnik LED</string>
-    <string name="tutorial_page_led_description">Pastiera wyświetla 5 diod LED na pasku stanu, które wskazują stan modyfikatorów:\n\n• Shift: niebieski gdy aktywny, czerwony gdy zablokowany\n• SYM: niebieski dla emoji, czerwony dla znaków specjalnych\n• Ctrl: niebieski gdy aktywny, czerwony gdy zablokowany\n• Alt: niebieski gdy aktywny, czerwony gdy zablokowany\n\nSzare diody LED wskazują, że modyfikator jest wyłączony.</string>
+    <string name="tutorial_page_led_description">Aby w pełni wykorzystać Pastierę, ustaw w systemie klawisz Fn jako Ctrl. Pasek IME pokazuje cztery diody LED: świecą na niebiesko, gdy modyfikator jest aktywny one-shot, oraz na pomarańczowo, gdy jest zablokowany. Dioda LED układu SYM jest niebieska na stronie emoji i pomarańczowa na stronie symboli.</string>
     <string name="tutorial_page_nav_mode_title">Tryb Nav</string>
-    <string name="tutorial_page_nav_mode_description">Tryb Nav pozwala na nawigację za pomocą klawiszy literowych jako skrótów.\n\nAby aktywować:\n• Naciśnij Ctrl dwukrotnie szybko\n• Klawisze literowe są mapowane na funkcje nawigacji\n• Naciśnij Ctrl ponownie, aby dezaktywować\n\nMożesz dostosować mapowania w ustawieniach zaawansowanych.</string>
+    <string name="tutorial_page_nav_mode_description">Tryb Nav pozwala nawigować po interfejsie urządzenia skrótami jak IJKL lub ESDF.\nJak aktywować:\n• Naciśnij Ctrl dwa razy szybko\n• Klawisze liter stają się kontrolkami nawigacji\n• Naciśnij Ctrl ponownie, aby wyjść\nKażdy skrót da się przemapować w Ustawieniach zaawansowanych.</string>
     <string name="tutorial_page_customization_title">Dostosowanie</string>
-    <string name="tutorial_page_customization_description">Pastiera oferuje wiele opcji dostosowania:\n\n• Niestandardowe układy klawiatury\n• Skróty launchera\n• Auto-korekta\n• Niestandardowe mapowania dla trybu Nav\n\nPrzeglądaj ustawienia, aby znaleźć idealną konfigurację dla siebie!</string>
+    <string name="tutorial_page_customization_description">Pastiera oferuje wiele opcji dostosowania:\n• Niestandardowe układy klawiatury\n• Skróty launchera i Power Shortcuts\n• Pasek IME może działać jako pasek przesuwania do przesuwania kursora\n• Niestandardowe mapowania dla trybu Nav\nPrzeglądaj ustawienia, aby znaleźć idealną konfigurację dla siebie!</string>
     <string name="tutorial_page_ready_title">Gotowy do Rozpoczęcia</string>
     <string name="tutorial_page_ready_description">Jesteś teraz gotowy do użycia Pastiera! Pamiętaj, że zawsze możesz wrócić do ustawień, aby dalej dostosować klawiaturę do swoich potrzeb.</string>
     <string name="tutorial_enable_button">Włącz Pastiera</string>
@@ -327,6 +340,20 @@
     <string name="tutorial_selected_message">Pastiera jest wybrana!</string>
     <string name="tutorial_show">Pokaż Samouczek</string>
     <string name="tutorial_review_description">Przejrzyj wprowadzający samouczek</string>
+    
+    <!-- Backup & Restore -->
+    <string name="backup_now">Utwórz kopię zapasową teraz</string>
+    <string name="backup_now_description">Eksportuj wszystkie ustawienia i niestandardowe układy do pliku ZIP</string>
+    <string name="restore_from_file">Przywróć z pliku</string>
+    <string name="restore_from_file_description">Importuj plik ZIP kopii zapasowej Pastiera</string>
+    <string name="backup_completed">Kopia zapasowa zakończona</string>
+    <string name="restore_completed">Przywracanie zakończone</string>
+    <string name="backup_failed">Kopia zapasowa nie powiodła się: %1$s</string>
+    <string name="restore_failed">Przywracanie nie powiodło się: %1$s</string>
+    
+    <!-- Swipe Incremental Threshold -->
+    <string name="swipe_incremental_threshold_description">Wymagana odległość do przesunięcia kursora o jedną pozycję. Niższe wartości sprawiają, że kursor porusza się szybciej.</string>
+    <string name="dip_unit">DIP</string>
 </resources>
 
 

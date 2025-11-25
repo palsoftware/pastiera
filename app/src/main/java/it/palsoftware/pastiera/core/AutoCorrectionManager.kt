@@ -5,6 +5,7 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.inputmethod.AutoCorrector
+import it.palsoftware.pastiera.inputmethod.NotificationHelper
 
 class AutoCorrectionManager(
     private val context: Context
@@ -96,6 +97,9 @@ class AutoCorrectionManager(
         inputConnection.deleteSurroundingText(wordToReplace.length, 0)
         inputConnection.commitText(correctedWord, 1)
         AutoCorrector.recordCorrection(wordToReplace, correctedWord)
+        
+        // Trigger haptic feedback when autocorrection occurs
+        NotificationHelper.triggerHapticFeedback(context)
 
         when {
             isSpace -> inputConnection.commitText(" ", 1)

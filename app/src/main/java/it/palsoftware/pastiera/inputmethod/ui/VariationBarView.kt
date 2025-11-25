@@ -27,6 +27,7 @@ import it.palsoftware.pastiera.inputmethod.StatusBarController
 import it.palsoftware.pastiera.inputmethod.TextSelectionHelper
 import it.palsoftware.pastiera.inputmethod.VariationButtonHandler
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
+import it.palsoftware.pastiera.data.variation.VariationRepository
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -38,6 +39,7 @@ class VariationBarView(
 ) {
     companion object {
         private const val TAG = "VariationBarView"
+        private const val SWIPE_HINT_SHOW_DELAY_MS = 1000L
     }
 
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
@@ -45,7 +47,10 @@ class VariationBarView(
 
     private var wrapper: FrameLayout? = null
     private var container: LinearLayout? = null
-    private var overlay: View? = null
+    private var overlay: FrameLayout? = null
+    private var swipeIndicator: View? = null
+    private var emptyHintView: TextView? = null
+    private var shouldShowSwipeHint: Boolean = false
     private var currentVariationsRow: LinearLayout? = null
     private var variationButtons: MutableList<TextView> = mutableListOf()
     private var microphoneButtonView: ImageView? = null
@@ -58,6 +63,9 @@ class VariationBarView(
     private var touchStartY = 0f
     private var lastCursorMoveX = 0f
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
+    private var staticVariations: List<String> = emptyList()
+    private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
+    private var lastIsStaticContent: Boolean? = null
 
     fun ensureView(): FrameLayout {
         if (wrapper != null) {
@@ -101,7 +109,7 @@ class VariationBarView(
             addView(container)
         }
 
-        overlay = View(context).apply {
+        overlay = FrameLayout(context).apply {
             background = ColorDrawable(Color.TRANSPARENT)
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -109,6 +117,12 @@ class VariationBarView(
             )
             visibility = View.GONE
         }.also { overlayView ->
+            val indicator = createSwipeIndicator()
+            swipeIndicator = indicator
+            overlayView.addView(indicator)
+            val hint = createSwipeHintView()
+            emptyHintView = hint
+            overlayView.addView(hint)
             wrapper?.addView(overlayView)
             installOverlayTouchListener(overlayView)
         }
@@ -121,6 +135,8 @@ class VariationBarView(
     fun setSymModeActive(active: Boolean) {
         isSymModeActive = active
         if (active) {
+            hideSwipeIndicator(immediate = true)
+            hideSwipeHintImmediate()
             overlay?.visibility = View.GONE
         }
     }
@@ -131,6 +147,8 @@ class VariationBarView(
 
     fun resetVariationsState() {
         lastDisplayedVariations = emptyList()
+        lastInputConnectionUsed = null
+        lastIsStaticContent = null
     }
 
     fun hideImmediate() {
@@ -141,6 +159,9 @@ class VariationBarView(
         variationButtons.clear()
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        hideSwipeIndicator(immediate = true)
+        hideSwipeHintImmediate()
+        shouldShowSwipeHint = false
         container?.visibility = View.GONE
         wrapper?.visibility = View.GONE
         overlay?.visibility = View.GONE
@@ -156,6 +177,9 @@ class VariationBarView(
 
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        hideSwipeIndicator(immediate = true)
+        hideSwipeHintImmediate()
+        shouldShowSwipeHint = false
 
         if (row != null && row.parent == containerView && row.visibility == View.VISIBLE) {
             animateVariationsOut(row) {
@@ -184,22 +208,58 @@ class VariationBarView(
 
         currentInputConnection = inputConnection
 
+        // Decide whether to use suggestions, dynamic variations (from cursor) or static utility keys.
+        val staticModeEnabled = SettingsManager.isStaticVariationBarModeEnabled(context)
+        val canShowSmart = !snapshot.shouldDisableSmartFeatures
+        // Legacy variations: always honor them when present, independent of suggestions.
+        val hasDynamicVariations = canShowSmart && snapshot.variations.isNotEmpty()
+        val hasSuggestions = canShowSmart && snapshot.suggestions.isNotEmpty()
+        val useDynamicVariations = !staticModeEnabled && hasDynamicVariations
+        val allowStaticFallback = staticModeEnabled || snapshot.shouldDisableSmartFeatures
+
+        val effectiveVariations: List<String>
+        val isStaticContent: Boolean
+        // Legacy behavior: give priority to letter variations when available, otherwise suggestions.
+        when {
+            useDynamicVariations -> {
+                effectiveVariations = snapshot.variations
+                isStaticContent = false
+            }
+            hasSuggestions -> {
+                effectiveVariations = snapshot.suggestions
+                isStaticContent = false
+            }
+            allowStaticFallback -> {
+                if (staticVariations.isEmpty()) {
+                    staticVariations = VariationRepository.loadStaticVariations(context.assets, context)
+                }
+                effectiveVariations = staticVariations
+                isStaticContent = true
+            }
+            else -> {
+                // Keep the bar visible (mic/settings) but show empty placeholders in the variation row.
+                effectiveVariations = emptyList()
+                isStaticContent = false
+            }
+        }
+
+        val limitedVariations = effectiveVariations.take(7)
+        val showSwipeHint = effectiveVariations.isEmpty() && !allowStaticFallback
+        shouldShowSwipeHint = showSwipeHint
+
         containerView.visibility = View.VISIBLE
         wrapperView.visibility = View.VISIBLE
         overlayView.visibility = if (isSymModeActive) View.GONE else View.VISIBLE
-
-        val limitedVariations = if (snapshot.variations.isNotEmpty() && snapshot.lastInsertedChar != null) {
-            snapshot.variations.take(7)
-        } else {
-            emptyList()
-        }
+        updateSwipeHintVisibility(animate = true)
 
         val variationsChanged = limitedVariations != lastDisplayedVariations
+        val inputConnectionChanged = lastInputConnectionUsed !== inputConnection
+        val contentModeChanged = lastIsStaticContent != isStaticContent
         val hasExistingRow = currentVariationsRow != null &&
             currentVariationsRow?.parent == containerView &&
             currentVariationsRow?.visibility == View.VISIBLE
 
-        if (!variationsChanged && hasExistingRow) {
+        if (!variationsChanged && !inputConnectionChanged && !contentModeChanged && hasExistingRow) {
             return
         }
 
@@ -236,9 +296,11 @@ class VariationBarView(
         containerView.addView(variationsRow, 0, rowLayoutParams)
 
         lastDisplayedVariations = limitedVariations
+        lastInputConnectionUsed = inputConnection
+        lastIsStaticContent = isStaticContent
 
         for (variation in limitedVariations) {
-            val button = createVariationButton(variation, inputConnection, buttonWidth)
+            val button = createVariationButton(variation, inputConnection, buttonWidth, isStaticContent)
             variationButtons.add(button)
             variationsRow.addView(button)
         }
@@ -281,17 +343,17 @@ class VariationBarView(
         }
     }
 
-    private fun installOverlayTouchListener(overlayView: View) {
+    private fun installOverlayTouchListener(overlayView: FrameLayout) {
         val swipeThreshold = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             6f,
             context.resources.displayMetrics
         )
 
-        overlayView.setOnTouchListener { _, motionEvent ->
-            if (isSymModeActive) {
-                return@setOnTouchListener false
-            }
+            overlayView.setOnTouchListener { _, motionEvent ->
+                if (isSymModeActive) {
+                    return@setOnTouchListener false
+                }
 
             when (motionEvent.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -300,6 +362,7 @@ class VariationBarView(
                     touchStartX = motionEvent.x
                     touchStartY = motionEvent.y
                     lastCursorMoveX = motionEvent.x
+                    hideSwipeHintImmediate()
                     Log.d(TAG, "Touch down on overlay at ($touchStartX, $touchStartY)")
                     true
                 }
@@ -307,11 +370,13 @@ class VariationBarView(
                     val deltaX = motionEvent.x - touchStartX
                     val deltaY = abs(motionEvent.y - touchStartY)
                     val incrementalDeltaX = motionEvent.x - lastCursorMoveX
+                    updateSwipeIndicatorPosition(overlayView, motionEvent.x)
 
                     if (isSwipeInProgress || (abs(deltaX) > swipeThreshold && abs(deltaX) > deltaY)) {
                         if (!isSwipeInProgress) {
                             isSwipeInProgress = true
                             swipeDirection = if (deltaX > 0) 1 else -1
+                            revealSwipeIndicator(overlayView, motionEvent.x)
                             Log.d(TAG, "Swipe started: ${if (swipeDirection == 1) "RIGHT" else "LEFT"}")
                         } else {
                             val currentDirection = if (incrementalDeltaX > 0) 1 else -1
@@ -354,6 +419,8 @@ class VariationBarView(
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    hideSwipeIndicator()
+                    updateSwipeHintVisibility(animate = true)
                     if (isSwipeInProgress) {
                         isSwipeInProgress = false
                         swipeDirection = null
@@ -370,6 +437,8 @@ class VariationBarView(
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    hideSwipeIndicator()
+                    updateSwipeHintVisibility(animate = true)
                     isSwipeInProgress = false
                     swipeDirection = null
                     true
@@ -377,6 +446,118 @@ class VariationBarView(
                 else -> true
             }
         }
+    }
+
+    private fun revealSwipeIndicator(overlayView: FrameLayout, x: Float) {
+        val indicator = swipeIndicator ?: return
+        updateSwipeIndicatorPosition(overlayView, x)
+        indicator.animate().cancel()
+        indicator.alpha = 0f
+        indicator.visibility = View.VISIBLE
+        indicator.animate()
+            .alpha(1f)
+            .setDuration(60)
+            .setListener(null)
+            .start()
+    }
+
+    private fun hideSwipeIndicator(immediate: Boolean = false) {
+        val indicator = swipeIndicator ?: return
+        indicator.animate().cancel()
+        if (immediate) {
+            indicator.alpha = 0f
+            indicator.visibility = View.GONE
+            return
+        }
+        indicator.animate()
+            .alpha(0f)
+            .setDuration(140)
+            .setListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    indicator.visibility = View.GONE
+                    indicator.alpha = 0f
+                }
+            })
+            .start()
+    }
+
+    private fun updateSwipeHintVisibility(animate: Boolean) {
+        val hint = emptyHintView ?: return
+        val overlayView = overlay ?: return
+        val shouldShow = shouldShowSwipeHint && overlayView.visibility == View.VISIBLE
+        hint.animate().cancel()
+        if (shouldShow) {
+            if (hint.visibility != View.VISIBLE) {
+                hint.visibility = View.VISIBLE
+                hint.alpha = 0f
+            }
+            if (animate) {
+                hint.animate()
+                    .alpha(0.7f)
+                    .setDuration(420)
+                    .setStartDelay(SWIPE_HINT_SHOW_DELAY_MS)
+                    .setListener(null)
+                    .start()
+            } else {
+                hint.alpha = 0.7f
+            }
+        } else {
+            if (animate) {
+                hint.animate()
+                    .setStartDelay(0)
+                    .alpha(0f)
+                    .setDuration(120)
+                    .setListener(object : AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: Animator) {
+                            hint.visibility = View.GONE
+                            hint.alpha = 0f
+                        }
+                    })
+                    .start()
+            } else {
+                hint.alpha = 0f
+                hint.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun hideSwipeHintImmediate() {
+        val hint = emptyHintView ?: return
+        hint.animate().cancel()
+        hint.alpha = 0f
+        hint.visibility = View.GONE
+    }
+
+    private fun createSwipeHintView(): TextView {
+        return TextView(context).apply {
+            text = context.getString(R.string.swipe_to_move_cursor)
+            setTextColor(Color.argb(120, 255, 255, 255))
+            textSize = 13f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+            alpha = 0f
+            background = null
+            isClickable = false
+            isFocusable = false
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ).apply {
+                gravity = Gravity.CENTER
+            }
+            visibility = View.GONE
+        }
+    }
+
+    private fun updateSwipeIndicatorPosition(overlayView: FrameLayout, x: Float) {
+        val indicator = swipeIndicator ?: return
+        val indicatorWidth = if (indicator.width > 0) indicator.width else (indicator.layoutParams?.width ?: 0)
+        if (indicatorWidth <= 0 || overlayView.width <= 0) {
+            return
+        }
+        val clampedX = x.coerceIn(0f, overlayView.width.toFloat())
+        indicator.translationX = clampedX - (indicatorWidth / 2f)
+        indicator.translationY = 0f
     }
 
     private fun startSpeechRecognition(inputConnection: android.view.inputmethod.InputConnection?) {
@@ -423,7 +604,8 @@ class VariationBarView(
     private fun createVariationButton(
         variation: String,
         inputConnection: android.view.inputmethod.InputConnection?,
-        buttonWidth: Int
+        buttonWidth: Int,
+        isStatic: Boolean
     ): TextView {
         val dp4 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -470,11 +652,19 @@ class VariationBarView(
             isClickable = true
             isFocusable = true
             setOnClickListener(
-                VariationButtonHandler.createVariationClickListener(
-                    variation,
-                    inputConnection,
-                    onVariationSelectedListener
-                )
+                if (isStatic) {
+                    VariationButtonHandler.createStaticVariationClickListener(
+                        variation,
+                        inputConnection,
+                        onVariationSelectedListener
+                    )
+                } else {
+                    VariationButtonHandler.createVariationClickListener(
+                        variation,
+                        inputConnection,
+                        onVariationSelectedListener
+                    )
+                }
             )
         }
     }
@@ -496,6 +686,32 @@ class VariationBarView(
             }
             isClickable = false
             isFocusable = false
+        }
+    }
+
+    private fun createSwipeIndicator(): View {
+        val barWidth = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            32f,
+            context.resources.displayMetrics
+        ).toInt().coerceAtLeast(12)
+        val drawable = GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(
+                Color.argb(50, 255, 204, 0),
+                Color.argb(170, 255, 221, 0),
+                Color.argb(50, 255, 204, 0)
+            )
+        )
+        return View(context).apply {
+            background = drawable
+            alpha = 0f
+            visibility = View.GONE
+            isClickable = false
+            isFocusable = false
+            layoutParams = FrameLayout.LayoutParams(barWidth, FrameLayout.LayoutParams.MATCH_PARENT).apply {
+                gravity = Gravity.TOP or Gravity.START
+            }
         }
     }
 
@@ -602,5 +818,8 @@ class VariationBarView(
 
         return if (parent.isClickable) parent else null
     }
-}
 
+    fun invalidateStaticVariations() {
+        staticVariations = emptyList()
+    }
+}

@@ -40,6 +40,11 @@ class CandidatesBarController(
     fun setForceMinimalUi(force: Boolean) {
         inputStatusBar.setForceMinimalUi(force)
     }
+    
+    fun invalidateStaticVariations() {
+        inputStatusBar.invalidateStaticVariations()
+        candidatesStatusBar.invalidateStaticVariations()
+    }
 
     fun updateStatusBars(
         snapshot: StatusBarController.StatusSnapshot,

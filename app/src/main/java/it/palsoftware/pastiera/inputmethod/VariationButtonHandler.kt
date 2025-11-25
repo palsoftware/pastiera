@@ -22,8 +22,8 @@ object VariationButtonHandler {
     }
     
     /**
-     * Creates a listener for a variation button.
-     * When clicked, deletes character before cursor and inserts the variation.
+     * Creates a listener for a variation button (accent/letter variations).
+     * Deletes a single character before the cursor and inserts the variation.
      */
     fun createVariationClickListener(
         variation: String,
@@ -37,16 +37,14 @@ object VariationButtonHandler {
                 Log.w(TAG, "No inputConnection available to insert variation")
                 return@OnClickListener
             }
-            
-            // Delete character before cursor (backspace)
+
             val deleted = inputConnection.deleteSurroundingText(1, 0)
             if (deleted) {
                 Log.d(TAG, "Character before cursor deleted")
             } else {
                 Log.w(TAG, "Unable to delete character before cursor")
             }
-            
-            // Insert variation
+
             inputConnection.commitText(variation, 1)
             Log.d(TAG, "Variation '$variation' inserted")
             
@@ -54,5 +52,31 @@ object VariationButtonHandler {
             listener?.onVariationSelected(variation)
         }
     }
-}
 
+    /**
+     * Creates a listener for a static variation button.
+     * When clicked, inserts the variation without deleting the character before the cursor.
+     */
+    fun createStaticVariationClickListener(
+        variation: String,
+        inputConnection: InputConnection?,
+        listener: OnVariationSelectedListener? = null
+    ): View.OnClickListener {
+        return View.OnClickListener {
+            Log.d(TAG, "Click on static variation button: $variation")
+
+            if (inputConnection == null) {
+                Log.w(TAG, "No inputConnection available to insert static variation")
+                return@OnClickListener
+            }
+
+            // Insert variation without deleting previous character
+            inputConnection.commitText(variation, 1)
+            Log.d(TAG, "Static variation '$variation' inserted")
+
+            // Notify listener if present
+            listener?.onVariationSelected(variation)
+        }
+    }
+
+}

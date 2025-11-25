@@ -230,6 +230,18 @@
     <string name="unicode_category_misc">Verschiedenes</string>
     <string name="unicode_category_variations">Variationen</string>
     
+    <!-- Variation Customization -->
+    <string name="variation_customize_title">Variationen anpassen</string>
+    <string name="variation_picker_title">Variation für %1$s auswählen</string>
+    <string name="variation_picker_clear">Leeren (Leer)</string>
+    <string name="variation_reset_to_default">Auf Standard zurücksetzen</string>
+    <string name="variation_reset_confirm_title">Auf Standard zurücksetzen</string>
+    <string name="variation_reset_confirm_message">Sind Sie sicher, dass Sie alle Variationen auf die Standardwerte zurücksetzen möchten? Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="variation_reset_confirm_button">Zurücksetzen</string>
+    
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">Statische Variationsleiste</string>
+    <string name="static_variation_bar_mode_description">Immer einen festen Satz von Hilfstasten in der Variationszeile anzeigen anstelle von kontextbasierten Variationen.</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
@@ -299,6 +311,7 @@
     <string name="nav_mode_keycode_page_down">Bild↓</string>
     <string name="nav_mode_keycode_escape">Esc</string>
     <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_keycode_forward_delete">Del→</string>
     <string name="nav_mode_key_unknown">?</string>
     
     <!-- Tutorial -->
@@ -307,17 +320,17 @@
     <string name="tutorial_next">Weiter</string>
     <string name="tutorial_finish">Fertig</string>
     <string name="tutorial_page_welcome_title">Willkommen bei Pastiera</string>
-    <string name="tutorial_page_welcome_description">Pastiera ist eine erweiterte physische Tastatur für Android mit Unterstützung für Modifikatoren, LED-Anzeigen und Navigationsmodus.</string>
+    <string name="tutorial_page_welcome_description">Pastiera ist eine fortschrittliche Eingabemethode für Android-Geräte mit physischer Tastatur (PKB) und unterstützt Nav-Modus, Shortcuts, benutzerdefinierte Tastenbelegungen und mehr.</string>
     <string name="tutorial_page_enable_title">Pastiera aktivieren</string>
     <string name="tutorial_page_enable_description">Um zu beginnen, müssen Sie Pastiera als Eingabemethode in den Android-Einstellungen aktivieren. Tippen Sie auf die Schaltfläche unten, um die Einstellungen zu öffnen.</string>
     <string name="tutorial_page_select_title">Pastiera auswählen</string>
-    <string name="tutorial_page_select_description">Nach der Aktivierung von Pastiera wählen Sie es als Standardtastatur aus. Tippen Sie auf die Schaltfläche unten, um die Eingabemethode auszuwählen.</string>
+    <string name="tutorial_page_select_description">Um Pastiera zu verwenden, wähle sie unter den Eingabemethoden aus. Du kannst die vollständige IME-Oberfläche mit dem Schalter &quot;Use on-screen keyboard&quot; auf ON oder die minimale &quot;Pastierina&quot;-UI mit dem Schalter auf OFF nutzen.</string>
     <string name="tutorial_page_led_title">LED-Anzeige</string>
-    <string name="tutorial_page_led_description">Pastiera zeigt 5 LEDs in der Statusleiste an, die den Status der Modifikatoren anzeigen:\n\n• Shift: blau wenn aktiv, rot wenn gesperrt\n• SYM: blau für Emoji, rot für Sonderzeichen\n• Ctrl: blau wenn aktiv, rot wenn gesperrt\n• Alt: blau wenn aktiv, rot wenn gesperrt\n\nGraue LEDs zeigen an, dass der Modifikator ausgeschaltet ist.</string>
+    <string name="tutorial_page_led_description">Um Pastiera optimal zu nutzen, stelle in den Systemeinstellungen die Fn-Taste auf Ctrl um. Die IME-Leiste zeigt vier LEDs: Sie leuchten blau, wenn der Modifikator als One-Shot aktiv ist, und orange, wenn er gelockt ist. Die SYM-Layout-LED ist blau auf der Emoji-Seite und orange auf der Symbols-Seite.</string>
     <string name="tutorial_page_nav_mode_title">Nav-Modus</string>
-    <string name="tutorial_page_nav_mode_description">Der Nav-Modus ermöglicht es Ihnen, mit Buchstabentasten als Verknüpfungen zu navigieren.\n\nZum Aktivieren:\n• Drücken Sie zweimal schnell auf Ctrl\n• Buchstabentasten werden Navigationsfunktionen zugeordnet\n• Drücken Sie erneut auf Ctrl zum Deaktivieren\n\nSie können die Zuordnungen in den erweiterten Einstellungen anpassen.</string>
+    <string name="tutorial_page_nav_mode_description">Der Nav-Modus lässt dich mit Kürzeln wie IJKL oder ESDF durch die Geräteoberfläche navigieren.\nSo aktivierst du ihn:\n• Drücke Ctrl zweimal schnell\n• Buchstabentasten werden zu Navigationstasten\n• Drücke Ctrl erneut, um zu beenden\nJede Zuordnung kann in den erweiterten Einstellungen angepasst werden.</string>
     <string name="tutorial_page_customization_title">Anpassung</string>
-    <string name="tutorial_page_customization_description">Pastiera bietet viele Anpassungsmöglichkeiten:\n\n• Anpassbare Tastaturlayouts\n• Launcher-Verknüpfungen\n• Autokorrektur\n• Benutzerdefinierte Zuordnungen für den Nav-Modus\n\nDurchsuchen Sie die Einstellungen, um die perfekte Konfiguration für Sie zu finden!</string>
+    <string name="tutorial_page_customization_description">Pastiera bietet viele Anpassungsmöglichkeiten:\n• Anpassbare Tastaturlayouts\n• Launcher-Verknüpfungen &amp; Power Shortcuts\n• Die IME-Leiste kann als Swipe-Bar zum Bewegen des Cursors dienen\n• Benutzerdefinierte Zuordnungen für den Nav-Modus\nDurchsuchen Sie die Einstellungen, um die perfekte Konfiguration für Sie zu finden!</string>
     <string name="tutorial_page_ready_title">Bereit zum Starten</string>
     <string name="tutorial_page_ready_description">Sie sind jetzt bereit, Pastiera zu verwenden! Denken Sie daran, dass Sie jederzeit zu den Einstellungen zurückkehren können, um die Tastatur weiter an Ihre Bedürfnisse anzupassen.</string>
     <string name="tutorial_enable_button">Pastiera aktivieren</string>
@@ -327,6 +340,20 @@
     <string name="tutorial_selected_message">Pastiera ist ausgewählt!</string>
     <string name="tutorial_show">Tutorial anzeigen</string>
     <string name="tutorial_review_description">Einführungstutorial überprüfen</string>
+    
+    <!-- Backup & Restore -->
+    <string name="backup_now">Jetzt sichern</string>
+    <string name="backup_now_description">Alle Einstellungen und benutzerdefinierten Layouts in eine ZIP-Datei exportieren</string>
+    <string name="restore_from_file">Von Datei wiederherstellen</string>
+    <string name="restore_from_file_description">Eine Pastiera-Sicherungsdatei ZIP importieren</string>
+    <string name="backup_completed">Sicherung abgeschlossen</string>
+    <string name="restore_completed">Wiederherstellung abgeschlossen</string>
+    <string name="backup_failed">Sicherung fehlgeschlagen: %1$s</string>
+    <string name="restore_failed">Wiederherstellung fehlgeschlagen: %1$s</string>
+    
+    <!-- Swipe Incremental Threshold -->
+    <string name="swipe_incremental_threshold_description">Erforderliche Entfernung, um den Cursor um eine Position zu bewegen. Niedrigere Werte lassen den Cursor schneller bewegen.</string>
+    <string name="dip_unit">DIP</string>
 </resources>
 
 

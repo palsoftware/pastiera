@@ -57,7 +57,7 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // Disable activity transition animations for instant appearance
-        overridePendingTransition(0, 0)
+        disableActivityAnimations()
         
         // Rimuovi il titolo dalla finestra (deve essere chiamato prima di setContent)
         window.requestFeature(android.view.Window.FEATURE_NO_TITLE)
@@ -115,14 +115,9 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
         }
     }
     
-    override fun onBackPressed() {
-        finish()
-        overridePendingTransition(0, 0)
-    }
-    
     override fun finish() {
         super.finish()
-        overridePendingTransition(0, 0)
+        disableActivityAnimations()
     }
     
     /**
@@ -142,6 +137,11 @@ class LauncherShortcutAssignmentActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("LauncherShortcutAssignment", "Error launching app $packageName", e)
         }
+    }
+    
+    private fun disableActivityAnimations() {
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
     }
 }
 

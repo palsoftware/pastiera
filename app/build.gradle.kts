@@ -8,9 +8,22 @@ import java.util.Properties
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.gradle.api.GradleException
 
 // File per salvare il build number incrementale
 val buildPropertiesFile = file("build.properties")
+
+// Config di firma letta da keystore.properties (non tracciato) o da env vars
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun signingProp(key: String, env: String): String? =
+    keystoreProperties.getProperty(key)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(env)?.takeIf { it.isNotBlank() }
 
 // Task per incrementare il build number
 tasks.register("incrementBuildNumber") {
@@ -74,22 +87,23 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystorePropertiesFile = rootProject.file("keystore.properties")
-            if (keystorePropertiesFile.exists()) {
-                val keystoreProperties = Properties()
-                keystoreProperties.load(keystorePropertiesFile.inputStream())
-                storeFile = file("../pastiera-release-key.jks")
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-            } else {
-                // Fallback for CI/CD or local builds without the file
-                // Uses environment variables if available
-                storeFile = file("../pastiera-release-key.jks")
-                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
-                keyAlias = System.getenv("KEY_ALIAS") ?: "pastiera"
-                keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+            val storePath = signingProp("storeFile", "PASTIERA_KEYSTORE_PATH")
+            val storePass = signingProp("storePassword", "PASTIERA_KEYSTORE_PASSWORD")
+            val alias = signingProp("keyAlias", "PASTIERA_KEY_ALIAS")
+            val keyPass = signingProp("keyPassword", "PASTIERA_KEY_PASSWORD")
+
+            if (storePath == null || storePass == null || alias == null || keyPass == null) {
+                throw GradleException(
+                    "Missing signing config. Define storeFile, storePassword, keyAlias e keyPassword in " +
+                        "keystore.properties (non tracciato) o nelle variabili d'ambiente PASTIERA_KEYSTORE_PATH, " +
+                        "PASTIERA_KEYSTORE_PASSWORD, PASTIERA_KEY_ALIAS, PASTIERA_KEY_PASSWORD."
+                )
             }
+
+            storeFile = rootProject.file(storePath)
+            storePassword = storePass
+            keyAlias = alias
+            keyPassword = keyPass
         }
     }
 
@@ -138,17 +152,16 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.foundation:foundation")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
     // RecyclerView per performance ottimali nella griglia emoji
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     // Emoji2 per supporto emoji future-proof
     implementation("androidx.emoji2:emoji2:1.4.0")
     implementation("androidx.emoji2:emoji2-views:1.4.0")
     implementation("androidx.emoji2:emoji2-views-helper:1.4.0")
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

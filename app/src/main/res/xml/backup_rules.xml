@@ -15,4 +15,7 @@
     
     <!-- Include nav mode mappings file -->
     <include domain="file" path="ctrl_key_mappings.json"/>
+    
+    <!-- Include variations file -->
+    <include domain="file" path="variations.json"/>
 </full-backup-content>

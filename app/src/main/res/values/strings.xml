@@ -48,6 +48,11 @@
     <!-- Alt+Ctrl Speech Recognition Shortcut Section -->
     <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl Speech Recognition</string>
     <string name="alt_ctrl_speech_shortcut_description">Enable Alt+Ctrl keyboard shortcut to start speech recognition</string>
+
+    <!-- Static Variation Bar Mode -->
+    <string name="static_variation_bar_mode_title">Static Variation Bar</string>
+    <string name="static_variation_bar_mode_description">Always show a fixed set of utility keys in the variation row instead of context-based variations.</string>
+    <string name="swipe_to_move_cursor">Swipe to move cursor</string>
     
     <!-- Info Section -->
     <string name="info_title">Information</string>
@@ -92,6 +97,7 @@
     <!-- Buttons -->
     <string name="settings_button">Settings</string>
     <string name="change_keyboard_button">Change Keyboard</string>
+    <string name="save">Save</string>
     
     <!-- SYM Customization -->
     <string name="sym_customization_title">Customize SYM Keyboard</string>
@@ -127,6 +133,19 @@
     <string name="auto_correct_language_code_hint">Enter a code and name for your custom language (e.g., \"fr\" / \"French\", \"mydict\" / \"My Dictionary\")</string>
     <string name="auto_correct_language_code_required">Language name is required</string>
     <string name="auto_correct_language_already_exists">This language already exists</string>
+    <string name="auto_correct_suggestions_toggle_title">Suggestions while typing</string>
+    <string name="auto_correct_accent_matching_title">Match accented words</string>
+    <string name="auto_correct_auto_replace_title">Auto-replace on space/enter</string>
+    <string name="auto_correct_manage_user_dict_title">Manage user dictionary</string>
+    <string name="experimental_suggestions_title">Experimental suggestions</string>
+    <string name="experimental_suggestions_subtitle">Enable the new dictionary/suggestion engine (beta)</string>
+
+    <!-- User dictionary management -->
+    <string name="user_dict_title">User dictionary</string>
+    <string name="user_dict_add_hint">Add a word</string>
+    <string name="user_dict_add_button">Save word</string>
+    <string name="user_dict_empty_state">No user words saved yet.</string>
+    <string name="user_dict_frequency_label">Uses: %1$d</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_customize_title">Customize SYM Keyboard</string>
@@ -273,6 +292,19 @@
     <string name="unicode_category_misc">Miscellaneous</string>
     <string name="unicode_category_variations">Variations</string>
     
+    <!-- Variation Customization -->
+    <string name="variation_customize_title">Customize Variations</string>
+    <string name="variation_instructions_title">Instructions</string>
+    <string name="variation_instructions_description">Tap on any variation box to select a character. Each letter can have up to 7 variation characters.</string>
+    <string name="variation_picker_title">Select variation for %1$s</string>
+    <string name="variation_picker_clear">Clear (Empty)</string>
+    <string name="variation_reset_to_default">Reset to Default</string>
+    <string name="variation_reset_confirm_title">Reset to Default</string>
+    <string name="variation_reset_confirm_message">Are you sure you want to reset all variations to default? This action cannot be undone.</string>
+    <string name="variation_reset_confirm_button">Reset</string>
+    <string name="static_variation_input_label">Value</string>
+    <string name="static_variation_input_hint">Leave empty and save to remove the slot.</string>
+    
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>
     <string name="sym_tab_characters">Characters</string>
@@ -348,6 +380,7 @@
     <string name="nav_mode_keycode_page_down">PgDn</string>
     <string name="nav_mode_keycode_escape">Esc</string>
     <string name="nav_mode_keycode_tab">Tab</string>
+    <string name="nav_mode_keycode_forward_delete">Del→</string>
     <string name="nav_mode_key_unknown">?</string>
     
     <!-- Tutorial -->
@@ -356,17 +389,17 @@
     <string name="tutorial_next">Next</string>
     <string name="tutorial_finish">Finish</string>
     <string name="tutorial_page_welcome_title">Welcome to Pastiera</string>
-    <string name="tutorial_page_welcome_description">Pastiera is an advanced physical keyboard for Android with support for modifiers, LED indicators, and navigation mode.</string>
+    <string name="tutorial_page_welcome_description">Pastiera is an advanced input method for PKB Android devices with support for Nav Mode, shortcuts, custom keyboard mappings, and more.</string>
     <string name="tutorial_page_enable_title">Enable Pastiera</string>
     <string name="tutorial_page_enable_description">To get started, you need to enable Pastiera as an input method in Android Settings. Tap the button below to open settings.</string>
     <string name="tutorial_page_select_title">Select Pastiera</string>
-    <string name="tutorial_page_select_description">After enabling Pastiera, select it as your default keyboard. Tap the button below to choose the input method.</string>
+    <string name="tutorial_page_select_description">To use Pastiera, select it among the input methods. Pick between the full IME UI with the &quot;Use on-screen keyboard&quot; toggle ON or the minimal &quot;Pastierina&quot; UI with the toggle OFF.</string>
     <string name="tutorial_page_led_title">LED Indicator</string>
-    <string name="tutorial_page_led_description">Pastiera shows 5 LEDs in the status bar that indicate modifier status:\n\n• Shift: blue when active, red when locked\n• SYM: blue for emoji, red for special characters\n• Ctrl: blue when active, red when locked\n• Alt: blue when active, red when locked\n\nGray LEDs indicate the modifier is off.</string>
+    <string name="tutorial_page_led_description">To get the most out of Pastiera, set the Fn key to act as Ctrl from Android system settings. The IME bar shows four LEDs: they turn blue when the modifier is active one-shot and orange when it is locked. The SYM layout LED is blue on the emoji page and orange on the symbols page.</string>
     <string name="tutorial_page_nav_mode_title">Nav Mode</string>
-    <string name="tutorial_page_nav_mode_description">Nav Mode allows you to navigate using letter keys as shortcuts.\n\nTo activate:\n• Press Ctrl twice quickly\n• Letter keys are mapped to navigation functions\n• Press Ctrl again to deactivate\n\nYou can customize the mappings in advanced settings.</string>
+    <string name="tutorial_page_nav_mode_description">Nav Mode lets you navigate the device UI with letter shortcuts such as IJKL or ESDF.\nTo activate:\n• Press Ctrl twice quickly\n• Letter keys become navigation controls\n• Press Ctrl again to exit\nEvery shortcut can be remapped in Advanced Settings.</string>
     <string name="tutorial_page_customization_title">Customization</string>
-    <string name="tutorial_page_customization_description">Pastiera offers many customization options:\n\n• Customizable keyboard layouts\n• Launcher shortcuts\n• Auto-correction\n• Custom mappings for Nav Mode\n\nExplore the settings to find the perfect configuration for you!</string>
+    <string name="tutorial_page_customization_description">Pastiera offers many customization options:\n• Customizable keyboard layouts\n• Launcher shortcuts &amp; Power Shortcuts\n• IME bar can act as a swipe bar to move the cursor\n• Custom mappings for Nav Mode\nExplore the settings to find the perfect configuration for you!</string>
     <string name="tutorial_page_ready_title">Ready to Start</string>
     <string name="tutorial_page_ready_description">You are now ready to use Pastiera! Remember that you can always return to settings to further customize the keyboard to your needs.</string>
     <string name="tutorial_enable_button">Enable Pastiera</string>
@@ -386,4 +419,7 @@
     <string name="restore_completed">Restore completed</string>
     <string name="backup_failed">Backup failed: %1$s</string>
     <string name="restore_failed">Restore failed: %1$s</string>
+    
+    <!-- Units -->
+    <string name="dip_unit">DIP</string>
 </resources>

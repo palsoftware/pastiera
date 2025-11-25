@@ -183,7 +183,8 @@ object KeyMappingLoader {
                 "TAB" to KeyEvent.KEYCODE_TAB,
                 "PAGE_UP" to KeyEvent.KEYCODE_PAGE_UP,
                 "PAGE_DOWN" to KeyEvent.KEYCODE_PAGE_DOWN,
-                "ESCAPE" to KeyEvent.KEYCODE_ESCAPE
+                "ESCAPE" to KeyEvent.KEYCODE_ESCAPE,
+                "FORWARD_DEL" to KeyEvent.KEYCODE_FORWARD_DEL
             )
 
             val keys = mappingsObject.keys()
