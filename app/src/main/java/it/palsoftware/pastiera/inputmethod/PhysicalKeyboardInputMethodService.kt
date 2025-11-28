@@ -978,14 +978,28 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         initializeInputContext(restarting)
         suggestionController.onContextReset()
 
-        if (restarting && isEditable && !state.shouldDisableAutoCapitalize) {
+        // Always reset shift one-shot when entering a field (both restarting and new field)
+        // Then let auto-cap logic decide if it should be enabled
+        if (isEditable) {
+            modifierStateController.consumeShiftOneShot()
+            
+            // Handle input field capitalization flags (CAP_CHARACTERS, CAP_WORDS, CAP_SENTENCES)
+            AutoCapitalizeHelper.handleInputFieldCapitalizationFlags(
+                state = state,
+                inputConnection = currentInputConnection,
+                enableCapsLock = { modifierStateController.capsLockEnabled = true },
+                enableShiftOneShot = { modifierStateController.requestShiftOneShotFromAutoCap() },
+                onUpdateStatusBar = { updateStatusBarText() }
+            )
+            
             AutoCapitalizeHelper.checkAutoCapitalizeOnRestart(
                 this,
                 currentInputConnection,
                 state.shouldDisableAutoCapitalize,
                 enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
                 disableShift = { modifierStateController.consumeShiftOneShot() },
-                onUpdateStatusBar = { updateStatusBarText() }
+                onUpdateStatusBar = { updateStatusBarText() },
+                inputContextState = state
             )
         }
     }
@@ -1000,14 +1014,28 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val isEditable = inputContextState.isEditable
         val state = inputContextState
         
-        if (restarting && isEditable && !state.shouldDisableAutoCapitalize) {
+        // Always reset shift one-shot when entering a field (both restarting and new field)
+        // Then let auto-cap logic decide if it should be enabled
+        if (isEditable) {
+            modifierStateController.consumeShiftOneShot()
+            
+            // Handle input field capitalization flags (CAP_CHARACTERS, CAP_WORDS, CAP_SENTENCES)
+            AutoCapitalizeHelper.handleInputFieldCapitalizationFlags(
+                state = state,
+                inputConnection = currentInputConnection,
+                enableCapsLock = { modifierStateController.capsLockEnabled = true },
+                enableShiftOneShot = { modifierStateController.requestShiftOneShotFromAutoCap() },
+                onUpdateStatusBar = { updateStatusBarText() }
+            )
+            
             AutoCapitalizeHelper.checkAutoCapitalizeOnRestart(
                 this,
                 currentInputConnection,
                 state.shouldDisableAutoCapitalize,
                 enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
                 disableShift = { modifierStateController.consumeShiftOneShot() },
-                onUpdateStatusBar = { updateStatusBarText() }
+                onUpdateStatusBar = { updateStatusBarText() },
+                inputContextState = state
             )
         }
     }
@@ -1090,7 +1118,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             newSelEnd,
             enableShift = { modifierStateController.requestShiftOneShotFromAutoCap() },
             disableShift = { modifierStateController.consumeShiftOneShot() },
-            onUpdateStatusBar = { updateStatusBarText() }
+            onUpdateStatusBar = { updateStatusBarText() },
+            inputContextState = state
         )
     }
 
@@ -1257,7 +1286,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 shouldDisableDoubleSpaceToPeriod = state.shouldDisableDoubleSpaceToPeriod,
                 isAutoCorrectEnabled = isAutoCorrectEnabled,
                 textInputController = textInputController,
-                autoCorrectionManager = autoCorrectionManager
+                autoCorrectionManager = autoCorrectionManager,
+                inputContextState = state,
+                enableShiftOneShot = { modifierStateController.requestShiftOneShotFromAutoCap() }
             ) { updateStatusBarText() }
         ) {
             return true

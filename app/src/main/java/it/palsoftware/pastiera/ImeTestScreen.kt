@@ -23,6 +23,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.viewinterop.AndroidView
+import android.text.InputType
+import android.widget.EditText
+import androidx.compose.ui.graphics.Color as ComposeColor
 
 /**
  * IME Test Screen - Contains all possible Android input field types and IME actions
@@ -130,28 +134,25 @@ fun ImeTestScreen(
                 imeAction = ImeAction.Default
             )
             
-            InputField(
+            InputFieldWithInputType(
                 label = "textCapCharacters (All Caps)",
                 value = textCapCharacters,
                 onValueChange = { textCapCharacters = it },
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Default
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
             )
             
-            InputField(
+            InputFieldWithInputType(
                 label = "textCapWords (Title Case)",
                 value = textCapWords,
                 onValueChange = { textCapWords = it },
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Default
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
             )
             
-            InputField(
+            InputFieldWithInputType(
                 label = "textCapSentences (Sentence Case)",
                 value = textCapSentences,
                 onValueChange = { textCapSentences = it },
-                keyboardType = KeyboardType.Text,
-                imeAction = ImeAction.Default
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             )
             
             InputField(
@@ -468,6 +469,84 @@ private fun InputField(
             maxLines = maxLines,
             singleLine = maxLines == 1
         )
+    }
+}
+
+@Composable
+private fun InputFieldWithInputType(
+    label: String,
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    inputType: Int
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val onSurfaceColor = colorScheme.onSurface
+    val onSurfaceVariantColor = colorScheme.onSurfaceVariant
+    
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = colorScheme.onSurfaceVariant
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.small,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                colorScheme.outline
+            ),
+            color = colorScheme.surface
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    EditText(ctx).apply {
+                        this.inputType = inputType
+                        setText(value.text)
+                        setSelection(value.selection.start, value.selection.end)
+                        setPadding(16, 16, 16, 16)
+                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        setTextColor(android.graphics.Color.argb(
+                            (onSurfaceColor.alpha * 255).toInt(),
+                            (onSurfaceColor.red * 255).toInt(),
+                            (onSurfaceColor.green * 255).toInt(),
+                            (onSurfaceColor.blue * 255).toInt()
+                        ))
+                        setHintTextColor(android.graphics.Color.argb(
+                            (onSurfaceVariantColor.alpha * 255).toInt(),
+                            (onSurfaceVariantColor.red * 255).toInt(),
+                            (onSurfaceVariantColor.green * 255).toInt(),
+                            (onSurfaceVariantColor.blue * 255).toInt()
+                        ))
+                        textSize = 16f
+                        addTextChangedListener(object : android.text.TextWatcher {
+                            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                            override fun afterTextChanged(s: android.text.Editable?) {
+                                val newText = s?.toString() ?: ""
+                                val selectionStart = android.text.Selection.getSelectionStart(s) ?: newText.length
+                                val selectionEnd = android.text.Selection.getSelectionEnd(s) ?: newText.length
+                                onValueChange(TextFieldValue(newText, androidx.compose.ui.text.TextRange(selectionStart, selectionEnd)))
+                            }
+                        })
+                    }
+                },
+                update = { editText ->
+                    if (editText.text.toString() != value.text) {
+                        editText.setText(value.text)
+                        val newSelectionStart = value.selection.start.coerceIn(0, value.text.length)
+                        val newSelectionEnd = value.selection.end.coerceIn(0, value.text.length)
+                        editText.setSelection(newSelectionStart, newSelectionEnd)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            )
+        }
     }
 }
 

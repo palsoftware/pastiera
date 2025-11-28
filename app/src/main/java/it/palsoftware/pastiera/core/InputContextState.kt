@@ -13,6 +13,7 @@ data class InputContextState(
     val isReallyEditable: Boolean,
     val inputClass: Int,
     val inputVariation: Int,
+    val inputType: Int,
     val restrictedReason: RestrictedReason?
 ) {
 
@@ -61,6 +62,27 @@ data class InputContextState(
     val shouldDisableVariations: Boolean
         get() = restrictedReason == RestrictedReason.EMAIL
     
+    /**
+     * Field requires all characters to be capitalized (textCapCharacters flag).
+     * When this is true, caps lock should be enabled automatically.
+     */
+    val requiresCapCharacters: Boolean
+        get() = (inputType and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS) != 0
+    
+    /**
+     * Field requires first letter of each word to be capitalized (textCapWords flag).
+     * When this is true, the first letter after space/punctuation should be capitalized.
+     */
+    val requiresCapWords: Boolean
+        get() = (inputType and InputType.TYPE_TEXT_FLAG_CAP_WORDS) != 0
+    
+    /**
+     * Field requires first letter of each sentence to be capitalized (textCapSentences flag).
+     * When this is true, the first letter after sentence-ending punctuation should be capitalized.
+     */
+    val requiresCapSentences: Boolean
+        get() = (inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES) != 0
+    
     // Legacy flag for backward compatibility (maps to shouldDisableSuggestions)
     // TODO: Gradually replace all usages with specific flags
     val shouldDisableSmartFeatures: Boolean
@@ -93,6 +115,7 @@ data class InputContextState(
             isReallyEditable = false,
             inputClass = InputType.TYPE_NULL,
             inputVariation = 0,
+            inputType = InputType.TYPE_NULL,
             restrictedReason = null
         )
 
@@ -187,6 +210,7 @@ data class InputContextState(
                 isReallyEditable = isReallyEditable,
                 inputClass = inputClass,
                 inputVariation = inputVariation,
+                inputType = inputType,
                 restrictedReason = restrictedReason
             )
 

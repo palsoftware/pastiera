@@ -573,6 +573,8 @@ class InputEventRouter(
         isAutoCorrectEnabled: Boolean,
         textInputController: TextInputController,
         autoCorrectionManager: AutoCorrectionManager,
+        inputContextState: it.palsoftware.pastiera.core.InputContextState?,
+        enableShiftOneShot: (() -> Boolean)?,
         updateStatusBar: () -> Unit
     ): Boolean {
         val isEnterKey = keyCode == KeyEvent.KEYCODE_ENTER
@@ -627,6 +629,20 @@ class InputEventRouter(
             shouldDisableAutoCapitalize,
             onStatusBarUpdate = updateStatusBar
         )
+
+        // Handle field-specific capitalization flags (CAP_WORDS, CAP_SENTENCES) after boundary keys
+        if (inputContextState != null && enableShiftOneShot != null) {
+            val shouldCap = it.palsoftware.pastiera.inputmethod.AutoCapitalizeHelper.shouldCapitalizeAfterBoundary(
+                state = inputContextState,
+                inputConnection = inputConnection,
+                keyCode = keyCode
+            )
+            if (shouldCap) {
+                if (enableShiftOneShot()) {
+                    updateStatusBar()
+                }
+            }
+        }
 
         // For Enter, run autocorrect/auto-cap but do NOT consume/commit a newline.
         // This lets apps with custom Enter handling (e.g., "Enter to send") receive the key,
