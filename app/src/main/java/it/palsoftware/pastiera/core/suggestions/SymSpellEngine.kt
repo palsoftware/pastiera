@@ -25,8 +25,8 @@ class SymSpellEngine(
 ) {
     companion object {
         private const val TAG = "SymSpellEngine"
-        // AOSP dictionary with texting abbreviations (76k words)
-        private const val DICTIONARY_PATH = "dictionaries/en_aosp.fdic"
+        // SymSpell 20k dictionary with texting abbreviations (fast loading)
+        private const val DICTIONARY_PATH = "dictionaries/en_aosp_20k.fdic"
 
         // Static cache - survives IME recreations
         @Volatile
@@ -67,7 +67,7 @@ class SymSpellEngine(
                 checker.dictionary.loadFdicFile(dictBytes)
 
                 val loadTime = System.currentTimeMillis() - startTime
-                Log.d(TAG, "Dictionary loaded in ${loadTime}ms (76k words)")
+                Log.d(TAG, "Dictionary loaded in ${loadTime}ms (20k words)")
 
                 cachedSpellChecker = checker
                 isLoaded = true
