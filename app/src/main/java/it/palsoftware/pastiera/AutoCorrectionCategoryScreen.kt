@@ -2,6 +2,8 @@ package it.palsoftware.pastiera
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -555,58 +557,70 @@ private fun UserDictionaryScreen(
             }
         }
     ) { paddingValues ->
-        Column(
+        val sortedEntries = remember(entries) {
+            entries.values.sortedBy { it.word.lowercase() }
+        }
+
+        LazyColumn(
             modifier = modifier
-                .fillMaxWidth()
-                .padding(paddingValues)
-                .padding(16.dp),
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Word input
-            OutlinedTextField(
-                value = newWord,
-                onValueChange = { newWord = it },
-                label = { Text(stringResource(R.string.user_dict_add_hint)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Replacement input (optional)
-            OutlinedTextField(
-                value = newReplacement,
-                onValueChange = { newReplacement = it },
-                label = { Text(stringResource(R.string.user_dict_replacement_hint)) },
-                placeholder = { Text(stringResource(R.string.user_dict_replacement_placeholder)) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Button(
-                onClick = {
-                    val trimmedWord = newWord.trim()
-                    val trimmedReplacement = newReplacement.trim().takeIf { it.isNotEmpty() }
-                    if (trimmedWord.isNotEmpty()) {
-                        personalDictionary.addEntry(trimmedWord, trimmedReplacement)
-                        newWord = ""
-                        newReplacement = ""
-                    }
-                },
-                enabled = newWord.isNotBlank()
-            ) {
-                Icon(imageVector = Icons.Filled.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.user_dict_add_button))
+            item {
+                OutlinedTextField(
+                    value = newWord,
+                    onValueChange = { newWord = it },
+                    label = { Text(stringResource(R.string.user_dict_add_hint)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
-            if (entries.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.user_dict_empty_state),
-                    style = MaterialTheme.typography.bodyMedium
+            // Replacement input (optional)
+            item {
+                OutlinedTextField(
+                    value = newReplacement,
+                    onValueChange = { newReplacement = it },
+                    label = { Text(stringResource(R.string.user_dict_replacement_hint)) },
+                    placeholder = { Text(stringResource(R.string.user_dict_replacement_placeholder)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                    modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            item {
+                Button(
+                    onClick = {
+                        val trimmedWord = newWord.trim()
+                        val trimmedReplacement = newReplacement.trim().takeIf { it.isNotEmpty() }
+                        if (trimmedWord.isNotEmpty()) {
+                            personalDictionary.addEntry(trimmedWord, trimmedReplacement)
+                            newWord = ""
+                            newReplacement = ""
+                        }
+                    },
+                    enabled = newWord.isNotBlank()
+                ) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.user_dict_add_button))
+                }
+            }
+
+            if (sortedEntries.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.user_dict_empty_state),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             } else {
-                entries.values.sortedBy { it.word.lowercase() }.forEach { entry ->
+                items(sortedEntries, key = { it.word.lowercase() }) { entry ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         tonalElevation = 1.dp

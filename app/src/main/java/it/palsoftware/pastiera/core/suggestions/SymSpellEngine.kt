@@ -25,8 +25,8 @@ class SymSpellEngine(
 ) {
     companion object {
         private const val TAG = "SymSpellEngine"
-        // SymSpell 20k dictionary with texting abbreviations (fast loading)
-        private const val DICTIONARY_PATH = "dictionaries/en_aosp_20k.fdic"
+        // SymSpell 30k dictionary (fast loading, ~130KB)
+        private const val DICTIONARY_PATH = "dictionaries/en_30k.fdic"
 
         // Static cache - survives IME recreations
         @Volatile

@@ -102,7 +102,11 @@ class PersonalDictionary(context: Context) {
         val entriesString = prefs.getString(KEY_ENTRIES, "") ?: ""
         if (entriesString.isEmpty()) {
             // Migrate from old format if exists
-            return migrateOldFormat()
+            val migrated = migrateOldFormat()
+            if (migrated.isNotEmpty()) return migrated
+
+            // First run: seed with default abbreviations
+            return seedDefaultAbbreviations()
         }
 
         return buildMap {
@@ -115,6 +119,45 @@ class PersonalDictionary(context: Context) {
                 }
             }
         }
+    }
+
+    /**
+     * Seeds the personal dictionary with common abbreviations on first run.
+     * These abbreviations will not be autocorrected to other words.
+     */
+    private fun seedDefaultAbbreviations(): Map<String, PersonalEntry> {
+        val abbreviations = listOf(
+            // Common internet/texting abbreviations
+            "lol", "lmao", "rofl", "omg", "wtf", "wth",
+            "idk", "idc",
+            "btw", "fyi", "imo", "imho", "tbh", "ngl", "smh",
+            "brb", "bbl", "gtg", "g2g", "ttyl",
+            "asap", "eta", "rn", "atm",
+            "irl", "iirc", "afaik",
+            "dm", "pm", "hmu",
+            "ty", "thx", "np", "yw",
+            "jk", "fr",
+            "aka", "etc", "vs",
+            "ofc",
+            "pls", "plz", "bc", "tho", "thru",
+            "bf", "gf", "bff",
+            "omw",
+            "fwiw", "icymi",
+            "tldr",
+            "gg", "afk",
+            "nvm"
+        )
+
+        val entries = buildMap {
+            abbreviations.forEach { abbr ->
+                put(abbr.lowercase(), PersonalEntry(abbr, null))
+            }
+        }
+
+        // Save the seeded entries
+        saveEntries(entries)
+
+        return entries
     }
 
     private fun migrateOldFormat(): Map<String, PersonalEntry> {
