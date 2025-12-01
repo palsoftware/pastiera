@@ -7,6 +7,8 @@ import android.util.Log
 import android.os.Looper
 import java.text.Normalizer
 import java.util.Locale
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 
 /**
  * Loads and indexes lightweight dictionaries from assets and merges them with the user dictionary.
@@ -38,12 +40,36 @@ class DictionaryRepository(
         synchronized(this) {
             if (isReady || loadStarted) return
             loadStarted = true
-            val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
-            val userEntries = userDictionaryStore.loadUserEntries(context)
-            if (debugLogging) {
-                Log.d(tag, "loadIfNeeded main=${mainEntries.size} user=${userEntries.size}")
+            
+            val startTime = System.currentTimeMillis()
+            
+            // Try to load serialized format first (much faster)
+            val serializedPath = "common/dictionaries_serialized/${baseLocale.language}_base.dict"
+            val loadedSerialized = loadSerializedFromAssets(serializedPath)
+            
+            if (loadedSerialized) {
+                // Serialized format already populated the indices
+                val loadTime = System.currentTimeMillis() - startTime
+                Log.i(tag, "✓ Loaded SERIALIZED dictionary (.dict) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
+            } else {
+                // Fallback to JSON format
+                val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
+                if (debugLogging) {
+                    Log.d(tag, "Loaded JSON dictionary: ${mainEntries.size} entries")
+                }
+                if (mainEntries.isNotEmpty()) {
+                    index(mainEntries)
+                }
+                val loadTime = System.currentTimeMillis() - startTime
+                Log.i(tag, "✗ Loaded JSON dictionary (fallback) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
             }
-            index(mainEntries + userEntries)
+            
+            // Always add user entries
+            val userEntries = userDictionaryStore.loadUserEntries(context)
+            if (userEntries.isNotEmpty()) {
+                index(userEntries, keepExisting = true)
+            }
+            
             isReady = true
         }
     }
@@ -118,6 +144,39 @@ class DictionaryRepository(
         return normalizedIndex.values.flatten()
     }
 
+    /**
+     * Attempts to load dictionary from serialized format (.dict file).
+     * Returns true if successful, false otherwise (fallback to JSON).
+     */
+    private fun loadSerializedFromAssets(path: String): Boolean {
+        return try {
+            val serializedString = assets.open(path).bufferedReader().use { it.readText() }
+            val json = Json {
+                ignoreUnknownKeys = true
+            }
+            val index = json.decodeFromString<DictionaryIndex>(serializedString)
+            
+            // Populate indices directly from serialized data
+            index.normalizedIndex.forEach { (normalized, entries) ->
+                normalizedIndex[normalized] = entries.map { it.toDictionaryEntry() }.toMutableList()
+            }
+            
+            index.prefixCache.forEach { (prefix, entries) ->
+                prefixCache[prefix] = entries.map { it.toDictionaryEntry() }.toMutableList()
+            }
+            
+            true
+        } catch (e: Exception) {
+            if (debugLogging) {
+                Log.d(tag, "Serialized dictionary not found or invalid: $path, falling back to JSON", e)
+            }
+            false
+        }
+    }
+
+    /**
+     * Loads dictionary from JSON format (fallback).
+     */
     private fun loadFromAssets(path: String): List<DictionaryEntry> {
         return try {
             val jsonString = assets.open(path).bufferedReader().use { it.readText() }
@@ -130,8 +189,8 @@ class DictionaryRepository(
                     add(DictionaryEntry(word, freq, SuggestionSource.MAIN))
                 }
             }
-        } catch (_: Exception) {
-            if (debugLogging) Log.e(tag, "Failed to load dictionary from assets: $path")
+        } catch (e: Exception) {
+            if (debugLogging) Log.e(tag, "Failed to load dictionary from assets: $path", e)
             emptyList()
         }
     }
