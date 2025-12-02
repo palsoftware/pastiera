@@ -12,7 +12,7 @@ import android.view.textservice.TextInfo
 import android.view.textservice.TextServicesManager
 import com.darkrockstudios.symspellkt.api.SpellChecker
 import com.darkrockstudios.symspellkt.common.Verbosity
-import com.darkrockstudios.symspellkt.fdic.loadFdicFile
+import com.darkrockstudios.symspell.fdic.loadFdicFile
 import com.darkrockstudios.symspellkt.impl.SymSpell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -237,6 +237,27 @@ class SymSpellEngine(
     }
 
     /**
+     * Check if a substitution involves truly adjacent keys (directly touching).
+     * Adjacent keys have distance <= 1.1 (same row or diagonal neighbors).
+     * Used to determine if substitute should beat insert in ranking.
+     */
+    private fun isAdjacentSubstitution(input: String, suggestion: String): Boolean {
+        if (input.length != suggestion.length) return false // Not a substitution
+
+        for (i in input.indices) {
+            if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
+                val dist = keyboardDistance(input[i], suggestion[i])
+                // Only truly adjacent keys (distance ~1.0) count
+                // h-m is 1.41 which is NOT adjacent, h-n is 1.0 which IS adjacent
+                if (dist == null || dist > 1.15) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    /**
      * Get spelling suggestions for a word.
      * Priority: Insert > Substitute > Delete (only if duplicates exist)
      *
@@ -302,12 +323,24 @@ class SymSpellEngine(
                 null
             }
 
-            // Priority: distance 1 options first (insert, substitute, delete), sorted by frequency
-            val dist1Options = listOfNotNull(dist1Insert, dist1Substitute, dist1Delete)
-                .sortedByDescending { it.frequency }
+            // Priority: distance 1 options first, ordered by edit type
+            // Insert first UNLESS substitute is truly adjacent keys (distance <= 1.15)
+            // "hight" -> prefer "height" (insert) over "might" (h-m not adjacent at 1.41)
+            // But "thr" -> could prefer "the" (substitute r->e, adjacent) if available
+            val substituteIsAdjacent = dist1Substitute?.let {
+                isAdjacentSubstitution(normalizedWord, it.term)
+            } ?: false
+
+            val dist1Options = if (substituteIsAdjacent && dist1Substitute != null) {
+                // Substitute involves adjacent keys - could be either, use frequency
+                listOfNotNull(dist1Insert, dist1Substitute, dist1Delete)
+                    .sortedByDescending { it.frequency }
+            } else {
+                // Substitute NOT adjacent - prefer insert over substitute
+                listOfNotNull(dist1Insert, dist1Substitute, dist1Delete)
+            }
             val dist2Options = listOfNotNull(bestInsert, bestSubstitute, bestDelete)
                 .filter { it !in dist1Options }
-                .sortedByDescending { it.frequency }
 
             val suggestions = (dist1Options + dist2Options)
                 .take(maxSuggestions)
