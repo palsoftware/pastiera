@@ -103,7 +103,26 @@ object KeyboardProximity {
     }
 
     /**
+     * Check if a word differs by exactly one character substitution.
+     * Returns the position of difference, or -1 if not a single substitution.
+     */
+    private fun getSingleSubstitutionPosition(typed: String, candidate: String): Int {
+        if (typed.length != candidate.length) return -1
+
+        var diffPos = -1
+        for (i in typed.indices) {
+            if (typed[i].lowercaseChar() != candidate[i].lowercaseChar()) {
+                if (diffPos != -1) return -1 // More than one difference
+                diffPos = i
+            }
+        }
+        return diffPos
+    }
+
+    /**
      * Re-rank suggestions based on keyboard proximity.
+     * Only applies proximity boost for single-character substitutions of adjacent keys.
+     * Other typos (transpositions, insertions, deletions) use normal SymSpell ranking.
      *
      * @param typed The word the user typed
      * @param suggestions List of candidate words with their metadata
@@ -115,18 +134,37 @@ object KeyboardProximity {
     ): List<SuggestionResult> {
         if (suggestions.isEmpty()) return suggestions
 
-        // Calculate proximity scores for each suggestion
+        val typedLower = typed.lowercase()
+
+        // Calculate scores for each suggestion
         val scored = suggestions.map { suggestion ->
-            val proximityDist = proximityScore(typed, suggestion.candidate)
+            val candidateLower = suggestion.candidate.lowercase()
 
-            // Combined score: proximity + frequency weight
-            // Lower proximity distance is better, higher frequency is better
-            // Normalize frequency to 0-1 range (assuming max freq ~1M)
+            // Check if this is a single substitution typo
+            val subPos = getSingleSubstitutionPosition(typedLower, candidateLower)
+
+            var finalScore = suggestion.distance.toDouble()
+
+            // Only apply keyboard proximity for single substitutions
+            if (subPos >= 0 && suggestion.distance == 1) {
+                val typedChar = typedLower[subPos]
+                val correctChar = candidateLower[subPos]
+                val keyDist = keyDistance(typedChar, correctChar)
+
+                // If keys are adjacent (distance < 1.5), boost this suggestion
+                if (keyDist < 1.5) {
+                    // Reduce effective distance to prioritize this suggestion
+                    finalScore = 0.3
+                } else if (keyDist < 2.5) {
+                    // Near keys - moderate boost
+                    finalScore = 0.5
+                }
+                // Far keys or non-adjacent - keep original distance
+            }
+
+            // Apply frequency bonus
             val freqScore = (suggestion.score.toDouble() / 1_000_000.0).coerceIn(0.0, 1.0)
-
-            // Final score: proximity distance - frequency bonus
-            // Lower final score = better suggestion
-            val finalScore = proximityDist - (freqScore * 0.5)
+            finalScore = finalScore - (freqScore * 0.3)
 
             Pair(suggestion, finalScore)
         }
