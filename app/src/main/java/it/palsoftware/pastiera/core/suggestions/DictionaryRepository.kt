@@ -98,18 +98,35 @@ class DictionaryRepository(
         // Refresh defaults and user entries - this works even if base dictionary is still loading
         // because index() with keepExisting=true will merge with existing entries
         val defaultUserEntries = loadUserDefaults()
+        val userEntries = userDictionaryStore.loadUserEntries(context)
+        // Remove stale USER entries no longer present, then re-add current defaults/users
+        purgeUserEntries(userEntries)
         if (defaultUserEntries.isNotEmpty()) {
             index(defaultUserEntries, keepExisting = true)
         }
-
-        val userEntries = userDictionaryStore.loadUserEntries(context)
         index(userEntries, keepExisting = true)
-        addToSymSpell(defaultUserEntries + userEntries)
+        // Rebuild SymSpell to drop removed entries
+        symSpellBuilt = false
+        buildSymSpell()
     }
 
     fun addUserEntry(word: String) {
+        addUserEntryQuick(word)
+    }
+
+    /**
+     * Lightweight add: updates persistent store, then merges a single USER entry
+     * into the in-memory indices and SymSpell without rebuilding everything.
+     */
+    fun addUserEntryQuick(word: String) {
         userDictionaryStore.addWord(context, word)
-        refreshUserEntries()
+        // Find latest frequency from snapshot; default to 1
+        val freq = userDictionaryStore.getSnapshot()
+            .firstOrNull { it.word.equals(word, ignoreCase = true) }
+            ?.frequency ?: 1
+        val entry = DictionaryEntry(word, freq, SuggestionSource.USER)
+        index(listOf(entry), keepExisting = true)
+        addToSymSpell(listOf(entry))
     }
 
     fun removeUserEntry(word: String) {
@@ -362,6 +379,34 @@ class DictionaryRepository(
         if (debugLogging) {
             Log.d(tag, "index built: normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
         }
+    }
+
+    private fun purgeUserEntries(currentUserEntries: List<DictionaryEntry>) {
+        if (!isReady && !loadStarted) return
+        val keepSet = currentUserEntries.map { it.word.lowercase(baseLocale) }.toSet()
+        // Remove USER entries not in keepSet
+        normalizedIndex.forEach { (_, list) ->
+            val iterator = list.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (entry.source == SuggestionSource.USER &&
+                    !keepSet.contains(entry.word.lowercase(baseLocale))
+                ) {
+                    iterator.remove()
+                }
+            }
+        }
+        // Rebuild prefixCache from current normalizedIndex
+        prefixCache.clear()
+        normalizedIndex.forEach { (normalized, list) ->
+            val maxPrefixLength = normalized.length.coerceAtMost(cachePrefixLength)
+            for (length in 1..maxPrefixLength) {
+                val prefix = normalized.take(length)
+                val prefixList = prefixCache.getOrPut(prefix) { mutableListOf() }
+                prefixList.addAll(list)
+            }
+        }
+        prefixCache.values.forEach { it.sortByDescending { entry -> entry.frequency } }
     }
 
     private fun buildSymSpell() {

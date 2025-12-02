@@ -77,6 +77,7 @@ class SuggestionController(
     private val cursorHandler = Handler(Looper.getMainLooper())
     private var cursorRunnable: Runnable? = null
     private val cursorDebounceMs = 120L
+    private var pendingAddUserWord: String? = null
 
     var suggestionsListener: ((List<SuggestionResult>) -> Unit)? = onSuggestionsUpdated
 
@@ -91,6 +92,7 @@ class SuggestionController(
         // Clear rejected words when user types a new letter (allows re-correction)
         if (text.isNotEmpty() && text.any { it.isLetterOrDigit() }) {
             autoReplaceController.clearRejectedWords()
+            pendingAddUserWord = null
         }
         
         tracker.onCharacterCommitted(text)
@@ -130,8 +132,9 @@ class SuggestionController(
         ensureDictionaryLoaded()
         val result = autoReplaceController.handleBoundary(keyCode, event, tracker, inputConnection)
         if (result.replaced) {
-            dictionaryRepository.refreshUserEntries()
             NotificationHelper.triggerHapticFeedback(appContext)
+        } else {
+            pendingAddUserWord = null
         }
         suggestionsListener?.invoke(emptyList())
         return result
@@ -167,6 +170,7 @@ class SuggestionController(
     fun onContextReset() {
         if (!isEnabled()) return
         tracker.onContextChanged()
+        pendingAddUserWord = null
         suggestionsListener?.invoke(emptyList())
     }
 
@@ -177,7 +181,7 @@ class SuggestionController(
 
     fun addUserWord(word: String) {
         if (!isEnabled()) return
-        dictionaryRepository.addUserEntry(word)
+        dictionaryRepository.addUserEntryQuick(word)
     }
 
     fun removeUserWord(word: String) {
@@ -206,7 +210,16 @@ class SuggestionController(
 
     fun handleBackspaceUndo(keyCode: Int, inputConnection: InputConnection?): Boolean {
         if (!isEnabled()) return false
-        return autoReplaceController.handleBackspaceUndo(keyCode, inputConnection)
+        val undone = autoReplaceController.handleBackspaceUndo(keyCode, inputConnection)
+        if (undone) {
+            pendingAddUserWord = autoReplaceController.consumeLastUndoOriginalWord()
+        }
+        return undone
+    }
+
+    fun pendingAddWord(): String? = pendingAddUserWord
+    fun clearPendingAddWord() {
+        pendingAddUserWord = null
     }
 
     private fun extractWordAtCursor(inputConnection: InputConnection?): String? {

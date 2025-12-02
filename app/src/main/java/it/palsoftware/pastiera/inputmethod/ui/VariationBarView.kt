@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -50,6 +51,7 @@ class VariationBarView(
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
     var onCursorMovedListener: (() -> Unit)? = null
     var onSpeechRecognitionRequested: (() -> Unit)? = null
+    var onAddUserWord: ((String) -> Unit)? = null
     
     /**
      * Sets the microphone button active state (red pulsing background) during speech recognition.
@@ -465,8 +467,10 @@ class VariationBarView(
         lastInputConnectionUsed = inputConnection
         lastIsStaticContent = isStaticContent
 
+        val addCandidate = snapshot.addWordCandidate
         for (variation in limitedVariations) {
-            val button = createVariationButton(variation, inputConnection, buttonWidth, maxButtonWidth, isStaticContent)
+            val isAddCandidate = addCandidate != null && variation.equals(addCandidate, ignoreCase = true)
+            val button = createVariationButton(variation, inputConnection, buttonWidth, maxButtonWidth, isStaticContent, isAddCandidate)
             variationButtons.add(button)
             variationsRow.addView(button)
         }
@@ -855,7 +859,8 @@ class VariationBarView(
         inputConnection: android.view.inputmethod.InputConnection?,
         buttonWidth: Int,
         maxButtonWidth: Int,
-        isStatic: Boolean
+        isStatic: Boolean,
+        isAddCandidate: Boolean
     ): TextView {
         val dp2 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -913,6 +918,12 @@ class VariationBarView(
             gravity = Gravity.CENTER
             maxLines = 1
             setPadding(0, 0, 0, 0) // Testing with 0 padding
+            if (isAddCandidate) {
+                val addDrawable = ContextCompat.getDrawable(context, android.R.drawable.ic_input_add)?.mutate()
+                addDrawable?.setTint(Color.YELLOW)
+                setCompoundDrawablesWithIntrinsicBounds(null, null, addDrawable, null)
+                compoundDrawablePadding = dp4
+            }
             background = stateListDrawable
             layoutParams = LinearLayout.LayoutParams(calculatedWidth, buttonHeight).apply {
                 marginEnd = dp3
@@ -920,7 +931,11 @@ class VariationBarView(
             isClickable = true
             isFocusable = true
             setOnClickListener(
-                if (isStatic) {
+                if (isAddCandidate) {
+                    View.OnClickListener {
+                        onAddUserWord?.invoke(variation)
+                    }
+                } else if (isStatic) {
                     VariationButtonHandler.createStaticVariationClickListener(
                         variation,
                         inputConnection,

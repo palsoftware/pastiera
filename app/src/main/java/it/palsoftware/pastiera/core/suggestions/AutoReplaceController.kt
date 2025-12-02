@@ -19,6 +19,7 @@ class AutoReplaceController(
         val replacedWord: String
     )
     private var lastReplacement: LastReplacement? = null
+    private var lastUndoOriginalWord: String? = null
     
     // Track rejected words to avoid auto-correcting them again
     private val rejectedWords = mutableSetOf<String>()
@@ -192,6 +193,7 @@ class AutoReplaceController(
         
         // Mark word as rejected so it won't be auto-corrected again
         rejectedWords.add(replacement.originalWord.lowercase())
+        lastUndoOriginalWord = replacement.originalWord
         
         // Clear last replacement after undo
         lastReplacement = null
@@ -208,5 +210,11 @@ class AutoReplaceController(
 
     private fun applyCasing(candidate: String, original: String): String {
         return CasingHelper.applyCasing(candidate, original, forceLeadingCapital = false)
+    }
+
+    fun consumeLastUndoOriginalWord(): String? {
+        val word = lastUndoOriginalWord
+        lastUndoOriginalWord = null
+        return word
     }
 }

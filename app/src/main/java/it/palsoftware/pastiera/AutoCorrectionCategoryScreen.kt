@@ -512,6 +512,10 @@ private sealed class AutoCorrectionDestination {
     object UserDictionary : AutoCorrectionDestination()
 }
 
+private enum class UserDictSource { DEFAULT, USER }
+
+private data class UserDictItem(val word: String, val source: UserDictSource)
+
 @Composable
 private fun UserDictionaryScreen(
     modifier: Modifier = Modifier,
@@ -519,18 +523,27 @@ private fun UserDictionaryScreen(
 ) {
     val context = LocalContext.current
     val defaultStore = remember(context) { DefaultUserDefaultsStore(context) }
-    var entries by remember { mutableStateOf(defaultStore.loadEntries()) }
+    val userStore = remember { it.palsoftware.pastiera.core.suggestions.UserDictionaryStore() }
+    var entries by remember { mutableStateOf(emptyList<UserDictItem>()) }
     var showAddDialog by remember { mutableStateOf(false) }
     var newWord by remember { mutableStateOf("") }
 
     fun refreshEntries() {
-        entries = defaultStore.loadEntries()
+        // Ensure cache is populated from persistent storage before snapshots/removals.
+        userStore.loadUserEntries(context)
+        val defaults = defaultStore.loadEntries().map { UserDictItem(it.word, UserDictSource.DEFAULT) }
+        val users = userStore.getSnapshot().map { it.word }.map { UserDictItem(it, UserDictSource.USER) }
+        entries = (defaults + users).sortedBy { it.word.lowercase() }
     }
-    
+
+    LaunchedEffect(Unit) {
+        refreshEntries()
+    }
+
     fun addWord(word: String) {
         val trimmed = word.trim()
         if (trimmed.isNotEmpty()) {
-            defaultStore.addOrBump(trimmed)
+            userStore.addWord(context, trimmed)
             refreshEntries()
             // Notify IME service to refresh user dictionary
             val intent = Intent("it.palsoftware.pastiera.ACTION_USER_DICTIONARY_UPDATED").apply {
@@ -609,7 +622,10 @@ private fun UserDictionaryScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             IconButton(onClick = {
-                                defaultStore.remove(entry.word)
+                                when (entry.source) {
+                                    UserDictSource.DEFAULT -> defaultStore.remove(entry.word)
+                                    UserDictSource.USER -> userStore.removeWord(context, entry.word)
+                                }
                                 refreshEntries()
                                 // Notify IME service to refresh user dictionary
                                 val intent = Intent("it.palsoftware.pastiera.ACTION_USER_DICTIONARY_UPDATED").apply {

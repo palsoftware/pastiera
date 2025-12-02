@@ -64,6 +64,12 @@ class StatusBarController(
             field = value
             variationBarView?.onSpeechRecognitionRequested = value
         }
+
+    var onAddUserWord: ((String) -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onAddUserWord = value
+        }
     
     // Callback for speech recognition state changes (active/inactive)
     var onSpeechRecognitionStateChanged: ((Boolean) -> Unit)? = null
@@ -118,6 +124,7 @@ class StatusBarController(
         val symPage: Int, // 0=disattivato, 1=pagina1 emoji, 2=pagina2 caratteri
         val variations: List<String> = emptyList(),
         val suggestions: List<String> = emptyList(),
+        val addWordCandidate: String? = null,
         val lastInsertedChar: Char? = null,
         // Granular smart features flags
         val shouldDisableSuggestions: Boolean = false,
@@ -956,7 +963,9 @@ class StatusBarController(
             showFullBar,
             inputConnection,
             onVariationSelectedListener,
-            snapshot.shouldDisableSuggestions
+            snapshot.shouldDisableSuggestions,
+            snapshot.addWordCandidate,
+            onAddUserWord
         )
         
         if (snapshot.symPage > 0 && symMappings != null) {
@@ -1004,7 +1013,7 @@ class StatusBarController(
                     isClickable = true
                 }
                 val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
-                    snapshot.copy(suggestions = emptyList())
+                    snapshot.copy(suggestions = emptyList(), addWordCandidate = null)
                 } else snapshot
                 variationsBar?.showVariations(snapshotForVariations, inputConnection)
             }
@@ -1018,7 +1027,7 @@ class StatusBarController(
                 isClickable = true
             }
             val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
-                snapshot.copy(suggestions = emptyList())
+                snapshot.copy(suggestions = emptyList(), addWordCandidate = null)
             } else snapshot
             variationsBar?.showVariations(snapshotForVariations, inputConnection)
             symShown = false

@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import it.palsoftware.pastiera.inputmethod.suggestions.SuggestionButtonHandler
 import it.palsoftware.pastiera.inputmethod.VariationButtonHandler
 
@@ -43,7 +44,9 @@ class FullSuggestionsBar(private val context: Context) {
         shouldShow: Boolean,
         inputConnection: android.view.inputmethod.InputConnection?,
         listener: VariationButtonHandler.OnVariationSelectedListener?,
-        shouldDisableSuggestions: Boolean
+        shouldDisableSuggestions: Boolean,
+        addWordCandidate: String?,
+        onAddUserWord: ((String) -> Unit)?
     ) {
         val bar = container ?: return
         if (!shouldShow) {
@@ -59,7 +62,7 @@ class FullSuggestionsBar(private val context: Context) {
             return
         }
 
-        renderSlots(bar, slots, inputConnection, listener, shouldDisableSuggestions)
+        renderSlots(bar, slots, inputConnection, listener, shouldDisableSuggestions, addWordCandidate, onAddUserWord)
         lastSlots = slots
     }
 
@@ -68,7 +71,9 @@ class FullSuggestionsBar(private val context: Context) {
         slots: List<String?>,
         inputConnection: android.view.inputmethod.InputConnection?,
         listener: VariationButtonHandler.OnVariationSelectedListener?,
-        shouldDisableSuggestions: Boolean
+        shouldDisableSuggestions: Boolean,
+        addWordCandidate: String?,
+        onAddUserWord: ((String) -> Unit)?
     ) {
         bar.removeAllViews()
         bar.visibility = View.VISIBLE
@@ -103,14 +108,25 @@ class FullSuggestionsBar(private val context: Context) {
                 isClickable = suggestion != null
                 isFocusable = suggestion != null
                 if (suggestion != null) {
-                    setOnClickListener(
-                        SuggestionButtonHandler.createSuggestionClickListener(
-                            suggestion,
-                            inputConnection,
-                            listener,
-                            shouldDisableSuggestions
+                    if (addWordCandidate != null && suggestion.equals(addWordCandidate, ignoreCase = true)) {
+                        val addDrawable = androidx.core.content.ContextCompat.getDrawable(context, android.R.drawable.ic_input_add)?.mutate()
+                        addDrawable?.setTint(Color.YELLOW)
+                        addDrawable?.setBounds(0, 0, dpToPx(18f), dpToPx(18f))
+                        setCompoundDrawables(null, null, addDrawable, null)
+                        compoundDrawablePadding = dpToPx(6f)
+                        setOnClickListener {
+                            onAddUserWord?.invoke(suggestion)
+                        }
+                    } else {
+                        setOnClickListener(
+                            SuggestionButtonHandler.createSuggestionClickListener(
+                                suggestion,
+                                inputConnection,
+                                listener,
+                                shouldDisableSuggestions
+                            )
                         )
-                    )
+                    }
                 }
             }
             bar.addView(button)

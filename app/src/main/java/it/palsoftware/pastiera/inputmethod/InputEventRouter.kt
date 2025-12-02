@@ -609,7 +609,7 @@ class InputEventRouter(
             if (sc != null) {
                 val undoHandled = sc.handleBackspaceUndo(keyCode, inputConnection)
                 if (undoHandled) {
-                    sc.onContextReset()
+                    updateStatusBar()
                     return true
                 }
             }

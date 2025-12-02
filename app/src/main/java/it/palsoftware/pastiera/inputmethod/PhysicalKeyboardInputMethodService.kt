@@ -703,6 +703,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         suggestionController.preloadDictionary()
 
         candidatesBarController = CandidatesBarController(this)
+        candidatesBarController.onAddUserWord = { word ->
+            suggestionController.addUserWord(word)
+            suggestionController.clearPendingAddWord()
+            updateStatusBarText()
+        }
 
         // Register listener for variation selection (both controllers)
         val variationListener = object : VariationButtonHandler.OnVariationSelectedListener {
@@ -1050,6 +1055,12 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         val modifierSnapshot = modifierStateController.snapshot()
         val state = inputContextState
+        val addWordCandidate = suggestionController.pendingAddWord()
+        val suggestionsEnabled = SettingsManager.isExperimentalSuggestionsEnabled(this) && SettingsManager.getSuggestionsEnabled(this)
+        val baseSuggestions = if (suggestionsEnabled) latestSuggestions else emptyList()
+        val suggestionsWithAdd = if (addWordCandidate != null) {
+            listOf(addWordCandidate)
+        } else baseSuggestions
         val snapshot = StatusBarController.StatusSnapshot(
             capsLockEnabled = modifierSnapshot.capsLockEnabled,
             shiftPhysicallyPressed = modifierSnapshot.shiftPhysicallyPressed,
@@ -1063,7 +1074,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             altOneShot = modifierSnapshot.altOneShot,
             symPage = symPage,
             variations = variationSnapshot.variations,
-            suggestions = if (SettingsManager.isExperimentalSuggestionsEnabled(this) && SettingsManager.getSuggestionsEnabled(this)) latestSuggestions else emptyList(),
+            suggestions = suggestionsWithAdd,
+            addWordCandidate = addWordCandidate,
             lastInsertedChar = variationSnapshot.lastInsertedChar,
             // Granular smart features flags
             shouldDisableSuggestions = state.shouldDisableSuggestions,

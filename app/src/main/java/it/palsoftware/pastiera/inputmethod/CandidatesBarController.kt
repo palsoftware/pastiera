@@ -36,6 +36,13 @@ class CandidatesBarController(
             candidatesStatusBar.onSpeechRecognitionRequested = value
         }
 
+    var onAddUserWord: ((String) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onAddUserWord = value
+            candidatesStatusBar.onAddUserWord = value
+        }
+
     fun getInputView(emojiMapText: String = ""): LinearLayout {
         return inputStatusBar.getOrCreateLayout(emojiMapText)
     }
@@ -78,4 +85,3 @@ class CandidatesBarController(
         candidatesStatusBar.update(snapshot, emojiMapText, inputConnection, symMappings)
     }
 }
-
