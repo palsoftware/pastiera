@@ -2,6 +2,8 @@ package it.palsoftware.pastiera.core.suggestions
 
 import android.content.Context
 import android.content.res.AssetManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.textservice.SentenceSuggestionsInfo
 import android.view.textservice.SpellCheckerSession
@@ -103,32 +105,44 @@ class SymSpellEngine(
         }
     }
 
+    // Main thread handler for spell checker operations
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     /**
      * Initialize Android's native spell checker session.
-     * Must be called on main thread or use Handler.
+     * Must be called on main thread.
      */
     private fun initNativeSpellChecker() {
         if (nativeSpellCheckerSession != null || textServicesManager == null) return
 
-        try {
-            // Create a dummy listener since we'll use synchronous calls
-            val listener = object : SpellCheckerSession.SpellCheckerSessionListener {
-                override fun onGetSuggestions(results: Array<out SuggestionsInfo>?) {}
-                override fun onGetSentenceSuggestions(results: Array<out SentenceSuggestionsInfo>?) {}
-            }
+        // Must run on main thread
+        val initRunnable = Runnable {
+            try {
+                // Create a dummy listener since we'll use synchronous calls
+                val listener = object : SpellCheckerSession.SpellCheckerSessionListener {
+                    override fun onGetSuggestions(results: Array<out SuggestionsInfo>?) {}
+                    override fun onGetSentenceSuggestions(results: Array<out SentenceSuggestionsInfo>?) {}
+                }
 
-            nativeSpellCheckerSession = textServicesManager.newSpellCheckerSession(
-                null, // Use default locale
-                Locale.getDefault(),
-                listener,
-                true // Referencing TextInfos for synchronous calls
-            )
+                nativeSpellCheckerSession = textServicesManager.newSpellCheckerSession(
+                    null, // Use default locale
+                    Locale.getDefault(),
+                    listener,
+                    true // Referencing TextInfos for synchronous calls
+                )
 
-            if (debugLogging) {
-                Log.d(TAG, "Native spell checker session initialized")
+                if (debugLogging) {
+                    Log.d(TAG, "Native spell checker session initialized")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to initialize native spell checker", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize native spell checker", e)
+        }
+
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            initRunnable.run()
+        } else {
+            mainHandler.post(initRunnable)
         }
     }
 
@@ -176,25 +190,124 @@ class SymSpellEngine(
     }
 
     /**
-     * Check if a word is in the dictionary using Android's native spell checker.
+     * Check if a word is correctly spelled using Android's native spell checker.
      * Falls back to SymSpell if native checker is unavailable.
      *
-     * Note: Native spell checker is unreliable on some devices, so we primarily
-     * use SymSpell with smart heuristics as fallback.
+     * @param word The word to check
+     * @return true if the word is spelled correctly, false if misspelled
      */
     fun isKnownWord(word: String): Boolean {
-        if (!isReady || word.isBlank()) return false
+        if (word.isBlank()) return true // Empty words are "correct"
 
-        // Directly use SymSpell with improved heuristics
-        // The native spell checker is too slow and unreliable for real-time autocorrect
+        // Try native spell checker first (more comprehensive dictionary)
+        val nativeResult = isKnownWordNative(word)
+        if (nativeResult != null) {
+            if (debugLogging) {
+                Log.d(TAG, "isKnownWord('$word') -> $nativeResult (native spell checker)")
+            }
+            return nativeResult
+        }
+
+        // Fall back to SymSpell if native checker unavailable
+        if (!isReady) return true // Assume correct if not ready
         return isKnownWordSymSpell(word)
+    }
+
+    /**
+     * Check spelling using Android's native SpellCheckerSession.
+     * @return true if spelled correctly, false if misspelled, null if unavailable
+     */
+    private fun isKnownWordNative(word: String): Boolean? {
+        if (textServicesManager == null) return null
+
+        // Use a synchronous approach with CountDownLatch
+        val resultRef = AtomicReference<Boolean?>(null)
+        val latch = CountDownLatch(1)
+
+        val checkRunnable = Runnable {
+            try {
+                val listener = object : SpellCheckerSession.SpellCheckerSessionListener {
+                    override fun onGetSuggestions(results: Array<out SuggestionsInfo>?) {
+                        if (results != null && results.isNotEmpty()) {
+                            val info = results[0]
+                            // RESULT_ATTR_IN_THE_DICTIONARY means word is correct
+                            // RESULT_ATTR_LOOKS_LIKE_TYPO means word is misspelled
+                            val isCorrect = (info.suggestionsAttributes and SuggestionsInfo.RESULT_ATTR_IN_THE_DICTIONARY) != 0
+                            val isTypo = (info.suggestionsAttributes and SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_TYPO) != 0
+
+                            // Word is known if it's in dictionary OR if it's not flagged as a typo
+                            resultRef.set(isCorrect || !isTypo)
+
+                            if (debugLogging) {
+                                Log.d(TAG, "Native spell check for '$word': inDict=$isCorrect, typo=$isTypo, attrs=${info.suggestionsAttributes}")
+                            }
+                        }
+                        latch.countDown()
+                    }
+
+                    override fun onGetSentenceSuggestions(results: Array<out SentenceSuggestionsInfo>?) {
+                        latch.countDown()
+                    }
+                }
+
+                // Create a new session for this check (must be on main thread)
+                val checkSession = textServicesManager.newSpellCheckerSession(
+                    null,
+                    Locale.getDefault(),
+                    listener,
+                    true
+                )
+
+                if (checkSession == null) {
+                    latch.countDown()
+                    return@Runnable
+                }
+
+                // Request spell check
+                checkSession.getSuggestions(TextInfo(word), 0)
+
+                // The callback will be invoked and close the latch
+                // We need to close the session after getting results
+                // Note: This is handled asynchronously via the callback
+            } catch (e: Exception) {
+                if (debugLogging) {
+                    Log.e(TAG, "Error in native spell check for '$word'", e)
+                }
+                latch.countDown()
+            }
+        }
+
+        // Run on main thread
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            checkRunnable.run()
+        } else {
+            mainHandler.post(checkRunnable)
+        }
+
+        // Wait for result with timeout
+        return try {
+            val completed = latch.await(150, TimeUnit.MILLISECONDS)
+            if (!completed) {
+                if (debugLogging) {
+                    Log.d(TAG, "Native spell check timed out for '$word'")
+                }
+                null
+            } else {
+                resultRef.get()
+            }
+        } catch (e: Exception) {
+            if (debugLogging) {
+                Log.e(TAG, "Error waiting for spell check result for '$word'", e)
+            }
+            null
+        }
     }
 
     /**
      * Fallback method using SymSpell to check if word exists.
      */
     private fun isKnownWordSymSpell(word: String): Boolean {
-        val checker = cachedSpellChecker ?: return false
+        val checker = cachedSpellChecker ?: return true // Assume correct if no checker
 
         return try {
             // Use lookup with edit distance 0 and check if we get an exact match
@@ -209,49 +322,12 @@ class SymSpellEngine(
                 Log.d(TAG, "isKnownWord('$word') -> $isKnown (SymSpell fallback, suggestions: $sugList)")
             }
 
-            // If word is not found but is reasonably long and alphabetic, apply heuristics
-            // This handles cases where common words aren't in the 30k dictionary
-            if (!isKnown && word.length >= 4 && word.all { it.isLetter() }) {
-                val topSuggestion = suggestions.firstOrNull()
-
-                // Case 1: No suggestions at all - likely a valid word
-                if (topSuggestion == null) {
-                    if (debugLogging) {
-                        Log.d(TAG, "Word '$word' not in dictionary but no suggestions - treating as valid")
-                    }
-                    return true
-                }
-
-                // Case 2: Top suggestion is very far (distance >= 2) - likely valid word
-                if (topSuggestion.distance >= 2.0) {
-                    if (debugLogging) {
-                        Log.d(TAG, "Word '$word' not in dictionary, closest is '${topSuggestion.term}':${topSuggestion.distance} - treating as valid")
-                    }
-                    return true
-                }
-
-                // Case 3: Check if suggestion has much higher frequency
-                // If user typed word is not in dictionary but suggestion has very high frequency (1000+),
-                // AND they're similar (distance 1), it might be a real typo
-                // But if frequencies are similar, user's word is probably valid
-                if (topSuggestion.distance == 1.0) {
-                    // Get frequency of suggestions to make a judgment
-                    if (topSuggestion.frequency < 1000) {
-                        // Low frequency suggestion - user's word might be equally valid
-                        if (debugLogging) {
-                            Log.d(TAG, "Word '$word' vs '${topSuggestion.term}' (freq:${topSuggestion.frequency}) - treating as valid")
-                        }
-                        return true
-                    }
-                }
-            }
-
             isKnown
         } catch (e: Exception) {
             if (debugLogging) {
                 Log.e(TAG, "Error checking if word is known: '$word'", e)
             }
-            false
+            true // Assume correct on error
         }
     }
 }
