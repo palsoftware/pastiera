@@ -26,7 +26,7 @@ class SuggestionController(
 
     private val appContext = context.applicationContext
     private val debugLogging: Boolean = debugLogging
-    private val symSpellEngine = SymSpellEngine(assets, debugLogging = debugLogging)
+    private val symSpellEngine = SymSpellEngine(appContext, assets, debugLogging = debugLogging)
     private val personalDictionary = PersonalDictionary.getInstance(context)
     private val tracker = CurrentWordTracker(
         onWordChanged = { word ->
