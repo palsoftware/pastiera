@@ -12,7 +12,7 @@ import android.view.textservice.TextInfo
 import android.view.textservice.TextServicesManager
 import com.darkrockstudios.symspellkt.api.SpellChecker
 import com.darkrockstudios.symspellkt.common.Verbosity
-import com.darkrockstudios.symspellkt.api.loadUnigramTxtFile
+import com.darkrockstudios.symspellkt.fdic.loadFdicFile
 import com.darkrockstudios.symspellkt.impl.SymSpell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -37,8 +37,8 @@ class SymSpellEngine(
 ) {
     companion object {
         private const val TAG = "SymSpellEngine"
-        // SymSpell 30k dictionary (fast loading, ~130KB)
-        private const val DICTIONARY_PATH = "dictionaries/en_80k.txt"
+        // SymSpell 80k dictionary in fdic format (fast loading, ~595KB)
+        private const val DICTIONARY_PATH = "dictionaries/en_80k.fdic"
 
         // Static cache - survives IME recreations
         @Volatile
@@ -78,10 +78,10 @@ class SymSpellEngine(
                 // Use default settings like the SymSpellKt sample app
                 val checker = SymSpell()
 
-                // Load dictionary from text file format (ensures proper index generation for insertions)
+                // Load dictionary from fdic binary format (faster than text)
                 val startTime = System.currentTimeMillis()
-                val dictText = assets.open(DICTIONARY_PATH).use { it.bufferedReader().readText() }
-                checker.dictionary.loadUnigramTxtFile(dictText)
+                val dictBytes = assets.open(DICTIONARY_PATH).use { it.readBytes() }
+                checker.dictionary.loadFdicFile(dictBytes)
 
                 val loadTime = System.currentTimeMillis() - startTime
                 Log.d(TAG, "Dictionary loaded in ${loadTime}ms, ${checker.dictionary.wordCount} words")
@@ -190,6 +190,52 @@ class SymSpellEngine(
         return false
     }
 
+    // QWERTY keyboard layout with row and column positions
+    private val keyboardPositions: Map<Char, Pair<Int, Int>> = mapOf(
+        // Row 0
+        'q' to (0 to 0), 'w' to (0 to 1), 'e' to (0 to 2), 'r' to (0 to 3), 't' to (0 to 4),
+        'y' to (0 to 5), 'u' to (0 to 6), 'i' to (0 to 7), 'o' to (0 to 8), 'p' to (0 to 9),
+        // Row 1 (offset by 0.5 on real keyboard, we use column + 0.5 effect via distance calc)
+        'a' to (1 to 0), 's' to (1 to 1), 'd' to (1 to 2), 'f' to (1 to 3), 'g' to (1 to 4),
+        'h' to (1 to 5), 'j' to (1 to 6), 'k' to (1 to 7), 'l' to (1 to 8),
+        // Row 2
+        'z' to (2 to 0), 'x' to (2 to 1), 'c' to (2 to 2), 'v' to (2 to 3), 'b' to (2 to 4),
+        'n' to (2 to 5), 'm' to (2 to 6)
+    )
+
+    /**
+     * Calculate keyboard distance between two characters.
+     * Returns a value where lower = closer keys.
+     * Returns null if either character is not on the keyboard map.
+     */
+    private fun keyboardDistance(c1: Char, c2: Char): Double? {
+        val pos1 = keyboardPositions[c1.lowercaseChar()] ?: return null
+        val pos2 = keyboardPositions[c2.lowercaseChar()] ?: return null
+        val rowDiff = (pos1.first - pos2.first).toDouble()
+        val colDiff = (pos1.second - pos2.second).toDouble()
+        return kotlin.math.sqrt(rowDiff * rowDiff + colDiff * colDiff)
+    }
+
+    /**
+     * Check if a substitution involves adjacent/nearby keys (likely typo)
+     * vs distant keys (unlikely typo).
+     * Returns true if all substituted characters are within 2 keys of each other.
+     */
+    private fun isNearbySubstitution(input: String, suggestion: String): Boolean {
+        if (input.length != suggestion.length) return true // Not a substitution
+
+        for (i in input.indices) {
+            if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
+                val dist = keyboardDistance(input[i], suggestion[i])
+                // If distance is > 2.5 keys, it's a distant substitution (unlikely typo)
+                if (dist != null && dist > 2.5) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
     /**
      * Get spelling suggestions for a word.
      * Priority: Insert > Substitute > Delete (only if duplicates exist)
@@ -220,8 +266,11 @@ class SymSpellEngine(
             // Get best (highest frequency) from each category, filtering by distance 1 first
             val dist1Insert = byEditType[EditType.INSERT]?.filter { it.distance <= 1.0 }?.maxByOrNull { it.frequency }
 
-            // For substitutes: prefer ones that fix duplicate letters, then by frequency
-            val dist1Substitutes = byEditType[EditType.SUBSTITUTE]?.filter { it.distance <= 1.0 }
+            // For substitutes: filter out distant key substitutions, prefer ones that fix duplicates
+            val dist1Substitutes = byEditType[EditType.SUBSTITUTE]
+                ?.filter { it.distance <= 1.0 }
+                ?.filter { isNearbySubstitution(normalizedWord, it.term) }  // Filter out distant keys like m→w
+
             val dist1Substitute = if (hasAdjacentDuplicates(normalizedWord) && dist1Substitutes != null) {
                 // First try to find one that fixes a duplicate letter
                 dist1Substitutes.filter { fixesDuplicateLetter(normalizedWord, it.term) }.maxByOrNull { it.frequency }
@@ -238,7 +287,9 @@ class SymSpellEngine(
 
             // Fallback to distance 2 if no distance 1 options
             val bestInsert = dist1Insert ?: byEditType[EditType.INSERT]?.maxByOrNull { it.frequency }
+            // Also filter out distant key substitutions in fallback
             val allSubstitutes = byEditType[EditType.SUBSTITUTE]
+                ?.filter { isNearbySubstitution(normalizedWord, it.term) }
             val bestSubstitute = dist1Substitute ?: if (hasAdjacentDuplicates(normalizedWord) && allSubstitutes != null) {
                 allSubstitutes.filter { fixesDuplicateLetter(normalizedWord, it.term) }.maxByOrNull { it.frequency }
                     ?: allSubstitutes.maxByOrNull { it.frequency }
