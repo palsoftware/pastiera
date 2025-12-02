@@ -11,9 +11,8 @@ import android.view.textservice.SuggestionsInfo
 import android.view.textservice.TextInfo
 import android.view.textservice.TextServicesManager
 import com.darkrockstudios.symspellkt.api.SpellChecker
-import com.darkrockstudios.symspellkt.common.SpellCheckSettings
 import com.darkrockstudios.symspellkt.common.Verbosity
-import com.darkrockstudios.symspell.fdic.loadFdicFile
+import com.darkrockstudios.symspellkt.api.loadUnigramTxtFile
 import com.darkrockstudios.symspellkt.impl.SymSpell
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -39,7 +38,7 @@ class SymSpellEngine(
     companion object {
         private const val TAG = "SymSpellEngine"
         // SymSpell 30k dictionary (fast loading, ~130KB)
-        private const val DICTIONARY_PATH = "dictionaries/en_80k.fdic"
+        private const val DICTIONARY_PATH = "dictionaries/en_80k.txt"
 
         // Static cache - survives IME recreations
         @Volatile
@@ -76,22 +75,17 @@ class SymSpellEngine(
             }
 
             try {
-                val settings = SpellCheckSettings(
-                    maxEditDistance = 2.0,
-                    prefixLength = 7,
-                    verbosity = Verbosity.Closest
-                )
+                // Use default settings like the SymSpellKt sample app
+                val checker = SymSpell()
 
-                val checker = SymSpell(settings)
-
-                // Load dictionary from fdic binary format (70% faster than txt)
+                // Load dictionary from text file format (ensures proper index generation for insertions)
                 val startTime = System.currentTimeMillis()
-
-                val dictBytes = assets.open(DICTIONARY_PATH).use { it.readBytes() }
-                checker.dictionary.loadFdicFile(dictBytes)
+                val dictText = assets.open(DICTIONARY_PATH).use { it.bufferedReader().readText() }
+                checker.dictionary.loadUnigramTxtFile(dictText)
 
                 val loadTime = System.currentTimeMillis() - startTime
-                Log.d(TAG, "Dictionary loaded in ${loadTime}ms (20k words)")
+                Log.d(TAG, "Dictionary loaded in ${loadTime}ms, ${checker.dictionary.wordCount} words")
+
 
                 cachedSpellChecker = checker
                 isLoaded = true
@@ -147,11 +141,62 @@ class SymSpellEngine(
     }
 
     /**
+     * Determine the edit type between input and suggestion.
+     */
+    private enum class EditType { DELETE, SUBSTITUTE, INSERT, OTHER }
+
+    private fun getEditType(input: String, suggestion: String): EditType {
+        val inputLen = input.length
+        val suggestionLen = suggestion.length
+
+        return when {
+            suggestionLen == inputLen - 1 -> EditType.DELETE      // suggestion is shorter (user typed extra char)
+            suggestionLen == inputLen -> EditType.SUBSTITUTE       // same length (substitution)
+            suggestionLen == inputLen + 1 -> EditType.INSERT       // suggestion is longer (user missed a char)
+            else -> EditType.OTHER
+        }
+    }
+
+    /**
+     * Check if input has adjacent duplicate letters that could be a typo.
+     * e.g., "helllo" has "lll", "bookk" has "kk"
+     */
+    private fun hasAdjacentDuplicates(word: String): Boolean {
+        for (i in 0 until word.length - 1) {
+            if (word[i] == word[i + 1]) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Check if suggestion "fixes" a duplicate letter issue in the input.
+     * e.g., input "teech" (has 'ee') → suggestion "teach" (has 'ea') = fixes duplicate
+     *       input "teech" (has 'ee') → suggestion "teeth" (has 'ee') = keeps duplicate
+     */
+    private fun fixesDuplicateLetter(input: String, suggestion: String): Boolean {
+        if (input.length != suggestion.length) return false
+
+        // Find where input has adjacent duplicates
+        for (i in 0 until input.length - 1) {
+            if (input[i] == input[i + 1]) {
+                // Check if suggestion breaks this duplicate
+                if (i < suggestion.length - 1 && suggestion[i] != suggestion[i + 1]) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /**
      * Get spelling suggestions for a word.
+     * Priority: Insert > Substitute > Delete (only if duplicates exist)
      *
      * @param word The word to check
      * @param maxSuggestions Maximum number of suggestions to return
-     * @return List of suggestions sorted by relevance (keyboard-aware)
+     * @return List of suggestions prioritizing inserts, then substitutes
      */
     fun suggest(word: String, maxSuggestions: Int = 3): List<SuggestionResult> {
         if (!isReady || word.isBlank() || word.length < 2) {
@@ -161,7 +206,59 @@ class SymSpellEngine(
         val checker = cachedSpellChecker ?: return emptyList()
 
         return try {
-            val suggestions = checker.lookup(word.lowercase(Locale.getDefault()), Verbosity.Closest, 2.0)
+            val normalizedWord = word.lowercase(Locale.getDefault())
+            val allSuggestions = checker.lookup(normalizedWord, Verbosity.All, 2.0)
+
+            // Group by edit type
+            val byEditType = allSuggestions
+                .groupBy { getEditType(normalizedWord, it.term) }
+
+            if (debugLogging) {
+                Log.d(TAG, "byEditType for '$normalizedWord': INSERT=${byEditType[EditType.INSERT]?.take(3)?.map { it.term }}, SUB=${byEditType[EditType.SUBSTITUTE]?.take(3)?.map { it.term }}, DEL=${byEditType[EditType.DELETE]?.take(3)?.map { it.term }}")
+            }
+
+            // Get best (highest frequency) from each category, filtering by distance 1 first
+            val dist1Insert = byEditType[EditType.INSERT]?.filter { it.distance <= 1.0 }?.maxByOrNull { it.frequency }
+
+            // For substitutes: prefer ones that fix duplicate letters, then by frequency
+            val dist1Substitutes = byEditType[EditType.SUBSTITUTE]?.filter { it.distance <= 1.0 }
+            val dist1Substitute = if (hasAdjacentDuplicates(normalizedWord) && dist1Substitutes != null) {
+                // First try to find one that fixes a duplicate letter
+                dist1Substitutes.filter { fixesDuplicateLetter(normalizedWord, it.term) }.maxByOrNull { it.frequency }
+                    ?: dist1Substitutes.maxByOrNull { it.frequency }
+            } else {
+                dist1Substitutes?.maxByOrNull { it.frequency }
+            }
+
+            val dist1Delete = if (hasAdjacentDuplicates(normalizedWord)) {
+                byEditType[EditType.DELETE]?.filter { it.distance <= 1.0 }?.maxByOrNull { it.frequency }
+            } else {
+                null
+            }
+
+            // Fallback to distance 2 if no distance 1 options
+            val bestInsert = dist1Insert ?: byEditType[EditType.INSERT]?.maxByOrNull { it.frequency }
+            val allSubstitutes = byEditType[EditType.SUBSTITUTE]
+            val bestSubstitute = dist1Substitute ?: if (hasAdjacentDuplicates(normalizedWord) && allSubstitutes != null) {
+                allSubstitutes.filter { fixesDuplicateLetter(normalizedWord, it.term) }.maxByOrNull { it.frequency }
+                    ?: allSubstitutes.maxByOrNull { it.frequency }
+            } else {
+                allSubstitutes?.maxByOrNull { it.frequency }
+            }
+            val bestDelete = dist1Delete ?: if (hasAdjacentDuplicates(normalizedWord)) {
+                byEditType[EditType.DELETE]?.maxByOrNull { it.frequency }
+            } else {
+                null
+            }
+
+            // Priority: distance 1 options first (insert, substitute, delete), sorted by frequency
+            val dist1Options = listOfNotNull(dist1Insert, dist1Substitute, dist1Delete)
+                .sortedByDescending { it.frequency }
+            val dist2Options = listOfNotNull(bestInsert, bestSubstitute, bestDelete)
+                .filter { it !in dist1Options }
+                .sortedByDescending { it.frequency }
+
+            val suggestions = (dist1Options + dist2Options)
                 .take(maxSuggestions)
                 .map { item ->
                     SuggestionResult(
