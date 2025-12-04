@@ -46,6 +46,7 @@ object SettingsManager {
     private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Distance in DIP for cursor movement
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Use static variation bar instead of dynamic cursor-based variations
     private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
+    private const val KEY_ADDITIONAL_IME_SUBTYPES = "additional_ime_subtypes" // Comma-separated list of language codes for additional IME subtypes
     
     private const val VARIATIONS_FILE_NAME = "variations.json"
     
@@ -1525,6 +1526,31 @@ object SettingsManager {
     fun notifyVariationsUpdated(context: Context) {
         getPreferences(context).edit()
             .putLong(KEY_VARIATIONS_UPDATED, System.currentTimeMillis())
+            .apply()
+    }
+    
+    /**
+     * Get the list of additional IME subtypes (language codes) that were added dynamically.
+     * These are subtypes that are not declared in method.xml.
+     */
+    fun getAdditionalImeSubtypes(context: Context): Set<String> {
+        val prefs = getPreferences(context)
+        val subtypesString = prefs.getString(KEY_ADDITIONAL_IME_SUBTYPES, null)
+        return if (subtypesString != null && subtypesString.isNotEmpty()) {
+            subtypesString.split(",").toSet()
+        } else {
+            emptySet()
+        }
+    }
+    
+    /**
+     * Set the list of additional IME subtypes (language codes).
+     * These are subtypes that are not declared in method.xml.
+     */
+    fun setAdditionalImeSubtypes(context: Context, subtypes: Set<String>) {
+        val subtypesString = subtypes.joinToString(",")
+        getPreferences(context).edit()
+            .putString(KEY_ADDITIONAL_IME_SUBTYPES, subtypesString)
             .apply()
     }
 }

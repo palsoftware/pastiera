@@ -350,6 +350,11 @@
     <string name="settings_category_customization">Customization</string>
     <string name="settings_category_advanced">Advanced</string>
     
+    <!-- Languages (Input Method Subtypes) -->
+    <string name="languages_title">Languages</string>
+    <string name="languages_description">Add languages to the Android input method selector. Only languages with dictionaries that are not system languages are shown.</string>
+    <string name="languages_no_available">All available languages are already added or are system languages.</string>
+    
     <!-- Keyboard Layout Settings -->
     <string name="layout_save_content_description">Save layout</string>
     <string name="layout_import_content_description">Import layout</string>

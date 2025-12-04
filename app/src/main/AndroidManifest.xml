@@ -69,6 +69,13 @@
             android:label="@string/settings_title"
             android:theme="@style/Theme.Pastiera" />
         
+        <!-- Activity per gestire le lingue degli input method subtypes -->
+        <activity
+            android:name=".LanguagesActivity"
+            android:exported="false"
+            android:label="@string/languages_title"
+            android:theme="@style/Theme.Pastiera" />
+        
         <!-- Servizio di immissione per tastiera fisica -->
         <service
             android:name=".inputmethod.PhysicalKeyboardInputMethodService"
