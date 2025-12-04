@@ -6,6 +6,7 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.view.inputmethod.InputMethodManager
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import androidx.core.content.ContextCompat
@@ -52,6 +53,7 @@ class VariationBarView(
     var onCursorMovedListener: (() -> Unit)? = null
     var onSpeechRecognitionRequested: (() -> Unit)? = null
     var onAddUserWord: ((String) -> Unit)? = null
+    var onLanguageSwitchRequested: (() -> Unit)? = null
     
     /**
      * Sets the microphone button active state (red pulsing background) during speech recognition.
@@ -174,6 +176,7 @@ class VariationBarView(
     private var variationButtons: MutableList<TextView> = mutableListOf()
     private var microphoneButtonView: ImageView? = null
     private var settingsButtonView: ImageView? = null
+    private var languageButtonView: TextView? = null
     private var isMicrophoneActive: Boolean = false
     private var currentMicrophoneDrawable: GradientDrawable? = null
     private var lastDisplayedVariations: List<String> = emptyList()
@@ -508,6 +511,32 @@ class VariationBarView(
         }
         settingsButton.alpha = 1f
         settingsButton.visibility = View.VISIBLE
+
+        // Language switch button (language code)
+        val languageButton = languageButtonView ?: createLanguageButton(baseButtonWidth)
+        languageButtonView = languageButton
+        (languageButton.parent as? ViewGroup)?.removeView(languageButton)
+        val languageMarginStart = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            4f,
+            context.resources.displayMetrics
+        ).toInt()
+        val languageParams = LinearLayout.LayoutParams(baseButtonWidth, baseButtonWidth).apply {
+            topMargin = (-baseButtonWidth * 0.1f).toInt()
+            marginStart = languageMarginStart
+        }
+        buttonsContainerView.addView(languageButton, languageParams)
+        // Update language code text
+        updateLanguageButtonText(languageButton)
+        languageButton.setOnClickListener {
+            onLanguageSwitchRequested?.invoke()
+            // Update text after language switch (with a small delay to ensure the change is applied)
+            Handler(Looper.getMainLooper()).postDelayed({
+                updateLanguageButtonText(languageButton)
+            }, 100)
+        }
+        languageButton.alpha = 1f
+        languageButton.visibility = View.VISIBLE
 
         if (variationsChanged) {
             animateVariationsIn(variationsRow)
@@ -1042,6 +1071,45 @@ class VariationBarView(
         }
     }
 
+    private fun createLanguageButton(buttonSize: Int): TextView {
+        val dp6 = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            6f,
+            context.resources.displayMetrics
+        ).toInt()
+        return TextView(context).apply {
+            textSize = 12f
+            setTextColor(Color.rgb(100, 100, 100))
+            gravity = Gravity.CENTER
+            background = null
+            isClickable = true
+            isFocusable = true
+            setPadding(dp6, dp6, dp6, dp6)
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    /**
+     * Updates the language button text with the current language code.
+     */
+    private fun updateLanguageButtonText(button: TextView) {
+        try {
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            val currentSubtype = imm.currentInputMethodSubtype
+            val languageCode = if (currentSubtype != null) {
+                // Extract language code from locale (e.g., "en_US" -> "EN", "it_IT" -> "IT")
+                val locale = currentSubtype.locale
+                locale.split("_").firstOrNull()?.uppercase() ?: "??"
+            } else {
+                "??"
+            }
+            button.text = languageCode
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating language button text", e)
+            button.text = "??"
+        }
+    }
+
     private fun animateVariationsIn(view: View) {
         view.alpha = 0f
         view.visibility = View.VISIBLE
@@ -1115,5 +1183,14 @@ class VariationBarView(
     fun invalidateStaticVariations() {
         staticVariations = emptyList()
         emailVariations = emptyList()
+    }
+
+    /**
+     * Updates the language button text with the current language code.
+     */
+    fun updateLanguageButtonText() {
+        languageButtonView?.let { button ->
+            updateLanguageButtonText(button)
+        }
     }
 }

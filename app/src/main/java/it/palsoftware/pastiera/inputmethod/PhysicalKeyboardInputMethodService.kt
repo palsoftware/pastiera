@@ -531,6 +531,55 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             layoutSwitchToast?.show()
         }
     }
+
+    /**
+     * Cycles to the next enabled input method subtype (language).
+     */
+    private fun cycleToNextLanguage() {
+        try {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            val packageName = packageName
+            
+            // Find our IME in the enabled list
+            val imi = imm.enabledInputMethodList.firstOrNull { it.packageName == packageName }
+                ?: run {
+                    Log.w(TAG, "IME not found in enabled list")
+                    return
+                }
+            
+            // Get enabled subtypes
+            val enabledSubtypes = imm.getEnabledInputMethodSubtypeList(imi, true)
+            if (enabledSubtypes.isEmpty()) {
+                Log.w(TAG, "No enabled subtypes found")
+                return
+            }
+            
+            // Get current subtype from InputMethodManager
+            val currentSubtype = imm.currentInputMethodSubtype
+            val currentIndex = if (currentSubtype != null) {
+                enabledSubtypes.indexOfFirst { subtype ->
+                    subtype.locale == currentSubtype.locale 
+                }.takeIf { it >= 0 } ?: 0
+            } else {
+                0
+            }
+            
+            // Cycle to next subtype
+            val nextIndex = (currentIndex + 1) % enabledSubtypes.size
+            val nextSubtype = enabledSubtypes[nextIndex]
+            
+            // Apply the new subtype
+            val token = window?.window?.attributes?.token
+            if (token != null) {
+                imm.setInputMethodAndSubtype(token, imi.id, nextSubtype)
+                Log.d(TAG, "Switched to language: ${nextSubtype.locale}")
+            } else {
+                Log.w(TAG, "Window token is null, cannot switch language")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error cycling language", e)
+        }
+    }
     
     private fun showPowerShortcutToast(message: String) {
         uiHandler.post {
@@ -707,6 +756,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             suggestionController.addUserWord(word)
             suggestionController.clearPendingAddWord()
             updateStatusBarText()
+        }
+        candidatesBarController.onLanguageSwitchRequested = {
+            cycleToNextLanguage()
         }
 
         // Register listener for variation selection (both controllers)

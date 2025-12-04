@@ -71,6 +71,12 @@ class StatusBarController(
             variationBarView?.onAddUserWord = value
         }
     
+    var onLanguageSwitchRequested: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onLanguageSwitchRequested = value
+        }
+    
     // Callback for speech recognition state changes (active/inactive)
     var onSpeechRecognitionStateChanged: ((Boolean) -> Unit)? = null
         set(value) {
@@ -928,6 +934,7 @@ class StatusBarController(
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.updateInputConnection(inputConnection)
         variationBarView?.setSymModeActive(snapshot.symPage > 0)
+        variationBarView?.updateLanguageButtonText()
         
         val layout = ensureLayoutCreated(emojiMapText) ?: return
         val modifiersContainerView = modifiersContainer ?: return
