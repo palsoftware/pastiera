@@ -178,6 +178,8 @@ class VariationBarView(
     private var settingsButtonView: ImageView? = null
     private var languageButtonView: TextView? = null
     private var isMicrophoneActive: Boolean = false
+    private var lastLanguageSwitchTime: Long = 0
+    private val LANGUAGE_SWITCH_DEBOUNCE_MS = 500L // Minimum time between language switches
     private var currentMicrophoneDrawable: GradientDrawable? = null
     private var lastDisplayedVariations: List<String> = emptyList()
     private var isSymModeActive = false
@@ -529,11 +531,25 @@ class VariationBarView(
         // Update language code text
         updateLanguageButtonText(languageButton)
         languageButton.setOnClickListener {
+            val now = System.currentTimeMillis()
+            // Debounce: prevent rapid consecutive clicks
+            if (now - lastLanguageSwitchTime < LANGUAGE_SWITCH_DEBOUNCE_MS) {
+                return@setOnClickListener
+            }
+            lastLanguageSwitchTime = now
+            
+            // Disable button during switch to prevent multiple simultaneous switches
+            languageButton.isEnabled = false
+            languageButton.alpha = 0.5f
+            
             onLanguageSwitchRequested?.invoke()
-            // Update text after language switch (with a small delay to ensure the change is applied)
+            
+            // Re-enable button and update text after language switch (with a delay to ensure the change is applied)
             Handler(Looper.getMainLooper()).postDelayed({
+                languageButton.isEnabled = true
+                languageButton.alpha = 1f
                 updateLanguageButtonText(languageButton)
-            }, 100)
+            }, 300)
         }
         languageButton.alpha = 1f
         languageButton.visibility = View.VISIBLE

@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
 
@@ -46,6 +47,10 @@ class SuggestionController(
     fun updateLocale(newLocale: Locale) {
         if (newLocale == currentLocale) return
         
+        // Cancel previous load job if still running to prevent conflicts
+        currentLoadJob?.cancel()
+        currentLoadJob = null
+        
         currentLocale = newLocale
         dictionaryRepository = DictionaryRepository(appContext, assets, userDictionaryStore, baseLocale = currentLocale, debugLogging = debugLogging)
         suggestionEngine = SuggestionEngine(dictionaryRepository, locale = currentLocale, debugLogging = debugLogging)
@@ -63,7 +68,7 @@ class SuggestionController(
         )
         
         // Reload dictionary in background
-        loadScope.launch {
+        currentLoadJob = loadScope.launch {
             dictionaryRepository.loadIfNeeded()
         }
         
@@ -74,6 +79,7 @@ class SuggestionController(
     private val latestSuggestions: AtomicReference<List<SuggestionResult>> = AtomicReference(emptyList())
     // Dedicated IO scope so dictionary preload never blocks the main thread.
     private val loadScope = CoroutineScope(Dispatchers.IO)
+    private var currentLoadJob: Job? = null
     private val cursorHandler = Handler(Looper.getMainLooper())
     private var cursorRunnable: Runnable? = null
     private val cursorDebounceMs = 120L

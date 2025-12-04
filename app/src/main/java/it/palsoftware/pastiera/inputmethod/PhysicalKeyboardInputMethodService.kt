@@ -172,6 +172,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var launcherShortcutController: LauncherShortcutController
     private var latestSuggestions: List<String> = emptyList()
     private var clearAltOnSpaceEnabled: Boolean = false
+    private var isLanguageSwitchInProgress: Boolean = false
     // Stato per ricordare se il nav mode era attivo prima di entrare in un campo di testo
     private var navModeWasActiveBeforeEditableField: Boolean = false
 
@@ -534,8 +535,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     /**
      * Cycles to the next enabled input method subtype (language).
+     * Prevents multiple simultaneous switches to avoid dictionary loading conflicts.
      */
     private fun cycleToNextLanguage() {
+        // Prevent multiple simultaneous language switches
+        if (isLanguageSwitchInProgress) {
+            Log.d(TAG, "Language switch already in progress, ignoring request")
+            return
+        }
+        
+        isLanguageSwitchInProgress = true
+        
         try {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             val packageName = packageName
@@ -544,6 +554,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val imi = imm.enabledInputMethodList.firstOrNull { it.packageName == packageName }
                 ?: run {
                     Log.w(TAG, "IME not found in enabled list")
+                    isLanguageSwitchInProgress = false
                     return
                 }
             
@@ -551,6 +562,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             val enabledSubtypes = imm.getEnabledInputMethodSubtypeList(imi, true)
             if (enabledSubtypes.isEmpty()) {
                 Log.w(TAG, "No enabled subtypes found")
+                isLanguageSwitchInProgress = false
                 return
             }
             
@@ -573,11 +585,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (token != null) {
                 imm.setInputMethodAndSubtype(token, imi.id, nextSubtype)
                 Log.d(TAG, "Switched to language: ${nextSubtype.locale}")
+                
+                // Reset flag after a delay to allow dictionary loading to complete
+                uiHandler.postDelayed({
+                    isLanguageSwitchInProgress = false
+                }, 800) // Delay to allow dictionary loading
             } else {
                 Log.w(TAG, "Window token is null, cannot switch language")
+                isLanguageSwitchInProgress = false
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error cycling language", e)
+            isLanguageSwitchInProgress = false
         }
     }
     
