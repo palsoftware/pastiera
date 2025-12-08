@@ -160,10 +160,47 @@ class SuggestionEngine(
     }
 
     /**
+     * Check if input and suggestion differ by a simple adjacent character transposition.
+     * E.g., "teh" ↔ "the", "hte" ↔ "the", "thier" ↔ "their"
+     */
+    private fun isTransposition(input: String, suggestion: String): Boolean {
+        if (input.length != suggestion.length) return false
+
+        var diffCount = 0
+        var firstDiffIndex = -1
+
+        for (i in input.indices) {
+            if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
+                if (diffCount == 0) {
+                    firstDiffIndex = i
+                }
+                diffCount++
+            }
+        }
+
+        // Must have exactly 2 differences
+        if (diffCount != 2) return false
+
+        // Differences must be adjacent positions
+        val secondDiffIndex = firstDiffIndex + 1
+        if (secondDiffIndex >= input.length) return false
+
+        // Check if characters are swapped
+        return input[firstDiffIndex].lowercaseChar() == suggestion[secondDiffIndex].lowercaseChar() &&
+               input[secondDiffIndex].lowercaseChar() == suggestion[firstDiffIndex].lowercaseChar()
+    }
+
+    /**
      * Check if a substitution involves adjacent/nearby keys (likely typo).
+     * Transpositions are always considered nearby regardless of key distance.
      */
     private fun isNearbySubstitution(input: String, suggestion: String): Boolean {
         if (input.length != suggestion.length) return true // Not a substitution
+
+        // Transpositions (adjacent character swaps) are always considered nearby typos
+        if (isTransposition(input, suggestion)) {
+            return true
+        }
 
         for (i in input.indices) {
             if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
@@ -179,9 +216,15 @@ class SuggestionEngine(
 
     /**
      * Check if a substitution involves truly adjacent keys (directly touching).
+     * Transpositions are always considered adjacent substitutions.
      */
     private fun isAdjacentSubstitution(input: String, suggestion: String): Boolean {
         if (input.length != suggestion.length) return false // Not a substitution
+
+        // Transpositions are always considered "adjacent" for ranking purposes
+        if (isTransposition(input, suggestion)) {
+            return true
+        }
 
         for (i in input.indices) {
             if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
