@@ -406,7 +406,49 @@ fun SymCustomizationScreen(
                 )
             }
         }
-        
+
+        // Clipboard page toggle
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sym_enable_clipboard_page_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = stringResource(R.string.sym_enable_clipboard_page_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+                Switch(
+                    checked = symPagesConfig.clipboardEnabled,
+                    onCheckedChange = { enabled ->
+                        persistSymPagesConfig(symPagesConfig.copy(clipboardEnabled = enabled))
+                    }
+                )
+            }
+        }
+
         // Swap order control
         Surface(
             modifier = Modifier

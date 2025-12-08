@@ -42,6 +42,7 @@ import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
 import java.util.Locale
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
+import it.palsoftware.pastiera.clipboard.ClipboardHistoryManager
 
 /**
  * Input method service specialized for physical keyboards.
@@ -173,6 +174,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var inputEventRouter: InputEventRouter
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
+    private lateinit var clipboardHistoryManager: ClipboardHistoryManager
     private var latestSuggestions: List<String> = emptyList()
     private var clearAltOnSpaceEnabled: Boolean = false
     private var isLanguageSwitchInProgress: Boolean = false
@@ -779,7 +781,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Preload dictionary in background so it's ready when user focuses a field
         suggestionController.preloadDictionary()
 
-        candidatesBarController = CandidatesBarController(this)
+        // Initialize clipboard history manager first (needed by candidatesBarController)
+        clipboardHistoryManager = ClipboardHistoryManager(this)
+        clipboardHistoryManager.onCreate()
+
+        candidatesBarController = CandidatesBarController(this, clipboardHistoryManager)
         candidatesBarController.onAddUserWord = { word ->
             suggestionController.addUserWord(word)
             suggestionController.clearPendingAddWord()
@@ -803,7 +809,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             updateStatusBarText()
         }
         candidatesBarController.onCursorMovedListener = cursorListener
-        
+
         // Register listener for speech recognition
         candidatesBarController.onSpeechRecognitionRequested = {
             startSpeechRecognition()
@@ -848,7 +854,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             exitNavMode = { navModeController.exitNavMode() },
             enterNavMode = { navModeController.enterNavMode() }
         )
-        
+
         // Initialize keyboard layout
         loadKeyboardLayout()
         
@@ -1053,7 +1059,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Cleanup SpeechRecognitionManager
         speechRecognitionManager?.destroy()
         speechRecognitionManager = null
-        
+
+        // Cleanup ClipboardHistoryManager
+        clipboardHistoryManager.onDestroy()
+
         // Unregister broadcast receiver (deprecated, but kept for backwards compatibility)
         speechResultReceiver?.let {
             try {

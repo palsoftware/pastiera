@@ -161,6 +161,8 @@
     <string name="sym_enable_emoji_page_description">Show the emoji SYM layout when cycling.</string>
     <string name="sym_enable_symbols_page_title">Enable Symbols Page</string>
     <string name="sym_enable_symbols_page_description">Show the symbols SYM layout when cycling.</string>
+    <string name="sym_enable_clipboard_page_title">Enable Clipboard Page</string>
+    <string name="sym_enable_clipboard_page_description">Show the clipboard history when cycling.</string>
     <string name="sym_swap_pages_title">Swap SYM pages order</string>
     <string name="sym_swap_pages_description">Choose which SYM page appears first when toggling.</string>
     <string name="sym_order_emoji_first">Emoji first</string>

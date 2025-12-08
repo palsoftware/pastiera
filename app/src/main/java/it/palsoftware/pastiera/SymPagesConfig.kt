@@ -6,5 +6,6 @@ package it.palsoftware.pastiera
 data class SymPagesConfig(
     val emojiEnabled: Boolean = true,
     val symbolsEnabled: Boolean = true,
+    val clipboardEnabled: Boolean = true,
     val emojiFirst: Boolean = true
 )
