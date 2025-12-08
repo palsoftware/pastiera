@@ -213,7 +213,7 @@ class VariationBarView(
         val rightPadding = (leftPadding * 0.31f).toInt()
         val variationsVerticalPadding = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
-            0f,
+            8f,
             context.resources.displayMetrics
         ).toInt()
         val variationsContainerHeight = TypedValue.applyDimension(
