@@ -47,7 +47,9 @@ object SettingsManager {
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Use static variation bar instead of dynamic cursor-based variations
     private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
     private const val KEY_ADDITIONAL_IME_SUBTYPES = "additional_ime_subtypes" // Comma-separated list of language codes for additional IME subtypes
-    
+    private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Whether clipboard history is enabled
+    private const val KEY_CLIPBOARD_RETENTION_TIME = "clipboard_retention_time" // How long to keep clipboard entries (in minutes)
+
     private const val VARIATIONS_FILE_NAME = "variations.json"
     
     // Default values
@@ -78,7 +80,9 @@ object SettingsManager {
     private const val DEFAULT_SUGGESTION_DEBUG_LOGGING = false
     private const val KEY_EXPERIMENTAL_SUGGESTIONS_ENABLED = "experimental_suggestions_enabled"
     private const val KEY_SUGGESTION_DEBUG_LOGGING = "suggestion_debug_logging"
-    
+    private const val DEFAULT_CLIPBOARD_HISTORY_ENABLED = true
+    private const val DEFAULT_CLIPBOARD_RETENTION_TIME = 120L // 2 hours in minutes
+
     /**
      * Returns the SharedPreferences instance for Pastiera.
      */
@@ -1311,6 +1315,7 @@ object SettingsManager {
             SymPagesConfig(
                 emojiEnabled = jsonObject.optBoolean("emojiEnabled", true),
                 symbolsEnabled = jsonObject.optBoolean("symbolsEnabled", true),
+                clipboardEnabled = jsonObject.optBoolean("clipboardEnabled", true),
                 emojiFirst = jsonObject.optBoolean("emojiFirst", true)
             )
         } catch (e: Exception) {
@@ -1327,6 +1332,7 @@ object SettingsManager {
             val jsonObject = JSONObject().apply {
                 put("emojiEnabled", config.emojiEnabled)
                 put("symbolsEnabled", config.symbolsEnabled)
+                put("clipboardEnabled", config.clipboardEnabled)
                 put("emojiFirst", config.emojiFirst)
             }
 
@@ -1425,7 +1431,48 @@ object SettingsManager {
             .putBoolean(KEY_TUTORIAL_COMPLETED, false)
             .apply()
     }
-    
+
+    /**
+     * Returns whether clipboard history is enabled.
+     * @param context The context
+     * @return true if clipboard history is enabled, false otherwise
+     */
+    fun getClipboardHistoryEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_CLIPBOARD_HISTORY_ENABLED, DEFAULT_CLIPBOARD_HISTORY_ENABLED)
+    }
+
+    /**
+     * Sets whether clipboard history is enabled.
+     * @param context The context
+     * @param enabled Whether to enable clipboard history
+     */
+    fun setClipboardHistoryEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_CLIPBOARD_HISTORY_ENABLED, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns the clipboard retention time in minutes.
+     * Entries older than this will be automatically deleted (unless pinned).
+     * @param context The context
+     * @return Retention time in minutes (e.g. 120 = 2 hours)
+     */
+    fun getClipboardRetentionTime(context: Context): Long {
+        return getPreferences(context).getLong(KEY_CLIPBOARD_RETENTION_TIME, DEFAULT_CLIPBOARD_RETENTION_TIME)
+    }
+
+    /**
+     * Sets the clipboard retention time in minutes.
+     * @param context The context
+     * @param minutes Retention time in minutes (e.g. 120 = 2 hours)
+     */
+    fun setClipboardRetentionTime(context: Context, minutes: Long) {
+        getPreferences(context).edit()
+            .putLong(KEY_CLIPBOARD_RETENTION_TIME, minutes)
+            .apply()
+    }
+
     /**
      * Returns the File for variations.json in filesDir.
      */

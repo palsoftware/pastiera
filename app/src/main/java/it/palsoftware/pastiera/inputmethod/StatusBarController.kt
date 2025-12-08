@@ -37,7 +37,8 @@ import it.palsoftware.pastiera.inputmethod.suggestions.ui.FullSuggestionsBar
  */
 class StatusBarController(
     private val context: Context,
-    private val mode: Mode = Mode.FULL
+    private val mode: Mode = Mode.FULL,
+    private val clipboardHistoryManager: it.palsoftware.pastiera.clipboard.ClipboardHistoryManager? = null
 ) {
     enum class Mode {
         FULL,
@@ -352,6 +353,191 @@ class StatusBarController(
         }
     }
     
+    /**
+     * Updates the clipboard history view inline in the keyboard container.
+     */
+    private fun updateClipboardView(inputConnection: android.view.inputmethod.InputConnection? = null) {
+        val container = emojiKeyboardContainer ?: return
+        container.removeAllViews()
+        emojiKeyButtons.clear()
+
+        clipboardHistoryManager?.prepareClipboardHistory()
+
+        val count = clipboardHistoryManager?.getHistorySize() ?: 0
+
+        if (count == 0) {
+            // Show empty state
+            val padding = dpToPx(32f)
+            val emptyText = TextView(context).apply {
+                text = "No clipboard history"
+                textSize = 14f
+                setTextColor(Color.argb(128, 255, 255, 255))
+                gravity = Gravity.CENTER
+                setPadding(padding, padding, padding, padding)
+            }
+            container.addView(emptyText)
+            lastSymPageRendered = 3
+            return
+        }
+
+        // Create header with "Clipboard History" title and Clear All button
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            val padding = dpToPx(12f)
+            setPadding(padding, dpToPx(8f), padding, dpToPx(4f))
+        }
+
+        val titleText = TextView(context).apply {
+            text = "Clipboard History"
+            textSize = 12f
+            setTextColor(Color.argb(180, 255, 255, 255))
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        }
+
+        val clearButton = TextView(context).apply {
+            text = "Clear All"
+            textSize = 12f
+            setTextColor(Color.parseColor("#FF6B6B"))
+            isClickable = true
+            isFocusable = true
+            val padding = dpToPx(8f)
+            setPadding(padding, padding / 2, padding, padding / 2)
+            setOnClickListener {
+                clipboardHistoryManager?.clearHistory()
+                updateClipboardView(inputConnection)
+            }
+        }
+
+        header.addView(titleText)
+        header.addView(clearButton)
+        container.addView(header)
+
+        // Create scrollable container for clipboard entries
+        val scrollView = android.widget.ScrollView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
+        val entriesContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // Add clipboard entries to scrollable container
+        for (i in 0 until count) {
+            val entry = clipboardHistoryManager?.getHistoryEntry(i) ?: continue
+            val entryView = createClipboardEntryView(entry, inputConnection)
+            entriesContainer.addView(entryView)
+        }
+
+        scrollView.addView(entriesContainer)
+        container.addView(scrollView)
+
+        lastSymPageRendered = 3
+    }
+
+    private fun createClipboardEntryView(
+        entry: it.palsoftware.pastiera.clipboard.ClipboardHistoryEntry,
+        inputConnection: android.view.inputmethod.InputConnection?
+    ): View {
+        val marginHorizontal = dpToPx(8f)
+        val marginVertical = dpToPx(4f)
+        val paddingHorizontal = dpToPx(16f)
+        val paddingVertical = dpToPx(16f)
+
+        val entryContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = createRoundedBackground()
+            setPadding(paddingHorizontal, paddingVertical, paddingHorizontal, paddingVertical)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(marginHorizontal, marginVertical, marginHorizontal, marginVertical)
+            }
+            gravity = Gravity.CENTER_VERTICAL
+        }
+
+        // Pin icon (only shown if pinned)
+        if (entry.isPinned) {
+            val pinIcon = TextView(context).apply {
+                text = "📌"
+                textSize = 16f
+                setPadding(0, 0, dpToPx(12f), 0)
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            }
+            entryContainer.addView(pinIcon)
+        }
+
+        // Text content (clickable to paste)
+        val textView = TextView(context).apply {
+            text = entry.text
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            maxLines = 4
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            isClickable = true
+            isFocusable = true
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+            setOnClickListener {
+                inputConnection?.commitText(entry.text, 1)
+            }
+        }
+
+        // Delete button (trash icon)
+        val buttonSize = dpToPx(40f)
+        val deleteButton = ImageView(context).apply {
+            setImageResource(R.drawable.ic_delete_24)
+            setColorFilter(Color.argb(180, 255, 255, 255))
+            scaleType = ImageView.ScaleType.CENTER
+            isClickable = true
+            isFocusable = true
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+            setOnClickListener {
+                // Find the index of this entry and delete it
+                val index = (0 until (clipboardHistoryManager?.getHistorySize() ?: 0)).find { idx ->
+                    clipboardHistoryManager?.getHistoryEntry(idx)?.id == entry.id
+                }
+                index?.let {
+                    clipboardHistoryManager?.removeEntry(it)
+                    updateClipboardView(inputConnection)
+                }
+            }
+        }
+
+        entryContainer.addView(textView)
+        entryContainer.addView(deleteButton)
+        return entryContainer
+    }
+
+    private fun createRoundedBackground(): android.graphics.drawable.GradientDrawable {
+        return android.graphics.drawable.GradientDrawable().apply {
+            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+            setColor(Color.argb(40, 255, 255, 255))
+            cornerRadius = dpToPx(6f).toFloat()
+        }
+    }
+
     /**
      * Aggiorna la griglia emoji/caratteri con le mappature SYM.
      * @param symMappings Le mappature da visualizzare
@@ -975,8 +1161,14 @@ class StatusBarController(
             onAddUserWord
         )
         
-        if (snapshot.symPage > 0 && symMappings != null) {
-            updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
+        if (snapshot.symPage > 0) {
+            // Handle page 3 (clipboard) vs pages 1-2 (emoji/symbols)
+            if (snapshot.symPage == 3) {
+                // Show clipboard history inline (similar to emoji grid)
+                updateClipboardView(inputConnection)
+            } else if (symMappings != null) {
+                updateEmojiKeyboard(symMappings, snapshot.symPage, inputConnection)
+            }
             variationsBar?.resetVariationsState()
 
             // Pin background to opaque IME color and hide variations so SYM animates on a solid canvas.
@@ -1051,6 +1243,14 @@ class StatusBarController(
         val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
         view.measure(widthSpec, heightSpec)
         return view.measuredHeight
+    }
+
+    private fun dpToPx(dp: Float): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            context.resources.displayMetrics
+        ).toInt()
     }
 
 }

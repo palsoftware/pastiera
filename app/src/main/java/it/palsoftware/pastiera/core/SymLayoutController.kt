@@ -22,7 +22,8 @@ class SymLayoutController(
 
     private enum class SymPage {
         EMOJI,
-        SYMBOLS
+        SYMBOLS,
+        CLIPBOARD
     }
 
     enum class SymKeyResult {
@@ -102,6 +103,7 @@ class SymLayoutController(
         return when (currentPageType()) {
             SymPage.EMOJI -> altSymManager.getSymMappings()
             SymPage.SYMBOLS -> altSymManager.getSymMappings2()
+            SymPage.CLIPBOARD -> null // Clipboard doesn't use mappings
             else -> null
         }
     }
@@ -137,6 +139,7 @@ class SymLayoutController(
         val symChar = when (page) {
             SymPage.EMOJI -> altSymManager.getSymMappings()[keyCode]
             SymPage.SYMBOLS -> altSymManager.getSymMappings2()[keyCode]
+            SymPage.CLIPBOARD -> null // Clipboard doesn't use key mappings
             else -> null
         }
 
@@ -174,6 +177,10 @@ class SymLayoutController(
         if (!config.emojiFirst) {
             pages.reverse()
         }
+        // Clipboard is always last
+        if (config.clipboardEnabled) {
+            pages.add(SymPage.CLIPBOARD)
+        }
         return pages
     }
 
@@ -182,6 +189,7 @@ class SymLayoutController(
         return when (symPage) {
             1 -> SymPage.EMOJI
             2 -> SymPage.SYMBOLS
+            3 -> SymPage.CLIPBOARD
             else -> null
         }
     }
@@ -189,6 +197,7 @@ class SymLayoutController(
     private fun SymPage.toPrefValue(): Int = when (this) {
         SymPage.EMOJI -> 1
         SymPage.SYMBOLS -> 2
+        SymPage.CLIPBOARD -> 3
     }
 
     private fun alignSymPageToConfig(config: SymPagesConfig = SettingsManager.getSymPagesConfig(context)) {
