@@ -241,5 +241,12 @@
     <string name="restore_completed">Վերականգնումը ավարտված է</string>
     <string name="backup_failed">Պահուստավորումը ձախողվեց՝ %1$s</string>
     <string name="restore_failed">Վերականգնումը ձախողվեց՝ %1$s</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Պահոցի պատմություն</string>
+    <string name="clipboard_clear_all">Մաքրել բոլորը</string>
+    <string name="clipboard_empty_state">Պահոցի պատմություն չկա</string>
+    <string name="clipboard_pin">Ամրացնել</string>
+    <string name="clipboard_unpin">Ապամրացնել</string>
+    <string name="clipboard_delete">Ջնջել</string>
 </resources>
 

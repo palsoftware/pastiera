@@ -241,5 +241,12 @@
     <string name="restore_completed">Восстановление завершено</string>
     <string name="backup_failed">Резервная копия не удалась: %1$s</string>
     <string name="restore_failed">Восстановление не удалось: %1$s</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">История буфера обмена</string>
+    <string name="clipboard_clear_all">Очистить все</string>
+    <string name="clipboard_empty_state">Нет истории буфера обмена</string>
+    <string name="clipboard_pin">Закрепить</string>
+    <string name="clipboard_unpin">Открепить</string>
+    <string name="clipboard_delete">Удалить</string>
 </resources>
 

@@ -392,4 +392,11 @@
     <!-- Swipe Incremental Threshold -->
     <string name="swipe_incremental_threshold_description">Distanza necessaria per spostare il cursore di una posizione. Valori più bassi rendono il cursore più veloce.</string>
     <string name="dip_unit">DIP</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Cronologia appunti</string>
+    <string name="clipboard_clear_all">Cancella tutto</string>
+    <string name="clipboard_empty_state">Nessuna cronologia degli appunti</string>
+    <string name="clipboard_pin">Fissa</string>
+    <string name="clipboard_unpin">Rimuovi pin</string>
+    <string name="clipboard_delete">Elimina</string>
 </resources>

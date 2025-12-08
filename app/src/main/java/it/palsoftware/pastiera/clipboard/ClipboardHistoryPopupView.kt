@@ -51,7 +51,7 @@ class ClipboardHistoryPopupView(private val context: Context) {
         }
 
         val titleText = TextView(context).apply {
-            text = "Clipboard History"
+            text = context.getString(R.string.clipboard_history_title)
             textSize = 18f
             setTextColor(Color.WHITE)
             layoutParams = LinearLayout.LayoutParams(
@@ -62,7 +62,7 @@ class ClipboardHistoryPopupView(private val context: Context) {
         }
 
         val clearButton = Button(context).apply {
-            text = "Clear All"
+            text = context.getString(R.string.clipboard_clear_all)
             textSize = 14f
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.parseColor("#333333"))
@@ -130,7 +130,7 @@ class ClipboardHistoryPopupView(private val context: Context) {
         val count = clipboardDao?.count() ?: 0
         if (count == 0) {
             val emptyText = TextView(context).apply {
-                text = "No clipboard history"
+                text = context.getString(R.string.clipboard_empty_state)
                 textSize = 14f
                 setTextColor(Color.GRAY)
                 gravity = Gravity.CENTER
@@ -174,6 +174,7 @@ class ClipboardHistoryPopupView(private val context: Context) {
             textSize = 14f
             setTextColor(Color.WHITE)
             maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(
                 0,
                 ViewGroup.LayoutParams.WRAP_CONTENT,

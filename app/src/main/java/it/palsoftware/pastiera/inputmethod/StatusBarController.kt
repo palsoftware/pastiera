@@ -394,7 +394,7 @@ class StatusBarController(
             // Show empty state
             val padding = dpToPx(32f)
             val emptyText = TextView(context).apply {
-                text = "No clipboard history"
+                text = context.getString(R.string.clipboard_empty_state)
                 textSize = 14f
                 setTextColor(Color.argb(128, 255, 255, 255))
                 gravity = Gravity.CENTER
@@ -417,7 +417,7 @@ class StatusBarController(
         }
 
         val titleText = TextView(context).apply {
-            text = "Clipboard History"
+            text = context.getString(R.string.clipboard_history_title)
             textSize = 12f
             setTextColor(Color.argb(180, 255, 255, 255))
             layoutParams = LinearLayout.LayoutParams(
@@ -428,7 +428,7 @@ class StatusBarController(
         }
 
         val clearButton = TextView(context).apply {
-            text = "Clear All"
+            text = context.getString(R.string.clipboard_clear_all)
             textSize = 12f
             setTextColor(Color.parseColor("#FF6B6B"))
             isClickable = true
@@ -510,7 +510,8 @@ class StatusBarController(
         val marginVertical = dpToPx(4f)
         val paddingHorizontal = dpToPx(12f)
         val paddingVertical = dpToPx(12f)
-        val fixedHeight = dpToPx(90f)
+        // Slightly shorter cards to fit more items vertically
+        val fixedHeight = dpToPx(60f)
 
         // Use FrameLayout so pin can overlay the text without pushing it down
         val entryContainer = FrameLayout(context).apply {
@@ -527,9 +528,9 @@ class StatusBarController(
 
         val textView = TextView(context).apply {
             text = entry.text
-            textSize = 13f
+            textSize = 14f
             setTextColor(Color.WHITE)
-            maxLines = 5
+            maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -582,26 +583,30 @@ class StatusBarController(
         val popup = android.widget.PopupMenu(context, view)
 
         // Add menu items
+        val pinText = context.getString(R.string.clipboard_pin)
+        val unpinText = context.getString(R.string.clipboard_unpin)
+        val deleteText = context.getString(R.string.clipboard_delete)
+
         if (entry.isPinned) {
-            popup.menu.add("Unpin")
+            popup.menu.add(unpinText)
         } else {
-            popup.menu.add("Pin")
+            popup.menu.add(pinText)
         }
-        popup.menu.add("Delete")
+        popup.menu.add(deleteText)
 
         popup.setOnMenuItemClickListener { item ->
             when (item.title.toString()) {
-                "Pin", "Unpin" -> {
+                pinText, unpinText -> {
                     clipboardHistoryManager?.toggleClipPinned(entry.id)
                     updateClipboardView(inputConnection)
                     true
                 }
-                "Delete" -> {
+                deleteText -> {
                     val index = (0 until (clipboardHistoryManager?.getHistorySize() ?: 0)).find { idx ->
                         clipboardHistoryManager?.getHistoryEntry(idx)?.id == entry.id
                     }
                     index?.let {
-                        clipboardHistoryManager?.removeEntry(it)
+                        clipboardHistoryManager?.removeEntry(it, force = true)
                         updateClipboardView(inputConnection)
                     }
                     true

@@ -472,4 +472,12 @@
     <string name="custom_input_styles_custom_locale_empty_error">Locale code cannot be empty</string>
     <string name="custom_input_styles_custom_locale_invalid_error">Invalid locale code format. Use format: xx_XX or xx</string>
     <string name="custom_input_styles_no_dictionary_warning">No dictionary available for this locale. Suggestions and auto-correction will be disabled.</string>
+
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Clipboard History</string>
+    <string name="clipboard_clear_all">Clear All</string>
+    <string name="clipboard_empty_state">No clipboard history</string>
+    <string name="clipboard_pin">Pin</string>
+    <string name="clipboard_unpin">Unpin</string>
+    <string name="clipboard_delete">Delete</string>
 </resources>

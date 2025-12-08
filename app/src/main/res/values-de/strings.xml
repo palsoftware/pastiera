@@ -356,4 +356,11 @@
     <string name="swipe_incremental_threshold_description">Erforderliche Entfernung, um den Cursor um eine Position zu bewegen. Niedrigere Werte lassen den Cursor schneller bewegen.</string>
     <string name="swipe_to_move_cursor">Wischen, um den Cursor zu bewegen</string>
     <string name="dip_unit">DIP</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Zwischenablageverlauf</string>
+    <string name="clipboard_clear_all">Alle löschen</string>
+    <string name="clipboard_empty_state">Kein Zwischenablageverlauf</string>
+    <string name="clipboard_pin">Anheften</string>
+    <string name="clipboard_unpin">Loslösen</string>
+    <string name="clipboard_delete">Löschen</string>
 </resources>

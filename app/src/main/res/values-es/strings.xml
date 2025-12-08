@@ -355,4 +355,11 @@
     <string name="swipe_incremental_threshold_description">Distancia requerida para mover el cursor una posición. Valores más bajos hacen que el cursor se mueva más rápido.</string>
     <string name="swipe_to_move_cursor">Desliza para mover el cursor</string>
     <string name="dip_unit">DIP</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Historial del portapapeles</string>
+    <string name="clipboard_clear_all">Borrar todo</string>
+    <string name="clipboard_empty_state">No hay historial del portapapeles</string>
+    <string name="clipboard_pin">Fijar</string>
+    <string name="clipboard_unpin">Desfijar</string>
+    <string name="clipboard_delete">Eliminar</string>
 </resources>
