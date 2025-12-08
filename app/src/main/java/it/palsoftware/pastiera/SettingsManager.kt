@@ -78,7 +78,12 @@ object SettingsManager {
     private const val DEFAULT_SUGGESTION_DEBUG_LOGGING = false
     private const val KEY_EXPERIMENTAL_SUGGESTIONS_ENABLED = "experimental_suggestions_enabled"
     private const val KEY_SUGGESTION_DEBUG_LOGGING = "suggestion_debug_logging"
-    
+    private const val KEY_USE_KEYBOARD_PROXIMITY = "use_keyboard_proximity"
+    private const val KEY_USE_EDIT_TYPE_RANKING = "use_edit_type_ranking"
+
+    private const val DEFAULT_USE_KEYBOARD_PROXIMITY = true
+    private const val DEFAULT_USE_EDIT_TYPE_RANKING = true
+
     /**
      * Returns the SharedPreferences instance for Pastiera.
      */
@@ -594,7 +599,41 @@ object SettingsManager {
             .putInt(KEY_MAX_AUTO_REPLACE_DISTANCE, distance.coerceIn(0, 3))
             .apply()
     }
-    
+
+    /**
+     * Returns whether keyboard proximity ranking is enabled for suggestions.
+     * When enabled, suggestions consider keyboard distance to filter out unlikely typos.
+     */
+    fun getUseKeyboardProximity(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_USE_KEYBOARD_PROXIMITY, DEFAULT_USE_KEYBOARD_PROXIMITY)
+    }
+
+    /**
+     * Enables or disables keyboard proximity ranking for suggestions.
+     */
+    fun setUseKeyboardProximity(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_USE_KEYBOARD_PROXIMITY, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns whether edit type ranking is enabled for suggestions.
+     * When enabled, suggestions are ranked by edit type (insert > substitute > delete).
+     */
+    fun getUseEditTypeRanking(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_USE_EDIT_TYPE_RANKING, DEFAULT_USE_EDIT_TYPE_RANKING)
+    }
+
+    /**
+     * Enables or disables edit type ranking for suggestions.
+     */
+    fun setUseEditTypeRanking(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_USE_EDIT_TYPE_RANKING, enabled)
+            .apply()
+    }
+
     /**
      * Returns the list of languages enabled for auto-correction.
      * @return Set of language codes (e.g. "it", "en")

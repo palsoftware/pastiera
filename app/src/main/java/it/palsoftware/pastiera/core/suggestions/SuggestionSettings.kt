@@ -5,5 +5,7 @@ data class SuggestionSettings(
     val accentMatching: Boolean = true,
     val autoReplaceOnSpaceEnter: Boolean = false,
     val maxAutoReplaceDistance: Int = 1,
-    val maxSuggestions: Int = 3
+    val maxSuggestions: Int = 3,
+    val useKeyboardProximity: Boolean = true,
+    val useEditTypeRanking: Boolean = true
 )

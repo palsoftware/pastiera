@@ -61,6 +61,12 @@ fun AutoCorrectionCategoryScreen(
     var maxAutoReplaceDistance by remember {
         mutableStateOf(SettingsManager.getMaxAutoReplaceDistance(context))
     }
+    var useKeyboardProximity by remember {
+        mutableStateOf(SettingsManager.getUseKeyboardProximity(context))
+    }
+    var useEditTypeRanking by remember {
+        mutableStateOf(SettingsManager.getUseEditTypeRanking(context))
+    }
     var navigationDirection by remember { mutableStateOf(LocalNavigationDirection.Push) }
     val navigationStack = remember {
         mutableStateListOf<AutoCorrectionDestination>(AutoCorrectionDestination.Main)
@@ -417,6 +423,92 @@ fun AutoCorrectionCategoryScreen(
                                     onCheckedChange = { enabled ->
                                         accentMatchingEnabled = enabled
                                         SettingsManager.setAccentMatchingEnabled(context, enabled)
+                                    },
+                                    enabled = experimentalSuggestionsEnabled
+                                )
+                            }
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.TextFields,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Keyboard Proximity Ranking",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "Filter unlikely typos based on key distance (QWERTY/AZERTY/QWERTZ)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2
+                                    )
+                                }
+                                Switch(
+                                    checked = useKeyboardProximity,
+                                    onCheckedChange = { enabled ->
+                                        useKeyboardProximity = enabled
+                                        SettingsManager.setUseKeyboardProximity(context, enabled)
+                                    },
+                                    enabled = experimentalSuggestionsEnabled
+                                )
+                            }
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.TextFields,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Edit Type Ranking",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "Rank suggestions by edit type (insert > substitute > delete)",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Switch(
+                                    checked = useEditTypeRanking,
+                                    onCheckedChange = { enabled ->
+                                        useEditTypeRanking = enabled
+                                        SettingsManager.setUseEditTypeRanking(context, enabled)
                                     },
                                     enabled = experimentalSuggestionsEnabled
                                 )

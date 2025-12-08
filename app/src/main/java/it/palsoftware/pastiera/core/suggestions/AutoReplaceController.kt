@@ -64,7 +64,13 @@ class AutoReplaceController(
             return ReplaceResult(false, unicodeChar != 0)
         }
 
-        val suggestions = suggestionEngine.suggest(word, limit = 1, includeAccentMatching = settings.accentMatching)
+        val suggestions = suggestionEngine.suggest(
+            word,
+            limit = 1,
+            includeAccentMatching = settings.accentMatching,
+            useKeyboardProximity = settings.useKeyboardProximity,
+            useEditTypeRanking = settings.useEditTypeRanking
+        )
         val top = suggestions.firstOrNull()
         
         // Safety checks for auto-replace
