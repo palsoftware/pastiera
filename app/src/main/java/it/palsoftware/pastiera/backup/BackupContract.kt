@@ -214,7 +214,14 @@ object PreferenceSchemas {
             "nav_mode_mappings_updated" to PreferenceValueType.LONG,
             "power_shortcuts_enabled" to PreferenceValueType.BOOLEAN,
             "experimental_suggestions_enabled" to PreferenceValueType.BOOLEAN,
-            "suggestion_debug_logging" to PreferenceValueType.BOOLEAN
+            "suggestion_debug_logging" to PreferenceValueType.BOOLEAN,
+            "max_auto_replace_distance" to PreferenceValueType.INT,
+            "additional_ime_subtypes" to PreferenceValueType.STRING_SET,
+            "clipboard_history_enabled" to PreferenceValueType.BOOLEAN,
+            "clipboard_retention_time" to PreferenceValueType.LONG,
+            "use_keyboard_proximity" to PreferenceValueType.BOOLEAN,
+            "use_edit_type_ranking" to PreferenceValueType.BOOLEAN,
+            "custom_input_styles" to PreferenceValueType.STRING
         ),
         dynamicKeys = listOf(
             PreferenceFileSchema.DynamicKey(

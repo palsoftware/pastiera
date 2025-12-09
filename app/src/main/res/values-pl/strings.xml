@@ -138,6 +138,8 @@
     <string name="sym_enable_emoji_page_description">Pokazuje layout SYM emoji podczas przełączania.</string>
     <string name="sym_enable_symbols_page_title">Włącz Stronę Symboli</string>
     <string name="sym_enable_symbols_page_description">Pokazuje layout SYM symboli podczas przełączania.</string>
+    <string name="sym_enable_clipboard_page_title">Włącz Stronę Schowka</string>
+    <string name="sym_enable_clipboard_page_description">Pokazuje historię schowka podczas przełączania.</string>
     <string name="sym_swap_pages_title">Zamień Kolejność Stron SYM</string>
     <string name="sym_swap_pages_description">Wybierz, która strona SYM pojawia się najpierw podczas przełączania.</string>
     <string name="sym_order_emoji_first">Emoji najpierw</string>

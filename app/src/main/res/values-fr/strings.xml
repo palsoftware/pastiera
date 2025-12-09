@@ -138,6 +138,8 @@
     <string name="sym_enable_emoji_page_description">Affiche le layout SYM emoji lors du cycle.</string>
     <string name="sym_enable_symbols_page_title">Activer la Page Symboles</string>
     <string name="sym_enable_symbols_page_description">Affiche le layout SYM symboles lors du cycle.</string>
+    <string name="sym_enable_clipboard_page_title">Activer la Page Presse-papiers</string>
+    <string name="sym_enable_clipboard_page_description">Affiche l\'historique du presse-papiers lors du cycle.</string>
     <string name="sym_swap_pages_title">Inverser l\'Ordre des Pages SYM</string>
     <string name="sym_swap_pages_description">Choisissez quelle page SYM apparaît en premier lors de la bascule.</string>
     <string name="sym_order_emoji_first">Emoji d\'abord</string>

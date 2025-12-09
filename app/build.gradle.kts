@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21"
 }
 
+import java.io.File
 import java.util.Properties
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -14,8 +15,13 @@ import org.gradle.api.GradleException
 // File per salvare il build number incrementale
 val buildPropertiesFile = file("build.properties")
 
-// Config di firma letta da keystore.properties (non tracciato) o da env vars
-val keystorePropertiesFile = rootProject.file("keystore.properties")
+// Config di firma letta da release/keystore.properties (non tracciato) o da env vars
+val keystorePropertiesFileCandidates = listOf(
+    rootProject.file("release/keystore.properties"),
+    rootProject.file("keystore.properties")
+)
+val keystorePropertiesFile = keystorePropertiesFileCandidates.firstOrNull { it.exists() }
+    ?: keystorePropertiesFileCandidates.last()
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use { load(it) }
@@ -95,7 +101,12 @@ android {
 
             // Only configure signing if all credentials are provided
             if (storePath != null && storePass != null && alias != null && keyPass != null) {
-                storeFile = rootProject.file(storePath)
+                val resolvedStoreFile = if (File(storePath).isAbsolute) {
+                    File(storePath)
+                } else {
+                    keystorePropertiesFile.parentFile.resolve(storePath)
+                }
+                storeFile = resolvedStoreFile
                 storePassword = storePass
                 keyAlias = alias
                 keyPassword = keyPass

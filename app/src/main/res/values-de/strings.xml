@@ -139,6 +139,8 @@
     <string name="sym_enable_emoji_page_description">Zeigt das Emoji-SYM-Layout beim Durchblättern an.</string>
     <string name="sym_enable_symbols_page_title">Symbole-Seite aktivieren</string>
     <string name="sym_enable_symbols_page_description">Zeigt das Symbole-SYM-Layout beim Durchblättern an.</string>
+    <string name="sym_enable_clipboard_page_title">Zwischenablage-Seite aktivieren</string>
+    <string name="sym_enable_clipboard_page_description">Zeigt den Zwischenablageverlauf beim Durchblättern an.</string>
     <string name="sym_swap_pages_title">SYM-Seitenreihenfolge tauschen</string>
     <string name="sym_swap_pages_description">Wählen Sie, welche SYM-Seite beim Umschalten zuerst erscheint.</string>
     <string name="sym_order_emoji_first">Emoji zuerst</string>

@@ -143,6 +143,8 @@
     <string name="sym_enable_emoji_page_description">Mostra il layout SYM emoji durante il ciclo.</string>
     <string name="sym_enable_symbols_page_title">Abilita Pagina Simboli</string>
     <string name="sym_enable_symbols_page_description">Mostra il layout SYM simboli durante il ciclo.</string>
+    <string name="sym_enable_clipboard_page_title">Abilita Pagina Appunti</string>
+    <string name="sym_enable_clipboard_page_description">Mostra la cronologia degli appunti durante il ciclo.</string>
     <string name="sym_swap_pages_title">Scambia Ordine Pagine SYM</string>
     <string name="sym_swap_pages_description">Scegli quale pagina SYM appare per prima quando si alterna.</string>
     <string name="sym_order_emoji_first">Emoji prima</string>

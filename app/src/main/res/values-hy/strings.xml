@@ -99,6 +99,8 @@
     <string name="sym_enable_emoji_page_description">Ցույց տալ էմոջիները SYM դասավորությունում։</string>
     <string name="sym_enable_symbols_page_title">Միացնել սիմվոլների էջը</string>
     <string name="sym_enable_symbols_page_description">Ցույց տալ սիմվոլները SYM դասավորությունում։</string>
+    <string name="sym_enable_clipboard_page_title">Միացնել պահոցի էջը</string>
+    <string name="sym_enable_clipboard_page_description">Ցույց տալ պահոցի պատմությունը փոխարկելիս։</string>
     <string name="sym_swap_pages_title">Փոխել SYM էջերի կարգը</string>
     <string name="sym_swap_pages_description">Ընտրեք՝ որ էջը կհայտնվի առաջինը SYM-ի մեջ։</string>
     <string name="sym_order_emoji_first">Սկզբում էմոջիները</string>

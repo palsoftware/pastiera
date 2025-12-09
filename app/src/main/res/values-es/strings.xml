@@ -138,6 +138,8 @@
     <string name="sym_enable_emoji_page_description">Muestra el layout SYM emoji al alternar.</string>
     <string name="sym_enable_symbols_page_title">Activar Página Símbolos</string>
     <string name="sym_enable_symbols_page_description">Muestra el layout SYM símbolos al alternar.</string>
+    <string name="sym_enable_clipboard_page_title">Activar Página Portapapeles</string>
+    <string name="sym_enable_clipboard_page_description">Muestra el historial del portapapeles al alternar.</string>
     <string name="sym_swap_pages_title">Intercambiar Orden de Páginas SYM</string>
     <string name="sym_swap_pages_description">Elija qué página SYM aparece primero al alternar.</string>
     <string name="sym_order_emoji_first">Emoji primero</string>

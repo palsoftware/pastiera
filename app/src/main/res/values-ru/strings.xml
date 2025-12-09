@@ -99,6 +99,8 @@
     <string name="sym_enable_emoji_page_description">Показывать эмодзи в раскладке SYM.</string>
     <string name="sym_enable_symbols_page_title">Включить страницу Символов</string>
     <string name="sym_enable_symbols_page_description">Показывать символы в раскладке SYM.</string>
+    <string name="sym_enable_clipboard_page_title">Включить страницу Буфера обмена</string>
+    <string name="sym_enable_clipboard_page_description">Показывать историю буфера обмена при переключении.</string>
     <string name="sym_swap_pages_title">Сменить порядок страниц в SYM</string>
     <string name="sym_swap_pages_description">Выберите какая страница SYM появляется первой при переключении.</string>
     <string name="sym_order_emoji_first">Сначала эмодзи</string>
