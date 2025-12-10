@@ -20,13 +20,6 @@ import kotlinx.serialization.SerializationException
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
-import com.darkrockstudios.symspellkt.api.SpellChecker
-import com.darkrockstudios.symspellkt.common.Verbosity
-import com.darkrockstudios.symspell.fdic.loadFdicFile
-import com.darkrockstudios.symspellkt.impl.SymSpell as SymSpellKt
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 /**
  * Loads and indexes lightweight dictionaries from assets and merges them with the user dictionary.
@@ -49,7 +42,6 @@ class DictionaryRepository(
     private val normalizedIndex: MutableMap<String, MutableList<DictionaryEntry>> = mutableMapOf()
     @Volatile private var symSpell: SymSpell? = null
     @Volatile private var symSpellBuilt: Boolean = false
-    @Volatile private var symSpellKt: SpellChecker? = null // SymSpellKt for English FDIC (loaded async)
     @Volatile var isReady: Boolean = false
         private set
     @Volatile private var loadStarted: Boolean = false
@@ -108,25 +100,6 @@ class DictionaryRepository(
                 // Load standard dictionary first for fast startup
                 loadStandardDictionary(startTime)
 
-                // For English, start loading FDIC in background for better quality
-                if (baseLocale.language == "en") {
-                    val assetManager = assets // Capture assets reference
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val fdicStartTime = System.currentTimeMillis()
-                            Log.i(tag, "Starting background FDIC load for English...")
-                            val checker = SymSpellKt()
-                            val dictBytes = assetManager.open("dictionaries/en_80k.fdic").use { it.readBytes() }
-                            checker.dictionary.loadFdicFile(dictBytes)
-                            symSpellKt = checker
-                            val fdicLoadTime = System.currentTimeMillis() - fdicStartTime
-                            Log.i(tag, "FDIC loaded in background (${fdicLoadTime}ms), now using higher-quality suggestions")
-                        } catch (e: Exception) {
-                            Log.w(tag, "Background FDIC load failed: ${e.message}", e)
-                        }
-                    }
-                }
-                
                 coroutineContext.ensureActive()
                 // Optional default user entries (editable copy stored in app files dir, fallback to asset)
                 val defaultUserEntries = loadUserDefaults()
@@ -282,21 +255,6 @@ class DictionaryRepository(
     }
 
     fun symSpellLookup(term: String, maxSuggestions: Int): List<SymSpell.SuggestItem> {
-        // Prefer SymSpellKt if available (English FDIC - better quality)
-        val ktEngine = symSpellKt
-        if (ktEngine != null) {
-            val normalized = normalize(term)
-            val suggestions = ktEngine.lookup(normalized, Verbosity.All, 2.0)
-            return suggestions.take(maxSuggestions).map { item ->
-                SymSpell.SuggestItem(
-                    term = item.term,
-                    distance = item.distance.toInt(),
-                    frequency = item.frequency.toInt()
-                )
-            }
-        }
-
-        // Fallback to custom implementation
         val engine = symSpell ?: return emptyList()
         return engine.lookup(term, maxSuggestions)
     }

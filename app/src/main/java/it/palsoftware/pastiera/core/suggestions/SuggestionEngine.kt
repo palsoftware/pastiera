@@ -308,13 +308,17 @@ class SuggestionEngine(
 
             // Apply edit type ranking when enabled
             var editTypeBonus = 0.0
+            var editTypeName = "NONE"
+            var isAdjacent = false
             if (useEditTypeRanking && distance > 0) {
                 val editType = getEditType(normalizedWord, term)
+                editTypeName = editType.name
                 editTypeBonus = when (editType) {
                     EditType.INSERT -> 50000.0  // User missed a character - high boost
                     EditType.SUBSTITUTE -> {
                         // Adjacent key substitutions get very high boost (most common typo)
-                        if (useKeyboardProximity && isAdjacentSubstitution(normalizedWord, term)) {
+                        isAdjacent = useKeyboardProximity && isAdjacentSubstitution(normalizedWord, term)
+                        if (isAdjacent) {
                             100000.0  // Adjacent key typos should strongly override frequency
                         } else {
                             20000.0
