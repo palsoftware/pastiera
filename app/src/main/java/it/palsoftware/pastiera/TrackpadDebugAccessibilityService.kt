@@ -32,6 +32,16 @@ class TrackpadDebugAccessibilityService : AccessibilityService() {
     private var geteventJob: Job? = null
     private val handler = Handler(Looper.getMainLooper())
 
+    // Trackpad gesture detection
+    private var touchDown = false
+    private var startX = 0
+    private var startY = 0
+    private var currentX = 0
+    private var currentY = 0
+    private var startPosSet = false
+    private val SWIPE_UP_THRESHOLD = 100 // Minimum Y distance for swipe up
+    private val trackpadMaxX = 1400 // Approximate max X from getevent observations
+
     private val requestPermissionResultListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
         if (grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED) {
             startGetevent()
@@ -101,10 +111,8 @@ class TrackpadDebugAccessibilityService : AccessibilityService() {
                 BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
                     while (isActive) {
                         val line = reader.readLine() ?: break
-                        if (line.contains("ABS_MT") || line.contains("BTN_TOUCH") ||
-                            line.contains("SYN_REPORT")) {
-                            logShizukuEvent(line)
-                        }
+                        parseTrackpadEvent(line)
+                        logShizukuEvent(line)
                     }
                 }
             } catch (e: Exception) {
@@ -114,13 +122,105 @@ class TrackpadDebugAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun logShizukuEvent(line: String) {
+    private fun parseTrackpadEvent(line: String) {
+        try {
+            when {
+                line.contains("BTN_TOUCH") && line.contains("DOWN") -> {
+                    touchDown = true
+                    startPosSet = false
+                    android.util.Log.d("TrackpadDebug", "Touch DOWN")
+                }
+                line.contains("BTN_TOUCH") && line.contains("UP") -> {
+                    if (touchDown) {
+                        detectGesture()
+                    }
+                    touchDown = false
+                    startPosSet = false
+                    android.util.Log.d("TrackpadDebug", "Touch UP at ($currentX, $currentY)")
+                }
+                line.contains("ABS_MT_POSITION_X") -> {
+                    // Parse hex value from: "EV_ABS  ABS_MT_POSITION_X  00000abc"
+                    val parts = line.trim().split(Regex("\\s+"))
+                    if (parts.size >= 3) {
+                        val hexValue = parts.last()
+                        val newX = hexValue.toIntOrNull(16)
+                        if (newX != null) {
+                            currentX = newX
+                            if (touchDown && !startPosSet) {
+                                startX = newX
+                            }
+                        }
+                    }
+                }
+                line.contains("ABS_MT_POSITION_Y") -> {
+                    val parts = line.trim().split(Regex("\\s+"))
+                    if (parts.size >= 3) {
+                        val hexValue = parts.last()
+                        val newY = hexValue.toIntOrNull(16)
+                        if (newY != null) {
+                            currentY = newY
+                            if (touchDown && !startPosSet) {
+                                startY = newY
+                                startPosSet = true
+                                android.util.Log.d("TrackpadDebug", "Start position set: ($startX, $startY)")
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("TrackpadDebug", "Error parsing event: $line", e)
+        }
+    }
+
+    private fun detectGesture() {
+        val deltaY = startY - currentY  // Positive = swipe up
+        val deltaX = currentX - startX
+
+        android.util.Log.d("TrackpadDebug", "Gesture: deltaX=$deltaX, deltaY=$deltaY")
+
+        // Detect swipe up
+        if (deltaY > SWIPE_UP_THRESHOLD && Math.abs(deltaX) < Math.abs(deltaY)) {
+            // Determine which third of trackpad (0=left, 1=center, 2=right)
+            val third = when {
+                currentX < trackpadMaxX / 3 -> 0
+                currentX < (trackpadMaxX * 2) / 3 -> 1
+                else -> 2
+            }
+
+            android.util.Log.d("TrackpadDebug", "SWIPE UP detected in third: $third")
+            handler.post {
+                acceptSuggestion(third)
+            }
+        }
+    }
+
+    private fun acceptSuggestion(index: Int) {
+        // TODO: Trigger suggestion acceptance
+        android.util.Log.d("TrackpadDebug", "Accepting suggestion at index: $index")
+
+        // For now, just show in debug overlay
         handler.post {
-            events.add(line.take(50) + "\n")
+            events.add(">>> ACCEPT SUGGESTION #$index <<<\n")
             while (events.size > 10) {
                 events.removeAt(0)
             }
             debugTextView?.text = "Trackpad (Shizuku)\n\n" + events.joinToString("")
+        }
+    }
+
+    private fun logShizukuEvent(line: String) {
+        if (line.contains("ABS_MT") || line.contains("BTN_TOUCH") || line.contains("SYN_REPORT")) {
+            handler.post {
+                val shortLine = line.take(50)
+                if (events.isEmpty() || events.last() != shortLine + "\n") {
+                    events.add(shortLine + "\n")
+                    while (events.size > 8) {
+                        events.removeAt(0)
+                    }
+                    debugTextView?.text = "Trackpad (Shizuku)\n\n" + events.joinToString("")
+                }
+            }
         }
     }
 
