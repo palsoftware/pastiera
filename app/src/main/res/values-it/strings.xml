@@ -420,6 +420,26 @@
     <string name="update_dialog_open_github">Apri GitHub</string>
     <string name="update_dialog_later">Più tardi</string>
     <string name="update_dialog_download_apk">Scarica APK</string>
+
+    <!-- Custom Input Styles -->
+    <string name="custom_input_styles_title">Lingue e mappature</string>
+    <string name="custom_input_styles_description">Aggiungi lingue e layout tastiera aggiuntivi non legati al locale di sistema</string>
+    <string name="custom_input_styles_add">Aggiungi stile di input</string>
+    <string name="custom_input_styles_empty">Nessuno stile di input personalizzato aggiunto. Tocca il pulsante + per aggiungerne uno.</string>
+    <string name="custom_input_styles_delete">Elimina</string>
+    <string name="custom_input_styles_delete_confirm_title">Elimina stile di input</string>
+    <string name="custom_input_styles_delete_confirm_message">Sei sicuro di voler eliminare questo stile di input?</string>
+    <string name="custom_input_styles_duplicate_error">Questa combinazione di lingua e layout esiste già</string>
+    <string name="custom_input_styles_open_ime_picker">Apri selettore IME</string>
+    <string name="custom_input_styles_open_ime_picker_description">Apri il selettore metodo di input di sistema per abilitare la nuova lingua</string>
+    <string name="custom_input_styles_format">%1$s - %2$s</string>
+    <string name="custom_input_styles_add_custom_locale">Aggiungi locale personalizzato…</string>
+    <string name="custom_input_styles_custom_locale_title">Inserisci codice locale personalizzato</string>
+    <string name="custom_input_styles_custom_locale_label">Codice locale</string>
+    <string name="custom_input_styles_custom_locale_hint">Inserisci un codice locale (es. en_US, it_IT, fr_FR)</string>
+    <string name="custom_input_styles_custom_locale_empty_error">Il codice locale non può essere vuoto</string>
+    <string name="custom_input_styles_custom_locale_invalid_error">Formato codice locale non valido. Usa il formato: xx_XX o xx</string>
+    <string name="custom_input_styles_no_dictionary_warning">Nessun dizionario disponibile per questo locale. Suggerimenti e auto-correzione saranno disabilitati.</string>
     <string name="custom_input_styles_language_label">Lingua</string>
     <string name="custom_input_styles_locale_display">%1$s (%2$s)</string>
     <string name="custom_input_styles_system_locale_hint">Locale di sistema - non può essere modificato</string>

@@ -311,21 +311,21 @@ class SuggestionEngine(
             if (useEditTypeRanking && distance > 0) {
                 val editType = getEditType(normalizedWord, term)
                 editTypeBonus = when (editType) {
-                    EditType.INSERT -> 0.5  // User missed a character - higher boost
+                    EditType.INSERT -> 50000.0  // User missed a character - high boost
                     EditType.SUBSTITUTE -> {
-                        // Adjacent key substitutions get higher boost
+                        // Adjacent key substitutions get very high boost (most common typo)
                         if (useKeyboardProximity && isAdjacentSubstitution(normalizedWord, term)) {
-                            0.4
+                            100000.0  // Adjacent key typos should strongly override frequency
                         } else {
-                            0.2
+                            20000.0
                         }
                     }
                     EditType.DELETE -> {
                         // Only boost deletes if input has duplicate letters
                         if (hasAdjacentDuplicates(normalizedWord) && fixesDuplicateLetter(normalizedWord, term)) {
-                            0.3
+                            30000.0
                         } else if (hasAdjacentDuplicates(normalizedWord)) {
-                            0.1
+                            10000.0
                         } else {
                             0.0  // Don't suggest deletes for non-duplicate inputs
                         }
