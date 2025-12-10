@@ -5,11 +5,21 @@ import android.content.res.AssetManager
 import org.json.JSONArray
 import android.util.Log
 import android.os.Looper
+import java.util.concurrent.CancellationException
+import kotlin.coroutines.coroutineContext
 import java.text.Normalizer
 import java.util.Locale
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.SerializationException
+import java.io.File
+import java.io.FileInputStream
+import java.io.InputStream
 
 /**
  * Loads and indexes lightweight dictionaries from assets and merges them with the user dictionary.
@@ -22,6 +32,11 @@ class DictionaryRepository(
     private val cachePrefixLength: Int = 4,
     debugLogging: Boolean = false
 ) {
+
+    companion object {
+        // Avoid concurrent heavy loads across repositories to reduce memory spikes.
+        private val loadMutex = Mutex()
+    }
 
     private val prefixCache: MutableMap<String, MutableList<DictionaryEntry>> = mutableMapOf()
     private val normalizedIndex: MutableMap<String, MutableList<DictionaryEntry>> = mutableMapOf()
@@ -36,52 +51,79 @@ class DictionaryRepository(
     private val tag = "DictionaryRepo"
     private val debugLogging: Boolean = debugLogging
 
-    fun loadIfNeeded() {
+    suspend fun loadIfNeeded() {
         if (isReady) return
         // Must not run on main thread
         if (Looper.myLooper() == Looper.getMainLooper()) return
-        synchronized(this) {
-            if (isReady || loadStarted) return
-            loadStarted = true
-            
-            val startTime = System.currentTimeMillis()
-            
-            // Try to load serialized format first (much faster)
-            val serializedPath = "common/dictionaries_serialized/${baseLocale.language}_base.dict"
-            val loadedSerialized = loadSerializedFromAssets(serializedPath)
-            
-            if (loadedSerialized) {
-                // Serialized format already populated the indices
-                val loadTime = System.currentTimeMillis() - startTime
-                Log.i(tag, "Loaded SERIALIZED dictionary (.dict) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
-            } else {
-                // Fallback to JSON format
-                val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
-                if (debugLogging) {
-                    Log.d(tag, "Loaded JSON dictionary: ${mainEntries.size} entries")
+        coroutineContext.ensureActive()
+        loadMutex.withLock {
+            if (isReady) return
+            synchronized(this) {
+                if (isReady || loadStarted) return
+                loadStarted = true
+            }
+            try {
+                val startTime = System.currentTimeMillis()
+                
+                // Try to load serialized format first (much faster)
+                coroutineContext.ensureActive()
+                val localFile = File(context.filesDir, "dictionaries_serialized/${baseLocale.language}_base.dict")
+                val serializedPath = "common/dictionaries_serialized/${baseLocale.language}_base.dict"
+                val loadedSerialized = if (localFile.exists()) {
+                    loadSerializedFromFile(localFile)
+                } else {
+                    loadSerializedFromAssets(serializedPath)
                 }
-                if (mainEntries.isNotEmpty()) {
-                    index(mainEntries)
+                
+                if (loadedSerialized) {
+                    // Serialized format already populated the indices
+                    val loadTime = System.currentTimeMillis() - startTime
+                    Log.i(tag, "Loaded SERIALIZED dictionary (.dict) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
+                } else {
+                    // Fallback to JSON format
+                    val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
+                    coroutineContext.ensureActive()
+                    if (debugLogging) {
+                        Log.d(tag, "Loaded JSON dictionary: ${mainEntries.size} entries")
+                    }
+                    if (mainEntries.isNotEmpty()) {
+                        index(mainEntries)
+                    }
+                    val loadTime = System.currentTimeMillis() - startTime
+                    Log.i(tag, "Loaded JSON dictionary (fallback) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
                 }
-                val loadTime = System.currentTimeMillis() - startTime
-                Log.i(tag, "Loaded JSON dictionary (fallback) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
-            }
-            
-            // Optional default user entries (editable copy stored in app files dir, fallback to asset)
-            val defaultUserEntries = loadUserDefaults()
-            if (defaultUserEntries.isNotEmpty()) {
-                index(defaultUserEntries, keepExisting = true)
-            }
+                
+                coroutineContext.ensureActive()
+                // Optional default user entries (editable copy stored in app files dir, fallback to asset)
+                val defaultUserEntries = loadUserDefaults()
+                if (defaultUserEntries.isNotEmpty()) {
+                    index(defaultUserEntries, keepExisting = true)
+                }
 
-            // Always add user entries
-            val userEntries = userDictionaryStore.loadUserEntries(context)
-            if (userEntries.isNotEmpty()) {
-                index(userEntries, keepExisting = true)
-            }
+                // Always add user entries
+                val userEntries = userDictionaryStore.loadUserEntries(context)
+                if (userEntries.isNotEmpty()) {
+                    index(userEntries, keepExisting = true)
+                }
 
-            buildSymSpell()
-            
-            isReady = true
+                coroutineContext.ensureActive()
+                buildSymSpell()
+                
+                isReady = true
+            } catch (ce: CancellationException) {
+                synchronized(this) { loadStarted = false }
+                throw ce
+            } catch (oom: OutOfMemoryError) {
+                Log.e(tag, "OutOfMemory while loading dictionary; clearing and falling back", oom)
+                synchronized(this) { loadStarted = false }
+                prefixCache.clear()
+                normalizedIndex.clear()
+                symSpell = null
+                symSpellBuilt = false
+                isReady = false
+                // Rethrow to let caller handle failure
+                throw oom
+            }
         }
     }
 
@@ -90,11 +132,14 @@ class DictionaryRepository(
         background()
     }
 
-    fun refreshUserEntries() {
+    suspend fun refreshUserEntries() {
+        coroutineContext.ensureActive()
         // Ensure dictionary base is loaded first (if not already)
         if (!isReady && !loadStarted) {
             loadIfNeeded()
+            if (!isReady) return
         }
+        coroutineContext.ensureActive()
         // Refresh defaults and user entries - this works even if base dictionary is still loading
         // because index() with keepExisting=true will merge with existing entries
         val defaultUserEntries = loadUserDefaults()
@@ -106,6 +151,7 @@ class DictionaryRepository(
         }
         index(userEntries, keepExisting = true)
         // Rebuild SymSpell to drop removed entries
+        coroutineContext.ensureActive()
         symSpellBuilt = false
         buildSymSpell()
     }
@@ -131,7 +177,7 @@ class DictionaryRepository(
 
     fun removeUserEntry(word: String) {
         userDictionaryStore.removeWord(context, word)
-        refreshUserEntries()
+        // Caller should refresh asynchronously; keep legacy path noop here.
     }
 
     fun markUsed(word: String) {
@@ -219,67 +265,14 @@ class DictionaryRepository(
      * Attempts to load dictionary from serialized format (.dict file).
      * Returns true if successful, false otherwise (fallback to JSON).
      */
-    private fun loadSerializedFromAssets(path: String): Boolean {
-        Log.i(tag, "Attempting to load serialized dictionary from: $path")
+    @OptIn(ExperimentalSerializationApi::class)
+    private suspend fun loadSerializedFromAssets(path: String): Boolean {
+        Log.i(tag, "Attempting to load serialized dictionary from assets: $path")
         return try {
-            val fileSize = assets.open(path).use { it.available().toLong() }
-            Log.i(tag, "Found serialized file: $path (${fileSize / 1024}KB)")
-            
-            val serializedString = assets.open(path).bufferedReader().use { it.readText() }
-            Log.i(tag, "Read file content: ${serializedString.length} characters")
-            
-            val json = Json {
-                ignoreUnknownKeys = true
+            coroutineContext.ensureActive()
+            assets.open(path).use { input ->
+                decodeSerializedDictionary(input)
             }
-            val index = json.decodeFromString<DictionaryIndex>(serializedString)
-            Log.i(tag, "Deserialized successfully: normalizedIndex=${index.normalizedIndex.size}, prefixCache=${index.prefixCache.size}")
-            
-            // Populate indices directly from serialized data
-            index.normalizedIndex.forEach { (normalized, entries) ->
-                normalizedIndex[normalized] = entries.map { it.toDictionaryEntry() }.toMutableList()
-            }
-            
-            index.prefixCache.forEach { (prefix, entries) ->
-                prefixCache[prefix] = entries.map { it.toDictionaryEntry() }.toMutableList()
-            }
-
-            // If SymSpell deletes are precomputed, hydrate the engine here
-            if (index.symDeletes != null && index.symMeta != null) {
-                val engine = SymSpell(
-                    maxEditDistance = index.symMeta.maxEditDistance,
-                    prefixLength = index.symMeta.prefixLength
-                )
-                val termFrequencies = index.normalizedIndex.mapValues { (_, entries) ->
-                    entries.maxOfOrNull { it.frequency } ?: 0
-                }
-                // Expand deletes entries that might store only prefixes (old format) to full terms
-                val prefixToTerms = mutableMapOf<String, MutableList<String>>()
-                termFrequencies.keys.forEach { term ->
-                    val prefix = term.take(index.symMeta.prefixLength.coerceAtMost(term.length))
-                    val list = prefixToTerms.getOrPut(prefix) { mutableListOf() }
-                    list.add(term)
-                }
-                val expandedDeletes = mutableMapOf<String, MutableList<String>>()
-                index.symDeletes.forEach { (deleteKey, terms) ->
-                    val targets = LinkedHashSet<String>()
-                    terms.forEach { t ->
-                        if (termFrequencies.containsKey(t)) {
-                            targets.add(t)
-                        } else {
-                            prefixToTerms[t]?.let { targets.addAll(it) }
-                        }
-                    }
-                    if (targets.isNotEmpty()) {
-                        expandedDeletes[deleteKey] = targets.toMutableList()
-                    }
-                }
-                engine.loadSerialized(termFrequencies, expandedDeletes)
-                symSpell = engine
-                symSpellBuilt = true
-                Log.i(tag, "Loaded precomputed SymSpell deletes: ${expandedDeletes.size} keys")
-            }
-            
-            Log.i(tag, "Successfully populated indices from serialized format")
             true
         } catch (e: java.io.FileNotFoundException) {
             Log.w(tag, "Serialized dictionary file not found: $path - ${e.message}")
@@ -291,6 +284,78 @@ class DictionaryRepository(
             Log.e(tag, "Error loading serialized dictionary from $path: ${e.javaClass.simpleName} - ${e.message}", e)
             false
         }
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private suspend fun loadSerializedFromFile(file: File): Boolean {
+        Log.i(tag, "Attempting to load serialized dictionary from file: ${file.absolutePath}")
+        return try {
+            coroutineContext.ensureActive()
+            FileInputStream(file).use { input ->
+                decodeSerializedDictionary(input)
+            }
+            true
+        } catch (e: SerializationException) {
+            Log.e(tag, "Failed to deserialize dictionary from file: ${e.message}", e)
+            false
+        } catch (e: Exception) {
+            Log.e(tag, "Error loading serialized dictionary from file: ${e.javaClass.simpleName} - ${e.message}", e)
+            false
+        }
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun decodeSerializedDictionary(input: InputStream) {
+        val json = Json { ignoreUnknownKeys = true }
+        val index = json.decodeFromStream<DictionaryIndex>(input)
+        Log.i(tag, "Deserialized dictionary: normalizedIndex=${index.normalizedIndex.size}, prefixCache=${index.prefixCache.size}")
+
+        normalizedIndex.clear()
+        prefixCache.clear()
+
+        index.normalizedIndex.forEach { (normalized, entries) ->
+            normalizedIndex[normalized] = entries.map { it.toDictionaryEntry() }.toMutableList()
+        }
+
+        index.prefixCache.forEach { (prefix, entries) ->
+            prefixCache[prefix] = entries.map { it.toDictionaryEntry() }.toMutableList()
+        }
+
+        if (index.symDeletes != null && index.symMeta != null) {
+            val engine = SymSpell(
+                maxEditDistance = index.symMeta.maxEditDistance,
+                prefixLength = index.symMeta.prefixLength
+            )
+            val termFrequencies = index.normalizedIndex.mapValues { (_, entries) ->
+                entries.maxOfOrNull { it.frequency } ?: 0
+            }
+            val prefixToTerms = mutableMapOf<String, MutableList<String>>()
+            termFrequencies.keys.forEach { term ->
+                val prefix = term.take(index.symMeta.prefixLength.coerceAtMost(term.length))
+                val list = prefixToTerms.getOrPut(prefix) { mutableListOf() }
+                list.add(term)
+            }
+            val expandedDeletes = mutableMapOf<String, MutableList<String>>()
+            index.symDeletes.forEach { (deleteKey, terms) ->
+                val targets = LinkedHashSet<String>()
+                terms.forEach { t ->
+                    if (termFrequencies.containsKey(t)) {
+                        targets.add(t)
+                    } else {
+                        prefixToTerms[t]?.let { targets.addAll(it) }
+                    }
+                }
+                if (targets.isNotEmpty()) {
+                    expandedDeletes[deleteKey] = targets.toMutableList()
+                }
+            }
+            engine.loadSerialized(termFrequencies, expandedDeletes)
+            symSpell = engine
+            symSpellBuilt = true
+            Log.i(tag, "Loaded precomputed SymSpell deletes: ${expandedDeletes.size} keys")
+        }
+
+        Log.i(tag, "Successfully populated indices from serialized format")
     }
 
     /**

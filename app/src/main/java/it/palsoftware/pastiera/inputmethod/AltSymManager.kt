@@ -225,16 +225,20 @@ class AltSymManager(
     ): Boolean {
         val altChar = altKeyMap[keyCode]
         return if (altChar != null) {
-            val punctuationSet = ".,;:!?\"'"
+            val punctuationSet = it.palsoftware.pastiera.core.Punctuation.AUTO_SPACE
             if (altChar.isNotEmpty() && altChar[0] in punctuationSet) {
                 val applied = AutoSpaceTracker.replaceAutoSpaceWithPunctuation(inputConnection, altChar)
                 if (applied) {
                     Log.d(TAG, "Alt mapping applied with auto-space replacement for '$altChar'")
+                    onAltCharInserted?.invoke(altChar[0])
                     return true
                 }
             }
             AutoSpaceTracker.clear()
             inputConnection.commitText(altChar, 1)
+            if (altChar.isNotEmpty()) {
+                onAltCharInserted?.invoke(altChar[0])
+            }
             true
         } else {
             defaultHandler(keyCode, event)
@@ -337,11 +341,12 @@ class AltSymManager(
                             inputConnection.deleteSurroundingText(1, 0)
                         }
 
-                        val punctuationSet = ".,;:!?\"'"
+                        val punctuationSet = it.palsoftware.pastiera.core.Punctuation.AUTO_SPACE
                         if (altChar.isNotEmpty() && altChar[0] in punctuationSet) {
                             val applied = AutoSpaceTracker.replaceAutoSpaceWithPunctuation(inputConnection, altChar)
                             if (applied) {
                                 Log.d(TAG, "Long press Alt mapping applied with auto-space replacement for '$altChar'")
+                                onAltCharInserted?.invoke(altChar[0])
                                 insertedNormalChars.remove(keyCode)
                                 longPressRunnables.remove(keyCode)
                                 return@Runnable

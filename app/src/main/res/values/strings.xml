@@ -143,6 +143,11 @@
     <string name="auto_correct_max_distance_off">Off</string>
     <string name="auto_correct_max_distance_description">Maximum number of character differences allowed for auto-correction. 0 = disabled, 1-3 = increasing tolerance.</string>
     <string name="auto_correct_manage_user_dict_title">Manage user dictionary</string>
+    <string name="auto_correct_keyboard_proximity_title">Keyboard Proximity Ranking</string>
+    <string name="auto_correct_keyboard_proximity_description">Filter unlikely typos based on key distance (QWERTY/AZERTY/QWERTZ)</string>
+    <string name="auto_correct_edit_type_ranking_title">Edit Type Ranking</string>
+    <string name="auto_correct_edit_type_ranking_description">Rank suggestions by edit type (insert > substitute > delete)</string>
+    <string name="clear">Clear</string>
     <string name="experimental_suggestions_title">Experimental suggestions</string>
     <string name="experimental_suggestions_subtitle">Enable the new dictionary/suggestion engine (beta)</string>
 
@@ -200,7 +205,7 @@
     
     <!-- Keyboard Layout Section -->
     <string name="keyboard_layout_title">Keyboard Layout</string>
-    <string name="keyboard_layout_description">Select your keyboard layout. ALT, SYM and Ctrl mappings remain based on physical key position. Change mapping quickly with CTRL+SPACE.</string>
+    <string name="keyboard_layout_description">Select your keyboard layout. ALT, SYM and Ctrl mappings remain based on physical key position.</string>
     <string name="keyboard_layout_editor_title">Keyboard Layout Editor</string>
     <string name="keyboard_layout_no_conversion">Standard</string>
     <string name="keyboard_layout_no_conversion_description">Standard QWERTY layout (no conversion)</string>
@@ -341,6 +346,11 @@
     <string name="settings_update_checking">Checking for updates…</string>
     <string name="settings_update_up_to_date">App is up to date.</string>
     <string name="settings_update_check_failed">Unable to reach GitHub.</string>
+    <string name="update_dialog_title">New update available</string>
+    <string name="update_dialog_message">Version %1$s is available on GitHub.</string>
+    <string name="update_dialog_open_github">Open GitHub</string>
+    <string name="update_dialog_later">Later</string>
+    <string name="update_dialog_download_apk">Download APK</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
@@ -376,7 +386,7 @@
     <string name="layout_delete_failed">Failed to delete layout</string>
     <string name="layout_view_mapping">View mapping</string>
     <string name="layout_delete">Delete</string>
-    <string name="layout_enable_for_cycling">Enable (Ctrl + Space to switch)</string>
+    <string name="layout_enable_for_cycling">Enable for cycling</string>
     <string name="layout_select_as_active">Select as active layout</string>
     <string name="delete">Delete</string>
     
@@ -445,4 +455,63 @@
     
     <!-- Units -->
     <string name="dip_unit">DIP</string>
+    
+    <!-- Custom Input Styles -->
+    <string name="custom_input_styles_title">Lingue e mappe</string>
+    <string name="custom_input_styles_description">Add additional languages and keyboard layouts that are not tied to system locale</string>
+    <string name="custom_input_styles_add">Add Input Style</string>
+    <string name="custom_input_styles_empty">No custom input styles added yet. Tap the + button to add one.</string>
+    <string name="custom_input_styles_delete">Delete</string>
+    <string name="custom_input_styles_delete_confirm_title">Delete Input Style</string>
+    <string name="custom_input_styles_delete_confirm_message">Are you sure you want to delete this input style?</string>
+    <string name="custom_input_styles_add_dialog_title">Add Input Style</string>
+    <string name="custom_input_styles_edit_dialog_title">Edit Input Style</string>
+    <string name="custom_input_styles_edit_system_locale_title">Edit System Locale Layout</string>
+    <string name="custom_input_styles_select_locale">Select Language</string>
+    <string name="custom_input_styles_select_layout">Select Keyboard Layout</string>
+    <string name="custom_input_styles_save">Save</string>
+    <string name="custom_input_styles_cancel">Cancel</string>
+    <string name="custom_input_styles_duplicate_error">This language and layout combination already exists</string>
+    <string name="custom_input_styles_open_ime_picker">Open IME Picker</string>
+    <string name="custom_input_styles_open_ime_picker_description">Open system input method picker to enable the new language</string>
+    <string name="custom_input_styles_format">%1$s - %2$s</string>
+    <string name="custom_input_styles_add_custom_locale">Add Custom Locale…</string>
+    <string name="custom_input_styles_custom_locale_title">Enter Custom Locale Code</string>
+    <string name="custom_input_styles_custom_locale_label">Locale Code</string>
+    <string name="custom_input_styles_custom_locale_hint">Enter a locale code (e.g., en_US, it_IT, fr_FR)</string>
+    <string name="custom_input_styles_custom_locale_empty_error">Locale code cannot be empty</string>
+    <string name="custom_input_styles_custom_locale_invalid_error">Invalid locale code format. Use format: xx_XX or xx</string>
+    <string name="custom_input_styles_no_dictionary_warning">No dictionary available for this locale. Suggestions and auto-correction will be disabled.</string>
+    <string name="custom_input_styles_layout_mapping_updated">Layout mapping updated: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_updated">Input style updated: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_added">Input style added: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_deleted">Input style deleted</string>
+    <string name="custom_input_styles_language_label">Language</string>
+    <string name="custom_input_styles_locale_display">%1$s (%2$s)</string>
+    <string name="custom_input_styles_system_locale_hint">System locale - cannot be changed</string>
+    <string name="custom_input_styles_system_badge">System</string>
+    <string name="custom_input_styles_default_layout">qwerty</string>
+    <string name="custom_input_styles_change_layout_hint">Tap to change layout</string>
+    <string name="custom_input_styles_custom_locale_placeholder">en_US, it_IT, fr_FR, etc.</string>
+    <string name="custom_input_styles_installed_dictionaries">Installed dictionaries</string>
+
+    <!-- Installed dictionaries screen -->
+    <string name="installed_dictionaries_title">Installed dictionaries</string>
+    <string name="installed_dictionaries_empty">No serialized dictionaries found.</string>
+    <string name="installed_dictionaries_language_code">Language: %1$s</string>
+    <string name="installed_dictionaries_filename">File: %1$s</string>
+    <string name="installed_dictionaries_import">Import dictionary</string>
+    <string name="installed_dictionaries_import_success">Imported %1$s</string>
+    <string name="installed_dictionaries_import_invalid_name">Invalid file name. Expected *_base.dict</string>
+    <string name="installed_dictionaries_import_invalid_format">Invalid dictionary format</string>
+    <string name="installed_dictionaries_import_failed">Import failed</string>
+    <string name="installed_dictionaries_imported_badge">Imported</string>
+
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Clipboard History</string>
+    <string name="clipboard_clear_all">Clear All</string>
+    <string name="clipboard_empty_state">No clipboard history</string>
+    <string name="clipboard_pin">Pin</string>
+    <string name="clipboard_unpin">Unpin</string>
+    <string name="clipboard_delete">Delete</string>
 </resources>

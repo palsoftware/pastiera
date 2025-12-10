@@ -43,19 +43,6 @@ fun KeyboardTimingSettingsScreen(
         mutableStateOf(SettingsManager.getLongPressModifier(context))
     }
     
-    val keyboardLayout = remember { 
-        SettingsManager.getKeyboardLayout(context)
-    }
-    
-    var showKeyboardLayoutSettings by remember { mutableStateOf(false) }
-    
-    if (showKeyboardLayoutSettings) {
-        KeyboardLayoutSettingsScreen(
-            modifier = modifier,
-            onBack = { showKeyboardLayoutSettings = false }
-        )
-        return
-    }
     
     // Handle system back button
     BackHandler { onBack() }
@@ -216,51 +203,6 @@ fun KeyboardTimingSettingsScreen(
                 }
             }
         
-            // Keyboard Layout Settings (navigable)
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp)
-                    .clickable { showKeyboardLayoutSettings = true }
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Keyboard,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.keyboard_layout_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1
-                        )
-                        Text(
-                            text = if (keyboardLayout == "qwerty") {
-                                stringResource(R.string.keyboard_layout_no_conversion)
-                            } else {
-                                keyboardLayout.replaceFirstChar { it.uppercase() }
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
     }
 }

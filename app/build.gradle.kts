@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21"
 }
 
+import java.io.File
 import java.util.Properties
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -14,8 +15,13 @@ import org.gradle.api.GradleException
 // File per salvare il build number incrementale
 val buildPropertiesFile = file("build.properties")
 
-// Config di firma letta da keystore.properties (non tracciato) o da env vars
-val keystorePropertiesFile = rootProject.file("keystore.properties")
+// Config di firma letta da release/keystore.properties (non tracciato) o da env vars
+val keystorePropertiesFileCandidates = listOf(
+    rootProject.file("release/keystore.properties"),
+    rootProject.file("keystore.properties")
+)
+val keystorePropertiesFile = keystorePropertiesFileCandidates.firstOrNull { it.exists() }
+    ?: keystorePropertiesFileCandidates.last()
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use { load(it) }
@@ -93,18 +99,18 @@ android {
             val alias = signingProp("keyAlias", "PASTIERA_KEY_ALIAS")
             val keyPass = signingProp("keyPassword", "PASTIERA_KEY_PASSWORD")
 
-            if (storePath == null || storePass == null || alias == null || keyPass == null) {
-                throw GradleException(
-                    "Missing signing config. Define storeFile, storePassword, keyAlias e keyPassword in " +
-                        "keystore.properties (non tracciato) o nelle variabili d'ambiente PASTIERA_KEYSTORE_PATH, " +
-                        "PASTIERA_KEYSTORE_PASSWORD, PASTIERA_KEY_ALIAS, PASTIERA_KEY_PASSWORD."
-                )
+            // Only configure signing if all credentials are provided
+            if (storePath != null && storePass != null && alias != null && keyPass != null) {
+                val resolvedStoreFile = if (File(storePath).isAbsolute) {
+                    File(storePath)
+                } else {
+                    keystorePropertiesFile.parentFile.resolve(storePath)
+                }
+                storeFile = resolvedStoreFile
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
             }
-
-            storeFile = rootProject.file(storePath)
-            storePassword = storePass
-            keyAlias = alias
-            keyPassword = keyPass
         }
     }
 
@@ -115,9 +121,37 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // Only use signing config if it's properly configured
+            val storePath = signingProp("storeFile", "PASTIERA_KEYSTORE_PATH")
+            val storePass = signingProp("storePassword", "PASTIERA_KEYSTORE_PASSWORD")
+            val alias = signingProp("keyAlias", "PASTIERA_KEY_ALIAS")
+            val keyPass = signingProp("keyPassword", "PASTIERA_KEY_PASSWORD")
+            
+            if (storePath != null && storePass != null && alias != null && keyPass != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             // Disable lint for release to avoid file lock issues
             isDebuggable = false
+        }
+    }
+    
+    // Validate signing config only when building release
+    tasks.whenTaskAdded {
+        if (name.contains("Release", ignoreCase = true) && !name.contains("Debug", ignoreCase = true)) {
+            doFirst {
+                val storePath = signingProp("storeFile", "PASTIERA_KEYSTORE_PATH")
+                val storePass = signingProp("storePassword", "PASTIERA_KEYSTORE_PASSWORD")
+                val alias = signingProp("keyAlias", "PASTIERA_KEY_ALIAS")
+                val keyPass = signingProp("keyPassword", "PASTIERA_KEY_PASSWORD")
+                
+                if (storePath == null || storePass == null || alias == null || keyPass == null) {
+                    throw GradleException(
+                        "Missing signing config for release build. Define storeFile, storePassword, keyAlias e keyPassword in " +
+                            "keystore.properties (non tracciato) o nelle variabili d'ambiente PASTIERA_KEYSTORE_PATH, " +
+                            "PASTIERA_KEYSTORE_PASSWORD, PASTIERA_KEY_ALIAS, PASTIERA_KEY_PASSWORD."
+                    )
+                }
+            }
         }
     }
     

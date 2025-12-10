@@ -322,8 +322,9 @@ object AutoCorrector {
         var endIndex = text.length
 
         // Ignore spaces and punctuation at the end
+        val boundarySet = it.palsoftware.pastiera.core.Punctuation.BOUNDARY
         while (endIndex > 0 && (text[endIndex - 1].isWhitespace() ||
-                                text[endIndex - 1] in ".,;:!?()[]{}\"'")) {
+                                text[endIndex - 1] in boundarySet)) {
             endIndex--
         }
 
@@ -363,7 +364,7 @@ object AutoCorrector {
                 // Go back until finding space or punctuation
                 var tempIndex = startIndex - 1
                 while (tempIndex > 0 && !text[tempIndex - 1].isWhitespace() &&
-                       text[tempIndex - 1] !in ".,;:!?()[]{}\"'") {
+                       text[tempIndex - 1] !in boundarySet) {
                     tempIndex--
                 }
 
@@ -372,7 +373,7 @@ object AutoCorrector {
                     if (wordsFound < maxWords) {
                         // Go back past space to find next word
                         while (tempIndex > 0 && (text[tempIndex - 1].isWhitespace() ||
-                                                 text[tempIndex - 1] in ".,;:!?()[]{}\"'")) {
+                                                 text[tempIndex - 1] in boundarySet)) {
                             tempIndex--
                         }
                         startIndex = tempIndex
@@ -410,7 +411,7 @@ object AutoCorrector {
         // If we didn't find patterns with spaces, search for a single word
         var startIndex = endIndex
         while (startIndex > 0 && !text[startIndex - 1].isWhitespace() &&
-               text[startIndex - 1] !in ".,;:!?()[]{}\"'") {
+               text[startIndex - 1] !in boundarySet) {
             startIndex--
         }
 

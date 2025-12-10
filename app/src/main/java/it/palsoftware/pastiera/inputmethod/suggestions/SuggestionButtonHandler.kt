@@ -57,17 +57,44 @@ object SuggestionButtonHandler {
     ): Boolean {
         val before = inputConnection.getTextBeforeCursor(64, 0)?.toString().orEmpty()
         val after = inputConnection.getTextAfterCursor(64, 0)?.toString().orEmpty()
-        val boundaryChars = " \t\n\r.,;:!?()[]{}\"'"
+        val boundaryChars = " \t\n\r" + it.palsoftware.pastiera.core.Punctuation.BOUNDARY
+
+        fun isApostropheWithinWord(prev: Char?, next: Char?): Boolean {
+            if (prev?.isLetterOrDigit() != true) return false
+            return next == null || next.isLetterOrDigit()
+        }
 
         // Find start of word in 'before'
         var start = before.length
-        while (start > 0 && !boundaryChars.contains(before[start - 1])) {
-            start--
+        while (start > 0) {
+            val ch = before[start - 1]
+            if (!boundaryChars.contains(ch)) {
+                start--
+                continue
+            }
+            val prev = before.getOrNull(start - 2)
+            val next = before.getOrNull(start)
+            if (ch == '\'' && isApostropheWithinWord(prev, next)) {
+                start--
+                continue
+            }
+            break
         }
         // Find end of word in 'after'
         var end = 0
-        while (end < after.length && !boundaryChars.contains(after[end])) {
-            end++
+        while (end < after.length) {
+            val ch = after[end]
+            if (!boundaryChars.contains(ch)) {
+                end++
+                continue
+            }
+            val prev = if (end == 0) before.lastOrNull() else after[end - 1]
+            val next = after.getOrNull(end + 1)
+            if (ch == '\'' && isApostropheWithinWord(prev, next)) {
+                end++
+                continue
+            }
+            break
         }
 
         val wordBeforeCursor = before.substring(start)

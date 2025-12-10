@@ -405,9 +405,9 @@ object AutoCapitalizeHelper {
         // At start of field
         if (before.isEmpty()) return true
         
-        // Check if last character is whitespace or word-separating punctuation
+        // Check if last character is whitespace or word-separating punctuation (apostrophe excluded)
         val lastChar = before.lastOrNull() ?: return false
-        return lastChar.isWhitespace() || lastChar in ".,;:!?()[]{}\"'"
+        return lastChar.isWhitespace() || lastChar in it.palsoftware.pastiera.core.Punctuation.BOUNDARY
     }
     
     /**

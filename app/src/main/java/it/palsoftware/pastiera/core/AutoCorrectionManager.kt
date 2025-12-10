@@ -55,7 +55,7 @@ class AutoCorrectionManager(
             while (i >= 0 &&
                 i >= textBeforeCursor.length - deleteCount - 1 &&
                 (textBeforeCursor[i].isWhitespace() ||
-                        textBeforeCursor[i] in ".,;:!?()[]{}\"'")
+                        textBeforeCursor[i] in it.palsoftware.pastiera.core.Punctuation.BOUNDARY)
             ) {
                 deleteCount++
                 i--
@@ -86,14 +86,24 @@ class AutoCorrectionManager(
 
         val isSpaceKey = keyCode == KeyEvent.KEYCODE_SPACE
         val isEnterKey = keyCode == KeyEvent.KEYCODE_ENTER
-        val punctuationChar = if (event?.unicodeChar != null && event.unicodeChar != 0) {
+        val punctuationCharRaw = if (event?.unicodeChar != null && event.unicodeChar != 0) {
             event.unicodeChar.toChar()
         } else null
+        val punctuationChar = when (punctuationCharRaw) {
+            '’', '‘', 'ʼ' -> '\''
+            else -> punctuationCharRaw
+        }
+        val prevCharRaw = inputConnection?.getTextBeforeCursor(1, 0)?.lastOrNull()
+        val prevChar = when (prevCharRaw) {
+            '’', '‘', 'ʼ' -> '\''
+            else -> prevCharRaw
+        }
+        val isWordApostrophe = punctuationChar == '\'' && prevChar?.isLetterOrDigit() == true
 
         val boundaryChar: Char? = boundaryCharOverride ?: when {
             isSpaceKey -> ' '
             isEnterKey -> '\n'
-            punctuationChar != null && punctuationChar in ".,;:!?()[]{}\"'" -> punctuationChar
+            punctuationChar != null && punctuationChar in it.palsoftware.pastiera.core.Punctuation.BOUNDARY -> punctuationChar
             else -> null
         }
 
@@ -101,7 +111,7 @@ class AutoCorrectionManager(
             return false
         }
 
-        val punctuationChars = ".,;:!?()[]{}\"'"
+        val punctuationChars = it.palsoftware.pastiera.core.Punctuation.BOUNDARY
         val isSpaceBoundary = boundaryChar == ' '
         val isEnterBoundary = boundaryChar == '\n'
         val isPunctuationBoundary = boundaryChar in punctuationChars

@@ -116,6 +116,20 @@
     <string name="auto_correct_language_code_hint">Geben Sie einen Code und einen Namen für Ihre benutzerdefinierte Ersetzung ein (z. B. \"fr\" / \"Französisch\", \"mydict\" / \"Mein Wörterbuch\")</string>
     <string name="auto_correct_language_code_required">Der Ersetzungsname ist erforderlich</string>
     <string name="auto_correct_language_already_exists">Diese Ersetzung existiert bereits</string>
+    <string name="auto_correct_suggestions_toggle_title">Vorschläge während der Eingabe</string>
+    <string name="auto_correct_accent_matching_title">Akzentuierte Wörter abgleichen</string>
+    <string name="auto_correct_auto_replace_title">Automatisch ersetzen bei Leerzeichen/Eingabe</string>
+    <string name="auto_correct_max_distance_title">Maximale Korrekturdistanz</string>
+    <string name="auto_correct_max_distance_off">Aus</string>
+    <string name="auto_correct_max_distance_description">Maximale Anzahl von Zeichenunterschieden, die für die Autokorrektur erlaubt sind. 0 = deaktiviert, 1-3 = zunehmende Toleranz.</string>
+    <string name="auto_correct_manage_user_dict_title">Benutzerwörterbuch verwalten</string>
+    <string name="auto_correct_keyboard_proximity_title">Tastatur-Näherungsbewertung</string>
+    <string name="auto_correct_keyboard_proximity_description">Unwahrscheinliche Tippfehler basierend auf Tastenabstand filtern (QWERTY/AZERTY/QWERTZ)</string>
+    <string name="auto_correct_edit_type_ranking_title">Bearbeitungstyp-Bewertung</string>
+    <string name="auto_correct_edit_type_ranking_description">Vorschläge nach Bearbeitungstyp sortieren (Einfügen > Ersetzen > Löschen)</string>
+    <string name="clear">Löschen</string>
+    <string name="experimental_suggestions_title">Experimentelle Vorschläge</string>
+    <string name="experimental_suggestions_subtitle">Neuen Wörterbuch/Vorschlags-Engine aktivieren (Beta)</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_customize_title">SYM-Tastatur anpassen</string>
@@ -125,6 +139,8 @@
     <string name="sym_enable_emoji_page_description">Zeigt das Emoji-SYM-Layout beim Durchblättern an.</string>
     <string name="sym_enable_symbols_page_title">Symbole-Seite aktivieren</string>
     <string name="sym_enable_symbols_page_description">Zeigt das Symbole-SYM-Layout beim Durchblättern an.</string>
+    <string name="sym_enable_clipboard_page_title">Zwischenablage-Seite aktivieren</string>
+    <string name="sym_enable_clipboard_page_description">Zeigt den Zwischenablageverlauf beim Durchblättern an.</string>
     <string name="sym_swap_pages_title">SYM-Seitenreihenfolge tauschen</string>
     <string name="sym_swap_pages_description">Wählen Sie, welche SYM-Seite beim Umschalten zuerst erscheint.</string>
     <string name="sym_order_emoji_first">Emoji zuerst</string>
@@ -286,7 +302,7 @@
     <string name="layout_delete_failed">Layout konnte nicht gelöscht werden</string>
     <string name="layout_view_mapping">Zuordnung anzeigen</string>
     <string name="layout_delete">Löschen</string>
-    <string name="layout_enable_for_cycling">Aktivieren (Strg + Leertaste zum Wechseln)</string>
+    <string name="layout_enable_for_cycling">Aktivieren für den Zyklus</string>
     <string name="layout_select_as_active">Als aktives Layout auswählen</string>
     
     <!-- Main Activity Event Display -->
@@ -356,4 +372,47 @@
     <string name="swipe_incremental_threshold_description">Erforderliche Entfernung, um den Cursor um eine Position zu bewegen. Niedrigere Werte lassen den Cursor schneller bewegen.</string>
     <string name="swipe_to_move_cursor">Wischen, um den Cursor zu bewegen</string>
     <string name="dip_unit">DIP</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Zwischenablageverlauf</string>
+    <string name="clipboard_clear_all">Alle löschen</string>
+    <string name="clipboard_empty_state">Kein Zwischenablageverlauf</string>
+    <string name="clipboard_pin">Anheften</string>
+    <string name="clipboard_unpin">Loslösen</string>
+    <string name="clipboard_delete">Löschen</string>
+    <string name="update_dialog_title">Neues Update verfügbar</string>
+    <string name="update_dialog_message">Version %1$s ist auf GitHub verfügbar.</string>
+    <string name="update_dialog_open_github">GitHub öffnen</string>
+    <string name="update_dialog_later">Später</string>
+    <string name="update_dialog_download_apk">APK herunterladen</string>
+    <string name="custom_input_styles_language_label">Sprache</string>
+    <string name="custom_input_styles_locale_display">%1$s (%2$s)</string>
+    <string name="custom_input_styles_system_locale_hint">Systemsprache – kann nicht geändert werden</string>
+    <string name="custom_input_styles_add_dialog_title">Eingabestil hinzufügen</string>
+    <string name="custom_input_styles_edit_dialog_title">Eingabestil bearbeiten</string>
+    <string name="custom_input_styles_edit_system_locale_title">Layout des Systemlocales bearbeiten</string>
+    <string name="custom_input_styles_select_locale">Sprache auswählen</string>
+    <string name="custom_input_styles_select_layout">Tastaturlayout auswählen</string>
+    <string name="custom_input_styles_save">Speichern</string>
+    <string name="custom_input_styles_cancel">Abbrechen</string>
+    <string name="custom_input_styles_system_badge">System</string>
+    <string name="custom_input_styles_default_layout">qwerty</string>
+    <string name="custom_input_styles_change_layout_hint">Zum Ändern tippen</string>
+    <string name="custom_input_styles_custom_locale_placeholder">en_US, it_IT, fr_FR usw.</string>
+    <string name="custom_input_styles_layout_mapping_updated">Layout-Zuordnung aktualisiert: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_updated">Eingabestil aktualisiert: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_added">Eingabestil hinzugefügt: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_deleted">Eingabestil gelöscht</string>
+    <string name="custom_input_styles_installed_dictionaries">Installierte Wörterbücher</string>
+
+    <!-- Installierte Wörterbücher -->
+    <string name="installed_dictionaries_title">Installierte Wörterbücher</string>
+    <string name="installed_dictionaries_empty">Keine serialisierten Wörterbücher gefunden.</string>
+    <string name="installed_dictionaries_language_code">Sprache: %1$s</string>
+    <string name="installed_dictionaries_filename">Datei: %1$s</string>
+    <string name="installed_dictionaries_import">Wörterbuch importieren</string>
+    <string name="installed_dictionaries_import_success">%1$s importiert</string>
+    <string name="installed_dictionaries_import_invalid_name">Ungültiger Dateiname. Erwartet *_base.dict</string>
+    <string name="installed_dictionaries_import_invalid_format">Ungültiges Wörterbuchformat</string>
+    <string name="installed_dictionaries_import_failed">Import fehlgeschlagen</string>
+    <string name="installed_dictionaries_imported_badge">Importiert</string>
 </resources>

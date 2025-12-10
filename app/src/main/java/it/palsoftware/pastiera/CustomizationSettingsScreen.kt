@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.BackHandler
@@ -258,6 +259,7 @@ fun CustomizationSettingsScreen(
                                 )
                             }
                         }
+                    
                     }
                 }
             }

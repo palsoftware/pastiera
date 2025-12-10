@@ -221,10 +221,18 @@ private fun getAvailableDictionaries(context: Context): List<String> {
     return try {
         val assets = context.assets
         val files = assets.list("common/dictionaries_serialized") ?: emptyArray()
-        android.util.Log.d("LanguagesScreen", "Found ${files.size} files in dictionaries_serialized")
+        android.util.Log.d("LanguagesScreen", "Found ${files.size} files in dictionaries_serialized (assets)")
         files.forEach { android.util.Log.d("LanguagesScreen", "  - $it") }
+        val localDir = java.io.File(context.filesDir, "dictionaries_serialized")
+        val localFiles = localDir.listFiles { file ->
+            file.isFile && file.name.endsWith("_base.dict")
+        }?.map { it.name } ?: emptyList()
+        if (localFiles.isNotEmpty()) {
+            android.util.Log.d("LanguagesScreen", "Found ${localFiles.size} local dictionaries")
+            localFiles.forEach { android.util.Log.d("LanguagesScreen", "  - $it") }
+        }
         
-        val dictionaries = files
+        val dictionaries = (files.toList() + localFiles)
             .filter { it.endsWith("_base.dict") }
             .map { it.removeSuffix("_base.dict") }
             .filter { it != "user" } // Exclude user_defaults if present

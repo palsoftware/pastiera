@@ -101,9 +101,13 @@ def convert_to_symspell(data: list, max_edit_distance: int = 2, prefix_length: i
     prefix_cache = {}
     
     for entry in data:
-        w = entry["w"]
+        # IMPORTANT: Preserve original case (uppercase/lowercase) from JSON
+        # e.g., {"w": "Mario", "f": 100} -> word="Mario" (not "mario")
+        # normalize() only converts to lowercase for indexing purposes
+        w = entry["w"]  # Original case preserved
         f = int(entry.get("f", 1))
-        norm = normalize(w)
+        norm = normalize(w)  # lowercase for indexing only
+        # Save original word with case preserved for dictionary entry
         normalized_index.setdefault(norm, []).append({"word": w, "frequency": f, "source": 0})
         # prefix cache up to prefix_length chars
         for l in range(1, min(len(norm), prefix_length) + 1):
@@ -238,4 +242,5 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
+
 

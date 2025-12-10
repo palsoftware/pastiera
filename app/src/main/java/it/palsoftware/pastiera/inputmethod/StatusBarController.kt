@@ -31,6 +31,10 @@ import kotlin.math.abs
 import it.palsoftware.pastiera.inputmethod.ui.LedStatusView
 import it.palsoftware.pastiera.inputmethod.ui.VariationBarView
 import it.palsoftware.pastiera.inputmethod.suggestions.ui.FullSuggestionsBar
+import android.content.res.AssetManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 
 /**
  * Manages the status bar shown by the IME, handling view creation
@@ -39,7 +43,9 @@ import it.palsoftware.pastiera.inputmethod.suggestions.ui.FullSuggestionsBar
 class StatusBarController(
     private val context: Context,
     private val mode: Mode = Mode.FULL,
-    private val clipboardHistoryManager: it.palsoftware.pastiera.clipboard.ClipboardHistoryManager? = null
+    private val clipboardHistoryManager: it.palsoftware.pastiera.clipboard.ClipboardHistoryManager? = null,
+    private val assets: AssetManager? = null,
+    private val imeServiceClass: Class<*>? = null
 ) {
     enum class Mode {
         FULL,
@@ -77,6 +83,12 @@ class StatusBarController(
         set(value) {
             field = value
             variationBarView?.onLanguageSwitchRequested = value
+        }
+    
+    var onClipboardRequested: (() -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onClipboardRequested = value
         }
     
     // Callback for speech recognition state changes (active/inactive)
@@ -130,6 +142,8 @@ class StatusBarController(
         val altPhysicallyPressed: Boolean,
         val altOneShot: Boolean,
         val symPage: Int, // 0=disattivato, 1=pagina1 emoji, 2=pagina2 caratteri
+        val clipboardOverlay: Boolean = false, // mostra la clipboard come view dedicata
+        val clipboardCount: Int = 0, // numero di elementi in clipboard
         val variations: List<String> = emptyList(),
         val suggestions: List<String> = emptyList(),
         val addWordCandidate: String? = null,
@@ -158,11 +172,15 @@ class StatusBarController(
     private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
     private var wasSymActive: Boolean = false
     private var symShown: Boolean = false
+    private var lastSymHeight: Int = 0
+    private val defaultSymHeightPx: Int
+        get() = dpToPx(600f) // fallback when nothing measured yet
     private val ledStatusView = LedStatusView(context)
-    private val variationBarView: VariationBarView? = if (mode == Mode.FULL) VariationBarView(context) else null
+    private val variationBarView: VariationBarView? = if (mode == Mode.FULL) VariationBarView(context, assets, imeServiceClass) else null
     private var variationsWrapper: View? = null
     private var forceMinimalUi: Boolean = false
     private var fullSuggestionsBar: FullSuggestionsBar? = null
+    private var baseBottomPadding: Int = 0
 
     fun setForceMinimalUi(force: Boolean) {
         if (mode != Mode.FULL) {
@@ -188,6 +206,18 @@ class StatusBarController(
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
                 setBackgroundColor(DEFAULT_BACKGROUND)
+            }
+            statusBarLayout?.let { layout ->
+                baseBottomPadding = layout.paddingBottom
+                ViewCompat.setOnApplyWindowInsetsListener(layout) { view, insets ->
+                    // Preserve space for the system IME switcher / nav bar while keeping zero extra gap otherwise
+                    val navInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+                    val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
+                    val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+                    val bottomInset = maxOf(navInsets.bottom, imeInsets.bottom, cutout.bottom)
+                    view.updatePadding(bottom = baseBottomPadding + bottomInset)
+                    insets
+                }
             }
 
             // Container for modifier indicators (horizontal, left-aligned).
@@ -253,12 +283,17 @@ class StatusBarController(
             statusBarLayout?.apply {
                 // Full-width suggestions bar above the rest
                 fullSuggestionsBar = FullSuggestionsBar(context)
+                // Set subtype cycling parameters if available
+                if (assets != null && imeServiceClass != null) {
+                    fullSuggestionsBar?.setSubtypeCyclingParams(assets, imeServiceClass)
+                }
                 addView(fullSuggestionsBar?.ensureView())
                 addView(modifiersContainer)
                 variationsWrapper?.let { addView(it) }
                 addView(emojiKeyboardContainer) // Griglia emoji prima dei LED
                 addView(ledStrip) // LED sempre in fondo
             }
+            statusBarLayout?.let { ViewCompat.requestApplyInsets(it) }
         } else if (emojiMapText.isNotEmpty()) {
             emojiMapTextView?.text = emojiMapText
         }
@@ -370,7 +405,7 @@ class StatusBarController(
             // Show empty state
             val padding = dpToPx(32f)
             val emptyText = TextView(context).apply {
-                text = "No clipboard history"
+                text = context.getString(R.string.clipboard_empty_state)
                 textSize = 14f
                 setTextColor(Color.argb(128, 255, 255, 255))
                 gravity = Gravity.CENTER
@@ -393,7 +428,7 @@ class StatusBarController(
         }
 
         val titleText = TextView(context).apply {
-            text = "Clipboard History"
+            text = context.getString(R.string.clipboard_history_title)
             textSize = 12f
             setTextColor(Color.argb(180, 255, 255, 255))
             layoutParams = LinearLayout.LayoutParams(
@@ -404,7 +439,7 @@ class StatusBarController(
         }
 
         val clearButton = TextView(context).apply {
-            text = "Clear All"
+            text = context.getString(R.string.clipboard_clear_all)
             textSize = 12f
             setTextColor(Color.parseColor("#FF6B6B"))
             isClickable = true
@@ -486,7 +521,8 @@ class StatusBarController(
         val marginVertical = dpToPx(4f)
         val paddingHorizontal = dpToPx(12f)
         val paddingVertical = dpToPx(12f)
-        val fixedHeight = dpToPx(90f)
+        // Slightly shorter cards to fit more items vertically
+        val fixedHeight = dpToPx(60f)
 
         // Use FrameLayout so pin can overlay the text without pushing it down
         val entryContainer = FrameLayout(context).apply {
@@ -503,9 +539,9 @@ class StatusBarController(
 
         val textView = TextView(context).apply {
             text = entry.text
-            textSize = 13f
+            textSize = 14f
             setTextColor(Color.WHITE)
-            maxLines = 5
+            maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -558,26 +594,30 @@ class StatusBarController(
         val popup = android.widget.PopupMenu(context, view)
 
         // Add menu items
+        val pinText = context.getString(R.string.clipboard_pin)
+        val unpinText = context.getString(R.string.clipboard_unpin)
+        val deleteText = context.getString(R.string.clipboard_delete)
+
         if (entry.isPinned) {
-            popup.menu.add("Unpin")
+            popup.menu.add(unpinText)
         } else {
-            popup.menu.add("Pin")
+            popup.menu.add(pinText)
         }
-        popup.menu.add("Delete")
+        popup.menu.add(deleteText)
 
         popup.setOnMenuItemClickListener { item ->
             when (item.title.toString()) {
-                "Pin", "Unpin" -> {
+                pinText, unpinText -> {
                     clipboardHistoryManager?.toggleClipPinned(entry.id)
                     updateClipboardView(inputConnection)
                     true
                 }
-                "Delete" -> {
+                deleteText -> {
                     val index = (0 until (clipboardHistoryManager?.getHistorySize() ?: 0)).find { idx ->
                         clipboardHistoryManager?.getHistoryEntry(idx)?.id == entry.id
                     }
                     index?.let {
-                        clipboardHistoryManager?.removeEntry(it)
+                        clipboardHistoryManager?.removeEntry(it, force = true)
                         updateClipboardView(inputConnection)
                     }
                     true
@@ -1178,7 +1218,7 @@ class StatusBarController(
         variationBarView?.onVariationSelectedListener = onVariationSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
         variationBarView?.updateInputConnection(inputConnection)
-        variationBarView?.setSymModeActive(snapshot.symPage > 0)
+        variationBarView?.setSymModeActive(snapshot.symPage > 0 || snapshot.clipboardOverlay)
         variationBarView?.updateLanguageButtonText()
         
         val layout = ensureLayoutCreated(emojiMapText) ?: return
@@ -1205,11 +1245,13 @@ class StatusBarController(
         val variationsWrapperView = if (!forceMinimalUi) variationsWrapper else null
         val experimentalEnabled = SettingsManager.isExperimentalSuggestionsEnabled(context)
         val suggestionsEnabledSetting = SettingsManager.getSuggestionsEnabled(context)
-        val showFullBar = !forceMinimalUi &&
+        // Show full suggestions bar in CANDIDATES_ONLY mode or when not in minimal UI mode
+        val showFullBar = (mode == Mode.CANDIDATES_ONLY || !forceMinimalUi) &&
             experimentalEnabled &&
             suggestionsEnabledSetting &&
             !snapshot.shouldDisableSuggestions &&
-            snapshot.symPage == 0
+            snapshot.symPage == 0 &&
+            !snapshot.clipboardOverlay
         fullSuggestionsBar?.update(
             snapshot.suggestions,
             showFullBar,
@@ -1220,6 +1262,51 @@ class StatusBarController(
             onAddUserWord
         )
         
+        if (snapshot.clipboardOverlay) {
+            // Show clipboard as dedicated overlay (not part of SYM pages)
+            updateClipboardView(inputConnection)
+            variationsBar?.resetVariationsState()
+
+            // Pin background and hide variations while showing clipboard grid
+            if (layout.background !is ColorDrawable) {
+                layout.background = ColorDrawable(DEFAULT_BACKGROUND)
+            }
+            (layout.background as? ColorDrawable)?.alpha = 255
+            variationsWrapperView?.apply {
+                visibility = View.INVISIBLE
+                isEnabled = false
+                isClickable = false
+            }
+            variationsBar?.hideImmediate()
+
+            val measured = ensureEmojiKeyboardMeasuredHeight(emojiKeyboardView, layout, forceReMeasure = true)
+            // Prefer cached height; otherwise measured; fallback to default only if zero.
+            val targetHeight = when {
+                lastSymHeight > 0 -> lastSymHeight
+                measured > 0 -> measured
+                else -> defaultSymHeightPx
+            }
+            lastSymHeight = targetHeight
+            emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
+            emojiKeyboardView.visibility = View.VISIBLE
+            emojiKeyboardView.layoutParams = (emojiKeyboardView.layoutParams ?: LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                targetHeight
+            )).apply { height = targetHeight }
+            if (!symShown && !wasSymActive) {
+                emojiKeyboardView.alpha = 1f
+                emojiKeyboardView.translationY = targetHeight.toFloat()
+                animateEmojiKeyboardIn(emojiKeyboardView, layout)
+                symShown = true
+                wasSymActive = true
+            } else {
+                emojiKeyboardView.alpha = 1f
+                emojiKeyboardView.translationY = 0f
+                wasSymActive = true
+            }
+            return
+        }
+
         if (snapshot.symPage > 0) {
             // Handle page 3 (clipboard) vs pages 1-2 (emoji/symbols)
             if (snapshot.symPage == 3) {
@@ -1242,7 +1329,9 @@ class StatusBarController(
             }
             variationsBar?.hideImmediate()
 
-            val symHeight = ensureEmojiKeyboardMeasuredHeight(emojiKeyboardView, layout)
+            val measured = ensureEmojiKeyboardMeasuredHeight(emojiKeyboardView, layout, forceReMeasure = true)
+            val symHeight = if (measured > 0) measured else defaultSymHeightPx
+            lastSymHeight = symHeight
             emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
             emojiKeyboardView.visibility = View.VISIBLE
             emojiKeyboardView.layoutParams = (emojiKeyboardView.layoutParams ?: LinearLayout.LayoutParams(
@@ -1293,8 +1382,8 @@ class StatusBarController(
         }
     }
 
-    private fun ensureEmojiKeyboardMeasuredHeight(view: View, parent: View): Int {
-        if (view.height > 0) {
+    private fun ensureEmojiKeyboardMeasuredHeight(view: View, parent: View, forceReMeasure: Boolean = false): Int {
+        if (view.height > 0 && !forceReMeasure) {
             return view.height
         }
         val width = if (parent.width > 0) parent.width else context.resources.displayMetrics.widthPixels
@@ -1311,5 +1400,4 @@ class StatusBarController(
             context.resources.displayMetrics
         ).toInt()
     }
-
 }

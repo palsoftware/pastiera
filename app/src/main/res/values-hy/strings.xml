@@ -78,6 +78,20 @@
     <string name="auto_correct_language_code_hint">Մուտքագրեք ձեր փոխարինման կոդը և անունը (օր. "fr" / Ֆրանսերեն, "mydict" / "Իմ բառարան")</string>
     <string name="auto_correct_language_code_required">Փոխարինման անունը պարտադիր է</string>
     <string name="auto_correct_language_already_exists">Փոխարինումը արդեն գոյություն ունի</string>
+    <string name="auto_correct_suggestions_toggle_title">Առաջարկներ մուտքագրելիս</string>
+    <string name="auto_correct_accent_matching_title">Համապատասխանեցնել շեշտված բառեր</string>
+    <string name="auto_correct_auto_replace_title">Ավտոմատ փոխարինում բացատ/մուտքագրում</string>
+    <string name="auto_correct_max_distance_title">Ուղղման առավելագույն հեռավորություն</string>
+    <string name="auto_correct_max_distance_off">Անջատված</string>
+    <string name="auto_correct_max_distance_description">Նիշերի առավելագույն քանակի տարբերություններ, թույլատրված ավտո-ուղղման համար։ 0 = անջատված, 1-3 = աճող հանդուրժողականություն։</string>
+    <string name="auto_correct_manage_user_dict_title">Կառավարել օգտագործողի բառարանը</string>
+    <string name="auto_correct_keyboard_proximity_title">Դասակարգում ստեղնաշարի մոտիկությամբ</string>
+    <string name="auto_correct_keyboard_proximity_description">Ֆիլտրել անհավանական տառասխալները՝ հիմնված ստեղների հեռավորության վրա (QWERTY/AZERTY/QWERTZ)</string>
+    <string name="auto_correct_edit_type_ranking_title">Դասակարգում խմբագրման տեսակով</string>
+    <string name="auto_correct_edit_type_ranking_description">Դասակարգել առաջարկները խմբագրման տեսակով (տեղադրում > փոխարինում > ջնջում)</string>
+    <string name="clear">Մաքրել</string>
+    <string name="experimental_suggestions_title">Փորձարարական առաջարկներ</string>
+    <string name="experimental_suggestions_subtitle">Միացնել նոր բառարան/առաջարկների շարժիչը (բետա)</string>
     <string name="sym_customize_title">Փոփոխել SYM ստեղնաշարը</string>
     <string name="sym_auto_close_title">SYM դասավորության ավտո-փակման</string>
     <string name="sym_auto_close_description">Ավտոմատ փակում է SYM դասավորությունը՝ սիմվոլ մուտքագրելուց, Alt կամ Enter սեղմելուց հետո։ Չի փակում Ctrl կամ Shift սեղմելիս։</string>
@@ -85,6 +99,8 @@
     <string name="sym_enable_emoji_page_description">Ցույց տալ էմոջիները SYM դասավորությունում։</string>
     <string name="sym_enable_symbols_page_title">Միացնել սիմվոլների էջը</string>
     <string name="sym_enable_symbols_page_description">Ցույց տալ սիմվոլները SYM դասավորությունում։</string>
+    <string name="sym_enable_clipboard_page_title">Միացնել պահոցի էջը</string>
+    <string name="sym_enable_clipboard_page_description">Ցույց տալ պահոցի պատմությունը փոխարկելիս։</string>
     <string name="sym_swap_pages_title">Փոխել SYM էջերի կարգը</string>
     <string name="sym_swap_pages_description">Ընտրեք՝ որ էջը կհայտնվի առաջինը SYM-ի մեջ։</string>
     <string name="sym_order_emoji_first">Սկզբում էմոջիները</string>
@@ -110,7 +126,7 @@
     <string name="long_press_modifier_title">Երկար սեղմման մոդիֆիկատոր</string>
     <string name="long_press_modifier_description">Ընտրեք՝ երկար սեղմումը կէմուլացնի Alt+կամ Shift+կոճակը։</string>
     <string name="keyboard_layout_title">Ստեղնաշարի դասավորություն</string>
-    <string name="keyboard_layout_description">Ընտրեք ձեր դասավորությունը։ ALT, SYM և Ctrl դասավորությունները կախված են ֆիզիկական ստեղների տեղաբաշխումից։ Փոխեք արագ՝ CTRL+SPACE-ով։</string>
+    <string name="keyboard_layout_description">Ընտրեք ձեր դասավորությունը։ ALT, SYM և Ctrl դասավորությունները կախված են ֆիզիկական ստեղների տեղաբաշխումից։</string>
     <string name="keyboard_layout_no_conversion">Ստանդարտ</string>
     <string name="keyboard_layout_no_conversion_description">Ստանդարտ QWERTY (առանց փոխակերպման)</string>
     <string name="keyboard_layout_conversions_title">Դասավորության փոխակերպումներ</string>
@@ -221,7 +237,7 @@
     <string name="layout_delete_failed">Չհաջողվեց ջնջել դասավորությունը</string>
     <string name="layout_view_mapping">Դիտել դասավորությունը</string>
     <string name="layout_delete">Ջնջել</string>
-    <string name="layout_enable_for_cycling">Ավելացնել ակտիվների մեջ (Ctrl + Բացատ)</string>
+    <string name="layout_enable_for_cycling">Ավելացնել ակտիվների մեջ</string>
     <string name="layout_select_as_active">Ընտրել որպես ակտիվ դասավորություն</string>
     <string name="event_unicode_label">Յունիքոդ՝</string>
     <string name="event_output_label">Արտածում՝</string>
@@ -241,5 +257,48 @@
     <string name="restore_completed">Վերականգնումը ավարտված է</string>
     <string name="backup_failed">Պահուստավորումը ձախողվեց՝ %1$s</string>
     <string name="restore_failed">Վերականգնումը ձախողվեց՝ %1$s</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Պահոցի պատմություն</string>
+    <string name="clipboard_clear_all">Մաքրել բոլորը</string>
+    <string name="clipboard_empty_state">Պահոցի պատմություն չկա</string>
+    <string name="clipboard_pin">Ամրացնել</string>
+    <string name="clipboard_unpin">Ապամրացնել</string>
+    <string name="clipboard_delete">Ջնջել</string>
+    <string name="update_dialog_title">Նոր թարմացում հասանելի է</string>
+    <string name="update_dialog_message">Տարբերակ %1$s-ը հասանելի է GitHub-ում։</string>
+    <string name="update_dialog_open_github">Բացել GitHub-ը</string>
+    <string name="update_dialog_later">Հետո</string>
+    <string name="update_dialog_download_apk">Ներբեռնել APK</string>
+    <string name="custom_input_styles_language_label">Լեզու</string>
+    <string name="custom_input_styles_locale_display">%1$s (%2$s)</string>
+    <string name="custom_input_styles_system_locale_hint">Համակարգի տեղակայումը չի կարող փոխվել</string>
+    <string name="custom_input_styles_add_dialog_title">Ավելացնել մուտքագրման ոճ</string>
+    <string name="custom_input_styles_edit_dialog_title">Խմբագրել մուտքագրման ոճը</string>
+    <string name="custom_input_styles_edit_system_locale_title">Խմբագրել համակարգի լեզվի դասավորությունը</string>
+    <string name="custom_input_styles_select_locale">Ընտրել լեզու</string>
+    <string name="custom_input_styles_select_layout">Ընտրել ստեղնաշարի դասավորություն</string>
+    <string name="custom_input_styles_save">Պահպանել</string>
+    <string name="custom_input_styles_cancel">Չեղարկել</string>
+    <string name="custom_input_styles_system_badge">Համակարգ</string>
+    <string name="custom_input_styles_default_layout">qwerty</string>
+    <string name="custom_input_styles_change_layout_hint">Հպեք՝ դասավորությունը փոխելու համար</string>
+    <string name="custom_input_styles_custom_locale_placeholder">en_US, it_IT, fr_FR և այլն.</string>
+    <string name="custom_input_styles_layout_mapping_updated">Դասավորության քարտեզագրումը թարմացված է: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_updated">Մուտքագրման ոճը թարմացված է: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_added">Մուտքագրման ոճը ավելացված է: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_deleted">Մուտքագրման ոճը ջնջված է</string>
+    <string name="custom_input_styles_installed_dictionaries">Տեղադրված բառարաններ</string>
+
+    <!-- Տեղադրված բառարաններ -->
+    <string name="installed_dictionaries_title">Տեղադրված բառարաններ</string>
+    <string name="installed_dictionaries_empty">Սերիալիզացված բառարաններ չեն գտնվել։</string>
+    <string name="installed_dictionaries_language_code">Լեզու․ %1$s</string>
+    <string name="installed_dictionaries_filename">Ֆայլ․ %1$s</string>
+    <string name="installed_dictionaries_import">Ներմուծել բառարան</string>
+    <string name="installed_dictionaries_import_success">Ներմուծվեց %1$s</string>
+    <string name="installed_dictionaries_import_invalid_name">Ֆայլի անվանումը սխալ է։ Ակնկալվում է *_base.dict</string>
+    <string name="installed_dictionaries_import_invalid_format">Բառարանի ձևաչափը սխալ է</string>
+    <string name="installed_dictionaries_import_failed">Ներմուծումը ձախողվեց</string>
+    <string name="installed_dictionaries_imported_badge">Ներմուծված</string>
 </resources>
 

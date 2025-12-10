@@ -233,44 +233,47 @@ fun AutoCorrectionCategoryScreen(
                                     )
                                 }
                             }
-                            
-                            // Languages (Input Method Subtypes)
-                            Surface(
+                        }
+
+                        // Custom Input Styles (Lingue e mappe)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .clickable { navigateTo(AutoCorrectionDestination.CustomInputStyles) }
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(64.dp)
-                                    .clickable {
-                                        val intent = Intent(context, LanguagesActivity::class.java)
-                                        context.startActivity(intent)
-                                    }
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Language,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
+                                Icon(
+                                    imageVector = Icons.Filled.Language,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.custom_input_styles_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
                                     )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = stringResource(R.string.languages_title),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1
-                                        )
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Text(
+                                        text = stringResource(R.string.custom_input_styles_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
                                     )
                                 }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
 
@@ -449,13 +452,13 @@ fun AutoCorrectionCategoryScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Keyboard Proximity Ranking",
+                                        text = stringResource(R.string.auto_correct_keyboard_proximity_title),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Medium,
                                         maxLines = 1
                                     )
                                     Text(
-                                        text = "Filter unlikely typos based on key distance (QWERTY/AZERTY/QWERTZ)",
+                                        text = stringResource(R.string.auto_correct_keyboard_proximity_description),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 2
@@ -492,13 +495,13 @@ fun AutoCorrectionCategoryScreen(
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Edit Type Ranking",
+                                        text = stringResource(R.string.auto_correct_edit_type_ranking_title),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Medium,
                                         maxLines = 1
                                     )
                                     Text(
-                                        text = "Rank suggestions by edit type (insert > substitute > delete)",
+                                        text = stringResource(R.string.auto_correct_edit_type_ranking_description),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1
@@ -632,6 +635,13 @@ fun AutoCorrectionCategoryScreen(
                     onBack = { navigateBack() }
                 )
             }
+
+            AutoCorrectionDestination.CustomInputStyles -> {
+                CustomInputStylesScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
+            }
         }
     }
 }
@@ -641,6 +651,7 @@ private sealed class AutoCorrectionDestination {
     object Settings : AutoCorrectionDestination()
     data class Edit(val languageCode: String) : AutoCorrectionDestination()
     object UserDictionary : AutoCorrectionDestination()
+    object CustomInputStyles : AutoCorrectionDestination()
 }
 
 private enum class UserDictSource { DEFAULT, USER }
@@ -795,7 +806,7 @@ private fun UserDictionaryScreen(
                             IconButton(onClick = { newWord = "" }) {
                                 Icon(
                                     imageVector = Icons.Filled.Clear,
-                                    contentDescription = "Clear"
+                                    contentDescription = stringResource(R.string.clear)
                                 )
                             }
                         }

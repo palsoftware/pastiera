@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Predefined additional subtypes (locale:layout pairs) -->
+    <!-- Format: locale:layout, e.g., "en_US:qwerty", "fr_FR:azerty" -->
+    <!-- Empty by default, can be populated with common combinations -->
+    <string-array name="predefined_subtypes">
+        <!-- Example entries (commented out):
+        <item>en_US:qwerty</item>
+        <item>fr_FR:azerty</item>
+        <item>de_DE:qwertz</item>
+        -->
+    </string-array>
+</resources>
+

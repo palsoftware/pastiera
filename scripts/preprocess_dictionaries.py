@@ -50,29 +50,32 @@ def process_dictionary(json_file_path, output_dir):
     cache_prefix_length = 4
     
     for entry in data:
-        word = entry['w']
+        # IMPORTANT: Preserve original case (uppercase/lowercase) from JSON
+        # e.g., {"w": "Mario", "f": 100} -> word="Mario" (not "mario")
+        # normalize() only converts to lowercase for indexing purposes
+        word = entry['w']  # Original case preserved
         freq = entry.get('f', 1)
         
-        # Normalize word
+        # Normalize word (lowercase for indexing only)
         normalized = normalize(word, language)
         
-        # Add to normalized index
+        # Add to normalized index - word keeps original case
         if normalized not in normalized_index:
             normalized_index[normalized] = []
         normalized_index[normalized].append({
-            'word': word,
+            'word': word,  # Original case preserved (e.g., "Mario", "Roma", "casa")
             'frequency': freq,
             'source': 0  # 0 = MAIN
         })
         
-        # Add to prefix cache
+        # Add to prefix cache - word keeps original case
         max_prefix_length = min(len(normalized), cache_prefix_length)
         for length in range(1, max_prefix_length + 1):
             prefix = normalized[:length]
             if prefix not in prefix_cache:
                 prefix_cache[prefix] = []
             prefix_cache[prefix].append({
-                'word': word,
+                'word': word,  # Original case preserved
                 'frequency': freq,
                 'source': 0
             })

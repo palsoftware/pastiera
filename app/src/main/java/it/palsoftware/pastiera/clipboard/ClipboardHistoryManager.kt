@@ -73,8 +73,20 @@ class ClipboardHistoryManager(
 
     fun canRemove(index: Int) = clipboardDao?.isPinned(index) == false
 
-    fun removeEntry(index: Int) {
-        if (canRemove(index)) {
+    fun removeEntry(index: Int, force: Boolean = false) {
+        val entry = getHistoryEntry(index) ?: return
+
+        // For UX: allow deleting pinned entries when explicitly requested (force=true)
+        if (entry.isPinned && !force) return
+
+        if (entry.isPinned && force) {
+            // Unpin first so DAO allows removal, then delete using the updated position
+            toggleClipPinned(entry.id)
+            val updatedIndex = (0 until getHistorySize()).firstOrNull { idx ->
+                getHistoryEntry(idx)?.id == entry.id
+            }
+            updatedIndex?.let { clipboardDao?.deleteClipAt(it) }
+        } else {
             clipboardDao?.deleteClipAt(index)
         }
     }
@@ -133,7 +145,7 @@ class ClipboardHistoryManager(
                         getHistoryEntry(idx)?.id == entry.id
                     }
                 }
-                index?.let { removeEntry(it) }
+                index?.let { removeEntry(it, force = true) }
             }
             setOnClearAllClickListener {
                 clearHistory()

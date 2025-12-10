@@ -37,6 +37,37 @@ class InputEventRouter(
 
     var suggestionController: it.palsoftware.pastiera.core.suggestions.SuggestionController? = null
 
+    /**
+     * Track in-word apostrophes so suggestions don't reset (e.g., "we'" -> "we'll").
+     */
+    fun handleInWordApostrophe(inputConnection: InputConnection?, pendingApostrophe: Boolean = false) {
+        val ic = inputConnection ?: return
+        val before = ic.getTextBeforeCursor(2, 0)?.toString().orEmpty()
+        val last = before.lastOrNull()
+        val prev = before.dropLast(1).lastOrNull()
+        val normalizeApostrophe: (Char?) -> Char? = { c ->
+            when (c) {
+                '’', '‘', 'ʼ' -> '\''
+                else -> c
+            }
+        }
+        val lastNorm = normalizeApostrophe(last)
+        val prevNorm = normalizeApostrophe(prev)
+
+        // Two scenarios:
+        // 1) pendingApostrophe=true (key event about to commit apostrophe): look at previous char.
+        // 2) apostrophe already committed (long-press/Alt): last is apostrophe, prev must be word char.
+        val isWordApostrophe = when {
+            pendingApostrophe -> lastNorm?.isLetterOrDigit() == true
+            lastNorm == '\'' -> prevNorm?.isLetterOrDigit() == true
+            else -> false
+        }
+
+        if (isWordApostrophe) {
+            suggestionController?.onCharacterCommitted("'", ic)
+        }
+    }
+
     private fun commitTextWithTracking(ic: InputConnection?, text: CharSequence, trackWord: Boolean = true) {
         ic?.commitText(text, 1)
         Log.d("PastieraIME", "commitTextWithTracking: '$text', trackWord=$trackWord")
@@ -589,13 +620,30 @@ class InputEventRouter(
     ): Boolean {
         val isEnterKey = keyCode == KeyEvent.KEYCODE_ENTER
         val isSpaceKey = keyCode == KeyEvent.KEYCODE_SPACE
+        val typedCharRaw = event?.unicodeChar?.takeIf { it != 0 }?.toChar()
+        val typedChar = when (typedCharRaw) {
+            '’', '‘', 'ʼ' -> '\''
+            else -> typedCharRaw
+        }
+        val prevCharRaw = inputConnection?.getTextBeforeCursor(1, 0)?.lastOrNull()
+        val prevChar = when (prevCharRaw) {
+            '’', '‘', 'ʼ' -> '\''
+            else -> prevCharRaw
+        }
+        val isWordApostrophe = typedChar == '\'' && prevChar?.isLetterOrDigit() == true
         val isBoundaryKey = isSpaceKey || isEnterKey
-        val isPunctuation = event?.unicodeChar != null &&
-            event.unicodeChar != 0 &&
-            event.unicodeChar.toChar() in ".,;:!?()[]{}\"'"
+        // Apostrophe is never a boundary/punctuation for suggestions.
+        val boundarySet = it.palsoftware.pastiera.core.Punctuation.BOUNDARY
+        val isPunctuation = typedChar != null &&
+            typedChar in boundarySet &&
+            typedChar != '\''
+
+        // Keep suggestions alive for in-word apostrophes (e.g., "we'" → "we'll").
+        if (isWordApostrophe && !shouldDisableSuggestions) {
+            handleInWordApostrophe(inputConnection, pendingApostrophe = true)
+        }
 
         // Clear pending auto-space flag on backspace (avoid stale state); keep it for letters to handle long-press punctuation.
-        val typedChar = event?.unicodeChar?.takeIf { it != 0 }?.toChar()
         if (typedChar == null && keyCode == KeyEvent.KEYCODE_DEL) {
             AutoSpaceTracker.clear()
         }

@@ -57,16 +57,20 @@ def load_input(path: str):
         normalized_index = {}
         prefix_cache = {}
         for entry in data:
+            # IMPORTANT: Preserve original case (uppercase/lowercase) from JSON
+            # e.g., {"w": "Mario", "f": 100} -> word="Mario" (not "mario")
+            # normalize() only converts to lowercase for indexing purposes
             w = entry["w"]
             f = int(entry.get("f", 1))
-            norm = normalize(w)
+            norm = normalize(w)  # lowercase for indexing only
+            # Save original word with case preserved for dictionary entry
             normalized_index.setdefault(norm, []).append({"word": w, "frequency": f, "source": 0})
             # prefix cache up to 4 chars (matches cachePrefixLength default)
             for l in range(1, min(len(norm), 4) + 1):
                 prefix_cache.setdefault(norm[:l], []).append({"word": w, "frequency": f, "source": 0})
         return {"normalizedIndex": normalized_index, "prefixCache": prefix_cache}
     else:
-        # assume already in DictionaryIndex shape
+        # assume already in DictionaryIndex shape (case should already be preserved)
         return data
 
 

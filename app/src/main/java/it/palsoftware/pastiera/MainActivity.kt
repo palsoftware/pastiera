@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
+import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils
 import it.palsoftware.pastiera.ui.CustomTopBar
 import it.palsoftware.pastiera.ui.theme.PastieraTheme
 import it.palsoftware.pastiera.BuildConfig
@@ -160,6 +161,10 @@ class MainActivity : ComponentActivity() {
             finish()
             return
         }
+        
+        // Register additional subtypes (custom input styles) when app starts
+        // This ensures dynamic languages are available when IME is enabled
+        AdditionalSubtypeUtils.registerAdditionalSubtypes(this)
         
         // Schedule periodic background update checks (every 24 hours).
         UpdateCheckWorker.schedule(applicationContext)

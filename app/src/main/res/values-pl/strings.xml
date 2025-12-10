@@ -115,6 +115,20 @@
     <string name="auto_correct_language_code_hint">Wprowadź kod i nazwę dla swojego niestandardowego podstawienia (np. \"fr\" / \"Francuski\", \"mydict\" / \"Mój Słownik\")</string>
     <string name="auto_correct_language_code_required">Nazwa podstawienia jest wymagana</string>
     <string name="auto_correct_language_already_exists">To podstawienie już istnieje</string>
+    <string name="auto_correct_suggestions_toggle_title">Sugestie podczas pisania</string>
+    <string name="auto_correct_accent_matching_title">Dopasuj słowa z akcentami</string>
+    <string name="auto_correct_auto_replace_title">Automatyczna zamiana na spację/enter</string>
+    <string name="auto_correct_max_distance_title">Maksymalna odległość korekty</string>
+    <string name="auto_correct_max_distance_off">Wyłączone</string>
+    <string name="auto_correct_max_distance_description">Maksymalna liczba różnic znaków dozwolonych dla auto-korekty. 0 = wyłączone, 1-3 = rosnąca tolerancja.</string>
+    <string name="auto_correct_manage_user_dict_title">Zarządzaj słownikiem użytkownika</string>
+    <string name="auto_correct_keyboard_proximity_title">Ranking Proximity Klawiatury</string>
+    <string name="auto_correct_keyboard_proximity_description">Filtruj nieprawdopodobne literówki na podstawie odległości klawiszy (QWERTY/AZERTY/QWERTZ)</string>
+    <string name="auto_correct_edit_type_ranking_title">Ranking Typu Edycji</string>
+    <string name="auto_correct_edit_type_ranking_description">Sortuj sugestie według typu edycji (wstaw > zamień > usuń)</string>
+    <string name="clear">Wyczyść</string>
+    <string name="experimental_suggestions_title">Sugestie eksperymentalne</string>
+    <string name="experimental_suggestions_subtitle">Włącz nowy silnik słownika/sugestii (beta)</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_customize_title">Dostosuj Klawiaturę SYM</string>
@@ -124,6 +138,8 @@
     <string name="sym_enable_emoji_page_description">Pokazuje layout SYM emoji podczas przełączania.</string>
     <string name="sym_enable_symbols_page_title">Włącz Stronę Symboli</string>
     <string name="sym_enable_symbols_page_description">Pokazuje layout SYM symboli podczas przełączania.</string>
+    <string name="sym_enable_clipboard_page_title">Włącz Stronę Schowka</string>
+    <string name="sym_enable_clipboard_page_description">Pokazuje historię schowka podczas przełączania.</string>
     <string name="sym_swap_pages_title">Zamień Kolejność Stron SYM</string>
     <string name="sym_swap_pages_description">Wybierz, która strona SYM pojawia się najpierw podczas przełączania.</string>
     <string name="sym_order_emoji_first">Emoji najpierw</string>
@@ -285,7 +301,7 @@
     <string name="layout_delete_failed">Nie udało się usunąć layoutu</string>
     <string name="layout_view_mapping">Wyświetl mapowanie</string>
     <string name="layout_delete">Usuń</string>
-    <string name="layout_enable_for_cycling">Włącz (Ctrl + Spacja, aby przełączyć)</string>
+    <string name="layout_enable_for_cycling">Włącz do cyklicznego przełączania</string>
     <string name="layout_select_as_active">Wybierz jako aktywny layout</string>
     
     <!-- Main Activity Event Display -->
@@ -355,4 +371,47 @@
     <string name="swipe_incremental_threshold_description">Wymagana odległość do przesunięcia kursora o jedną pozycję. Niższe wartości sprawiają, że kursor porusza się szybciej.</string>
     <string name="swipe_to_move_cursor">Przesuń, aby przesunąć kursor</string>
     <string name="dip_unit">DIP</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Historia schowka</string>
+    <string name="clipboard_clear_all">Wyczyść wszystko</string>
+    <string name="clipboard_empty_state">Brak historii schowka</string>
+    <string name="clipboard_pin">Przypnij</string>
+    <string name="clipboard_unpin">Odepnij</string>
+    <string name="clipboard_delete">Usuń</string>
+    <string name="update_dialog_title">Dostępna nowa aktualizacja</string>
+    <string name="update_dialog_message">Wersja %1$s jest dostępna na GitHubie.</string>
+    <string name="update_dialog_open_github">Otwórz GitHub</string>
+    <string name="update_dialog_later">Później</string>
+    <string name="update_dialog_download_apk">Pobierz APK</string>
+    <string name="custom_input_styles_language_label">Język</string>
+    <string name="custom_input_styles_locale_display">%1$s (%2$s)</string>
+    <string name="custom_input_styles_system_locale_hint">Język systemu – nie można zmienić</string>
+    <string name="custom_input_styles_add_dialog_title">Dodaj styl wprowadzania</string>
+    <string name="custom_input_styles_edit_dialog_title">Edytuj styl wprowadzania</string>
+    <string name="custom_input_styles_edit_system_locale_title">Edytuj układ języka systemowego</string>
+    <string name="custom_input_styles_select_locale">Wybierz język</string>
+    <string name="custom_input_styles_select_layout">Wybierz układ klawiatury</string>
+    <string name="custom_input_styles_save">Zapisz</string>
+    <string name="custom_input_styles_cancel">Anuluj</string>
+    <string name="custom_input_styles_system_badge">System</string>
+    <string name="custom_input_styles_default_layout">qwerty</string>
+    <string name="custom_input_styles_change_layout_hint">Stuknij, aby zmienić układ</string>
+    <string name="custom_input_styles_custom_locale_placeholder">en_US, it_IT, fr_FR itp.</string>
+    <string name="custom_input_styles_layout_mapping_updated">Mapowanie układu zaktualizowane: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_updated">Styl wprowadzania zaktualizowany: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_added">Styl wprowadzania dodany: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_deleted">Styl wprowadzania usunięty</string>
+    <string name="custom_input_styles_installed_dictionaries">Zainstalowane słowniki</string>
+
+    <!-- Zainstalowane słowniki -->
+    <string name="installed_dictionaries_title">Zainstalowane słowniki</string>
+    <string name="installed_dictionaries_empty">Nie znaleziono zserializowanych słowników.</string>
+    <string name="installed_dictionaries_language_code">Język: %1$s</string>
+    <string name="installed_dictionaries_filename">Plik: %1$s</string>
+    <string name="installed_dictionaries_import">Importuj słownik</string>
+    <string name="installed_dictionaries_import_success">Zaimportowano %1$s</string>
+    <string name="installed_dictionaries_import_invalid_name">Nieprawidłowa nazwa pliku. Oczekiwano *_base.dict</string>
+    <string name="installed_dictionaries_import_invalid_format">Nieprawidłowy format słownika</string>
+    <string name="installed_dictionaries_import_failed">Import nie powiódł się</string>
+    <string name="installed_dictionaries_imported_badge">Zaimportowano</string>
 </resources>

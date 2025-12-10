@@ -31,9 +31,12 @@ class CurrentWordTracker(
     fun onCharacterCommitted(text: CharSequence) {
         if (text.isEmpty()) return
         text.forEach { char ->
-            if (char.isLetterOrDigit()) {
+            val normalizedChar = normalizeApostrophe(char)
+            val isWordChar = normalizedChar.isLetterOrDigit() ||
+                (normalizedChar == '\'' && current.isNotEmpty() && current.last().isLetterOrDigit())
+            if (isWordChar) {
                 if (current.length < maxLength) {
-                    current.append(char)
+                    current.append(normalizedChar)
                     if (debugLogging) Log.d(tag, "currentWord='$current'")
                     onWordChanged(current.toString())
                 }
@@ -42,6 +45,11 @@ class CurrentWordTracker(
                 reset()
             }
         }
+    }
+
+    private fun normalizeApostrophe(c: Char): Char = when (c) {
+        '’', '‘', 'ʼ' -> '\''
+        else -> c
     }
 
     fun onBackspace() {
@@ -59,7 +67,7 @@ class CurrentWordTracker(
     fun onBoundaryReached(boundaryChar: Char? = null, inputConnection: InputConnection? = null) {
         if (boundaryChar != null) {
             // If an auto-space is pending, replace it with "<punctuation> " when punctuation is pressed.
-            val punctuationSet = ".,;:!?\"'"
+            val punctuationSet = it.palsoftware.pastiera.core.Punctuation.AUTO_SPACE
             if (inputConnection != null && boundaryChar in punctuationSet) {
                 val replaced = AutoSpaceTracker.replaceAutoSpaceWithPunctuation(
                     inputConnection,

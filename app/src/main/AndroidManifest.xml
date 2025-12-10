@@ -76,6 +76,12 @@
             android:label="@string/languages_title"
             android:theme="@style/Theme.Pastiera" />
         
+        <activity
+            android:name=".InstalledDictionariesActivity"
+            android:exported="false"
+            android:label="@string/installed_dictionaries_title"
+            android:theme="@style/Theme.Pastiera" />
+        
         <!-- Servizio di immissione per tastiera fisica -->
         <service
             android:name=".inputmethod.PhysicalKeyboardInputMethodService"

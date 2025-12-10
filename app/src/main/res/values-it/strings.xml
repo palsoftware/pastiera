@@ -120,6 +120,20 @@
     <string name="auto_correct_language_code_hint">Inserisci un codice e un nome per la tua sostituzione personalizzata (es. \"fr\" / \"Francese\", \"mydict\" / \"Mio Dizionario\")</string>
     <string name="auto_correct_language_code_required">Il nome della sostituzione è obbligatorio</string>
     <string name="auto_correct_language_already_exists">Questa sostituzione esiste già</string>
+    <string name="auto_correct_suggestions_toggle_title">Suggerimenti durante la digitazione</string>
+    <string name="auto_correct_accent_matching_title">Corrispondenza parole accentate</string>
+    <string name="auto_correct_auto_replace_title">Sostituzione automatica su spazio/invio</string>
+    <string name="auto_correct_max_distance_title">Distanza massima correzione</string>
+    <string name="auto_correct_max_distance_off">Disattivato</string>
+    <string name="auto_correct_max_distance_description">Numero massimo di differenze di caratteri consentite per l\'auto-correzione. 0 = disabilitato, 1-3 = tolleranza crescente.</string>
+    <string name="auto_correct_manage_user_dict_title">Gestisci dizionario utente</string>
+    <string name="auto_correct_keyboard_proximity_title">Classifica per prossimità tasti</string>
+    <string name="auto_correct_keyboard_proximity_description">Filtra errori di battitura improbabili in base alla distanza dei tasti (QWERTY/AZERTY/QWERTZ)</string>
+    <string name="auto_correct_edit_type_ranking_title">Classifica per tipo di modifica</string>
+    <string name="auto_correct_edit_type_ranking_description">Ordina i suggerimenti per tipo di modifica (inserimento > sostituzione > eliminazione)</string>
+    <string name="clear">Cancella</string>
+    <string name="experimental_suggestions_title">Suggerimenti sperimentali</string>
+    <string name="experimental_suggestions_subtitle">Abilita il nuovo motore di dizionario/suggerimenti (beta)</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_customize_title">Personalizza Tastiera SYM</string>
@@ -129,6 +143,8 @@
     <string name="sym_enable_emoji_page_description">Mostra il layout SYM emoji durante il ciclo.</string>
     <string name="sym_enable_symbols_page_title">Abilita Pagina Simboli</string>
     <string name="sym_enable_symbols_page_description">Mostra il layout SYM simboli durante il ciclo.</string>
+    <string name="sym_enable_clipboard_page_title">Abilita Pagina Appunti</string>
+    <string name="sym_enable_clipboard_page_description">Mostra la cronologia degli appunti durante il ciclo.</string>
     <string name="sym_swap_pages_title">Scambia Ordine Pagine SYM</string>
     <string name="sym_swap_pages_description">Scegli quale pagina SYM appare per prima quando si alterna.</string>
     <string name="sym_order_emoji_first">Emoji prima</string>
@@ -166,7 +182,7 @@
     
     <!-- Keyboard Layout Section -->
     <string name="keyboard_layout_title">Layout Tastiera</string>
-    <string name="keyboard_layout_description">Seleziona il layout della tastiera. Le mappature ALT, SYM e Ctrl rimangono basate sulla posizione fisica del tasto. Cambia la mappatura rapidamente con CTRL+SPACE.</string>
+    <string name="keyboard_layout_description">Seleziona il layout della tastiera. Le mappature ALT, SYM e Ctrl rimangono basate sulla posizione fisica del tasto.</string>
     <string name="keyboard_layout_editor_title">Keyboard Layout Editor</string>
     <string name="keyboard_layout_multitap_badge">multitap</string>
     <string name="keyboard_layout_no_conversion">Standard</string>
@@ -323,7 +339,7 @@
     <string name="layout_delete_failed">Impossibile eliminare il layout</string>
     <string name="layout_view_mapping">Visualizza mappa</string>
     <string name="layout_delete">Elimina</string>
-    <string name="layout_enable_for_cycling">Abilita (Ctrl + Space per cambiare)</string>
+    <string name="layout_enable_for_cycling">Abilita per il ciclo</string>
     <string name="layout_select_as_active">Seleziona come layout attivo</string>
     
     <!-- Main Activity Event Display -->
@@ -392,4 +408,47 @@
     <!-- Swipe Incremental Threshold -->
     <string name="swipe_incremental_threshold_description">Distanza necessaria per spostare il cursore di una posizione. Valori più bassi rendono il cursore più veloce.</string>
     <string name="dip_unit">DIP</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">Cronologia appunti</string>
+    <string name="clipboard_clear_all">Cancella tutto</string>
+    <string name="clipboard_empty_state">Nessuna cronologia degli appunti</string>
+    <string name="clipboard_pin">Fissa</string>
+    <string name="clipboard_unpin">Rimuovi pin</string>
+    <string name="clipboard_delete">Elimina</string>
+    <string name="update_dialog_title">Nuovo aggiornamento disponibile</string>
+    <string name="update_dialog_message">La versione %1$s è disponibile su GitHub.</string>
+    <string name="update_dialog_open_github">Apri GitHub</string>
+    <string name="update_dialog_later">Più tardi</string>
+    <string name="update_dialog_download_apk">Scarica APK</string>
+    <string name="custom_input_styles_language_label">Lingua</string>
+    <string name="custom_input_styles_locale_display">%1$s (%2$s)</string>
+    <string name="custom_input_styles_system_locale_hint">Locale di sistema - non può essere modificato</string>
+    <string name="custom_input_styles_edit_dialog_title">Modifica stile di input</string>
+    <string name="custom_input_styles_add_dialog_title">Aggiungi stile di input</string>
+    <string name="custom_input_styles_edit_system_locale_title">Modifica layout del locale di sistema</string>
+    <string name="custom_input_styles_select_locale">Seleziona lingua</string>
+    <string name="custom_input_styles_select_layout">Seleziona layout tastiera</string>
+    <string name="custom_input_styles_save">Salva</string>
+    <string name="custom_input_styles_cancel">Annulla</string>
+    <string name="custom_input_styles_system_badge">Sistema</string>
+    <string name="custom_input_styles_default_layout">qwerty</string>
+    <string name="custom_input_styles_change_layout_hint">Tocca per cambiare layout</string>
+    <string name="custom_input_styles_custom_locale_placeholder">en_US, it_IT, fr_FR, ecc.</string>
+    <string name="custom_input_styles_layout_mapping_updated">Mappatura layout aggiornata: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_updated">Stile input aggiornato: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_added">Stile input aggiunto: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_deleted">Stile input eliminato</string>
+    <string name="custom_input_styles_installed_dictionaries">Dizionari installati</string>
+
+    <!-- Schermata dizionari installati -->
+    <string name="installed_dictionaries_title">Dizionari installati</string>
+    <string name="installed_dictionaries_empty">Nessun dizionario serializzato trovato.</string>
+    <string name="installed_dictionaries_language_code">Lingua: %1$s</string>
+    <string name="installed_dictionaries_filename">File: %1$s</string>
+    <string name="installed_dictionaries_import">Importa dizionario</string>
+    <string name="installed_dictionaries_import_success">Importato %1$s</string>
+    <string name="installed_dictionaries_import_invalid_name">Nome file non valido. Atteso *_base.dict</string>
+    <string name="installed_dictionaries_import_invalid_format">Formato dizionario non valido</string>
+    <string name="installed_dictionaries_import_failed">Import fallito</string>
+    <string name="installed_dictionaries_imported_badge">Importato</string>
 </resources>

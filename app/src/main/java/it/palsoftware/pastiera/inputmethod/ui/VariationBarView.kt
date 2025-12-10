@@ -6,9 +6,14 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.view.inputmethod.InputMethodManager
+import android.graphics.DashPathEffect
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextPaint
+import android.text.style.UnderlineSpan
+import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
@@ -35,12 +40,16 @@ import android.graphics.Paint
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import android.content.res.AssetManager
+import it.palsoftware.pastiera.inputmethod.SubtypeCycler
 
 /**
- * Handles the variations row (suggestions + microphone/settings) rendered above the LED strip.
+ * Handles the variations row (suggestions + microphone/language) rendered above the LED strip.
  */
 class VariationBarView(
-    private val context: Context
+    private val context: Context,
+    private val assets: AssetManager? = null,
+    private val imeServiceClass: Class<*>? = null
 ) {
     companion object {
         private const val TAG = "VariationBarView"
@@ -54,6 +63,7 @@ class VariationBarView(
     var onSpeechRecognitionRequested: (() -> Unit)? = null
     var onAddUserWord: ((String) -> Unit)? = null
     var onLanguageSwitchRequested: (() -> Unit)? = null
+    var onClipboardRequested: (() -> Unit)? = null
     
     /**
      * Sets the microphone button active state (red pulsing background) during speech recognition.
@@ -196,21 +206,28 @@ class VariationBarView(
     private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
     private var lastIsStaticContent: Boolean? = null
     private var pressedView: View? = null
+    private var longPressHandler: Handler? = null
+    private var longPressRunnable: Runnable? = null
+    private var longPressExecuted: Boolean = false
+    private var clipboardButtonView: ImageView? = null
+    private var clipboardContainer: FrameLayout? = null
+    private var clipboardBadgeView: TextView? = null
 
     fun ensureView(): FrameLayout {
         if (wrapper != null) {
             return wrapper!!
         }
 
-        val leftPadding = TypedValue.applyDimension(
+        val basePadding = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             64f,
             context.resources.displayMetrics
         ).toInt()
-        val rightPadding = (leftPadding * 0.31f).toInt()
+        val leftPadding = 0 // clipboard flush to the left edge
+        val rightPadding = 0 // remove trailing gap so language button sits flush to the right
         val variationsVerticalPadding = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
-            8.8f,
+            8f,
             context.resources.displayMetrics
         ).toInt()
         val variationsContainerHeight = TypedValue.applyDimension(
@@ -300,6 +317,8 @@ class VariationBarView(
         variationButtons.clear()
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeLanguageButtonImmediate()
+        removeClipboardButtonImmediate()
         hideSwipeIndicator(immediate = true)
         hideSwipeHintImmediate()
         shouldShowSwipeHint = false
@@ -318,6 +337,8 @@ class VariationBarView(
 
         removeMicrophoneImmediate()
         removeSettingsImmediate()
+        removeLanguageButtonImmediate()
+        removeClipboardButtonImmediate()
         hideSwipeIndicator(immediate = true)
         hideSwipeHintImmediate()
         shouldShowSwipeHint = false
@@ -430,25 +451,27 @@ class VariationBarView(
             3f,
             context.resources.displayMetrics
         ).toInt()
-        
-        // Calculate space for mic and settings buttons
-        val micAndSettingsWidth = (availableWidth - spacingBetweenButtons * 8) / 9 * 2
-        val spacingForMicAndSettings = spacingBetweenButtons * 2
-        val variationsAvailableWidth = availableWidth - micAndSettingsWidth - spacingForMicAndSettings
-        
-        // Calculate base button width (for when we have 7 variations)
-        val baseButtonWidth = max(1, (variationsAvailableWidth - spacingBetweenButtons * 6) / 7)
-        
-        // If we have less than 7 variations, distribute available width among them
+
+        // Fixed-size square buttons (clipboard, mic, language)
+        val fixedButtonSize = max(1, (availableWidth - spacingBetweenButtons * 10) / 10)
+        val fixedButtonsTotalWidth = fixedButtonSize * 3
+        // Spacing: clipboard->variations, variations->mic, mic->language
+        val fixedButtonsSpacing = spacingBetweenButtons * 3
+
         val variationCount = limitedVariations.size
+        val variationsAvailableWidth = availableWidth - fixedButtonsTotalWidth - fixedButtonsSpacing
+
+        val baseButtonWidth = if (variationCount > 0) {
+            max(1, (variationsAvailableWidth - spacingBetweenButtons * (variationCount - 1)) / variationCount)
+        } else {
+            // If no variations, fall back to fixed button size to avoid division by zero
+            fixedButtonSize
+        }
         val buttonWidth: Int
         val maxButtonWidth: Int
         if (variationCount < 7 && variationCount > 0) {
-            // Distribute available width among existing variations
-            val totalSpacingForVariations = spacingBetweenButtons * (variationCount - 1)
-            val widthPerVariation = (variationsAvailableWidth - totalSpacingForVariations) / variationCount
-            buttonWidth = max(1, widthPerVariation)
-            maxButtonWidth = widthPerVariation // No cap when we have fewer variations
+            buttonWidth = baseButtonWidth
+            maxButtonWidth = baseButtonWidth
         } else {
             buttonWidth = baseButtonWidth
             maxButtonWidth = baseButtonWidth * 3 // Cap at 3x when we have 7 variations
@@ -472,6 +495,43 @@ class VariationBarView(
         lastInputConnectionUsed = inputConnection
         lastIsStaticContent = isStaticContent
 
+        // Add clipboard button with badge container at the start of variations row
+        val clipboardButton = clipboardButtonView ?: createClipboardButton(fixedButtonSize)
+        clipboardButtonView = clipboardButton
+        val badge = clipboardBadgeView ?: createClipboardBadge()
+        clipboardBadgeView = badge
+
+        val container = clipboardContainer ?: FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
+                marginEnd = spacingBetweenButtons
+            }
+        }.also { clipboardContainer = it }
+        (container.parent as? ViewGroup)?.removeView(container)
+        container.removeAllViews()
+        container.addView(clipboardButton, FrameLayout.LayoutParams(fixedButtonSize, fixedButtonSize))
+        container.addView(
+            badge,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.END or Gravity.TOP
+            ).apply {
+                val m = dpToPx(2f)
+                val offset = dpToPx(2f) // push badge slightly downward
+                setMargins(m, m + offset, m, m)
+            }
+        )
+
+        variationsRow.addView(container, 0)
+        clipboardButton.setOnClickListener {
+            NotificationHelper.triggerHapticFeedback(context)
+            onClipboardRequested?.invoke()
+        }
+        clipboardButton.alpha = 1f
+        clipboardButton.visibility = View.VISIBLE
+        // Update badge with current clipboard count
+        updateClipboardBadge(snapshot.clipboardCount)
+
         val addCandidate = snapshot.addWordCandidate
         for (variation in limitedVariations) {
             val isAddCandidate = addCandidate != null && variation.equals(addCandidate, ignoreCase = true)
@@ -484,10 +544,12 @@ class VariationBarView(
         val buttonsContainerView = buttonsContainer ?: return
         buttonsContainerView.removeAllViews()
         
-        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(baseButtonWidth)
+        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(fixedButtonSize)
         microphoneButtonView = microphoneButton
         (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
-        val micParams = LinearLayout.LayoutParams(baseButtonWidth, baseButtonWidth)
+        val micParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
+            marginStart = spacingBetweenButtons
+        }
         buttonsContainerView.addView(microphoneButton, micParams)
         microphoneButton.setOnClickListener {
             NotificationHelper.triggerHapticFeedback(context)
@@ -501,31 +563,13 @@ class VariationBarView(
         microphoneButton.alpha = 1f
         microphoneButton.visibility = View.VISIBLE
 
-        val settingsButton = settingsButtonView ?: createStatusBarSettingsButton(baseButtonWidth)
-        settingsButtonView = settingsButton
-        (settingsButton.parent as? ViewGroup)?.removeView(settingsButton)
-        val settingsParams = LinearLayout.LayoutParams(baseButtonWidth, baseButtonWidth).apply {
-            topMargin = (-baseButtonWidth * 0.1f).toInt()
-        }
-        buttonsContainerView.addView(settingsButton, settingsParams)
-        settingsButton.setOnClickListener {
-            openSettings()
-        }
-        settingsButton.alpha = 1f
-        settingsButton.visibility = View.VISIBLE
-
         // Language switch button (language code)
-        val languageButton = languageButtonView ?: createLanguageButton(baseButtonWidth)
+        val languageButton = languageButtonView ?: createLanguageButton(fixedButtonSize)
         languageButtonView = languageButton
         (languageButton.parent as? ViewGroup)?.removeView(languageButton)
-        val languageMarginStart = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            4f,
-            context.resources.displayMetrics
-        ).toInt()
-        val languageParams = LinearLayout.LayoutParams(baseButtonWidth, baseButtonWidth).apply {
-            topMargin = (-baseButtonWidth * 0.1f).toInt()
-            marginStart = languageMarginStart
+        val languageParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
+            topMargin = 0
+            marginStart = spacingBetweenButtons
         }
         buttonsContainerView.addView(languageButton, languageParams)
         // Update language code text
@@ -551,6 +595,10 @@ class VariationBarView(
                 updateLanguageButtonText(languageButton)
             }, 300)
         }
+        languageButton.setOnLongClickListener {
+            openSettings()
+            true
+        }
         languageButton.alpha = 1f
         languageButton.visibility = View.VISIBLE
 
@@ -559,6 +607,8 @@ class VariationBarView(
         } else {
             variationsRow.alpha = 1f
             variationsRow.visibility = View.VISIBLE
+            // Update language button text even when variations haven't changed
+            languageButtonView?.let { updateLanguageButtonText(it) }
         }
     }
 
@@ -586,6 +636,19 @@ class VariationBarView(
                     touchStartY = motionEvent.y
                     lastCursorMoveX = motionEvent.x
                     hideSwipeHintImmediate()
+                    
+                    // Setup long press detection
+                    cancelLongPress()
+                    longPressExecuted = false
+                    if (pressedView != null && pressedView?.isLongClickable == true) {
+                        longPressHandler = Handler(Looper.getMainLooper())
+                        longPressRunnable = Runnable {
+                            longPressExecuted = true
+                            pressedView?.performLongClick()
+                        }
+                        longPressHandler?.postDelayed(longPressRunnable!!, 500) // 500ms for long press
+                    }
+                    
                     Log.d(TAG, "Touch down on overlay at ($touchStartX, $touchStartY)")
                     true
                 }
@@ -594,6 +657,11 @@ class VariationBarView(
                     val deltaY = abs(motionEvent.y - touchStartY)
                     val incrementalDeltaX = motionEvent.x - lastCursorMoveX
                     updateSwipeIndicatorPosition(overlayView, motionEvent.x)
+
+                    // Cancel long press if user moves too much
+                    if (abs(deltaX) > swipeThreshold || deltaY > swipeThreshold) {
+                        cancelLongPress()
+                    }
 
                     if (isSwipeInProgress || (abs(deltaX) > swipeThreshold && abs(deltaX) > deltaY)) {
                         if (!isSwipeInProgress) {
@@ -652,6 +720,8 @@ class VariationBarView(
                     }
                 }
                 MotionEvent.ACTION_UP -> {
+                    val wasLongPress = longPressExecuted
+                    cancelLongPress()
                     pressedView?.isPressed = false
                     val pressedTarget = pressedView
                     pressedView = null
@@ -663,16 +733,20 @@ class VariationBarView(
                         Log.d(TAG, "Swipe ended on overlay")
                         true
                     } else {
-                        val x = motionEvent.x
-                        val y = motionEvent.y
-                        val clickedView = container?.let { findClickableViewAt(it, x, y) }
-                        if (clickedView != null && clickedView == pressedTarget) {
-                            clickedView.performClick()
+                        // Don't execute click if long press was executed
+                        if (!wasLongPress) {
+                            val x = motionEvent.x
+                            val y = motionEvent.y
+                            val clickedView = container?.let { findClickableViewAt(it, x, y) }
+                            if (clickedView != null && clickedView == pressedTarget) {
+                                clickedView.performClick()
+                            }
                         }
                         true
                     }
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    cancelLongPress()
                     pressedView?.isPressed = false
                     pressedView = null
                     hideSwipeIndicator()
@@ -882,12 +956,39 @@ class VariationBarView(
             Log.e(TAG, "Error opening Settings", e)
         }
     }
+    
+    private fun cancelLongPress() {
+        longPressRunnable?.let { runnable ->
+            longPressHandler?.removeCallbacks(runnable)
+        }
+        longPressHandler = null
+        longPressRunnable = null
+        // Don't reset longPressExecuted here, it needs to persist until ACTION_UP
+    }
 
     private fun removeMicrophoneImmediate() {
         microphoneButtonView?.let { microphone ->
             (microphone.parent as? ViewGroup)?.removeView(microphone)
             microphone.visibility = View.GONE
             microphone.alpha = 1f
+        }
+    }
+
+    private fun removeLanguageButtonImmediate() {
+        languageButtonView?.let { language ->
+            (language.parent as? ViewGroup)?.removeView(language)
+            language.visibility = View.GONE
+            language.alpha = 1f
+        }
+    }
+    
+    private fun removeClipboardButtonImmediate() {
+        clipboardContainer?.let { container ->
+            (container.parent as? ViewGroup)?.removeView(container)
+        }
+        clipboardButtonView?.apply {
+            visibility = View.GONE
+            alpha = 1f
         }
     }
 
@@ -1069,6 +1170,55 @@ class VariationBarView(
         }
     }
 
+    private fun createClipboardButton(buttonSize: Int): ImageView {
+        val normalDrawable = GradientDrawable().apply {
+            setColor(Color.rgb(17, 17, 17))
+            cornerRadius = 0f
+        }
+        val pressedDrawable = GradientDrawable().apply {
+            setColor(PRESSED_BLUE)
+            cornerRadius = 0f
+        }
+        val stateList = android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), pressedDrawable)
+            addState(intArrayOf(), normalDrawable)
+        }
+        return ImageView(context).apply {
+            setImageResource(R.drawable.ic_content_paste_24)
+            setColorFilter(Color.WHITE)
+            background = stateList
+            scaleType = ImageView.ScaleType.CENTER
+            isClickable = true
+            isFocusable = true
+            layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
+        }
+    }
+
+    private fun createClipboardBadge(): TextView {
+        val padding = dpToPx(2f)
+        return TextView(context).apply {
+            background = null
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setPadding(padding, padding, padding, padding)
+            minWidth = 0
+            minHeight = 0
+            visibility = View.GONE
+        }
+    }
+
+    private fun updateClipboardBadge(count: Int) {
+        val badge = clipboardBadgeView ?: return
+        if (count <= 0) {
+            badge.visibility = View.GONE
+            return
+        }
+        badge.visibility = View.VISIBLE
+        badge.text = count.toString()
+    }
+
     private fun createStatusBarSettingsButton(buttonSize: Int): ImageView {
         val dp3 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
@@ -1088,19 +1238,31 @@ class VariationBarView(
     }
 
     private fun createLanguageButton(buttonSize: Int): TextView {
-        val dp6 = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            6f,
-            context.resources.displayMetrics
-        ).toInt()
+        val normalDrawable = GradientDrawable().apply {
+            setColor(Color.rgb(17, 17, 17))
+            cornerRadius = 0f
+        }
+        val pressedDrawable = GradientDrawable().apply {
+            setColor(PRESSED_BLUE)
+            cornerRadius = 0f
+        }
+        val stateList = android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), pressedDrawable)
+            addState(intArrayOf(), normalDrawable)
+        }
+
         return TextView(context).apply {
-            textSize = 12f
-            setTextColor(Color.rgb(100, 100, 100))
+            textSize = 14f
+            setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            background = null
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+            background = stateList
             isClickable = true
             isFocusable = true
-            setPadding(dp6, dp6, dp6, dp6)
+            includeFontPadding = false
+            minHeight = buttonSize
+            maxHeight = buttonSize
+            setPadding(0, 0, 0, 0)
             layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize)
         }
     }
@@ -1120,9 +1282,10 @@ class VariationBarView(
                 "??"
             }
             button.text = languageCode
+            applyLanguageLongPressHint(button, languageCode)
         } catch (e: Exception) {
             Log.e(TAG, "Error updating language button text", e)
-            button.text = "??"
+            applyLanguageLongPressHint(button, "??")
         }
     }
 
@@ -1208,5 +1371,48 @@ class VariationBarView(
         languageButtonView?.let { button ->
             updateLanguageButtonText(button)
         }
+    }
+
+    private fun applyLanguageLongPressHint(button: TextView, languageCode: String) {
+        // Clear any icons so the label stays perfectly centered.
+        button.setCompoundDrawables(null, null, null, null)
+        button.compoundDrawablePadding = 0
+        button.gravity = Gravity.CENTER
+        button.textAlignment = View.TEXT_ALIGNMENT_CENTER
+        button.setPadding(0, 0, 0, 0)
+
+        val paintCopy = TextPaint(button.paint).apply {
+            textSize = button.textSize
+        }
+        val textWidth = paintCopy.measureText(languageCode).coerceAtLeast(1f)
+        // Target 3 dashes -> 3 dash segments + 2 gaps = 5 units.
+        val dashLength = max(dpToPx(2f).toFloat(), textWidth / 5f)
+        val gapLength = dashLength
+        val dashEffect = DashPathEffect(floatArrayOf(dashLength, gapLength), 0f)
+
+        val dottedText = SpannableString(languageCode).apply {
+            setSpan(
+                object : UnderlineSpan() {
+                    override fun updateDrawState(tp: TextPaint) {
+                        super.updateDrawState(tp)
+                        tp.isUnderlineText = true
+                        // Use a dashed underline to hint the long-press action.
+                        tp.pathEffect = dashEffect
+                    }
+                },
+                0,
+                length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        button.text = dottedText
+    }
+
+    private fun dpToPx(dp: Float): Int {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            context.resources.displayMetrics
+        ).toInt()
     }
 }

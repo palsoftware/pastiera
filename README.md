@@ -5,7 +5,7 @@ Input method per tastiere fisiche (es. Unihertz Titan 2) pensato per rendere la 
 
 ## Panoramica veloce
 - Barra di stato compatta con LED per Shift/SYM/Ctrl/Alt, barra varianti/suggerimenti e gesture swipe-pad per muovere il cursore.
-- Layout multipli (QWERTY/AZERTY/QWERTZ, Greek, Cyrillic, Arabic, translit, ecc.) ciclabili con Ctrl+Space; import/export JSON dall'app. Frontend per la personalizzazione delle mappe diposibile su https://pastierakeyedit.vercel.app/
+- Layout multipli (QWERTY/AZERTY/QWERTZ, Greek, Cyrillic, Arabic, translit, ecc.) configurabili; import/export JSON dall'app. Frontend per la personalizzazione delle mappe diposibile su https://pastierakeyedit.vercel.app/
 - Due pagine SYM lanciabili da touch o tasti fisici (emoji + simboli) riordinabili/disattivabili, con editor integrato e tanti caratteri Unicode nuovi.
 - Backup/restore completo (impostazioni, layout, variazioni, dizionari), UI tradotta in piu lingue e controllo aggiornamenti GitHub.
 
@@ -25,7 +25,7 @@ Input method per tastiere fisiche (es. Unihertz Titan 2) pensato per rendere la 
 
 ## Layout tastiera
 - Layout inclusi: qwerty, azerty, qwertz, greek, arabic, russian/armenian phonetic, translit, piu mappe Alt dedicate al Titan 2.
-- Conversione/ciclo layout: Ctrl+Space passa al layout successivo nella lista abilitata (configurabile).
+- Conversione layout: selezione del layout dalla lista abilitata (configurabile).
 - Supporto multi-tap e mapping per caratteri complessi nei layout.
 - Import/export da file JSON direttamente dall'app, anteprima grafica e gestione lista (abilita/disabilita, elimina).
 - Le mappe sono salvate in `files/keyboard_layouts` e modificabili anche a mano.

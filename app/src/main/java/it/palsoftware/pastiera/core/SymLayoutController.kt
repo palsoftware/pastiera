@@ -70,6 +70,22 @@ class SymLayoutController(
         persistSymPage()
         return true
     }
+    
+    fun openClipboardPage(): Boolean {
+        val config = SettingsManager.getSymPagesConfig(context)
+        val pages = buildActivePages(config)
+        val clipboardPageValue = SymPage.CLIPBOARD.toPrefValue()
+        if (!pages.contains(SymPage.CLIPBOARD)) {
+            return false
+        }
+        if (symPage == clipboardPageValue) {
+            closeSymPage()
+            return false
+        }
+        symPage = clipboardPageValue
+        persistSymPage()
+        return true
+    }
 
     fun reset() {
         symPage = 0

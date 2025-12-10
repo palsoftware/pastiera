@@ -1,10 +1,8 @@
 package it.palsoftware.pastiera
 
 import android.content.Context
+import android.app.Activity
 import android.content.Intent
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,39 +25,38 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import it.palsoftware.pastiera.data.layout.LayoutFileStore
 import it.palsoftware.pastiera.data.layout.LayoutMappingRepository
+import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils
 import it.palsoftware.pastiera.R
 import kotlinx.coroutines.launch
 import java.util.Locale
 import android.content.res.AssetManager
 import org.json.JSONObject
-import java.io.File
 import java.io.InputStream
-
-private data class PendingLayoutSave(
-    val fileName: String,
-    val json: String
-)
+import java.nio.charset.StandardCharsets
 
 /**
- * Settings screen for keyboard layout selection.
+ * Settings screen for keyboard layout selection for a specific locale.
+ * @param locale The locale for which to select the layout (required).
+ * @param onLayoutSelected Callback when a layout is selected (locale, layout).
  */
 @Composable
 fun KeyboardLayoutSettingsScreen(
     modifier: Modifier = Modifier,
-    onBack: () -> Unit
+    locale: String,
+    onBack: () -> Unit,
+    onLayoutSelected: (String, String) -> Unit
 ) {
     val context = LocalContext.current
     
-    // Load saved keyboard layout value
-    var selectedLayout by remember { 
-        mutableStateOf(SettingsManager.getKeyboardLayout(context))
-    }
-
-    // Layouts enabled for cycling (space long-press)
-    var enabledLayouts by remember {
-        mutableStateOf(SettingsManager.getKeyboardLayoutList(context).toMutableSet())
+    // Get layout from locale-layout mapping
+    var selectedLayout by remember(locale) { 
+        mutableStateOf(
+            AdditionalSubtypeUtils.getLayoutForLocale(context.assets, locale, context)
+        )
     }
     
     // Refresh trigger for custom layouts
@@ -75,81 +72,50 @@ fun KeyboardLayoutSettingsScreen(
     // Snackbar host state for showing messages
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    var pendingLayoutSave by remember { mutableStateOf<PendingLayoutSave?>(null) }
     var previewLayout by remember { mutableStateOf<String?>(null) }
     var layoutToDelete by remember { mutableStateOf<String?>(null) }
-    
-    // File picker launcher for importing layouts
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            try {
-                context.contentResolver.openInputStream(it)?.use { inputStream ->
-                    // Read JSON as string
-                    val jsonString = inputStream.bufferedReader().use { it.readText() }
-                    
-                    // Validate JSON by creating a temp file and loading it
-                    val tempFile = File.createTempFile("temp_validate", ".json", context.cacheDir)
-                    try {
-                        tempFile.writeText(jsonString)
-                        val layout = LayoutFileStore.loadLayoutFromFile(tempFile)
+
+    // Launcher per importare layout JSON via SAF
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data?.data
+            if (uri != null) {
+                try {
+                    val jsonString = context.contentResolver.openInputStream(uri)?.use { input ->
+                        input.bufferedReader(Charsets.UTF_8).readText()
+                    }
+                    if (!jsonString.isNullOrBlank()) {
+                        val layoutName = runCatching {
+                            val obj = JSONObject(jsonString)
+                            obj.optString("name").takeIf { it.isNotBlank() }
+                        }.getOrNull() ?: "imported_${System.currentTimeMillis()}"
                         
-                        if (layout != null) {
-                            // Generate a unique name based on timestamp
-                            val layoutName = "custom_${System.currentTimeMillis()}"
-                            val layoutFile = LayoutFileStore.getLayoutFile(context, layoutName)
-                            
-                            // Copy the validated JSON directly to the layouts directory
-                            layoutFile.writeText(jsonString)
-                            
-                            refreshTrigger++
+                        val saved = LayoutFileStore.saveLayoutFromJson(context, layoutName, jsonString)
+                        if (saved) {
+                            refreshTrigger++            // ricarica lista layout
+                            selectedLayout = layoutName // seleziona l'importato
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar(context.getString(R.string.layout_imported_successfully))
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.layout_imported_successfully)
+                                )
                             }
                         } else {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar(context.getString(R.string.layout_invalid_file))
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.layout_import_failed)
+                                )
                             }
                         }
-                    } finally {
-                        tempFile.delete()
+                    }
+                } catch (e: Exception) {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.layout_import_error, e.message ?: "")
+                        )
                     }
                 }
-            } catch (e: Exception) {
-                coroutineScope.launch {
-                    snackbarHostState.showSnackbar(context.getString(R.string.layout_import_error, e.message ?: ""))
-                }
-            }
-        }
-    }
-    
-    val createDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri ->
-        val pending = pendingLayoutSave
-        pendingLayoutSave = null
-        if (pending == null) {
-            return@rememberLauncherForActivityResult
-        }
-
-        if (uri == null) {
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(context.getString(R.string.layout_save_canceled))
-            }
-            return@rememberLauncherForActivityResult
-        }
-
-        try {
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                outputStream.write(pending.json.toByteArray())
-            }
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(context.getString(R.string.layout_saved_successfully))
-            }
-        } catch (e: Exception) {
-            coroutineScope.launch {
-                snackbarHostState.showSnackbar(context.getString(R.string.layout_save_error, e.message ?: ""))
             }
         }
     }
@@ -187,60 +153,39 @@ fun KeyboardLayoutSettingsScreen(
                         )
                     }
                     Text(
-                        text = stringResource(R.string.keyboard_layout_title),
+                        text = "${stringResource(R.string.keyboard_layout_title)} - ${getLocaleDisplayNameForTitle(locale)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
                             .padding(start = 8.dp)
                             .weight(1f)
                     )
+                    // Import layout (JSON) button
+                    IconButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                                type = "application/json"
+                            }
+                            importLauncher.launch(intent)
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = stringResource(R.string.layout_import_content_description)
+                        )
+                    }
                     // Save button
                     IconButton(
                         onClick = {
-                            val currentLayout = LayoutMappingRepository.getLayout()
-                            if (currentLayout.isNotEmpty()) {
-                                val metadata = LayoutFileStore.getLayoutMetadataFromAssets(
-                                    context.assets,
-                                    selectedLayout
-                                ) ?: LayoutFileStore.getLayoutMetadata(context, selectedLayout)
-
-                                val displayName = metadata?.name ?: selectedLayout
-                                val description = metadata?.description
-
-                                val jsonString = LayoutFileStore.buildLayoutJsonString(
-                                    layoutName = selectedLayout,
-                                    layout = currentLayout,
-                                    name = displayName,
-                                    description = description
-                                )
-
-                                val sanitizedName = displayName
-                                    .lowercase(Locale.ROOT)
-                                    .replace("\\s+".toRegex(), "_")
-                                val suggestedFileName = "${sanitizedName}_${System.currentTimeMillis()}.json"
-
-                                pendingLayoutSave = PendingLayoutSave(
-                                    fileName = suggestedFileName,
-                                    json = jsonString
-                                )
-                                createDocumentLauncher.launch(suggestedFileName)
-                            }
+                            // Save the layout selection and go back
+                            onLayoutSelected(locale, selectedLayout)
+                            onBack()
                         }
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Save,
                             contentDescription = stringResource(R.string.layout_save_content_description)
-                        )
-                    }
-                    // Import button
-                    IconButton(
-                        onClick = {
-                            filePickerLauncher.launch("application/json")
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.layout_import_content_description)
                         )
                     }
                 }
@@ -261,55 +206,6 @@ fun KeyboardLayoutSettingsScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                // Description
-                Text(
-                    text = stringResource(R.string.keyboard_layout_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
-                )
-                
-                // Keyboard Layout Editor Link
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://pastierakeyedit.vercel.app/"))
-                            context.startActivity(intent)
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Language,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = stringResource(R.string.keyboard_layout_editor_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(8.dp))
                 
                 // No Conversion (QWERTY - default, passes keycodes as-is)
                 Surface(
@@ -318,11 +214,6 @@ fun KeyboardLayoutSettingsScreen(
                         .height(72.dp)
                         .clickable {
                             selectedLayout = "qwerty"
-                            SettingsManager.setKeyboardLayout(context, "qwerty")
-                            if (!enabledLayouts.contains("qwerty")) {
-                                enabledLayouts = (enabledLayouts + "qwerty").toMutableSet()
-                                SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
-                            }
                         }
                 ) {
                     Row(
@@ -365,26 +256,10 @@ fun KeyboardLayoutSettingsScreen(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            Checkbox(
-                                checked = enabledLayouts.contains("qwerty"),
-                                onCheckedChange = { enabled ->
-                                    enabledLayouts = if (enabled) {
-                                        (enabledLayouts + "qwerty").toMutableSet()
-                                    } else {
-                                        (enabledLayouts - "qwerty").toMutableSet()
-                                    }
-                                    SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
-                                }
-                            )
                         RadioButton(
                             selected = selectedLayout == "qwerty",
                             onClick = {
                                 selectedLayout = "qwerty"
-                                SettingsManager.setKeyboardLayout(context, "qwerty")
-                                if (!enabledLayouts.contains("qwerty")) {
-                                    enabledLayouts = (enabledLayouts + "qwerty").toMutableSet()
-                                    SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
-                                }
                             }
                         )
                         }
@@ -462,11 +337,6 @@ fun KeyboardLayoutSettingsScreen(
                                     selected = selectedLayout == layout,
                                     onClick = {
                                         selectedLayout = layout
-                                        SettingsManager.setKeyboardLayout(context, layout)
-                                        if (!enabledLayouts.contains(layout)) {
-                                            enabledLayouts = (enabledLayouts + layout).toMutableSet()
-                                            SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
-                                        }
                                     }
                                 )
                             }
@@ -516,40 +386,6 @@ fun KeyboardLayoutSettingsScreen(
                                     }
                                 }
                                 
-                                // Enable for cycling checkbox with label
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable {
-                                            val enabled = !enabledLayouts.contains(layout)
-                                            enabledLayouts = if (enabled) {
-                                                (enabledLayouts + layout).toMutableSet()
-                                            } else {
-                                                (enabledLayouts - layout).toMutableSet()
-                                            }
-                                            SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
-                                        }
-                                ) {
-                                    Checkbox(
-                                        checked = enabledLayouts.contains(layout),
-                                        onCheckedChange = { enabled ->
-                                            enabledLayouts = if (enabled) {
-                                                (enabledLayouts + layout).toMutableSet()
-                                            } else {
-                                                (enabledLayouts - layout).toMutableSet()
-                                            }
-                                            SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
-                                        }
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.layout_enable_for_cycling),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
                             }
                         }
                     }
@@ -584,13 +420,7 @@ fun KeyboardLayoutSettingsScreen(
                             // If deleted layout was selected, switch to qwerty
                             if (selectedLayout == layoutName) {
                                 selectedLayout = "qwerty"
-                                SettingsManager.setKeyboardLayout(context, "qwerty")
-                            }
-                            
-                            // Remove from enabled layouts if present
-                            if (enabledLayouts.contains(layoutName)) {
-                                enabledLayouts = (enabledLayouts - layoutName).toMutableSet()
-                                SettingsManager.setKeyboardLayoutList(context, enabledLayouts.toList())
+                                onLayoutSelected(locale, "qwerty")
                             }
                             
                             refreshTrigger++
@@ -679,5 +509,24 @@ private fun hasLayoutMultiTap(assets: AssetManager, context: Context, layoutName
         }
     } catch (e: Exception) {
         false
+    }
+}
+
+/**
+ * Gets display name for a locale (for title display).
+ */
+private fun getLocaleDisplayNameForTitle(locale: String): String {
+    return try {
+        val parts = locale.split("_")
+        val lang = parts[0]
+        val country = if (parts.size > 1) parts[1] else ""
+        val localeObj = if (country.isNotEmpty()) {
+            Locale(lang, country)
+        } else {
+            Locale(lang)
+        }
+        localeObj.getDisplayName(Locale.ENGLISH)
+    } catch (e: Exception) {
+        locale
     }
 }

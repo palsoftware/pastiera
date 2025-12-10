@@ -1,6 +1,7 @@
 package it.palsoftware.pastiera.inputmethod
 
 import android.content.Context
+import android.content.res.AssetManager
 import android.widget.LinearLayout
 import android.view.inputmethod.InputConnection
 
@@ -10,11 +11,13 @@ import android.view.inputmethod.InputConnection
  */
 class CandidatesBarController(
     context: Context,
-    clipboardHistoryManager: it.palsoftware.pastiera.clipboard.ClipboardHistoryManager? = null
+    clipboardHistoryManager: it.palsoftware.pastiera.clipboard.ClipboardHistoryManager? = null,
+    assets: AssetManager? = null,
+    imeServiceClass: Class<*>? = null
 ) {
 
-    private val inputStatusBar = StatusBarController(context, StatusBarController.Mode.FULL, clipboardHistoryManager)
-    private val candidatesStatusBar = StatusBarController(context, StatusBarController.Mode.CANDIDATES_ONLY, clipboardHistoryManager)
+    private val inputStatusBar = StatusBarController(context, StatusBarController.Mode.FULL, clipboardHistoryManager, assets, imeServiceClass)
+    private val candidatesStatusBar = StatusBarController(context, StatusBarController.Mode.CANDIDATES_ONLY, clipboardHistoryManager, assets, imeServiceClass)
 
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
         set(value) {
@@ -49,6 +52,13 @@ class CandidatesBarController(
             field = value
             inputStatusBar.onLanguageSwitchRequested = value
             candidatesStatusBar.onLanguageSwitchRequested = value
+        }
+    
+    var onClipboardRequested: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onClipboardRequested = value
+            candidatesStatusBar.onClipboardRequested = value
         }
 
     fun getInputView(emojiMapText: String = ""): LinearLayout {

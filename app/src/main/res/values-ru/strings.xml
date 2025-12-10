@@ -78,6 +78,20 @@
     <string name="auto_correct_language_code_hint">Введите код и имя для вашей кастомной замены (например \"fr\" / Французский, \"mydict\" / \"Мой словарь\")</string>
     <string name="auto_correct_language_code_required">Имя замены необходимо</string>
     <string name="auto_correct_language_already_exists">Замена уже существует</string>
+    <string name="auto_correct_suggestions_toggle_title">Предложения во время ввода</string>
+    <string name="auto_correct_accent_matching_title">Соответствие слов с акцентами</string>
+    <string name="auto_correct_auto_replace_title">Автоматическая замена на пробел/ввод</string>
+    <string name="auto_correct_max_distance_title">Максимальное расстояние коррекции</string>
+    <string name="auto_correct_max_distance_off">Выключено</string>
+    <string name="auto_correct_max_distance_description">Максимальное количество различий символов, разрешенных для авто-коррекции. 0 = выключено, 1-3 = увеличивающаяся толерантность.</string>
+    <string name="auto_correct_manage_user_dict_title">Управление словарем пользователя</string>
+    <string name="auto_correct_keyboard_proximity_title">Ранжирование по Близости Клавиатуры</string>
+    <string name="auto_correct_keyboard_proximity_description">Фильтровать маловероятные опечатки на основе расстояния клавиш (QWERTY/AZERTY/QWERTZ)</string>
+    <string name="auto_correct_edit_type_ranking_title">Ранжирование по Типу Редактирования</string>
+    <string name="auto_correct_edit_type_ranking_description">Сортировать предложения по типу редактирования (вставка > замена > удаление)</string>
+    <string name="clear">Очистить</string>
+    <string name="experimental_suggestions_title">Экспериментальные предложения</string>
+    <string name="experimental_suggestions_subtitle">Включить новый движок словаря/предложений (бета)</string>
     <string name="sym_customize_title">Изменить клавиатуру SYM</string>
     <string name="sym_auto_close_title">Авто-закрытие раскладки SYM</string>
     <string name="sym_auto_close_description">Автоматически закрывать SYM раскладку после вставки символа, нажатия Alt, или нажатия Enter. Не закрывается на Ctrl или Shift.</string>
@@ -85,6 +99,8 @@
     <string name="sym_enable_emoji_page_description">Показывать эмодзи в раскладке SYM.</string>
     <string name="sym_enable_symbols_page_title">Включить страницу Символов</string>
     <string name="sym_enable_symbols_page_description">Показывать символы в раскладке SYM.</string>
+    <string name="sym_enable_clipboard_page_title">Включить страницу Буфера обмена</string>
+    <string name="sym_enable_clipboard_page_description">Показывать историю буфера обмена при переключении.</string>
     <string name="sym_swap_pages_title">Сменить порядок страниц в SYM</string>
     <string name="sym_swap_pages_description">Выберите какая страница SYM появляется первой при переключении.</string>
     <string name="sym_order_emoji_first">Сначала эмодзи</string>
@@ -110,7 +126,7 @@
     <string name="long_press_modifier_title">Модификатор долгого нажатия</string>
     <string name="long_press_modifier_description">Выберите эмулирует ли долгое нажатие Alt+клав. или Shift+клав.</string>
     <string name="keyboard_layout_title">Раскладка клавиатуры</string>
-    <string name="keyboard_layout_description">Выберите вашу раскладку. ALT, SYM и Ctrl раксладки зависят от физического расположения клавишы. Переключайте быстро на CTRL+SPACE.</string>
+    <string name="keyboard_layout_description">Выберите вашу раскладку. ALT, SYM и Ctrl раксладки зависят от физического расположения клавишы.</string>
     <string name="keyboard_layout_no_conversion">Стандартная</string>
     <string name="keyboard_layout_no_conversion_description">Стандартная QWERTY (без конверсии)</string>
     <string name="keyboard_layout_conversions_title">Конверсии Раскладки</string>
@@ -221,7 +237,7 @@
     <string name="layout_delete_failed">Не удалось удалить раскладку</string>
     <string name="layout_view_mapping">Посмотреть раскладку</string>
     <string name="layout_delete">Удалить</string>
-    <string name="layout_enable_for_cycling">Добавить в активные (Ctrl + Пробел)</string>
+    <string name="layout_enable_for_cycling">Добавить в активные</string>
     <string name="layout_select_as_active">Выбрать активную раскладку</string>
     <string name="event_unicode_label">Юникод:</string>
     <string name="event_output_label">Вывод:</string>
@@ -241,5 +257,48 @@
     <string name="restore_completed">Восстановление завершено</string>
     <string name="backup_failed">Резервная копия не удалась: %1$s</string>
     <string name="restore_failed">Восстановление не удалось: %1$s</string>
+    <!-- Clipboard page UI -->
+    <string name="clipboard_history_title">История буфера обмена</string>
+    <string name="clipboard_clear_all">Очистить все</string>
+    <string name="clipboard_empty_state">Нет истории буфера обмена</string>
+    <string name="clipboard_pin">Закрепить</string>
+    <string name="clipboard_unpin">Открепить</string>
+    <string name="clipboard_delete">Удалить</string>
+    <string name="update_dialog_title">Доступно новое обновление</string>
+    <string name="update_dialog_message">Версия %1$s доступна на GitHub.</string>
+    <string name="update_dialog_open_github">Открыть GitHub</string>
+    <string name="update_dialog_later">Позже</string>
+    <string name="update_dialog_download_apk">Скачать APK</string>
+    <string name="custom_input_styles_language_label">Язык</string>
+    <string name="custom_input_styles_locale_display">%1$s (%2$s)</string>
+    <string name="custom_input_styles_system_locale_hint">Системный язык — изменить нельзя</string>
+    <string name="custom_input_styles_add_dialog_title">Добавить стиль ввода</string>
+    <string name="custom_input_styles_edit_dialog_title">Изменить стиль ввода</string>
+    <string name="custom_input_styles_edit_system_locale_title">Изменить раскладку системного языка</string>
+    <string name="custom_input_styles_select_locale">Выбрать язык</string>
+    <string name="custom_input_styles_select_layout">Выбрать раскладку клавиатуры</string>
+    <string name="custom_input_styles_save">Сохранить</string>
+    <string name="custom_input_styles_cancel">Отмена</string>
+    <string name="custom_input_styles_system_badge">Система</string>
+    <string name="custom_input_styles_default_layout">qwerty</string>
+    <string name="custom_input_styles_change_layout_hint">Нажмите, чтобы изменить раскладку</string>
+    <string name="custom_input_styles_custom_locale_placeholder">en_US, it_IT, fr_FR и т.д.</string>
+    <string name="custom_input_styles_layout_mapping_updated">Сопоставление раскладки обновлено: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_updated">Стиль ввода обновлен: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_added">Стиль ввода добавлен: %1$s - %2$s</string>
+    <string name="custom_input_styles_input_style_deleted">Стиль ввода удален</string>
+    <string name="custom_input_styles_installed_dictionaries">Установленные словари</string>
+
+    <!-- Установленные словари -->
+    <string name="installed_dictionaries_title">Установленные словари</string>
+    <string name="installed_dictionaries_empty">Сериализованные словари не найдены.</string>
+    <string name="installed_dictionaries_language_code">Язык: %1$s</string>
+    <string name="installed_dictionaries_filename">Файл: %1$s</string>
+    <string name="installed_dictionaries_import">Импортировать словарь</string>
+    <string name="installed_dictionaries_import_success">Импортировано %1$s</string>
+    <string name="installed_dictionaries_import_invalid_name">Неверное имя файла. Ожидается *_base.dict</string>
+    <string name="installed_dictionaries_import_invalid_format">Неверный формат словаря</string>
+    <string name="installed_dictionaries_import_failed">Не удалось импортировать</string>
+    <string name="installed_dictionaries_imported_badge">Импортировано</string>
 </resources>
 

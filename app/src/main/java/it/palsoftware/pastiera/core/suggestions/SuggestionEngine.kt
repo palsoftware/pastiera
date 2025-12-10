@@ -18,9 +18,9 @@ class SuggestionEngine(
     private val debugLogging: Boolean = false
 ) {
 
-    // Keep only Unicode letters (supports Latin, Cyrillic, Greek, Arabic, Chinese, etc.)
-    // Removes: punctuation, numbers, spaces, emoji, symbols
-    private val normalizeRegex = "[^\\p{L}]".toRegex()
+    // Keep letters and in-word apostrophes (for contractions/elisions like we'll, l'acqua).
+    // Removes: numbers, spaces, emoji, other symbols/punctuation.
+    private val normalizeRegex = "[^\\p{L}']".toRegex()
     private val accentCache: MutableMap<String, String> = mutableMapOf()
     private val tag = "SuggestionEngine"
     private val wordNormalizeCache: MutableMap<String, String> = mutableMapOf()
@@ -408,7 +408,11 @@ class SuggestionEngine(
     }
 
     private fun normalize(word: String): String {
-        return stripAccents(word.lowercase(locale))
+        val normalizedApostrophes = word
+            .replace("’", "'")
+            .replace("‘", "'")
+            .replace("ʼ", "'")
+        return stripAccents(normalizedApostrophes.lowercase(locale))
             .replace(normalizeRegex, "")
     }
 

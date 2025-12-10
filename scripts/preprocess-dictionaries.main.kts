@@ -165,7 +165,9 @@ fun main(args: Array<String>) {
             val entries = mutableListOf<Pair<String, Int>>()
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                val word = obj.getString("w")
+                // IMPORTANT: Preserve original case (uppercase/lowercase) from JSON
+                // e.g., {"w": "Mario", "f": 100} -> word="Mario" (not "mario")
+                val word = obj.getString("w")  // Original case preserved
                 val freq = obj.optInt("f", 1)
                 entries.add(Pair(word, freq))
             }
@@ -183,8 +185,10 @@ fun main(args: Array<String>) {
             }
             
             entries.forEach { (word, freq) ->
-                val normalized = normalize(word, locale)
+                // normalize() only converts to lowercase for indexing purposes
+                val normalized = normalize(word, locale)  // lowercase for indexing only
                 
+                // Save original word with case preserved for dictionary entry
                 val normalizedBucket = normalizedIndex.getOrPut(normalized) { mutableListOf() }
                 normalizedBucket.add(SerializableDictionaryEntry(word, freq, 0))
                 
@@ -192,6 +196,7 @@ fun main(args: Array<String>) {
                 for (length in 1..maxPrefixLength) {
                     val prefix = normalized.take(length)
                     val prefixList = prefixCache.getOrPut(prefix) { mutableListOf() }
+                    // Original word case preserved (e.g., "Mario", "Roma", "casa")
                     prefixList.add(SerializableDictionaryEntry(word, freq, 0))
                 }
             }

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.SettingsManager
 import okhttp3.Call
 import okhttp3.Callback
@@ -114,18 +115,18 @@ private fun postResult(
 
 fun showUpdateDialog(context: Context, latestVersion: String, downloadUrl: String?) {
     val builder = AlertDialog.Builder(context)
-        .setTitle("New update available")
-        .setMessage("Version $latestVersion is available on GitHub.")
-        .setPositiveButton("Open GitHub") { _, _ ->
+        .setTitle(R.string.update_dialog_title)
+        .setMessage(context.getString(R.string.update_dialog_message, latestVersion))
+        .setPositiveButton(R.string.update_dialog_open_github) { _, _ ->
             openUrl(context, GITHUB_LATEST_RELEASE_PAGE)
         }
-        .setNeutralButton("Later") { _, _ ->
+        .setNeutralButton(R.string.update_dialog_later) { _, _ ->
             // Save dismissed release when user clicks "Later"
             SettingsManager.addDismissedRelease(context, latestVersion)
         }
 
     if (downloadUrl != null) {
-        builder.setNegativeButton("Download APK") { _, _ ->
+        builder.setNegativeButton(R.string.update_dialog_download_apk) { _, _ ->
             openUrl(context, downloadUrl)
         }
     }

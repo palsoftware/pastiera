@@ -48,7 +48,7 @@ class AutoReplaceController(
         // skip auto-replace to avoid dropping trailing symbols.
         val textBefore = inputConnection.getTextBeforeCursor(16, 0)?.toString().orEmpty()
         val lastCharBeforeCursor = textBefore.lastOrNull()
-        val allowedPunctuation = ".,;:!?()[]{}\"'-"
+        val allowedPunctuation = it.palsoftware.pastiera.core.Punctuation.BOUNDARY + "-"
         if (lastCharBeforeCursor != null &&
             !lastCharBeforeCursor.isLetterOrDigit() &&
             lastCharBeforeCursor !in allowedPunctuation &&
@@ -184,7 +184,7 @@ class AutoReplaceController(
             while (i >= 0 &&
                 i >= textBeforeCursor.length - deleteCount - 1 &&
                 (textBeforeCursor[i].isWhitespace() ||
-                        textBeforeCursor[i] in ".,;:!?()[]{}\"'")
+                        textBeforeCursor[i] in it.palsoftware.pastiera.core.Punctuation.BOUNDARY)
             ) {
                 deleteCount++
                 i--
