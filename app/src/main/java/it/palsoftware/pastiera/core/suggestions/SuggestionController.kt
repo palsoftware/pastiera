@@ -30,11 +30,13 @@ class SuggestionController(
     private val appContext = context.applicationContext
     private val debugLogging: Boolean = debugLogging
 
-    // English-specific: SymSpell engine
-    private val symSpellEngine = SymSpellEngine(appContext, assets, debugLogging = debugLogging)
+    // User dictionary shared across all engines
+    private val userDictionaryStore = UserDictionaryStore()
+
+    // English-specific: SymSpell engine with user dictionary integration
+    private val symSpellEngine = SymSpellEngine(appContext, assets, userDictionaryStore, debugLogging = debugLogging)
 
     // Multi-language: DictionaryRepository system
-    private val userDictionaryStore = UserDictionaryStore()
     private var dictionaryRepository = DictionaryRepository(appContext, assets, userDictionaryStore, baseLocale = currentLocale, debugLogging = debugLogging)
     private var suggestionEngine = SuggestionEngine(dictionaryRepository, locale = currentLocale, debugLogging = debugLogging).apply {
         setKeyboardLayout(keyboardLayoutProvider())

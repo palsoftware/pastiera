@@ -29,10 +29,12 @@ import java.util.concurrent.atomic.AtomicReference
  *
  * Uses Android's native spell checker to validate words, SymSpell for suggestions.
  * The dictionary is cached statically so it persists across IME recreations.
+ * Integrates with UserDictionaryStore for user-defined words.
  */
 class SymSpellEngine(
     private val context: Context,
     private val assets: AssetManager,
+    private val userDictionaryStore: UserDictionaryStore? = null,
     private val debugLogging: Boolean = false
 ) {
     companion object {
@@ -381,6 +383,7 @@ class SymSpellEngine(
     /**
      * Check if a word is correctly spelled using SymSpell dictionary.
      * A word is known if it exists with edit distance 0 in the dictionary.
+     * Also checks user dictionary if available.
      *
      * @param word The word to check
      * @return true if the word is spelled correctly, false if misspelled
@@ -388,6 +391,16 @@ class SymSpellEngine(
     fun isKnownWord(word: String): Boolean {
         if (word.isBlank()) return true // Empty words are "correct"
         if (!isReady) return true // Assume correct if dictionary not ready
+
+        // Check user dictionary first - user-added words are always "known"
+        val userEntries = userDictionaryStore?.getSnapshot() ?: emptyList()
+        val wordLower = word.lowercase(Locale.getDefault())
+        if (userEntries.any { it.word.lowercase(Locale.getDefault()) == wordLower }) {
+            if (debugLogging) {
+                Log.d(TAG, "isKnownWord('$word') -> true (in user dictionary)")
+            }
+            return true
+        }
 
         return isKnownWordSymSpell(word)
     }
