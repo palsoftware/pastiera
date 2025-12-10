@@ -109,19 +109,6 @@ class AutoReplaceController(
             lengthDiff in -1..1  // Only: same length (0), +1 char (INSERT), -1 char (DELETE)
         }
 
-        // Temporary debug logging
-        if (word == "hust") {
-            Log.d("AutoReplaceController", "Word: '$word', isKnown: ${repository.isKnownWord(word)}")
-            suggestions.take(5).forEachIndexed { i, s ->
-                Log.d("AutoReplaceController", "  [$i] ${s.candidate} (dist=${s.distance}, score=${s.score})")
-            }
-            if (suggestions.firstOrNull() != null) {
-                val lengthRatio = suggestions.first().candidate.length.toFloat() / word.length
-                val maxRatio = 1.25
-                Log.d("AutoReplaceController", "Top length check: ${suggestions.first().candidate.length} / ${word.length} = $lengthRatio (max=$maxRatio) -> ${lengthRatio <= maxRatio}")
-            }
-        }
-
         val topRaw = suggestions.firstOrNull()
         val top = topRaw?.let {
             if (apostropheSplit != null) {
