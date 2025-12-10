@@ -24,6 +24,7 @@ class SuggestionEngine(
     private val accentCache: MutableMap<String, String> = mutableMapOf()
     private val tag = "SuggestionEngine"
     private val wordNormalizeCache: MutableMap<String, String> = mutableMapOf()
+    private val accentChars = setOf('à', 'è', 'é', 'ì', 'ò', 'ó', 'ù', 'À', 'È', 'É', 'Ì', 'Ò', 'Ó', 'Ù')
 
     // Keyboard layout positions - built dynamically based on layout type
     private var keyboardPositions: Map<Char, Pair<Int, Int>> = buildKeyboardPositions("qwerty")
@@ -238,6 +239,33 @@ class SuggestionEngine(
         return true
     }
 
+    private data class ApostropheSplit(val prefix: String, val root: String)
+
+    /**
+     * Split a word with a single apostrophe into prefix (with apostrophe) and root.
+     * Language-agnostic: only checks structure/length, not locale lists.
+     */
+    private fun splitApostropheWord(word: String): ApostropheSplit? {
+        val normalized = word
+            .replace("’", "'")
+            .replace("‘", "'")
+            .replace("ʼ", "'")
+        val apostropheCount = normalized.count { it == '\'' }
+        if (apostropheCount != 1) return null
+        val idx = normalized.indexOf('\'')
+        if (idx <= 0 || idx >= normalized.lastIndex) return null
+
+        val prefix = normalized.substring(0, idx + 1)
+        val root = normalized.substring(idx + 1)
+        val prefixRaw = prefix.dropLast(1) // remove apostrophe
+
+        val isPrefixOk = prefixRaw.isNotEmpty() &&
+                prefixRaw.length <= 3 &&
+                prefixRaw.all { it.isLetter() }
+        val isRootOk = root.length >= 3 && root.all { it.isLetter() }
+        return if (isPrefixOk && isRootOk) ApostropheSplit(prefix, root) else null
+    }
+
     fun suggest(
         currentWord: String,
         limit: Int = 3,
@@ -247,6 +275,46 @@ class SuggestionEngine(
     ): List<SuggestionResult> {
         if (currentWord.isBlank()) return emptyList()
         if (!repository.isReady) return emptyList()
+
+        // Apostrophe branch: split and suggest on the root to avoid over-corrections.
+        val apostropheSplit = splitApostropheWord(currentWord)
+        if (apostropheSplit != null) {
+            val rootResults = suggestInternal(
+                currentWord = apostropheSplit.root,
+                limit = (limit * 2).coerceAtMost(12),
+                includeAccentMatching = includeAccentMatching,
+                useKeyboardProximity = useKeyboardProximity,
+                useEditTypeRanking = useEditTypeRanking
+            )
+            val filtered = rootResults
+                .filter { it.distance <= 1 } // stay conservative on apostrophated forms
+                .take(limit * 2)
+            val recomposed = filtered.map { res ->
+                val recasedRoot = CasingHelper.applyCasing(res.candidate, apostropheSplit.root, forceLeadingCapital = false)
+                val candidate = apostropheSplit.prefix + recasedRoot
+                res.copy(candidate = candidate)
+            }.take(limit)
+            if (recomposed.isNotEmpty()) {
+                return recomposed
+            }
+        }
+
+        return suggestInternal(
+            currentWord = currentWord,
+            limit = limit,
+            includeAccentMatching = includeAccentMatching,
+            useKeyboardProximity = useKeyboardProximity,
+            useEditTypeRanking = useEditTypeRanking
+        )
+    }
+
+    private fun suggestInternal(
+        currentWord: String,
+        limit: Int,
+        includeAccentMatching: Boolean,
+        useKeyboardProximity: Boolean,
+        useEditTypeRanking: Boolean
+    ): List<SuggestionResult> {
         val normalizedWord = normalize(currentWord)
         // Require at least 1 character to start suggesting.
         if (normalizedWord.length < 1) return emptyList()
@@ -293,64 +361,95 @@ class SuggestionEngine(
                 }
             }
 
-            val entry = repository.bestEntryForNormalized(term) ?: DictionaryEntry(term, frequency, SuggestionSource.MAIN)
-            val isPrefix = entry.word.startsWith(currentWord, ignoreCase = true)
-            val distanceScore = 1.0 / (1 + distance)
-            val isCompletion = isPrefix && entry.word.length > currentWord.length
-            val prefixBonus = when {
-                isForcedPrefix -> 1.5
-                isCompletion -> 1.2
-                isPrefix -> 0.8
-                else -> 0.0
+            val isSingleCharInput = inputLen == 1
+            val candidateList: List<DictionaryEntry> = if (isSingleCharInput) {
+                repository.topByNormalized(term, limit = 5)
+            } else {
+                listOfNotNull(repository.bestEntryForNormalized(term))
             }
-            val frequencyScore = (entry.frequency / 2_000.0)
-            val sourceBoost = if (entry.source == SuggestionSource.USER) 5.0 else 1.0
+            if (candidateList.isEmpty()) return
 
-            // Apply edit type ranking when enabled
-            var editTypeBonus = 0.0
-            if (useEditTypeRanking && distance > 0) {
-                val editType = getEditType(normalizedWord, term)
-                editTypeBonus = when (editType) {
-                    EditType.INSERT -> 0.5  // User missed a character - higher boost
-                    EditType.SUBSTITUTE -> {
-                        // Adjacent key substitutions get higher boost
-                        if (useKeyboardProximity && isAdjacentSubstitution(normalizedWord, term)) {
-                            0.4
-                        } else {
-                            0.2
-                        }
-                    }
-                    EditType.DELETE -> {
-                        // Only boost deletes if input has duplicate letters
-                        if (hasAdjacentDuplicates(normalizedWord) && fixesDuplicateLetter(normalizedWord, term)) {
-                            0.3
-                        } else if (hasAdjacentDuplicates(normalizedWord)) {
-                            0.1
-                        } else {
-                            0.0  // Don't suggest deletes for non-duplicate inputs
-                        }
-                    }
-                    EditType.OTHER -> 0.0
+            candidateList.forEach { entry ->
+                val candidateLen = entry.word.length
+                val hasAccent = entry.word.any { it in accentChars }
+                val isSameBaseLetter = entry.word.equals(currentWord, ignoreCase = true)
+                val isShortElision = candidateLen in 2..3 &&
+                        entry.word.length >= 2 &&
+                        entry.word[0].equals(currentWord.firstOrNull() ?: ' ', ignoreCase = true) &&
+                        entry.word.getOrNull(1) == '\''
+                val isPrefix = entry.word.startsWith(currentWord, ignoreCase = true)
+                val distanceScore = 1.0 / (1 + distance)
+                val isCompletion = isPrefix && entry.word.length > currentWord.length
+                val prefixBonus = when {
+                    // Avoid boosting completions when input is a single character
+                    inputLen == 1 && isForcedPrefix -> 0.0
+                    isForcedPrefix -> 1.5
+                    isCompletion -> 1.2
+                    isPrefix -> 0.8
+                    else -> 0.0
                 }
-            }
+                val frequencyScore = (entry.frequency / 2_000.0)
+                val sourceBoost = if (entry.source == SuggestionSource.USER) 5.0 else 1.0
+                val accentBonus = if (isSingleCharInput && candidateLen == 1 && hasAccent) 0.4 else 0.0
+                val baseLetterMalus = if (isSingleCharInput && candidateLen == 1 && !hasAccent && isSameBaseLetter) -2.0 else 0.0
+                val elisionBonus = if (isSingleCharInput && isShortElision) 0.5 else 0.0
+                val lengthPenalty = if (isSingleCharInput && candidateLen > 2) -0.2 * (candidateLen - 2) else 0.0
 
-            val score = (distanceScore + frequencyScore + prefixBonus + editTypeBonus) * sourceBoost
-            val key = entry.word.lowercase(locale)
-            if (!seen.add(key)) return
-            val suggestion = SuggestionResult(
-                candidate = entry.word,
-                distance = distance,
-                score = score,
-                source = entry.source
-            )
+                // Apply edit type ranking when enabled
+                var editTypeBonus = 0.0
+                if (useEditTypeRanking && distance > 0) {
+                    val editType = getEditType(normalizedWord, term)
+                    editTypeBonus = when (editType) {
+                        EditType.INSERT -> 0.5  // User missed a character - higher boost
+                        EditType.SUBSTITUTE -> {
+                            // Adjacent key substitutions get higher boost
+                            if (useKeyboardProximity && isAdjacentSubstitution(normalizedWord, term)) {
+                                0.4
+                            } else {
+                                0.2
+                            }
+                        }
+                        EditType.DELETE -> {
+                            // Only boost deletes if input has duplicate letters
+                            if (hasAdjacentDuplicates(normalizedWord) && fixesDuplicateLetter(normalizedWord, term)) {
+                                0.3
+                            } else if (hasAdjacentDuplicates(normalizedWord)) {
+                                0.1
+                            } else {
+                                0.0  // Don't suggest deletes for non-duplicate inputs
+                            }
+                        }
+                        EditType.OTHER -> 0.0
+                    }
+                }
 
-            if (top.size < limit) {
-                top.add(suggestion)
-                top.sortWith(comparator)
-            } else if (comparator.compare(suggestion, top.last()) < 0) {
-                top.add(suggestion)
-                top.sortWith(comparator)
-                while (top.size > limit) top.removeAt(top.lastIndex)
+                val score = (
+                    distanceScore +
+                        frequencyScore +
+                        prefixBonus +
+                        editTypeBonus +
+                        accentBonus +
+                        baseLetterMalus +
+                        elisionBonus +
+                        lengthPenalty
+                    ) * sourceBoost
+                val key = entry.word.lowercase(locale)
+                if (!seen.add(key)) return@forEach
+                val suggestion = SuggestionResult(
+                    candidate = entry.word,
+                    distance = distance,
+                    score = score,
+                    source = entry.source
+                )
+
+                if (top.size < limit) {
+                    top.add(suggestion)
+                    top.sortWith(comparator)
+                } else if (comparator.compare(suggestion, top.last()) < 0) {
+                    top.add(suggestion)
+                    top.sortWith(comparator)
+                    while (top.size > limit) top.removeAt(top.lastIndex)
+                }
             }
         }
 

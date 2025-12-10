@@ -262,6 +262,18 @@ class DictionaryRepository(
     }
 
     /**
+     * Returns top entries for a normalized term, sorted by frequency.
+     * Useful for single-character inputs to surface multiple variants (e.g., accented).
+     */
+    fun topByNormalized(normalized: String, limit: Int = 5): List<DictionaryEntry> {
+        if (!isReady) return emptyList()
+        return normalizedIndex[normalized]
+            ?.sortedByDescending { it.frequency }
+            ?.take(limit)
+            .orEmpty()
+    }
+
+    /**
      * Attempts to load dictionary from serialized format (.dict file).
      * Returns true if successful, false otherwise (fallback to JSON).
      */

@@ -24,6 +24,33 @@ class AutoReplaceController(
     // Track rejected words to avoid auto-correcting them again
     private val rejectedWords = mutableSetOf<String>()
 
+    private data class ApostropheSplit(val prefix: String, val root: String)
+
+    /**
+     * Split a word with a single apostrophe into prefix (with apostrophe) and root.
+     * Language-agnostic: only checks structure/length, not locale.
+     */
+    private fun splitApostropheWord(word: String): ApostropheSplit? {
+        val normalized = word
+            .replace("’", "'")
+            .replace("‘", "'")
+            .replace("ʼ", "'")
+        val apostropheCount = normalized.count { it == '\'' }
+        if (apostropheCount != 1) return null
+        val idx = normalized.indexOf('\'')
+        if (idx <= 0 || idx >= normalized.lastIndex) return null
+
+        val prefix = normalized.substring(0, idx + 1)
+        val root = normalized.substring(idx + 1)
+        val prefixRaw = prefix.dropLast(1)
+
+        val isPrefixOk = prefixRaw.isNotEmpty() &&
+                prefixRaw.length <= 3 &&
+                prefixRaw.all { it.isLetter() }
+        val isRootOk = root.length >= 3 && root.all { it.isLetter() }
+        return if (isPrefixOk && isRootOk) ApostropheSplit(prefix, root) else null
+    }
+
     fun handleBoundary(
         keyCode: Int,
         event: KeyEvent?,
@@ -64,14 +91,25 @@ class AutoReplaceController(
             return ReplaceResult(false, unicodeChar != 0)
         }
 
+        val apostropheSplit = splitApostropheWord(word)
+        val lookupWord = apostropheSplit?.root ?: word
+
         val suggestions = suggestionEngine.suggest(
-            word,
+            lookupWord,
             limit = 1,
             includeAccentMatching = settings.accentMatching,
             useKeyboardProximity = settings.useKeyboardProximity,
             useEditTypeRanking = settings.useEditTypeRanking
         )
-        val top = suggestions.firstOrNull()
+        val topRaw = suggestions.firstOrNull()
+        val top = topRaw?.let {
+            if (apostropheSplit != null) {
+                val recasedRoot = CasingHelper.applyCasing(it.candidate, apostropheSplit.root, forceLeadingCapital = false)
+                it.copy(candidate = apostropheSplit.prefix + recasedRoot)
+            } else {
+                it
+            }
+        }
         
         // Safety checks for auto-replace
         val minWordLength = 3 // Don't auto-correct words shorter than 3 characters
@@ -82,11 +120,11 @@ class AutoReplaceController(
         val isRejected = rejectedWords.contains(wordLower)
         
         // Check if word exists in dictionary
-        val isKnownWord = repository.isKnownWord(word)
-        val currentWordFrequency = if (isKnownWord) repository.getExactWordFrequency(word) else 0
+        val isKnownWord = repository.isKnownWord(lookupWord)
+        val currentWordFrequency = if (isKnownWord) repository.getExactWordFrequency(lookupWord) else 0
         
         // Get top suggestion frequency (need to look it up)
-        val topSuggestionFrequency = top?.let { suggestion ->
+        val topSuggestionFrequency = topRaw?.let { suggestion ->
             repository.getExactWordFrequency(suggestion.candidate)
         } ?: 0
         
@@ -96,14 +134,14 @@ class AutoReplaceController(
         val canReplaceKnownWord = isKnownWord 
             && top != null
             && topSuggestionFrequency > currentWordFrequency
-            && top.candidate.length == word.length
+            && topRaw!!.candidate.length == lookupWord.length
         
         val shouldReplace = top != null 
             && (!isKnownWord || canReplaceKnownWord) // Allow replacement if unknown OR if known but better version exists
             && !isRejected // Don't auto-correct if user has rejected this word
             && top.distance <= settings.maxAutoReplaceDistance
-            && word.length >= minWordLength // Minimum word length check
-            && top.candidate.length <= (word.length * maxLengthRatio).toInt() // Max length ratio check
+            && lookupWord.length >= minWordLength // Minimum word length check on root
+            && top.candidate.length <= (word.length * maxLengthRatio).toInt() // Max length ratio check on full text
 
         if (shouldReplace) {
             val replacement = applyCasing(top!!.candidate, word)
@@ -199,6 +237,7 @@ class AutoReplaceController(
         
         // Mark word as rejected so it won't be auto-corrected again
         rejectedWords.add(replacement.originalWord.lowercase())
+        splitApostropheWord(replacement.originalWord)?.root?.lowercase()?.let { rejectedWords.add(it) }
         lastUndoOriginalWord = replacement.originalWord
         
         // Clear last replacement after undo
