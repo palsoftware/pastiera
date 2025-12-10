@@ -64,15 +64,35 @@ class AutoReplaceController(
             return ReplaceResult(false, unicodeChar != 0)
         }
 
-        val suggestions = suggestionEngine.suggest(
+        val allSuggestions = suggestionEngine.suggest(
             word,
-            limit = 1,
+            limit = 10,
             includeAccentMatching = settings.accentMatching,
             useKeyboardProximity = settings.useKeyboardProximity,
             useEditTypeRanking = settings.useEditTypeRanking
         )
+
+        // Filter to only valid edit types (INSERT, SUBSTITUTE, DELETE)
+        // This removes EditType.OTHER which includes prefix completions like "Huston" for "hust"
+        val suggestions = allSuggestions.filter { suggestion ->
+            val lengthDiff = suggestion.candidate.length - word.length
+            lengthDiff in -1..1  // Only: same length (0), +1 char (INSERT), -1 char (DELETE)
+        }
         val top = suggestions.firstOrNull()
-        
+
+        // Temporary debug logging
+        if (word == "hust") {
+            Log.d("AutoReplaceController", "Word: '$word', isKnown: ${repository.isKnownWord(word)}")
+            suggestions.take(5).forEachIndexed { i, s ->
+                Log.d("AutoReplaceController", "  [$i] ${s.candidate} (dist=${s.distance}, score=${s.score})")
+            }
+            if (top != null) {
+                val lengthRatio = top.candidate.length.toFloat() / word.length
+                val maxRatio = 1.25
+                Log.d("AutoReplaceController", "Top length check: ${top.candidate.length} / ${word.length} = $lengthRatio (max=$maxRatio) -> ${lengthRatio <= maxRatio}")
+            }
+        }
+
         // Safety checks for auto-replace
         val minWordLength = 3 // Don't auto-correct words shorter than 3 characters
         val maxLengthRatio = 1.25 // Don't auto-correct if replacement is >25% longer

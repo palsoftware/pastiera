@@ -20,6 +20,13 @@ import kotlinx.serialization.SerializationException
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
+import com.darkrockstudios.symspellkt.api.SpellChecker
+import com.darkrockstudios.symspellkt.common.Verbosity
+import com.darkrockstudios.symspell.fdic.loadFdicFile
+import com.darkrockstudios.symspellkt.impl.SymSpell as SymSpellKt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Loads and indexes lightweight dictionaries from assets and merges them with the user dictionary.
@@ -42,6 +49,7 @@ class DictionaryRepository(
     private val normalizedIndex: MutableMap<String, MutableList<DictionaryEntry>> = mutableMapOf()
     @Volatile private var symSpell: SymSpell? = null
     @Volatile private var symSpellBuilt: Boolean = false
+    @Volatile private var symSpellKt: SpellChecker? = null // SymSpellKt for English FDIC (loaded async)
     @Volatile var isReady: Boolean = false
         private set
     @Volatile private var loadStarted: Boolean = false
@@ -50,6 +58,38 @@ class DictionaryRepository(
         get() = loadStarted
     private val tag = "DictionaryRepo"
     private val debugLogging: Boolean = debugLogging
+
+    /**
+     * Loads dictionary using standard format (.dict serialized or .json fallback).
+     */
+    private suspend fun loadStandardDictionary(startTime: Long) {
+        coroutineContext.ensureActive()
+        val localFile = File(context.filesDir, "dictionaries_serialized/${baseLocale.language}_base.dict")
+        val serializedPath = "common/dictionaries_serialized/${baseLocale.language}_base.dict"
+        val loadedSerialized = if (localFile.exists()) {
+            loadSerializedFromFile(localFile)
+        } else {
+            loadSerializedFromAssets(serializedPath)
+        }
+
+        if (loadedSerialized) {
+            // Serialized format already populated the indices
+            val loadTime = System.currentTimeMillis() - startTime
+            Log.i(tag, "Loaded SERIALIZED dictionary (.dict) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
+        } else {
+            // Fallback to JSON format
+            val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
+            coroutineContext.ensureActive()
+            if (debugLogging) {
+                Log.d(tag, "Loaded JSON dictionary: ${mainEntries.size} entries")
+            }
+            if (mainEntries.isNotEmpty()) {
+                index(mainEntries)
+            }
+            val loadTime = System.currentTimeMillis() - startTime
+            Log.i(tag, "Loaded JSON dictionary (fallback) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
+        }
+    }
 
     suspend fun loadIfNeeded() {
         if (isReady) return
@@ -64,33 +104,27 @@ class DictionaryRepository(
             }
             try {
                 val startTime = System.currentTimeMillis()
-                
-                // Try to load serialized format first (much faster)
-                coroutineContext.ensureActive()
-                val localFile = File(context.filesDir, "dictionaries_serialized/${baseLocale.language}_base.dict")
-                val serializedPath = "common/dictionaries_serialized/${baseLocale.language}_base.dict"
-                val loadedSerialized = if (localFile.exists()) {
-                    loadSerializedFromFile(localFile)
-                } else {
-                    loadSerializedFromAssets(serializedPath)
-                }
-                
-                if (loadedSerialized) {
-                    // Serialized format already populated the indices
-                    val loadTime = System.currentTimeMillis() - startTime
-                    Log.i(tag, "Loaded SERIALIZED dictionary (.dict) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
-                } else {
-                    // Fallback to JSON format
-                    val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
-                    coroutineContext.ensureActive()
-                    if (debugLogging) {
-                        Log.d(tag, "Loaded JSON dictionary: ${mainEntries.size} entries")
+
+                // Load standard dictionary first for fast startup
+                loadStandardDictionary(startTime)
+
+                // For English, start loading FDIC in background for better quality
+                if (baseLocale.language == "en") {
+                    val assetManager = assets // Capture assets reference
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val fdicStartTime = System.currentTimeMillis()
+                            Log.i(tag, "Starting background FDIC load for English...")
+                            val checker = SymSpellKt()
+                            val dictBytes = assetManager.open("dictionaries/en_80k.fdic").use { it.readBytes() }
+                            checker.dictionary.loadFdicFile(dictBytes)
+                            symSpellKt = checker
+                            val fdicLoadTime = System.currentTimeMillis() - fdicStartTime
+                            Log.i(tag, "FDIC loaded in background (${fdicLoadTime}ms), now using higher-quality suggestions")
+                        } catch (e: Exception) {
+                            Log.w(tag, "Background FDIC load failed: ${e.message}", e)
+                        }
                     }
-                    if (mainEntries.isNotEmpty()) {
-                        index(mainEntries)
-                    }
-                    val loadTime = System.currentTimeMillis() - startTime
-                    Log.i(tag, "Loaded JSON dictionary (fallback) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
                 }
                 
                 coroutineContext.ensureActive()
@@ -108,7 +142,7 @@ class DictionaryRepository(
 
                 coroutineContext.ensureActive()
                 buildSymSpell()
-                
+
                 isReady = true
             } catch (ce: CancellationException) {
                 synchronized(this) { loadStarted = false }
@@ -248,6 +282,21 @@ class DictionaryRepository(
     }
 
     fun symSpellLookup(term: String, maxSuggestions: Int): List<SymSpell.SuggestItem> {
+        // Prefer SymSpellKt if available (English FDIC - better quality)
+        val ktEngine = symSpellKt
+        if (ktEngine != null) {
+            val normalized = normalize(term)
+            val suggestions = ktEngine.lookup(normalized, Verbosity.All, 2.0)
+            return suggestions.take(maxSuggestions).map { item ->
+                SymSpell.SuggestItem(
+                    term = item.term,
+                    distance = item.distance.toInt(),
+                    frequency = item.frequency.toInt()
+                )
+            }
+        }
+
+        // Fallback to custom implementation
         val engine = symSpell ?: return emptyList()
         return engine.lookup(term, maxSuggestions)
     }
