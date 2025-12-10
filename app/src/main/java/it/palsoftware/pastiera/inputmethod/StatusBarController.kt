@@ -27,6 +27,7 @@ import it.palsoftware.pastiera.SettingsManager
 import kotlin.math.max
 import android.view.MotionEvent
 import android.view.KeyEvent
+import android.view.InputDevice
 import kotlin.math.abs
 import it.palsoftware.pastiera.inputmethod.ui.LedStatusView
 import it.palsoftware.pastiera.inputmethod.ui.VariationBarView
@@ -171,6 +172,9 @@ class StatusBarController(
     private var lastSymMappingsRendered: Map<Int, String>? = null
     private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
     private var wasSymActive: Boolean = false
+
+    // Trackpad debug
+    private var trackpadDebugLaunched = false
     private var symShown: Boolean = false
     private var lastSymHeight: Int = 0
     private val defaultSymHeightPx: Int
@@ -279,7 +283,10 @@ class StatusBarController(
 
             variationsWrapper = variationBarView?.ensureView()
             val ledStrip = ledStatusView.ensureView()
-            
+
+            // Launch trackpad debug activity
+            launchTrackpadDebug()
+
             statusBarLayout?.apply {
                 // Full-width suggestions bar above the rest
                 fullSuggestionsBar = FullSuggestionsBar(context)
@@ -299,7 +306,16 @@ class StatusBarController(
         }
         return statusBarLayout!!
     }
-    
+
+    private fun launchTrackpadDebug() {
+        if (!trackpadDebugLaunched) {
+            trackpadDebugLaunched = true
+            val intent = Intent(context, it.palsoftware.pastiera.TrackpadDebugActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        }
+    }
+
     /**
      * Ensures the layout is created before updating.
      * This is important for candidates view which may not have been created yet.
