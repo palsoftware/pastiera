@@ -55,6 +55,17 @@ class SuggestionController(
     )
     private var autoReplaceController = AutoReplaceController(dictionaryRepository, suggestionEngine, settingsProvider)
 
+    private val latestSuggestions: AtomicReference<List<SuggestionResult>> = AtomicReference(emptyList())
+    // Dedicated IO scope so dictionary preload never blocks the main thread.
+    private val loadScope = CoroutineScope(Dispatchers.IO)
+    private var currentLoadJob: Job? = null
+    private val cursorHandler = Handler(Looper.getMainLooper())
+    private var cursorRunnable: Runnable? = null
+    private val cursorDebounceMs = 120L
+    private var pendingAddUserWord: String? = null
+
+    var suggestionsListener: ((List<SuggestionResult>) -> Unit)? = onSuggestionsUpdated
+
     private fun isEnglish() = currentLocale.language == "en"
 
     init {
@@ -121,17 +132,6 @@ class SuggestionController(
     fun updateKeyboardLayout(layout: String) {
         suggestionEngine.setKeyboardLayout(layout)
     }
-
-    private val latestSuggestions: AtomicReference<List<SuggestionResult>> = AtomicReference(emptyList())
-    // Dedicated IO scope so dictionary preload never blocks the main thread.
-    private val loadScope = CoroutineScope(Dispatchers.IO)
-    private var currentLoadJob: Job? = null
-    private val cursorHandler = Handler(Looper.getMainLooper())
-    private var cursorRunnable: Runnable? = null
-    private val cursorDebounceMs = 120L
-    private var pendingAddUserWord: String? = null
-
-    var suggestionsListener: ((List<SuggestionResult>) -> Unit)? = onSuggestionsUpdated
 
     fun onCharacterCommitted(text: CharSequence, inputConnection: InputConnection?) {
         if (!isEnabled()) return
