@@ -94,13 +94,21 @@ class AutoReplaceController(
         val apostropheSplit = splitApostropheWord(word)
         val lookupWord = apostropheSplit?.root ?: word
 
-        val suggestions = suggestionEngine.suggest(
+        val allSuggestions = suggestionEngine.suggest(
             lookupWord,
-            limit = 1,
+            limit = 10,
             includeAccentMatching = settings.accentMatching,
             useKeyboardProximity = settings.useKeyboardProximity,
             useEditTypeRanking = settings.useEditTypeRanking
         )
+
+        // Filter to only valid edit types (INSERT, SUBSTITUTE, DELETE)
+        // This removes EditType.OTHER which includes prefix completions like "Huston" for "hust"
+        val suggestions = allSuggestions.filter { suggestion ->
+            val lengthDiff = suggestion.candidate.length - lookupWord.length
+            lengthDiff in -1..1  // Only: same length (0), +1 char (INSERT), -1 char (DELETE)
+        }
+
         val topRaw = suggestions.firstOrNull()
         val top = topRaw?.let {
             if (apostropheSplit != null) {
@@ -110,7 +118,7 @@ class AutoReplaceController(
                 it
             }
         }
-        
+
         // Safety checks for auto-replace
         val minWordLength = 3 // Don't auto-correct words shorter than 3 characters
         val maxLengthRatio = 1.25 // Don't auto-correct if replacement is >25% longer

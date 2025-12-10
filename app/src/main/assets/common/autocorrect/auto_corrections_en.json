@@ -1,4 +1,5 @@
 {
+  "i": "I",
   "im": "i'm",
   "dont": "don't",
   "wont": "won't",
@@ -15,11 +16,10 @@
   "shouldnt": "shouldn't",
   "mustnt": "mustn't",
   "neednt": "needn't",
-  "ill": "i'll",
+  "doesnt": "doesn't",
   "youll": "you'll",
   "hell": "he'll",
   "shell": "she'll",
-  "well": "we'll",
   "theyll": "they'll",
   "itll": "it'll",
   "thatll": "that'll",
@@ -52,7 +52,6 @@
   "thatd": "that'd",
   "id": "I'd",
   "ive": "I've",
-  "im": "I'm",
-  "ill": "I'll"
+  "im": "I'm"
 }
 

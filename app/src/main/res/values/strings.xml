@@ -353,7 +353,7 @@
     <string name="update_dialog_download_apk">Download APK</string>
     
     <!-- Auto Correct Settings -->
-    <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
+    <string name="auto_correct_ricette_pastiera_name">Pastiera Recipes</string>
     
     <!-- Settings Categories -->
     <string name="settings_category_keyboard_timing">Keyboard &amp; Timing</string>
@@ -457,7 +457,7 @@
     <string name="dip_unit">DIP</string>
     
     <!-- Custom Input Styles -->
-    <string name="custom_input_styles_title">Lingue e mappe</string>
+    <string name="custom_input_styles_title">Languages and Layouts</string>
     <string name="custom_input_styles_description">Add additional languages and keyboard layouts that are not tied to system locale</string>
     <string name="custom_input_styles_add">Add Input Style</string>
     <string name="custom_input_styles_empty">No custom input styles added yet. Tap the + button to add one.</string>

@@ -51,6 +51,38 @@ class DictionaryRepository(
     private val tag = "DictionaryRepo"
     private val debugLogging: Boolean = debugLogging
 
+    /**
+     * Loads dictionary using standard format (.dict serialized or .json fallback).
+     */
+    private suspend fun loadStandardDictionary(startTime: Long) {
+        coroutineContext.ensureActive()
+        val localFile = File(context.filesDir, "dictionaries_serialized/${baseLocale.language}_base.dict")
+        val serializedPath = "common/dictionaries_serialized/${baseLocale.language}_base.dict"
+        val loadedSerialized = if (localFile.exists()) {
+            loadSerializedFromFile(localFile)
+        } else {
+            loadSerializedFromAssets(serializedPath)
+        }
+
+        if (loadedSerialized) {
+            // Serialized format already populated the indices
+            val loadTime = System.currentTimeMillis() - startTime
+            Log.i(tag, "Loaded SERIALIZED dictionary (.dict) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
+        } else {
+            // Fallback to JSON format
+            val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
+            coroutineContext.ensureActive()
+            if (debugLogging) {
+                Log.d(tag, "Loaded JSON dictionary: ${mainEntries.size} entries")
+            }
+            if (mainEntries.isNotEmpty()) {
+                index(mainEntries)
+            }
+            val loadTime = System.currentTimeMillis() - startTime
+            Log.i(tag, "Loaded JSON dictionary (fallback) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
+        }
+    }
+
     suspend fun loadIfNeeded() {
         if (isReady) return
         // Must not run on main thread
@@ -64,35 +96,10 @@ class DictionaryRepository(
             }
             try {
                 val startTime = System.currentTimeMillis()
-                
-                // Try to load serialized format first (much faster)
-                coroutineContext.ensureActive()
-                val localFile = File(context.filesDir, "dictionaries_serialized/${baseLocale.language}_base.dict")
-                val serializedPath = "common/dictionaries_serialized/${baseLocale.language}_base.dict"
-                val loadedSerialized = if (localFile.exists()) {
-                    loadSerializedFromFile(localFile)
-                } else {
-                    loadSerializedFromAssets(serializedPath)
-                }
-                
-                if (loadedSerialized) {
-                    // Serialized format already populated the indices
-                    val loadTime = System.currentTimeMillis() - startTime
-                    Log.i(tag, "Loaded SERIALIZED dictionary (.dict) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
-                } else {
-                    // Fallback to JSON format
-                    val mainEntries = loadFromAssets("common/dictionaries/${baseLocale.language}_base.json")
-                    coroutineContext.ensureActive()
-                    if (debugLogging) {
-                        Log.d(tag, "Loaded JSON dictionary: ${mainEntries.size} entries")
-                    }
-                    if (mainEntries.isNotEmpty()) {
-                        index(mainEntries)
-                    }
-                    val loadTime = System.currentTimeMillis() - startTime
-                    Log.i(tag, "Loaded JSON dictionary (fallback) in ${loadTime}ms - normalizedIndex=${normalizedIndex.size} prefixCache=${prefixCache.size}")
-                }
-                
+
+                // Load standard dictionary first for fast startup
+                loadStandardDictionary(startTime)
+
                 coroutineContext.ensureActive()
                 // Optional default user entries (editable copy stored in app files dir, fallback to asset)
                 val defaultUserEntries = loadUserDefaults()
@@ -108,7 +115,7 @@ class DictionaryRepository(
 
                 coroutineContext.ensureActive()
                 buildSymSpell()
-                
+
                 isReady = true
             } catch (ce: CancellationException) {
                 synchronized(this) { loadStarted = false }
