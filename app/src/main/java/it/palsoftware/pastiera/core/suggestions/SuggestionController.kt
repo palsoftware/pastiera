@@ -29,9 +29,8 @@ class SuggestionController(
     private val appContext = context.applicationContext
     private val debugLogging: Boolean = debugLogging
 
-    // English-specific: SymSpell engine with PersonalDictionary
+    // English-specific: SymSpell engine
     private val symSpellEngine = SymSpellEngine(appContext, assets, debugLogging = debugLogging)
-    private val personalDictionary = PersonalDictionary.getInstance(context)
 
     // Multi-language: DictionaryRepository system
     private val userDictionaryStore = UserDictionaryStore()
