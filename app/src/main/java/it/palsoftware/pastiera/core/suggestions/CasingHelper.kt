@@ -42,7 +42,7 @@ object CasingHelper {
         val letters = original.filter { it.isLetter() }
         if (letters.isEmpty()) return candidate
 
-        val allUpper = letters.all { it.isUpperCase() }
+        val allUpper = letters.length > 1 && letters.all { it.isUpperCase() }
         val allLower = letters.all { it.isLowerCase() }
         val firstLetter = letters.first()
         val restLetters = letters.drop(1)
