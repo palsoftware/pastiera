@@ -28,6 +28,12 @@ class SuggestionController(
 
     private val appContext = context.applicationContext
     private val debugLogging: Boolean = debugLogging
+
+    // English-specific: SymSpell engine with PersonalDictionary
+    private val symSpellEngine = SymSpellEngine(appContext, assets, debugLogging = debugLogging)
+    private val personalDictionary = PersonalDictionary.getInstance(context)
+
+    // Multi-language: DictionaryRepository system
     private val userDictionaryStore = UserDictionaryStore()
     private var dictionaryRepository = DictionaryRepository(appContext, assets, userDictionaryStore, baseLocale = currentLocale, debugLogging = debugLogging)
     private var suggestionEngine = SuggestionEngine(dictionaryRepository, locale = currentLocale, debugLogging = debugLogging).apply {
@@ -37,46 +43,73 @@ class SuggestionController(
         onWordChanged = { word ->
             val settings = settingsProvider()
             if (settings.suggestionsEnabled) {
-                onSuggestionsUpdated(suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking))
+                val suggestions = if (isEnglish()) {
+                    symSpellEngine.suggest(word, settings.maxSuggestions)
+                } else {
+                    suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
+                }
+                onSuggestionsUpdated(suggestions)
             }
         },
         onWordReset = { onSuggestionsUpdated(emptyList()) }
     )
     private var autoReplaceController = AutoReplaceController(dictionaryRepository, suggestionEngine, settingsProvider)
-    
+
+    private fun isEnglish() = currentLocale.language == "en"
+
+    init {
+        // Eagerly start loading dictionaries in the background
+        loadScope.launch {
+            if (isEnglish()) {
+                symSpellEngine.loadDictionary()
+            } else {
+                dictionaryRepository.loadIfNeeded()
+            }
+        }
+    }
+
     /**
      * Updates the locale and reloads the dictionary for the new language.
      */
     fun updateLocale(newLocale: Locale) {
         if (newLocale == currentLocale) return
-        
+
         // Cancel previous load job if still running to prevent conflicts
         currentLoadJob?.cancel()
         currentLoadJob = null
-        
+
         currentLocale = newLocale
         dictionaryRepository = DictionaryRepository(appContext, assets, userDictionaryStore, baseLocale = currentLocale, debugLogging = debugLogging)
         suggestionEngine = SuggestionEngine(dictionaryRepository, locale = currentLocale, debugLogging = debugLogging).apply {
             setKeyboardLayout(keyboardLayoutProvider())
         }
         autoReplaceController = AutoReplaceController(dictionaryRepository, suggestionEngine, settingsProvider)
-        
-        // Recreate tracker to use new engine (tracker captures suggestionEngine in closure)
+
+        // Recreate tracker to use new engine (tracker captures locale in isEnglish() check)
         tracker = CurrentWordTracker(
             onWordChanged = { word ->
                 val settings = settingsProvider()
                 if (settings.suggestionsEnabled) {
-                    onSuggestionsUpdated(suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking))
+                    val suggestions = if (isEnglish()) {
+                        symSpellEngine.suggest(word, settings.maxSuggestions)
+                    } else {
+                        suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
+                    }
+                    onSuggestionsUpdated(suggestions)
                 }
             },
             onWordReset = { onSuggestionsUpdated(emptyList()) }
         )
-        
+
         // Reload dictionary in background
         currentLoadJob = loadScope.launch {
-            dictionaryRepository.loadIfNeeded()
+            if (isEnglish()) {
+                symSpellEngine.loadDictionary()
+            } else {
+                dictionaryRepository.loadIfNeeded()
+            }
         }
-        
+
         // Reset tracker and clear suggestions
         tracker.reset()
         suggestionsListener?.invoke(emptyList())
@@ -127,7 +160,11 @@ class SuggestionController(
     private fun updateSuggestions() {
         val settings = settingsProvider()
         if (settings.suggestionsEnabled) {
-            val next = suggestionEngine.suggest(tracker.currentWord, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
+            val next = if (isEnglish()) {
+                symSpellEngine.suggest(tracker.currentWord, settings.maxSuggestions)
+            } else {
+                suggestionEngine.suggest(tracker.currentWord, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
+            }
             val summary = next.take(3).joinToString { "${it.candidate}:${it.distance}" }
             if (debugLogging) Log.d("PastieraIME", "suggestions (${next.size}): $summary")
             latestSuggestions.set(next)
@@ -169,7 +206,12 @@ class SuggestionController(
             return
         }
         cursorRunnable = Runnable {
-            if (!dictionaryRepository.isReady) {
+            val isDictionaryReady = if (isEnglish()) {
+                symSpellEngine.isReady
+            } else {
+                dictionaryRepository.isReady
+            }
+            if (!isDictionaryReady) {
                 tracker.reset()
                 suggestionsListener?.invoke(emptyList())
                 return@Runnable
@@ -267,18 +309,34 @@ class SuggestionController(
      * Should be called during initialization to have dictionary ready when user focuses a field.
      */
     fun preloadDictionary() {
-        if (!dictionaryRepository.isReady && !dictionaryRepository.isLoadStarted) {
-            loadScope.launch {
-                dictionaryRepository.loadIfNeeded()
+        if (isEnglish()) {
+            if (!symSpellEngine.isReady) {
+                loadScope.launch {
+                    symSpellEngine.loadDictionary()
+                }
+            }
+        } else {
+            if (!dictionaryRepository.isReady && !dictionaryRepository.isLoadStarted) {
+                loadScope.launch {
+                    dictionaryRepository.loadIfNeeded()
+                }
             }
         }
     }
 
     private fun ensureDictionaryLoaded() {
-        if (!dictionaryRepository.isReady) {
-            dictionaryRepository.ensureLoadScheduled {
+        if (isEnglish()) {
+            if (!symSpellEngine.isReady) {
                 loadScope.launch {
-                    dictionaryRepository.loadIfNeeded()
+                    symSpellEngine.loadDictionary()
+                }
+            }
+        } else {
+            if (!dictionaryRepository.isReady) {
+                dictionaryRepository.ensureLoadScheduled {
+                    loadScope.launch {
+                        dictionaryRepository.loadIfNeeded()
+                    }
                 }
             }
         }

@@ -165,6 +165,9 @@ dependencies {
     implementation("androidx.emoji2:emoji2-views-helper:1.4.0")
     // Kotlinx Serialization for dictionary optimization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    // SymSpell spelling correction (English only)
+    implementation("com.darkrockstudios:symspellkt:3.4.0")
+    implementation("com.darkrockstudios:symspellktfdic:3.4.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
