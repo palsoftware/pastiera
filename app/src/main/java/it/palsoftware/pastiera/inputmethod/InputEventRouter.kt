@@ -36,6 +36,7 @@ class InputEventRouter(
 ) {
 
     var suggestionController: it.palsoftware.pastiera.core.suggestions.SuggestionController? = null
+    var onCommitText: (() -> Unit)? = null
 
     /**
      * Track in-word apostrophes so suggestions don't reset (e.g., "we'" -> "we'll").
@@ -69,6 +70,7 @@ class InputEventRouter(
     }
 
     private fun commitTextWithTracking(ic: InputConnection?, text: CharSequence, trackWord: Boolean = true) {
+        onCommitText?.invoke()
         ic?.commitText(text, 1)
         Log.d("PastieraIME", "commitTextWithTracking: '$text', trackWord=$trackWord")
         if (trackWord) {

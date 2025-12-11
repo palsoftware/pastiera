@@ -155,3 +155,4 @@ class TrackpadGestureDetector(
         const val DEFAULT_LOG_TAG = "PastieraIME"
     }
 }
+

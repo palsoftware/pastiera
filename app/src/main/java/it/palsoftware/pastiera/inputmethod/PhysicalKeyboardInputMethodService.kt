@@ -176,6 +176,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var suggestionController: SuggestionController
     private lateinit var variationStateController: VariationStateController
     private lateinit var inputEventRouter: InputEventRouter
+    private var skipNextSelectionUpdateAfterCommit: Boolean = false
     private lateinit var keyboardVisibilityController: KeyboardVisibilityController
     private lateinit var launcherShortcutController: LauncherShortcutController
     private lateinit var clipboardHistoryManager: ClipboardHistoryManager
@@ -202,6 +203,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     private fun updateInputContextState(info: EditorInfo?) {
         inputContextState = InputContextState.fromEditorInfo(info)
+    }
+
+    private fun markSelectionUpdateSkipAfterCommit() {
+        skipNextSelectionUpdateAfterCommit = true
     }
 
     @Suppress("DEPRECATION")
@@ -679,7 +684,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         navModeController.setOnNavModeChangedListener { isActive ->
             updateNavModeStatusIcon(isActive)
         }
-        inputEventRouter = InputEventRouter(this, navModeController)
+        inputEventRouter = InputEventRouter(this, navModeController).apply {
+            onCommitText = { markSelectionUpdateSkipAfterCommit() }
+        }
         textInputController = TextInputController(
             context = this,
             modifierStateController = modifierStateController,
@@ -1808,12 +1815,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         
         val state = inputContextState
         val cursorPositionChanged = (oldSelStart != newSelStart) || (oldSelEnd != newSelEnd)
-        // Skip the reset when the selection moved forward by 1 as a direct result of our own commit.
-        val movedByCommit = oldSelStart == oldSelEnd &&
+        val collapsedSelection = newSelStart == newSelEnd
+        val forwardByOne = oldSelStart == oldSelEnd &&
             newSelEnd == newSelStart &&
             newSelStart == oldSelStart + 1
+        val shouldSkipForCommit = skipNextSelectionUpdateAfterCommit && collapsedSelection && forwardByOne
+        // Clear the flag so subsequent cursor moves are always processed.
+        if (skipNextSelectionUpdateAfterCommit) {
+            skipNextSelectionUpdateAfterCommit = false
+        }
         
-        if (cursorPositionChanged && newSelStart == newSelEnd && !movedByCommit) {
+        if (cursorPositionChanged && collapsedSelection && !shouldSkipForCommit) {
             // Update suggestions on cursor movement (if suggestions enabled)
             if (!state.shouldDisableSuggestions) {
                 suggestionController.onCursorMoved(currentInputConnection)
