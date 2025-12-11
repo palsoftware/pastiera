@@ -1,4 +1,4 @@
-﻿<resources>
+<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera</string>
     <string name="input_method_name_en">English</string>
@@ -451,4 +451,8 @@
     <string name="installed_dictionaries_import_invalid_format">Formato dizionario non valido</string>
     <string name="installed_dictionaries_import_failed">Import fallito</string>
     <string name="installed_dictionaries_imported_badge">Importato</string>
+
+    <!-- Trackpad gestures -->
+    <string name="trackpad_swipe_threshold_title">Sensibilità swipe trackpad</string>
+    <string name="trackpad_swipe_threshold_description">Regola quanto devi trascinare verso l alto per accettare un suggerimento.</string>
 </resources>

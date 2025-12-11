@@ -51,6 +51,7 @@ object SettingsManager {
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Whether clipboard history is enabled
     private const val KEY_CLIPBOARD_RETENTION_TIME = "clipboard_retention_time" // How long to keep clipboard entries (in minutes)
     private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled" // Whether trackpad gesture suggestions are enabled
+    private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold" // Threshold for swipe detection on trackpad
 
     private const val VARIATIONS_FILE_NAME = "variations.json"
     
@@ -90,6 +91,9 @@ object SettingsManager {
     private const val DEFAULT_CLIPBOARD_HISTORY_ENABLED = true
     private const val DEFAULT_CLIPBOARD_RETENTION_TIME = 120L // 2 hours in minutes
     private const val DEFAULT_TRACKPAD_GESTURES_ENABLED = false
+    private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 300f
+    private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 120f
+    private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 600f
 
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -1557,6 +1561,29 @@ object SettingsManager {
             .putBoolean(KEY_TRACKPAD_GESTURES_ENABLED, enabled)
             .apply()
     }
+
+    /**
+     * Returns the swipe threshold for trackpad gestures.
+     */
+    fun getTrackpadSwipeThreshold(context: Context): Float {
+        return getPreferences(context).getFloat(KEY_TRACKPAD_SWIPE_THRESHOLD, DEFAULT_TRACKPAD_SWIPE_THRESHOLD)
+            .coerceIn(MIN_TRACKPAD_SWIPE_THRESHOLD, MAX_TRACKPAD_SWIPE_THRESHOLD)
+    }
+
+    /**
+     * Sets the swipe threshold for trackpad gestures.
+     * Value is clamped to allowed range.
+     */
+    fun setTrackpadSwipeThreshold(context: Context, threshold: Float) {
+        val clamped = threshold.coerceIn(MIN_TRACKPAD_SWIPE_THRESHOLD, MAX_TRACKPAD_SWIPE_THRESHOLD)
+        getPreferences(context).edit()
+            .putFloat(KEY_TRACKPAD_SWIPE_THRESHOLD, clamped)
+            .apply()
+    }
+
+    fun getMinTrackpadSwipeThreshold(): Float = MIN_TRACKPAD_SWIPE_THRESHOLD
+    fun getMaxTrackpadSwipeThreshold(): Float = MAX_TRACKPAD_SWIPE_THRESHOLD
+    fun getDefaultTrackpadSwipeThreshold(): Float = DEFAULT_TRACKPAD_SWIPE_THRESHOLD
 
     /**
      * Returns the File for variations.json in filesDir.

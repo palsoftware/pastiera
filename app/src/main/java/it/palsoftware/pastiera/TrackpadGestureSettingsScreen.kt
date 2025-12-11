@@ -33,6 +33,9 @@ fun TrackpadGestureSettingsScreen(
     var trackpadGesturesEnabled by remember {
         mutableStateOf(SettingsManager.getTrackpadGesturesEnabled(context))
     }
+    var swipeThreshold by remember {
+        mutableStateOf(SettingsManager.getTrackpadSwipeThreshold(context))
+    }
     var showTutorialDialog by remember { mutableStateOf(false) }
 
     BackHandler { onBack() }
@@ -112,6 +115,62 @@ fun TrackpadGestureSettingsScreen(
                             trackpadGesturesEnabled = enabled
                             SettingsManager.setTrackpadGesturesEnabled(context, enabled)
                         }
+                    )
+                }
+            }
+
+            // Swipe sensitivity slider
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Speed,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .padding(end = 12.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.trackpad_swipe_threshold_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = stringResource(R.string.trackpad_swipe_threshold_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                        Text(
+                            text = swipeThreshold.toInt().toString(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Slider(
+                        value = swipeThreshold,
+                        onValueChange = { newValue ->
+                            swipeThreshold = newValue
+                            SettingsManager.setTrackpadSwipeThreshold(context, newValue)
+                        },
+                        valueRange = SettingsManager.getMinTrackpadSwipeThreshold()..SettingsManager.getMaxTrackpadSwipeThreshold(),
+                        steps = 10
                     )
                 }
             }

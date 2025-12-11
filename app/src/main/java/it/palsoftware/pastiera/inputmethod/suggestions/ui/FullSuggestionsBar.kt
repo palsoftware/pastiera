@@ -10,6 +10,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.graphics.drawable.StateListDrawable
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -29,6 +30,12 @@ import android.inputmethodservice.InputMethodService
  */
 class FullSuggestionsBar(private val context: Context) {
 
+    companion object {
+        private val PRESSED_BLUE = Color.rgb(100, 150, 255) // Align with variation bar press state
+        private val DEFAULT_SUGGESTION_COLOR = Color.rgb(17, 17, 17)
+        private const val FLASH_DURATION_MS = 160L
+    }
+
     private var container: LinearLayout? = null
     private var frameContainer: FrameLayout? = null
     private var languageButton: TextView? = null
@@ -36,6 +43,7 @@ class FullSuggestionsBar(private val context: Context) {
     private var assets: AssetManager? = null
     private var imeServiceClass: Class<*>? = null
     private var showLanguageButton: Boolean = false // Control visibility of language button
+    private val suggestionButtons: MutableList<TextView> = mutableListOf()
     private val targetHeightPx: Int by lazy {
         // Compact row sized around three suggestion pills
         dpToPx(36f)
@@ -156,6 +164,7 @@ class FullSuggestionsBar(private val context: Context) {
         val frame = frameContainer ?: return
         
         if (!shouldShow) {
+            suggestionButtons.clear()
             frame.visibility = View.GONE
             bar.visibility = View.GONE
             bar.removeAllViews()
@@ -201,6 +210,7 @@ class FullSuggestionsBar(private val context: Context) {
         onAddUserWord: ((String) -> Unit)?
     ) {
         bar.removeAllViews()
+        suggestionButtons.clear()
         bar.visibility = View.VISIBLE
 
         // Force bar and frame to the target height to avoid fallback to wrap_content.
@@ -232,6 +242,7 @@ class FullSuggestionsBar(private val context: Context) {
 
         val slotOrder = listOf(slots[0], slots[1], slots[2]) // left, center, right
         for (suggestion in slotOrder) {
+            val slotIndex = suggestionButtons.size
             val button = TextView(context).apply {
                 text = (suggestion ?: "")
                 gravity = Gravity.CENTER
@@ -243,11 +254,7 @@ class FullSuggestionsBar(private val context: Context) {
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
                 setPadding(padH, padV, padH, padV)
-                background = GradientDrawable().apply {
-                    setColor(Color.rgb(17, 17, 17))
-                    cornerRadius = dpToPx(6f).toFloat()
-                    alpha = if (suggestion == null) 90 else 255
-                }
+                background = buildSuggestionBackground()
                 layoutParams = weightLayoutParams
                 isClickable = suggestion != null
                 isFocusable = suggestion != null
@@ -259,21 +266,25 @@ class FullSuggestionsBar(private val context: Context) {
                         setCompoundDrawables(null, null, addDrawable, null)
                         compoundDrawablePadding = dpToPx(6f)
                         setOnClickListener {
+                            flashSlot(slotIndex)
                             onAddUserWord?.invoke(suggestion)
                         }
                     } else {
-                        setOnClickListener(
-                            SuggestionButtonHandler.createSuggestionClickListener(
-                                suggestion,
-                                inputConnection,
-                                listener,
-                                shouldDisableSuggestions
-                            )
+                        val clickListener = SuggestionButtonHandler.createSuggestionClickListener(
+                            suggestion,
+                            inputConnection,
+                            listener,
+                            shouldDisableSuggestions
                         )
+                        setOnClickListener { view ->
+                            flashSlot(slotIndex)
+                            clickListener.onClick(view)
+                        }
                     }
                 }
             }
             bar.addView(button)
+            suggestionButtons.add(button)
         }
     }
 
@@ -289,6 +300,46 @@ class FullSuggestionsBar(private val context: Context) {
             // right
             if (suggestions.size >= 2) s1 else null
         )
+    }
+
+    /**
+     * Briefly highlights the slot that corresponds to the given suggestion index.
+     * suggestionIndex uses the original ordering (0=center, 1=right, 2=left).
+     */
+    fun flashSuggestionAtIndex(suggestionIndex: Int) {
+        val slotIndex = when (suggestionIndex) {
+            0 -> 1 // center
+            1 -> 2 // right
+            2 -> 0 // left
+            else -> return
+        }
+        flashSlot(slotIndex)
+    }
+
+    private fun flashSlot(slotIndex: Int) {
+        val button = suggestionButtons.getOrNull(slotIndex) ?: return
+        button.isPressed = true
+        button.refreshDrawableState()
+        button.postDelayed({
+            button.isPressed = false
+            button.refreshDrawableState()
+        }, FLASH_DURATION_MS)
+    }
+
+    private fun buildSuggestionBackground(): StateListDrawable {
+        val normalDrawable = GradientDrawable().apply {
+            setColor(DEFAULT_SUGGESTION_COLOR)
+            cornerRadius = 0f
+            alpha = 255 // placeholders look identical; they stay non-clickable
+        }
+        val pressedDrawable = GradientDrawable().apply {
+            setColor(PRESSED_BLUE)
+            cornerRadius = 0f
+        }
+        return StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), pressedDrawable)
+            addState(intArrayOf(), normalDrawable)
+        }
     }
 
     private fun dpToPx(dp: Float): Int {

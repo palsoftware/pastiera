@@ -1,4 +1,4 @@
-﻿<resources>
+<resources>
     <string name="app_name">Pastiera</string>
     <string name="input_method_name">Pastiera</string>
     <string name="input_method_name_en">English</string>
@@ -527,6 +527,8 @@
     <string name="trackpad_gestures_shizuku_url">https://github.com/RikkaApps/Shizuku/releases/</string>
     <string name="trackpad_gestures_shizuku_connected">Shizuku Connected</string>
     <string name="trackpad_gestures_shizuku_not_connected">Shizuku Not Connected</string>
+    <string name="trackpad_swipe_threshold_title">Trackpad Swipe Sensitivity</string>
+    <string name="trackpad_swipe_threshold_description">Adjust how far you need to swipe up to accept a suggestion.</string>
 
     <!-- Trackpad Gesture Tutorial -->
     <string name="trackpad_tutorial_title">Trackpad Gesture Suggestions</string>

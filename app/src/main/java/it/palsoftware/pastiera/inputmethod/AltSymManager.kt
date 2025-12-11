@@ -24,6 +24,8 @@ class AltSymManager(
 ) {
     // Callback invoked when an Alt character is inserted after a long press
     var onAltCharInserted: ((Char) -> Unit)? = null
+    // Callback invoked when a normal character is confirmed (short press in Alt mode)
+    var onNormalCharCommitted: ((String) -> Unit)? = null
 
     companion object {
         private const val TAG = "AltSymManager"
@@ -247,13 +249,18 @@ class AltSymManager(
 
     fun handleKeyUp(keyCode: Int, symKeyActive: Boolean, shiftPressed: Boolean = false): Boolean {
         val pressStartTime = pressedKeys.remove(keyCode)
-        longPressActivated.remove(keyCode)
-        insertedNormalChars.remove(keyCode)
+        val wasLongPressActivated = longPressActivated.remove(keyCode) ?: false
+        val insertedChar = insertedNormalChars.remove(keyCode)
         
         // Non cancellare il long press se shift è ancora premuto
         // Questo permette al long press di completarsi anche se il tasto viene rilasciato mentre shift è premuto
         if (!shiftPressed) {
             longPressRunnables.remove(keyCode)?.let { handler.removeCallbacks(it) }
+        }
+
+        // If the long press did NOT trigger and we had inserted a normal char, notify tracking
+        if (!wasLongPressActivated && insertedChar != null) {
+            onNormalCharCommitted?.invoke(insertedChar)
         }
 
         return pressStartTime != null && altKeyMap.containsKey(keyCode) && !symKeyActive

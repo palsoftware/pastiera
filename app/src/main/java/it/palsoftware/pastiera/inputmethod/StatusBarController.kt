@@ -126,6 +126,21 @@ class StatusBarController(
         variationBarView?.showSpeechRecognitionHint(show)
     }
 
+    /**
+     * Updates only the clipboard badge count without re-rendering variations.
+     */
+    fun updateClipboardCount(count: Int) {
+        variationBarView?.updateClipboardCount(count)
+    }
+
+    /**
+     * Briefly highlights a suggestion slot using the original suggestion index
+     * ordering (0=center, 1=right, 2=left). Used for trackpad/swipe commits.
+     */
+    fun flashSuggestionSlot(suggestionIndex: Int) {
+        fullSuggestionsBar?.flashSuggestionAtIndex(suggestionIndex)
+    }
+
     companion object {
         private const val TAG = "StatusBarController"
         private val DEFAULT_BACKGROUND = Color.parseColor("#000000")
@@ -1293,22 +1308,23 @@ class StatusBarController(
             variationsBar?.hideImmediate()
 
             val measured = ensureEmojiKeyboardMeasuredHeight(emojiKeyboardView, layout, forceReMeasure = true)
-            // Prefer cached height; otherwise measured; fallback to default only if zero.
-            val targetHeight = when {
-                lastSymHeight > 0 -> lastSymHeight
-                measured > 0 -> measured
-                else -> defaultSymHeightPx
-            }
-            lastSymHeight = targetHeight
+            val animationHeight = if (measured > 0) measured else defaultSymHeightPx
             emojiKeyboardView.setBackgroundColor(DEFAULT_BACKGROUND)
             emojiKeyboardView.visibility = View.VISIBLE
-            emojiKeyboardView.layoutParams = (emojiKeyboardView.layoutParams ?: LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                targetHeight
-            )).apply { height = targetHeight }
+            // Use weight so the clipboard grid scrolls and leaves room for LED strip
+            emojiKeyboardView.layoutParams = (emojiKeyboardView.layoutParams as? LinearLayout.LayoutParams
+                ?: LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f
+                )).apply {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+                height = 0
+                weight = 1f
+            }
             if (!symShown && !wasSymActive) {
                 emojiKeyboardView.alpha = 1f
-                emojiKeyboardView.translationY = targetHeight.toFloat()
+                emojiKeyboardView.translationY = animationHeight.toFloat()
                 animateEmojiKeyboardIn(emojiKeyboardView, layout)
                 symShown = true
                 wasSymActive = true

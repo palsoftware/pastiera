@@ -15,9 +15,11 @@ import androidx.core.content.ContextCompat
 import android.view.KeyEvent
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import it.palsoftware.pastiera.clipboard.ClipboardDao
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import android.os.Handler
 import android.os.Looper
@@ -41,16 +43,11 @@ import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.data.variation.VariationRepository
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
 import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils
+import it.palsoftware.pastiera.inputmethod.trackpad.TrackpadGestureDetector
 import java.util.Locale
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
 import it.palsoftware.pastiera.clipboard.ClipboardHistoryManager
-import rikka.shizuku.Shizuku
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.isActive
 
 /**
  * Input method service specialized for physical keyboards.
@@ -190,16 +187,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private var navModeWasActiveBeforeEditableField: Boolean = false
 
     // Trackpad gesture detection
-    private var geteventJob: Job? = null
     private val trackpadScope = CoroutineScope(Dispatchers.IO)
-    private var touchDown = false
-    private var startX = 0
-    private var startY = 0
-    private var currentX = 0
-    private var currentY = 0
-    private var startPosSet = false
-    private val trackpadMaxX = 1440  // Trackpad width matches screen width
-    private val SWIPE_UP_THRESHOLD = 150  // Balanced to allow comfortable swipes while avoiding false positives
+    private lateinit var trackpadGestureDetector: TrackpadGestureDetector
 
     private val multiTapHandler = Handler(Looper.getMainLooper())
     private val multiTapController = MultiTapController(
@@ -761,6 +750,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             }
             updateStatusBarText()
         }
+        val postClipboardBadgeUpdate: () -> Unit = {
+            val count = clipboardHistoryManager.getHistorySize()
+            uiHandler.post {
+                candidatesBarController.updateClipboardCount(count)
+            }
+        }
+        clipboardHistoryManager.setHistoryChangeListener(object : ClipboardDao.Listener {
+            override fun onClipInserted(position: Int) {
+                postClipboardBadgeUpdate()
+            }
+
+            override fun onClipsRemoved(position: Int, count: Int) {
+                postClipboardBadgeUpdate()
+            }
+
+            override fun onClipMoved(oldPosition: Int, newPosition: Int) {
+                postClipboardBadgeUpdate()
+            }
+        })
         altSymManager = AltSymManager(assets, prefs, this)
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
@@ -785,6 +793,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     onStatusBarUpdate = { updateStatusBarText() },
                     boundaryCharOverride = normalizedChar
                 )
+            } else {
+                // Non-boundary Alt long-press (e.g., numbers/symbols) resets current word tracking
+                suggestionController.onContextReset()
+            }
+        }
+        // Track normal characters committed via Alt short press (no long press triggered)
+        altSymManager.onNormalCharCommitted = { text ->
+            if (::suggestionController.isInitialized) {
+                suggestionController.onCharacterCommitted(text, currentInputConnection)
             }
         }
         symLayoutController = SymLayoutController(this, prefs, altSymManager)
@@ -821,6 +838,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Register additional subtypes (custom input styles)
         registerAdditionalSubtypes()
         
+        // Trackpad gestures detector (instantiated early to avoid late-init issues in listener)
+        trackpadGestureDetector = buildTrackpadGestureDetector()
+
         // Register listener for SharedPreferences changes
         prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
             if (key == "sym_mappings_custom") {
@@ -877,8 +897,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 registerAdditionalSubtypes()
             } else if (key == "trackpad_gestures_enabled") {
                 Log.d(TAG, "Trackpad gestures setting changed, restarting detection...")
-                stopTrackpadGestureDetection()
-                startTrackpadGestureDetection()
+                if (::trackpadGestureDetector.isInitialized) {
+                    trackpadGestureDetector.stop()
+                    trackpadGestureDetector = buildTrackpadGestureDetector()
+                    trackpadGestureDetector.start()
+                }
+            } else if (key == "trackpad_swipe_threshold") {
+                Log.d(TAG, "Trackpad swipe threshold changed, restarting detection...")
+                if (::trackpadGestureDetector.isInitialized) {
+                    trackpadGestureDetector.stop()
+                    trackpadGestureDetector = buildTrackpadGestureDetector()
+                    trackpadGestureDetector.start()
+                }
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
@@ -1009,9 +1039,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Update additional subtypes on startup
         updateAdditionalSubtypes()
-
         // Start trackpad gesture detection
-        startTrackpadGestureDetection()
+        trackpadGestureDetector.start()
+    }
+
+    private fun buildTrackpadGestureDetector(): TrackpadGestureDetector {
+        return TrackpadGestureDetector(
+            isEnabled = { SettingsManager.getTrackpadGesturesEnabled(this) },
+            onSwipeUp = { third -> acceptSuggestionAtIndex(third) },
+            scope = trackpadScope,
+            swipeUpThreshold = SettingsManager.getTrackpadSwipeThreshold(this).toInt()
+        )
     }
     
     override fun onDestroy() {
@@ -1026,6 +1064,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         speechRecognitionManager = null
 
         // Cleanup ClipboardHistoryManager
+        clipboardHistoryManager.setHistoryChangeListener(null)
         clipboardHistoryManager.onDestroy()
 
         // Unregister broadcast receiver (deprecated, but kept for backwards compatibility)
@@ -1066,7 +1105,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         updateNavModeStatusIcon(false)
 
         // Stop trackpad gesture detection
-        stopTrackpadGestureDetection()
+        trackpadGestureDetector.stop()
         trackpadScope.cancel()
     }
 
@@ -2243,120 +2282,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             .takeIf { it != 0 } ?: R.string.input_method_name
     }
 
-    // ========== Trackpad Gesture Detection ==========
-
-    private fun startTrackpadGestureDetection() {
-        // Check if trackpad gestures are enabled in settings
-        if (!SettingsManager.getTrackpadGesturesEnabled(this)) {
-            Log.d(TAG, "Trackpad gestures disabled in settings")
-            return
-        }
-
-        if (!Shizuku.pingBinder()) {
-            Log.w(TAG, "Shizuku not available, trackpad gesture detection disabled")
-            return
-        }
-
-        geteventJob?.cancel()
-        geteventJob = trackpadScope.launch {
-            try {
-                val newProcessMethod = Shizuku::class.java.getDeclaredMethod(
-                    "newProcess",
-                    Array<String>::class.java,
-                    Array<String>::class.java,
-                    String::class.java
-                )
-                newProcessMethod.isAccessible = true
-
-                val process = newProcessMethod.invoke(
-                    null,
-                    arrayOf("getevent", "-l", "/dev/input/event7"),
-                    null,
-                    null
-                ) as Process
-
-                BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
-                    while (isActive) {
-                        val line = reader.readLine() ?: break
-                        parseTrackpadEvent(line)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Trackpad getevent failed", e)
-            }
-        }
-        Log.d(TAG, "Trackpad gesture detection started")
-    }
-
-    private fun stopTrackpadGestureDetection() {
-        geteventJob?.cancel()
-        geteventJob = null
-        Log.d(TAG, "Trackpad gesture detection stopped")
-    }
-
-    private fun parseTrackpadEvent(line: String) {
-        when {
-            line.contains("BTN_TOUCH") && line.contains("DOWN") -> {
-                touchDown = true
-                startPosSet = false
-            }
-            line.contains("BTN_TOUCH") && line.contains("UP") -> {
-                if (touchDown) {
-                    detectGesture()
-                }
-                touchDown = false
-                startPosSet = false
-            }
-            line.contains("ABS_MT_POSITION_X") -> {
-                val parts = line.trim().split(Regex("\\s+"))
-                if (parts.size >= 3) {
-                    val hexValue = parts.last()
-                    val newX = hexValue.toIntOrNull(16)
-                    if (newX != null) {
-                        currentX = newX
-                        if (touchDown && !startPosSet) {
-                            startX = newX
-                        }
-                    }
-                }
-            }
-            line.contains("ABS_MT_POSITION_Y") -> {
-                val parts = line.trim().split(Regex("\\s+"))
-                if (parts.size >= 3) {
-                    val hexValue = parts.last()
-                    val newY = hexValue.toIntOrNull(16)
-                    if (newY != null) {
-                        currentY = newY
-                        if (touchDown && !startPosSet) {
-                            startY = newY
-                            startPosSet = true
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun detectGesture() {
-        val deltaY = startY - currentY  // Positive = swipe up
-        val deltaX = currentX - startX
-        val absDeltaX = Math.abs(deltaX)
-
-        // Require primarily vertical swipe: deltaY must be at least 3x larger than horizontal drift
-        if (deltaY > SWIPE_UP_THRESHOLD && absDeltaX < deltaY / 3) {
-            // Determine which third of the trackpad the swipe occurred in
-            // Use startX (where swipe started) not currentX (where it ended)
-            val third = when {
-                startX < trackpadMaxX / 3 -> 0  // Left
-                startX < (trackpadMaxX * 2) / 3 -> 1  // Center
-                else -> 2  // Right
-            }
-
-            Log.d(TAG, ">>> SWIPE UP DETECTED in third $third (deltaY=$deltaY, absDeltaX=$absDeltaX, startX=$startX) <<<")
-            acceptSuggestionAtIndex(third)
-        }
-    }
-
     private fun acceptSuggestionAtIndex(third: Int) {
         // Log current suggestions
         Log.d(TAG, "Current latestSuggestions: $latestSuggestions")
@@ -2384,6 +2309,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 Log.w(TAG, "No InputConnection available")
                 return@post
             }
+
+            // Provide visual feedback on the suggestions bar, matching variation press color
+            candidatesBarController.flashSuggestionSlot(suggestionIndex)
 
             val forceLeadingCapital = AutoCapitalizeHelper.shouldAutoCapitalizeAtCursor(
                 context = this,

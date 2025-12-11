@@ -23,6 +23,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -177,6 +178,7 @@ class VariationBarView(
     private var wrapper: FrameLayout? = null
     private var container: LinearLayout? = null
     private var buttonsContainer: LinearLayout? = null
+    private var leftButtonsContainer: LinearLayout? = null
     private var overlay: FrameLayout? = null
     private var swipeIndicator: View? = null
     private var emptyHintView: TextView? = null
@@ -212,6 +214,9 @@ class VariationBarView(
     private var clipboardButtonView: ImageView? = null
     private var clipboardContainer: FrameLayout? = null
     private var clipboardBadgeView: TextView? = null
+    private var clipboardFlashOverlay: View? = null
+    private var clipboardFlashAnimator: ValueAnimator? = null
+    private var lastClipboardCount: Int? = null
 
     fun ensureView(): FrameLayout {
         if (wrapper != null) {
@@ -247,6 +252,16 @@ class VariationBarView(
             visibility = View.GONE
         }
         
+        // Container for left fixed buttons (clipboard)
+        leftButtonsContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+
         // Container for mic and settings buttons (fixed position on the right)
         buttonsContainer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -256,6 +271,7 @@ class VariationBarView(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         }
+        leftButtonsContainer?.let { container?.addView(it) }
         container?.addView(buttonsContainer)
 
         wrapper = FrameLayout(context).apply {
@@ -297,6 +313,17 @@ class VariationBarView(
             hideSwipeHintImmediate()
             overlay?.visibility = View.GONE
         }
+    }
+
+    /**
+     * Updates only the clipboard badge count without rebuilding the row.
+     */
+    fun updateClipboardCount(count: Int) {
+        updateClipboardBadge(count)
+        if (count > 0 && count != lastClipboardCount) {
+            flashClipboardButton()
+        }
+        lastClipboardCount = count
     }
 
     fun updateInputConnection(inputConnection: android.view.inputmethod.InputConnection?) {
@@ -489,7 +516,13 @@ class VariationBarView(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             1f
         )
-        containerView.addView(variationsRow, 0, rowLayoutParams)
+        val insertionIndex = leftButtonsContainer?.let { leftContainer ->
+            if (containerView.indexOfChild(leftContainer) == -1) {
+                containerView.addView(leftContainer, 0)
+            }
+            1
+        } ?: 0
+        containerView.addView(variationsRow, insertionIndex, rowLayoutParams)
 
         lastDisplayedVariations = limitedVariations
         lastInputConnectionUsed = inputConnection
@@ -501,15 +534,15 @@ class VariationBarView(
         val badge = clipboardBadgeView ?: createClipboardBadge()
         clipboardBadgeView = badge
 
-        val container = clipboardContainer ?: FrameLayout(context).apply {
+        val clipboardFrame = clipboardContainer ?: FrameLayout(context).apply {
             layoutParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
                 marginEnd = spacingBetweenButtons
             }
         }.also { clipboardContainer = it }
-        (container.parent as? ViewGroup)?.removeView(container)
-        container.removeAllViews()
-        container.addView(clipboardButton, FrameLayout.LayoutParams(fixedButtonSize, fixedButtonSize))
-        container.addView(
+        (clipboardFrame.parent as? ViewGroup)?.removeView(clipboardFrame)
+        clipboardFrame.removeAllViews()
+        clipboardFrame.addView(clipboardButton, FrameLayout.LayoutParams(fixedButtonSize, fixedButtonSize))
+        clipboardFrame.addView(
             badge,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -521,8 +554,23 @@ class VariationBarView(
                 setMargins(m, m + offset, m, m)
             }
         )
+        val flashOverlay = clipboardFlashOverlay ?: View(context).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+            setBackgroundColor(Color.RED)
+            alpha = 0f
+            isClickable = false
+            isFocusable = false
+        }.also { clipboardFlashOverlay = it }
+        // ensure overlay is topmost
+        clipboardFrame.addView(flashOverlay)
 
-        variationsRow.addView(container, 0)
+        leftButtonsContainer?.let { leftContainer ->
+            leftContainer.removeAllViews()
+            leftContainer.addView(clipboardFrame)
+        }
         clipboardButton.setOnClickListener {
             NotificationHelper.triggerHapticFeedback(context)
             onClipboardRequested?.invoke()
@@ -990,6 +1038,9 @@ class VariationBarView(
             visibility = View.GONE
             alpha = 1f
         }
+        clipboardFlashAnimator?.cancel()
+        clipboardFlashAnimator = null
+        clipboardFlashOverlay = null
     }
 
     private fun removeSettingsImmediate() {
@@ -1217,6 +1268,27 @@ class VariationBarView(
         }
         badge.visibility = View.VISIBLE
         badge.text = count.toString()
+    }
+
+    private fun flashClipboardButton() {
+        val overlay = clipboardFlashOverlay ?: return
+        clipboardFlashAnimator?.cancel()
+        overlay.visibility = View.VISIBLE
+        val animator = ValueAnimator.ofFloat(0f, 0.4f, 0f).apply {
+            duration = 350L
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { valueAnimator ->
+                overlay.alpha = valueAnimator.animatedValue as Float
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    overlay.alpha = 0f
+                    overlay.visibility = View.GONE
+                }
+            })
+        }
+        clipboardFlashAnimator = animator
+        animator.start()
     }
 
     private fun createStatusBarSettingsButton(buttonSize: Int): ImageView {

@@ -102,4 +102,14 @@ class CandidatesBarController(
         inputStatusBar.update(snapshot, emojiMapText, inputConnection, symMappings)
         candidatesStatusBar.update(snapshot, emojiMapText, inputConnection, symMappings)
     }
+
+    fun updateClipboardCount(count: Int) {
+        inputStatusBar.updateClipboardCount(count)
+        candidatesStatusBar.updateClipboardCount(count)
+    }
+
+    fun flashSuggestionSlot(suggestionIndex: Int) {
+        inputStatusBar.flashSuggestionSlot(suggestionIndex)
+        candidatesStatusBar.flashSuggestionSlot(suggestionIndex)
+    }
 }

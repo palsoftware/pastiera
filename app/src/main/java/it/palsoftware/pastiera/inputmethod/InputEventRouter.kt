@@ -497,7 +497,9 @@ class InputEventRouter(
                     shiftOneShotActive,
                     layoutChar
                 )
-                if (trackedChar.isNotEmpty() && trackedChar[0].isLetter()) {
+                // Track immediately only when using Shift long press (result still a letter).
+                val shouldTrackImmediately = useShiftForLongPress
+                if (shouldTrackImmediately && trackedChar.isNotEmpty() && trackedChar[0].isLetter()) {
                     suggestionController?.onCharacterCommitted(trackedChar, ic)
                 }
                 Handler(Looper.getMainLooper()).postDelayed({
