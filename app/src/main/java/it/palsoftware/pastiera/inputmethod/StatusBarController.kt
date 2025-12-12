@@ -29,6 +29,7 @@ import android.view.MotionEvent
 import android.view.KeyEvent
 import android.view.InputDevice
 import kotlin.math.abs
+import it.palsoftware.pastiera.inputmethod.ui.ClipboardHistoryView
 import it.palsoftware.pastiera.inputmethod.ui.LedStatusView
 import it.palsoftware.pastiera.inputmethod.ui.VariationBarView
 import it.palsoftware.pastiera.inputmethod.suggestions.ui.FullSuggestionsBar
@@ -182,6 +183,10 @@ class StatusBarController(
     private var modifiersContainer: LinearLayout? = null
     private var emojiMapTextView: TextView? = null
     private var emojiKeyboardContainer: LinearLayout? = null
+    private var emojiKeyboardHorizontalPaddingPx: Int = 0
+    private var emojiKeyboardBottomPaddingPx: Int = 0
+    private var clipboardHistoryView: ClipboardHistoryView? = null
+    private var lastClipboardCountRendered: Int = -1
     private var emojiKeyButtons: MutableList<View> = mutableListOf()
     private var lastSymPageRendered: Int = 0
     private var lastSymMappingsRendered: Map<Int, String>? = null
@@ -279,6 +284,8 @@ class StatusBarController(
                 12f, // Padding in basso per evitare i controlli IME
                 context.resources.displayMetrics
             ).toInt()
+            emojiKeyboardHorizontalPaddingPx = emojiKeyboardHorizontalPadding
+            emojiKeyboardBottomPaddingPx = emojiKeyboardBottomPadding
             
             emojiKeyboardContainer = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
@@ -421,248 +428,28 @@ class StatusBarController(
      * Updates the clipboard history view inline in the keyboard container.
      */
     private fun updateClipboardView(inputConnection: android.view.inputmethod.InputConnection? = null) {
+        val manager = clipboardHistoryManager ?: return
         val container = emojiKeyboardContainer ?: return
-        container.removeAllViews()
-        emojiKeyButtons.clear()
+        // Clipboard page should be edge-to-edge; remove the SYM container side padding.
+        container.setPadding(0, 0, 0, emojiKeyboardBottomPaddingPx)
 
-        clipboardHistoryManager?.prepareClipboardHistory()
-
-        val count = clipboardHistoryManager?.getHistorySize() ?: 0
-
-        if (count == 0) {
-            // Show empty state
-            val padding = dpToPx(32f)
-            val emptyText = TextView(context).apply {
-                text = context.getString(R.string.clipboard_empty_state)
-                textSize = 14f
-                setTextColor(Color.argb(128, 255, 255, 255))
-                gravity = Gravity.CENTER
-                setPadding(padding, padding, padding, padding)
-            }
-            container.addView(emptyText)
-            lastSymPageRendered = 3
-            return
+        // Reuse the same view to avoid flicker caused by removeAllViews()/recreate on each status update.
+        val view = clipboardHistoryView ?: ClipboardHistoryView(context, manager).also { clipboardHistoryView = it }
+        if (view.parent !== container) {
+            container.removeAllViews()
+            emojiKeyButtons.clear()
+            container.addView(view)
         }
+        view.setInputConnection(inputConnection)
 
-        // Create header with "Clipboard History" title and Clear All button
-        val header = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-            val padding = dpToPx(12f)
-            setPadding(padding, dpToPx(8f), padding, dpToPx(4f))
+        // Refresh only when needed (data changed), otherwise keep the list stable.
+        val count = manager.getHistorySize()
+        if (count != lastClipboardCountRendered) {
+            manager.prepareClipboardHistory()
+            view.refresh()
+            lastClipboardCountRendered = count
         }
-
-        val titleText = TextView(context).apply {
-            text = context.getString(R.string.clipboard_history_title)
-            textSize = 12f
-            setTextColor(Color.argb(180, 255, 255, 255))
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        }
-
-        val clearButton = TextView(context).apply {
-            text = context.getString(R.string.clipboard_clear_all)
-            textSize = 12f
-            setTextColor(Color.parseColor("#FF6B6B"))
-            isClickable = true
-            isFocusable = true
-            val padding = dpToPx(8f)
-            setPadding(padding, padding / 2, padding, padding / 2)
-            setOnClickListener {
-                clipboardHistoryManager?.clearHistory()
-                updateClipboardView(inputConnection)
-            }
-        }
-
-        header.addView(titleText)
-        header.addView(clearButton)
-        container.addView(header)
-
-        // Create scrollable grid container for clipboard entries
-        val scrollView = android.widget.ScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        }
-
-        val gridContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        // Add clipboard entries to grid (2 columns)
-        val columnCount = 2
-        var currentRow: LinearLayout? = null
-
-        for (i in 0 until count) {
-            if (i % columnCount == 0) {
-                // Create new row
-                currentRow = LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
-                }
-                gridContainer.addView(currentRow)
-            }
-
-            val entry = clipboardHistoryManager?.getHistoryEntry(i) ?: continue
-            val entryView = createClipboardEntryView(entry, inputConnection, isInGrid = true)
-            currentRow?.addView(entryView)
-        }
-
-        // Add empty cell if last row has only one item
-        if (count % columnCount == 1 && currentRow != null) {
-            val spacer = View(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    1f
-                )
-            }
-            currentRow.addView(spacer)
-        }
-
-        scrollView.addView(gridContainer)
-        container.addView(scrollView)
-
         lastSymPageRendered = 3
-    }
-
-    private fun createClipboardEntryView(
-        entry: it.palsoftware.pastiera.clipboard.ClipboardHistoryEntry,
-        inputConnection: android.view.inputmethod.InputConnection?,
-        isInGrid: Boolean = false
-    ): View {
-        val marginHorizontal = dpToPx(4f)
-        val marginVertical = dpToPx(4f)
-        val paddingHorizontal = dpToPx(12f)
-        val paddingVertical = dpToPx(12f)
-        // Slightly shorter cards to fit more items vertically
-        val fixedHeight = dpToPx(60f)
-
-        // Use FrameLayout so pin can overlay the text without pushing it down
-        val entryContainer = FrameLayout(context).apply {
-            background = createRoundedBackground()
-            setPadding(paddingHorizontal, paddingVertical, paddingHorizontal, paddingVertical)
-            layoutParams = LinearLayout.LayoutParams(
-                if (isInGrid) 0 else ViewGroup.LayoutParams.MATCH_PARENT,
-                fixedHeight,
-                if (isInGrid) 1f else 0f
-            ).apply {
-                setMargins(marginHorizontal, marginVertical, marginHorizontal, marginVertical)
-            }
-        }
-
-        val textView = TextView(context).apply {
-            text = entry.text
-            textSize = 14f
-            setTextColor(Color.WHITE)
-            maxLines = 2
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        }
-
-        entryContainer.addView(textView)
-
-        // Pin indicator at top-right (overlays the text)
-        if (entry.isPinned) {
-            val pinIndicator = TextView(context).apply {
-                text = "📌"
-                textSize = 14f
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    Gravity.TOP or Gravity.END
-                )
-            }
-            entryContainer.addView(pinIndicator)
-        }
-
-        // Set click and long-click on the entire container
-        entryContainer.apply {
-            isClickable = true
-            isFocusable = true
-            isLongClickable = true
-
-            // Click to paste
-            setOnClickListener {
-                inputConnection?.commitText(entry.text, 1)
-            }
-
-            // Long-press to show context menu
-            setOnLongClickListener { view ->
-                showClipboardContextMenu(view, entry, inputConnection)
-                true
-            }
-        }
-
-        return entryContainer
-    }
-
-    private fun showClipboardContextMenu(
-        view: View,
-        entry: it.palsoftware.pastiera.clipboard.ClipboardHistoryEntry,
-        inputConnection: android.view.inputmethod.InputConnection?
-    ) {
-        val popup = android.widget.PopupMenu(context, view)
-
-        // Add menu items
-        val pinText = context.getString(R.string.clipboard_pin)
-        val unpinText = context.getString(R.string.clipboard_unpin)
-        val deleteText = context.getString(R.string.clipboard_delete)
-
-        if (entry.isPinned) {
-            popup.menu.add(unpinText)
-        } else {
-            popup.menu.add(pinText)
-        }
-        popup.menu.add(deleteText)
-
-        popup.setOnMenuItemClickListener { item ->
-            when (item.title.toString()) {
-                pinText, unpinText -> {
-                    clipboardHistoryManager?.toggleClipPinned(entry.id)
-                    updateClipboardView(inputConnection)
-                    true
-                }
-                deleteText -> {
-                    val index = (0 until (clipboardHistoryManager?.getHistorySize() ?: 0)).find { idx ->
-                        clipboardHistoryManager?.getHistoryEntry(idx)?.id == entry.id
-                    }
-                    index?.let {
-                        clipboardHistoryManager?.removeEntry(it, force = true)
-                        updateClipboardView(inputConnection)
-                    }
-                    true
-                }
-                else -> false
-            }
-        }
-
-        popup.show()
-    }
-
-    private fun createRoundedBackground(): android.graphics.drawable.GradientDrawable {
-        return android.graphics.drawable.GradientDrawable().apply {
-            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-            setColor(Color.argb(40, 255, 255, 255))
-            cornerRadius = dpToPx(6f).toFloat()
-        }
     }
 
     /**
@@ -673,6 +460,8 @@ class StatusBarController(
      */
     private fun updateEmojiKeyboard(symMappings: Map<Int, String>, page: Int, inputConnection: android.view.inputmethod.InputConnection? = null) {
         val container = emojiKeyboardContainer ?: return
+        // Restore default padding for emoji/symbols pages.
+        container.setPadding(emojiKeyboardHorizontalPaddingPx, 0, emojiKeyboardHorizontalPaddingPx, emojiKeyboardBottomPaddingPx)
         val inputConnectionChanged = lastInputConnectionUsed != inputConnection
         val inputConnectionBecameAvailable = lastInputConnectionUsed == null && inputConnection != null
         if (lastSymPageRendered == page && lastSymMappingsRendered == symMappings && !inputConnectionChanged && !inputConnectionBecameAvailable) {
