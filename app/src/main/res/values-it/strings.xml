@@ -172,10 +172,6 @@
     <string name="emoji_category_animals">Animali &amp; Natura</string>
     <string name="emoji_category_food">Cibo &amp; Bevande</string>
     <string name="emoji_category_travel">Viaggi &amp; Luoghi</string>
-    <string name="emoji_category_activities">Attività</string>
-    <string name="emoji_category_objects">Oggetti</string>
-    <string name="emoji_category_symbols">Simboli</string>
-    <string name="emoji_category_flags">Bandiere</string>
     
     <!-- Modifiers -->
     <string name="modifier_shift">SHIFT</string>
@@ -294,6 +290,17 @@
     <string name="unicode_category_arrows">Frecce</string>
     <string name="unicode_category_misc">Varie</string>
     <string name="unicode_category_variations">Variazioni</string>
+    <string name="emoji_category_smileys_and_emotion">Faccine e emozioni</string>
+    <string name="emoji_category_people_and_body">Persone e corpo</string>
+    <string name="emoji_category_animals_and_nature">Animali e natura</string>
+    <string name="emoji_category_food_and_drink">Cibo e bevande</string>
+    <string name="emoji_category_travel_and_places">Viaggi e luoghi</string>
+    <string name="emoji_category_activities">Attività</string>
+    <string name="emoji_category_objects">Oggetti</string>
+    <string name="emoji_category_symbols">Simboli</string>
+    <string name="emoji_category_flags">Bandiere</string>
+    <string name="emoji_category_emoticons">Emoticon</string>
+    <string name="emoji_picker_error">Impossibile caricare le emoji</string>
     
     <!-- Variation Customization -->
     <string name="variation_customize_title">Personalizza Variazioni</string>

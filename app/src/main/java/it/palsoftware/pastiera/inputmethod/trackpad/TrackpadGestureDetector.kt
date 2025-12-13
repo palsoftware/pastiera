@@ -162,7 +162,7 @@ class TrackpadGestureDetector(
 
     companion object {
         const val DEFAULT_TRACKPAD_MAX_X = 1440
-        const val DEFAULT_SWIPE_UP_THRESHOLD = 450
+        const val DEFAULT_SWIPE_UP_THRESHOLD = 300
         const val DEFAULT_MIN_VELOCITY_THRESHOLD = 2.6  // pixels per millisecond (e.g., 1.0 px/ms = 1000 px/s)
         const val DEFAULT_EVENT_DEVICE = "/dev/input/event7"
         const val DEFAULT_LOG_TAG = "PastieraIME"

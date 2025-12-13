@@ -188,10 +188,6 @@
     <string name="emoji_category_animals">Animals &amp; Nature</string>
     <string name="emoji_category_food">Food &amp; Drink</string>
     <string name="emoji_category_travel">Travel &amp; Places</string>
-    <string name="emoji_category_activities">Activities</string>
-    <string name="emoji_category_objects">Objects</string>
-    <string name="emoji_category_symbols">Symbols</string>
-    <string name="emoji_category_flags">Flags</string>
     
     <!-- Modifiers -->
     <string name="modifier_shift">SHIFT</string>
@@ -314,6 +310,17 @@
     <string name="unicode_category_arrows">Arrows</string>
     <string name="unicode_category_misc">Miscellaneous</string>
     <string name="unicode_category_variations">Variations</string>
+    <string name="emoji_category_smileys_and_emotion">Smileys &amp; Emotion</string>
+    <string name="emoji_category_people_and_body">People &amp; Body</string>
+    <string name="emoji_category_animals_and_nature">Animals &amp; Nature</string>
+    <string name="emoji_category_food_and_drink">Food &amp; Drink</string>
+    <string name="emoji_category_travel_and_places">Travel &amp; Places</string>
+    <string name="emoji_category_activities">Activities</string>
+    <string name="emoji_category_objects">Objects</string>
+    <string name="emoji_category_symbols">Symbols</string>
+    <string name="emoji_category_flags">Flags</string>
+    <string name="emoji_category_emoticons">Emoticons</string>
+    <string name="emoji_picker_error">Unable to load emoji</string>
     
     <!-- Variation Customization -->
     <string name="variation_customize_title">Customize Variations</string>

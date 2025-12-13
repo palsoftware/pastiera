@@ -72,6 +72,8 @@ class CandidatesBarController(
     fun setForceMinimalUi(force: Boolean) {
         inputStatusBar.setForceMinimalUi(force)
     }
+
+    fun isMinimalUiActive(): Boolean = inputStatusBar.isMinimalUiActive()
     
     fun invalidateStaticVariations() {
         inputStatusBar.invalidateStaticVariations()

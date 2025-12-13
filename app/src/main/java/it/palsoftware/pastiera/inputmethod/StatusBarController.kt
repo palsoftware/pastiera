@@ -219,6 +219,8 @@ class StatusBarController(
         }
     }
 
+    fun isMinimalUiActive(): Boolean = forceMinimalUi
+
     fun getLayout(): LinearLayout? = statusBarLayout
 
     fun getOrCreateLayout(emojiMapText: String = ""): LinearLayout {

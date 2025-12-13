@@ -23,3 +23,6 @@ keystore.properties
 
 # Cursor rules (workspace-specific)
 .cursor/
+
+# Build scripts (local)
+assembla_release.sh
