@@ -220,37 +220,47 @@ fun WhisperSettingsScreen(
                                         onClick = {
                                             if (!isDownloading) {
                                                 isDownloading = true
+                                                downloadProgress = 0f
                                                 scope.launch {
                                                     try {
                                                         android.util.Log.d("WhisperSettings", "Starting download for ${model.displayName}")
-                                                        val result = downloader.downloadModel(
-                                                            model,
-                                                            object : WhisperModelDownloader.DownloadListener {
-                                                                override fun onProgress(bytesDownloaded: Long, totalBytes: Long) {
-                                                                    downloadProgress = bytesDownloaded.toFloat() / totalBytes
-                                                                    android.util.Log.d("WhisperSettings", "Progress: $bytesDownloaded / $totalBytes")
+                                                        
+                                                        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                            downloader.downloadModel(
+                                                                model,
+                                                                object : WhisperModelDownloader.DownloadListener {
+                                                                    override fun onProgress(bytesDownloaded: Long, totalBytes: Long) {
+                                                                        downloadProgress = bytesDownloaded.toFloat() / totalBytes
+                                                                        android.util.Log.d("WhisperSettings", "Progress: $bytesDownloaded / $totalBytes (${(downloadProgress * 100).toInt()}%)")
+                                                                    }
+                                                                    override fun onComplete(file: java.io.File) {
+                                                                        android.util.Log.d("WhisperSettings", "Download complete: ${file.absolutePath}")
+                                                                    }
+                                                                    override fun onError(error: String) {
+                                                                        android.util.Log.e("WhisperSettings", "Download error: $error")
+                                                                    }
                                                                 }
-                                                                override fun onComplete(file: java.io.File) {
-                                                                    android.util.Log.d("WhisperSettings", "Download complete: ${file.absolutePath}")
-                                                                    isDownloading = false
-                                                                    downloadedModels = downloadedModels + model
-                                                                    android.widget.Toast.makeText(
-                                                                        context,
-                                                                        context.getString(R.string.whisper_model_download_complete),
-                                                                        android.widget.Toast.LENGTH_SHORT
-                                                                    ).show()
-                                                                }
-                                                                override fun onError(error: String) {
-                                                                    android.util.Log.e("WhisperSettings", "Download error: $error")
-                                                                    isDownloading = false
-                                                                    android.widget.Toast.makeText(
-                                                                        context,
-                                                                        context.getString(R.string.whisper_model_download_failed) + ": $error",
-                                                                        android.widget.Toast.LENGTH_LONG
-                                                                    ).show()
-                                                                }
-                                                            }
-                                                        )
+                                                            )
+                                                        }
+                                                        
+                                                        // Back on Main thread for UI updates
+                                                        isDownloading = false
+                                                        if (result.isSuccess) {
+                                                            downloadedModels = downloadedModels + model
+                                                            android.widget.Toast.makeText(
+                                                                context,
+                                                                context.getString(R.string.whisper_model_download_complete),
+                                                                android.widget.Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        } else {
+                                                            val errorMsg = result.exceptionOrNull()?.message ?: "Unknown error"
+                                                            android.util.Log.e("WhisperSettings", "Download failed: $errorMsg")
+                                                            android.widget.Toast.makeText(
+                                                                context,
+                                                                "${context.getString(R.string.whisper_model_download_failed)}: $errorMsg",
+                                                                android.widget.Toast.LENGTH_LONG
+                                                            ).show()
+                                                        }
                                                         android.util.Log.d("WhisperSettings", "Download result: ${result.isSuccess}")
                                                     } catch (e: Exception) {
                                                         android.util.Log.e("WhisperSettings", "Exception during download", e)
@@ -266,10 +276,17 @@ fun WhisperSettingsScreen(
                                         },
                                         enabled = !isDownloading
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.CloudDownload,
-                                            contentDescription = "Download"
-                                        )
+                                        if (isDownloading) {
+                                            androidx.compose.material3.CircularProgressIndicator(
+                                                modifier = androidx.compose.ui.Modifier.size(24.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Filled.CloudDownload,
+                                                contentDescription = "Download"
+                                            )
+                                        }
                                     }
                                 }
                             }

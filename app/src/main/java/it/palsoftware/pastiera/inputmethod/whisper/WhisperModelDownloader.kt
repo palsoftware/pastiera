@@ -123,49 +123,93 @@ class WhisperModelDownloader(private val context: Context) {
         targetFile: File,
         listener: DownloadListener?
     ) {
+        Log.d(TAG, "Attempting to download from: $url")
+        Log.d(TAG, "Target file: ${targetFile.absolutePath}")
+        
         val request = Request.Builder()
             .url(url)
             .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw Exception("Download failed: HTTP ${response.code}")
-            }
-
-            val body = response.body ?: throw Exception("Empty response body")
-            val contentLength = body.contentLength()
-
-            // Create temp file for atomic write
-            val tempFile = File(targetFile.parentFile, "${targetFile.name}.tmp")
-            
-            FileOutputStream(tempFile).use { output ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                var totalBytesRead = 0L
-
-                body.byteStream().use { input ->
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalBytesRead += bytesRead
-                        
-                        listener?.onProgress(totalBytesRead, contentLength)
-                    }
+        try {
+            client.newCall(request).execute().use { response ->
+                Log.d(TAG, "Response code: ${response.code}")
+                
+                if (!response.isSuccessful) {
+                    val errorMsg = "Download failed: HTTP ${response.code} - ${response.message}"
+                    Log.e(TAG, errorMsg)
+                    throw Exception(errorMsg)
                 }
-            }
 
-            // Verify download
-            if (contentLength > 0 && tempFile.length() != contentLength) {
-                tempFile.delete()
-                throw Exception("Download incomplete: ${tempFile.length()} of $contentLength bytes")
-            }
+                val body = response.body
+                if (body == null) {
+                    val errorMsg = "Empty response body from server"
+                    Log.e(TAG, errorMsg)
+                    throw Exception(errorMsg)
+                }
+                
+                val contentLength = body.contentLength()
+                Log.d(TAG, "Content length: $contentLength bytes (${contentLength / (1024 * 1024)} MB)")
 
-            // Move temp file to target
-            if (targetFile.exists()) {
-                targetFile.delete()
-            }
-            tempFile.renameTo(targetFile)
+                // Create temp file for atomic write
+                val tempFile = File(targetFile.parentFile, "${targetFile.name}.tmp")
+                Log.d(TAG, "Writing to temp file: ${tempFile.absolutePath}")
+                
+                FileOutputStream(tempFile).use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    var totalBytesRead = 0L
 
-            listener?.onComplete(targetFile)
+                    body.byteStream().use { input ->
+                        while (input.read(buffer).also { bytesRead = it } != -1) {
+                            output.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            
+                            listener?.onProgress(totalBytesRead, contentLength)
+                            
+                            // Log progress every 10 MB
+                            if (totalBytesRead % (10 * 1024 * 1024) == 0L) {
+                                Log.d(TAG, "Downloaded: ${totalBytesRead / (1024 * 1024)} MB")
+                            }
+                        }
+                    }
+                    Log.d(TAG, "Download complete: $totalBytesRead bytes written")
+                }
+
+                // Verify download
+                if (contentLength > 0 && tempFile.length() != contentLength) {
+                    tempFile.delete()
+                    val errorMsg = "Download incomplete: ${tempFile.length()} of $contentLength bytes"
+                    Log.e(TAG, errorMsg)
+                    throw Exception(errorMsg)
+                }
+
+                // Move temp file to target
+                if (targetFile.exists()) {
+                    Log.d(TAG, "Deleting existing file: ${targetFile.absolutePath}")
+                    targetFile.delete()
+                }
+                val renamed = tempFile.renameTo(targetFile)
+                if (!renamed) {
+                    val errorMsg = "Failed to rename temp file to target file"
+                    Log.e(TAG, errorMsg)
+                    throw Exception(errorMsg)
+                }
+                Log.d(TAG, "File successfully saved to: ${targetFile.absolutePath}")
+
+                listener?.onComplete(targetFile)
+            }
+        } catch (e: java.net.UnknownHostException) {
+            val errorMsg = "Network error: Cannot resolve host. Check internet connection."
+            Log.e(TAG, errorMsg, e)
+            throw Exception(errorMsg, e)
+        } catch (e: java.net.SocketTimeoutException) {
+            val errorMsg = "Network timeout. Check internet connection."
+            Log.e(TAG, errorMsg, e)
+            throw Exception(errorMsg, e)
+        } catch (e: java.io.IOException) {
+            val errorMsg = "Network I/O error: ${e.message}"
+            Log.e(TAG, errorMsg, e)
+            throw Exception(errorMsg, e)
         }
     }
 
