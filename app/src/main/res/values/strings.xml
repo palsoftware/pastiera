@@ -41,6 +41,13 @@
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Enable Swipe to Delete</string>
     
+    <!-- Delete Alternatives Section -->
+    <string name="delete_alternatives_title">Delete</string>
+    <string name="delete_alternatives_description">Alternative methods to delete characters to the right of cursor</string>
+    <string name="shift_backspace_delete_title">Shift + Backspace</string>
+    <string name="backspace_at_start_delete_title">Backspace at line start</string>
+    <string name="delete_alternatives_hint">Hint: Ctrl + key can be configured in Nav Mode settings</string>
+    
     <!-- Swipe Incremental Threshold Section -->
     <string name="swipe_incremental_threshold_title">Swipe Bar Sensitivity</string>
     <string name="swipe_incremental_threshold_description">Distance required to move cursor one position. Lower values make the cursor move faster.</string>

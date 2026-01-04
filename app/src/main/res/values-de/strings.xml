@@ -39,6 +39,13 @@
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Wischen zum Löschen aktivieren</string>
     
+    <!-- Delete Alternatives Section -->
+    <string name="delete_alternatives_title">Entfernen</string>
+    <string name="delete_alternatives_description">Alternative Methoden zum Entfernen von Zeichen rechts vom Cursor</string>
+    <string name="shift_backspace_delete_title">Shift + Backspace</string>
+    <string name="backspace_at_start_delete_title">Backspace am Zeilenstart</string>
+    <string name="delete_alternatives_hint">Hinweis: Ctrl + Taste kann in den Nav-Mode-Einstellungen konfiguriert werden</string>
+    
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Tastatur automatisch anzeigen</string>
     

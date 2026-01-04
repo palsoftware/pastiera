@@ -38,6 +38,13 @@
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Balayer pour supprimer</string>
     
+    <!-- Delete Alternatives Section -->
+    <string name="delete_alternatives_title">Supprimer</string>
+    <string name="delete_alternatives_description">Méthodes alternatives pour supprimer des caractères à droite du curseur</string>
+    <string name="shift_backspace_delete_title">Shift + Backspace</string>
+    <string name="backspace_at_start_delete_title">Backspace au début de ligne</string>
+    <string name="delete_alternatives_hint">Note : Ctrl + touche peut être configuré dans les paramètres Nav Mode</string>
+    
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Afficher Automatiquement le Clavier</string>
     

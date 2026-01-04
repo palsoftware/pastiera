@@ -60,6 +60,14 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getAltCtrlSpeechShortcutEnabled(context))
     }
     
+    var shiftBackspaceDelete by remember {
+        mutableStateOf(SettingsManager.getShiftBackspaceDelete(context))
+    }
+    
+    var backspaceAtStartDelete by remember {
+        mutableStateOf(SettingsManager.getBackspaceAtStartDelete(context))
+    }
+    
     // Handle system back button
     BackHandler { onBack() }
     
@@ -381,6 +389,91 @@ fun TextInputSettingsScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Delete Alternatives Section
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                tonalElevation = 2.dp,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.delete_alternatives_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.delete_alternatives_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Shift + Backspace option
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.shift_backspace_delete_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = shiftBackspaceDelete,
+                            onCheckedChange = { enabled ->
+                                shiftBackspaceDelete = enabled
+                                SettingsManager.setShiftBackspaceDelete(context, enabled)
+                            }
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Backspace at start option
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = stringResource(R.string.backspace_at_start_delete_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = backspaceAtStartDelete,
+                            onCheckedChange = { enabled ->
+                                backspaceAtStartDelete = enabled
+                                SettingsManager.setBackspaceAtStartDelete(context, enabled)
+                            }
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Hint text
+                    Text(
+                        text = stringResource(R.string.delete_alternatives_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

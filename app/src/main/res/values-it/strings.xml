@@ -39,6 +39,13 @@
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Abilita Swipe per Cancellare</string>
     
+    <!-- Delete Alternatives Section -->
+    <string name="delete_alternatives_title">Elimina</string>
+    <string name="delete_alternatives_description">Metodi alternativi per eliminare caratteri a destra del cursore</string>
+    <string name="shift_backspace_delete_title">Shift + Backspace</string>
+    <string name="backspace_at_start_delete_title">Backspace all\'inizio della riga</string>
+    <string name="delete_alternatives_hint">Nota: Ctrl + tasto può essere configurato nelle impostazioni Nav Mode</string>
+    
     <!-- Swipe Incremental Threshold Section -->
     <string name="swipe_incremental_threshold_title">Sensibilità Swipe Bar</string>
     <string name="swipe_to_move_cursor">Swipe per spostare il cursore</string>

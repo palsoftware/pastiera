@@ -52,6 +52,8 @@ object SettingsManager {
     private const val KEY_CLIPBOARD_RETENTION_TIME = "clipboard_retention_time" // How long to keep clipboard entries (in minutes)
     private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled" // Whether trackpad gesture suggestions are enabled
     private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold" // Threshold for swipe detection on trackpad
+    private const val KEY_SHIFT_BACKSPACE_DELETE = "shift_backspace_delete" // Shift + Backspace performs forward delete
+    private const val KEY_BACKSPACE_AT_START_DELETE = "backspace_at_start_delete" // Backspace at line start performs forward delete
 
     private const val VARIATIONS_FILE_NAME = "variations.json"
     
@@ -94,6 +96,8 @@ object SettingsManager {
     private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 300f
     private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 120f
     private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 600f
+    private const val DEFAULT_SHIFT_BACKSPACE_DELETE = false
+    private const val DEFAULT_BACKSPACE_AT_START_DELETE = false
 
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -253,6 +257,38 @@ object SettingsManager {
     fun setSwipeToDelete(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SWIPE_TO_DELETE, enabled)
+            .apply()
+    }
+    
+    /**
+     * Returns whether Shift+Backspace performs forward delete.
+     */
+    fun getShiftBackspaceDelete(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHIFT_BACKSPACE_DELETE, DEFAULT_SHIFT_BACKSPACE_DELETE)
+    }
+    
+    /**
+     * Sets whether Shift+Backspace performs forward delete.
+     */
+    fun setShiftBackspaceDelete(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHIFT_BACKSPACE_DELETE, enabled)
+            .apply()
+    }
+    
+    /**
+     * Returns whether Backspace at line start performs forward delete.
+     */
+    fun getBackspaceAtStartDelete(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_BACKSPACE_AT_START_DELETE, DEFAULT_BACKSPACE_AT_START_DELETE)
+    }
+    
+    /**
+     * Sets whether Backspace at line start performs forward delete.
+     */
+    fun setBackspaceAtStartDelete(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_BACKSPACE_AT_START_DELETE, enabled)
             .apply()
     }
     

@@ -38,6 +38,13 @@
     <!-- Swipe to Delete Section -->
     <string name="swipe_to_delete_title">Włącz Przesunięcie do Usunięcia</string>
     
+    <!-- Delete Alternatives Section -->
+    <string name="delete_alternatives_title">Usuń</string>
+    <string name="delete_alternatives_description">Alternatywne metody usuwania znaków po prawej stronie kursora</string>
+    <string name="shift_backspace_delete_title">Shift + Backspace</string>
+    <string name="backspace_at_start_delete_title">Backspace na początku linii</string>
+    <string name="delete_alternatives_hint">Uwaga: Ctrl + klawisz można skonfigurować w ustawieniach Nav Mode</string>
+    
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Automatycznie Pokaż Klawiaturę</string>
     

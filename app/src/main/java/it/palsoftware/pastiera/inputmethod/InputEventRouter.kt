@@ -650,6 +650,25 @@ class InputEventRouter(
             handleInWordApostrophe(inputConnection, pendingApostrophe = true)
         }
 
+        // Handle Shift+Backspace → Delete (if enabled)
+        if (keyCode == KeyEvent.KEYCODE_DEL && event?.isShiftPressed == true) {
+            if (SettingsManager.getShiftBackspaceDelete(context)) {
+                inputConnection?.deleteSurroundingText(0, 1)
+                return true
+            }
+        }
+
+        // Handle Backspace at start → Delete (if enabled)
+        if (keyCode == KeyEvent.KEYCODE_DEL && event?.isShiftPressed != true) {
+            if (SettingsManager.getBackspaceAtStartDelete(context)) {
+                val textBefore = inputConnection?.getTextBeforeCursor(1, 0)
+                if (textBefore?.isEmpty() == true) {
+                    inputConnection.deleteSurroundingText(0, 1)
+                    return true
+                }
+            }
+        }
+
         // Clear pending auto-space flag on backspace (avoid stale state); keep it for letters to handle long-press punctuation.
         if (typedChar == null && keyCode == KeyEvent.KEYCODE_DEL) {
             AutoSpaceTracker.clear()
