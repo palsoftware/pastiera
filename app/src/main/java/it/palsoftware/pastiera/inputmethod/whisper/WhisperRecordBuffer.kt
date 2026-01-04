@@ -8,27 +8,28 @@ import java.nio.ByteOrder
  * Stores PCM audio samples and provides conversion utilities.
  */
 object WhisperRecordBuffer {
-    private var outputBuffer: FloatArray? = null
+    private var outputBuffer: ByteArray? = null
     
     /**
-     * Sets the output buffer with PCM_FLOAT samples.
+     * Sets the output buffer with PCM_16BIT samples as ByteArray.
      */
-    fun setOutputBuffer(buffer: FloatArray) {
+    fun setOutputBuffer(buffer: ByteArray) {
         outputBuffer = buffer
     }
     
     /**
-     * Gets the output buffer with PCM_FLOAT samples.
+     * Gets the output buffer as ByteArray.
      */
-    fun getOutputBuffer(): FloatArray? {
+    fun getOutputBuffer(): ByteArray? {
         return outputBuffer
     }
     
     /**
-     * Gets samples as FloatArray for processing.
+     * Gets samples as FloatArray for Whisper processing (normalized to [-1.0, 1.0]).
      */
     fun getSamples(): FloatArray? {
-        return outputBuffer
+        val bytes = outputBuffer ?: return null
+        return convertPCM16ToFloat(bytes)
     }
     
     /**
@@ -39,11 +40,11 @@ object WhisperRecordBuffer {
     }
     
     /**
-     * Converts PCM16 ByteBuffer to FloatArray (normalized to [-1.0, 1.0]).
+     * Converts PCM16 ByteArray to FloatArray (normalized to [-1.0, 1.0]).
      */
-    fun convertPCM16ToFloat(pcm16Buffer: ByteBuffer): FloatArray {
-        pcm16Buffer.order(ByteOrder.LITTLE_ENDIAN)
-        val shortBuffer = pcm16Buffer.asShortBuffer()
+    private fun convertPCM16ToFloat(pcm16Bytes: ByteArray): FloatArray {
+        val byteBuffer = ByteBuffer.wrap(pcm16Bytes).order(ByteOrder.LITTLE_ENDIAN)
+        val shortBuffer = byteBuffer.asShortBuffer()
         val floatBuffer = FloatArray(shortBuffer.remaining())
         
         for (i in floatBuffer.indices) {

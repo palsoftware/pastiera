@@ -6,7 +6,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
 import com.konovalov.vad.webrtc.Vad
-import com.konovalov.vad.webrtc.VadListener
+import com.konovalov.vad.webrtc.VadWebRTC
 import com.konovalov.vad.webrtc.config.FrameSize
 import com.konovalov.vad.webrtc.config.Mode
 import com.konovalov.vad.webrtc.config.SampleRate
@@ -14,7 +14,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -30,7 +29,8 @@ class WhisperRecorder(private val context: Context) {
         private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
         private const val MAX_RECORDING_DURATION_MS = 30000L // 30 seconds max
-        private const val SILENCE_DURATION_MS = 1500L // Stop after 1.5s of silence
+        private const val SILENCE_DURATION_MS = 800L // Stop after 800ms of silence (like Whisper+)
+        private const val VAD_FRAME_SIZE = 480 // 30ms at 16kHz
     }
 
     interface RecorderListener {
@@ -42,11 +42,11 @@ class WhisperRecorder(private val context: Context) {
 
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
-    private var vad: Vad? = null
+    private var vad: VadWebRTC? = null
     private var listener: RecorderListener? = null
     private var isRecording = false
-    private val audioBuffer = mutableListOf<Short>()
-    private var lastSpeechTime = 0L
+    private val audioBuffer = mutableListOf<Byte>()
+    private var speechDetected = false
     private var recordingStartTime = 0L
 
     fun setListener(listener: RecorderListener) {
@@ -61,25 +61,12 @@ class WhisperRecorder(private val context: Context) {
             vad = Vad.builder()
                 .setSampleRate(SampleRate.SAMPLE_RATE_16K)
                 .setFrameSize(FrameSize.FRAME_SIZE_480) // 30ms frames
-                .setMode(Mode.NORMAL) // Balance between accuracy and CPU
-                .setSilenceDurationMillis(500) // Detect silence after 500ms
-                .setSpeechDurationMillis(100) // Minimum speech duration
-                .setContext(context)
+                .setMode(Mode.VERY_AGGRESSIVE) // Aggressive mode like Whisper+
+                .setSilenceDurationMs(SILENCE_DURATION_MS.toInt())
+                .setSpeechDurationMs(200) // Minimum speech duration
                 .build()
             
-            vad?.addListener(object : VadListener {
-                override fun onSpeechDetected() {
-                    Log.d(TAG, "VAD: Speech detected")
-                    lastSpeechTime = System.currentTimeMillis()
-                }
-
-                override fun onNoiseDetected() {
-                    Log.d(TAG, "VAD: Noise detected (no speech)")
-                }
-            })
-            
-            vad?.start()
-            Log.d(TAG, "VAD initialized and started")
+            Log.d(TAG, "VAD initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing VAD", e)
         }
@@ -106,12 +93,14 @@ class WhisperRecorder(private val context: Context) {
                 return
             }
 
+            val finalBufferSize = maxOf(bufferSize, VAD_FRAME_SIZE * 2)
+
             audioRecord = AudioRecord(
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 SAMPLE_RATE,
                 CHANNEL_CONFIG,
                 AUDIO_FORMAT,
-                bufferSize * 2 // Double buffer for safety
+                finalBufferSize * 2 // Double buffer for safety
             )
 
             if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
@@ -120,10 +109,10 @@ class WhisperRecorder(private val context: Context) {
             }
 
             audioBuffer.clear()
+            speechDetected = false
             audioRecord?.startRecording()
             isRecording = true
             recordingStartTime = System.currentTimeMillis()
-            lastSpeechTime = recordingStartTime
             listener?.onRecordingStarted()
 
             // Start recording loop in coroutine
@@ -145,32 +134,47 @@ class WhisperRecorder(private val context: Context) {
      * Recording loop that reads audio data and processes it with VAD.
      */
     private suspend fun recordAudio() {
-        val bufferSize = AudioRecord.getMinBufferSize(
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT
-        )
-        val buffer = ShortArray(bufferSize / 2) // PCM16 = 2 bytes per sample
+        val vadBuffer = ByteArray(VAD_FRAME_SIZE * 2) // 16-bit samples
+        val readBuffer = ByteArray(VAD_FRAME_SIZE * 2)
+        var totalBytesRead = 0
+        val maxBytes = SAMPLE_RATE * 2 * 30 // 30 seconds at 16kHz, 16-bit
 
-        while (isRecording && isActive) {
-            val readCount = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+        while (isRecording && totalBytesRead < maxBytes) {
+            val bytesRead = audioRecord?.read(readBuffer, 0, readBuffer.size) ?: 0
 
-            if (readCount > 0) {
+            if (bytesRead > 0) {
                 // Add to buffer
-                audioBuffer.addAll(buffer.take(readCount))
+                audioBuffer.addAll(readBuffer.take(bytesRead).toList())
+                totalBytesRead += bytesRead
                 
-                // Process with VAD
-                vad?.setContinuousSpeechListener(buffer, readCount) { speechActive ->
-                    if (speechActive) {
-                        lastSpeechTime = System.currentTimeMillis()
+                // Process with VAD if we have enough data
+                if (vad != null && audioBuffer.size >= VAD_FRAME_SIZE * 2) {
+                    // Get last VAD_FRAME_SIZE * 2 bytes for VAD analysis
+                    val startIdx = audioBuffer.size - VAD_FRAME_SIZE * 2
+                    for (i in 0 until VAD_FRAME_SIZE * 2) {
+                        vadBuffer[i] = audioBuffer[startIdx + i]
+                    }
+                    
+                    val isSpeech = vad?.isSpeech(vadBuffer) ?: false
+                    
+                    if (isSpeech) {
+                        if (!speechDetected) {
+                            Log.d(TAG, "VAD: Speech detected, recording starts")
+                            speechDetected = true
+                        }
+                    } else {
+                        if (speechDetected) {
+                            Log.d(TAG, "VAD: Silence detected after speech, stopping")
+                            stop()
+                            break
+                        }
                     }
                 }
 
                 listener?.onRecording()
 
-                // Check if we should stop recording
+                // Check max duration
                 val currentTime = System.currentTimeMillis()
-                val silenceDuration = currentTime - lastSpeechTime
                 val totalDuration = currentTime - recordingStartTime
 
                 if (totalDuration >= MAX_RECORDING_DURATION_MS) {
@@ -178,14 +182,8 @@ class WhisperRecorder(private val context: Context) {
                     stop()
                     break
                 }
-
-                if (silenceDuration >= SILENCE_DURATION_MS && audioBuffer.isNotEmpty()) {
-                    Log.d(TAG, "Silence detected, stopping recording")
-                    stop()
-                    break
-                }
-            } else if (readCount < 0) {
-                Log.e(TAG, "Error reading audio: $readCount")
+            } else if (bytesRead < 0) {
+                Log.e(TAG, "Error reading audio: $bytesRead")
                 break
             }
 
@@ -211,16 +209,21 @@ class WhisperRecorder(private val context: Context) {
             audioRecord?.release()
             audioRecord = null
 
-            vad?.stop()
             vad?.close()
             vad = null
 
-            // Convert buffer to FloatArray and store in WhisperRecordBuffer
-            val floatSamples = audioBuffer.map { it / 32768.0f }.toFloatArray()
-            WhisperRecordBuffer.setOutputBuffer(floatSamples)
+            // Check minimum recording length (0.2s = 6400 bytes at 16kHz 16-bit)
+            if (audioBuffer.size < 6400) {
+                listener?.onRecordingError("Recording too short")
+                Log.w(TAG, "Recording too short: ${audioBuffer.size} bytes")
+                return
+            }
+
+            // Convert ByteArray to FloatArray and store in WhisperRecordBuffer
+            WhisperRecordBuffer.setOutputBuffer(audioBuffer.toByteArray())
 
             listener?.onRecordingDone()
-            Log.d(TAG, "Recording stopped. Captured ${audioBuffer.size} samples (${audioBuffer.size / SAMPLE_RATE}s)")
+            Log.d(TAG, "Recording stopped. Captured ${audioBuffer.size} bytes (${audioBuffer.size / (SAMPLE_RATE * 2)}s)")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping recording", e)
             listener?.onRecordingError(e.message ?: "Unknown error")
