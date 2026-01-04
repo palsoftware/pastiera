@@ -221,21 +221,46 @@ fun WhisperSettingsScreen(
                                             if (!isDownloading) {
                                                 isDownloading = true
                                                 scope.launch {
-                                                    downloader.downloadModel(
-                                                        model,
-                                                        object : WhisperModelDownloader.DownloadListener {
-                                                            override fun onProgress(bytesDownloaded: Long, totalBytes: Long) {
-                                                                downloadProgress = bytesDownloaded.toFloat() / totalBytes
+                                                    try {
+                                                        android.util.Log.d("WhisperSettings", "Starting download for ${model.displayName}")
+                                                        val result = downloader.downloadModel(
+                                                            model,
+                                                            object : WhisperModelDownloader.DownloadListener {
+                                                                override fun onProgress(bytesDownloaded: Long, totalBytes: Long) {
+                                                                    downloadProgress = bytesDownloaded.toFloat() / totalBytes
+                                                                    android.util.Log.d("WhisperSettings", "Progress: $bytesDownloaded / $totalBytes")
+                                                                }
+                                                                override fun onComplete(file: java.io.File) {
+                                                                    android.util.Log.d("WhisperSettings", "Download complete: ${file.absolutePath}")
+                                                                    isDownloading = false
+                                                                    downloadedModels = downloadedModels + model
+                                                                    android.widget.Toast.makeText(
+                                                                        context,
+                                                                        context.getString(R.string.whisper_model_download_complete),
+                                                                        android.widget.Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                }
+                                                                override fun onError(error: String) {
+                                                                    android.util.Log.e("WhisperSettings", "Download error: $error")
+                                                                    isDownloading = false
+                                                                    android.widget.Toast.makeText(
+                                                                        context,
+                                                                        context.getString(R.string.whisper_model_download_failed) + ": $error",
+                                                                        android.widget.Toast.LENGTH_LONG
+                                                                    ).show()
+                                                                }
                                                             }
-                                                            override fun onComplete(file: java.io.File) {
-                                                                isDownloading = false
-                                                                downloadedModels = downloadedModels + model
-                                                            }
-                                                            override fun onError(error: String) {
-                                                                isDownloading = false
-                                                            }
-                                                        }
-                                                    )
+                                                        )
+                                                        android.util.Log.d("WhisperSettings", "Download result: ${result.isSuccess}")
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("WhisperSettings", "Exception during download", e)
+                                                        isDownloading = false
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            "Error: ${e.message}",
+                                                            android.widget.Toast.LENGTH_LONG
+                                                        ).show()
+                                                    }
                                                 }
                                             }
                                         },
