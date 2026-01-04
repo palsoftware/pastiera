@@ -214,6 +214,8 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
     // Voice Activity Detection (VAD) for Whisper
     implementation("com.github.gkonovalov.android-vad:webrtc:2.0.9")
+    // ONNX Runtime for Whisper ONNX Models
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.17.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

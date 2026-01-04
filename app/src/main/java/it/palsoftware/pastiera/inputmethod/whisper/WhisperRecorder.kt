@@ -55,6 +55,7 @@ class WhisperRecorder(private val context: Context) {
 
     /**
      * Initializes Voice Activity Detection (VAD).
+     * If VAD fails to initialize, falls back to duration-based recording (manual stop after 3 seconds of silence).
      */
     fun initVad() {
         try {
@@ -66,9 +67,11 @@ class WhisperRecorder(private val context: Context) {
                 .setSpeechDurationMs(200) // Minimum speech duration
                 .build()
             
-            Log.d(TAG, "VAD initialized")
+            Log.d(TAG, "✓ VAD initialized successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing VAD", e)
+            Log.w(TAG, "⚠️ VAD initialization failed - falling back to duration-based recording: ${e.message}")
+            vad = null
+            // Will use fallback: recording stops after MAX_RECORDING_DURATION_MS
         }
     }
 
@@ -131,13 +134,16 @@ class WhisperRecorder(private val context: Context) {
     }
 
     /**
-     * Recording loop that reads audio data and processes it with VAD.
+     * Recording loop that reads audio data and processes it with VAD (or duration-based fallback).
      */
     private suspend fun recordAudio() {
         val vadBuffer = ByteArray(VAD_FRAME_SIZE * 2) // 16-bit samples
         val readBuffer = ByteArray(VAD_FRAME_SIZE * 2)
         var totalBytesRead = 0
         val maxBytes = SAMPLE_RATE * 2 * 30 // 30 seconds at 16kHz, 16-bit
+        var lastSpeechTime = 0L // For fallback silence detection
+
+        Log.d(TAG, "📻 Recording loop started - VAD available: ${vad != null}")
 
         while (isRecording && totalBytesRead < maxBytes) {
             val bytesRead = audioRecord?.read(readBuffer, 0, readBuffer.size) ?: 0
@@ -147,49 +153,75 @@ class WhisperRecorder(private val context: Context) {
                 audioBuffer.addAll(readBuffer.take(bytesRead).toList())
                 totalBytesRead += bytesRead
                 
-                // Process with VAD if we have enough data
-                if (vad != null && audioBuffer.size >= VAD_FRAME_SIZE * 2) {
+                // Process with VAD if available
+                val vadInstance = vad // Local copy to avoid concurrent mutation
+                if (vadInstance != null && audioBuffer.size >= VAD_FRAME_SIZE * 2) {
                     // Get last VAD_FRAME_SIZE * 2 bytes for VAD analysis
                     val startIdx = audioBuffer.size - VAD_FRAME_SIZE * 2
                     for (i in 0 until VAD_FRAME_SIZE * 2) {
                         vadBuffer[i] = audioBuffer[startIdx + i]
                     }
                     
-                    val isSpeech = vad?.isSpeech(vadBuffer) ?: false
+                    val isSpeech = vadInstance.isSpeech(vadBuffer)
+                    val currentTime = System.currentTimeMillis()
                     
                     if (isSpeech) {
                         if (!speechDetected) {
-                            Log.d(TAG, "VAD: Speech detected, recording starts")
+                            Log.d(TAG, "✓ VAD: Speech detected")
                             speechDetected = true
                         }
+                        lastSpeechTime = currentTime
                     } else {
                         if (speechDetected) {
-                            Log.d(TAG, "VAD: Silence detected after speech, stopping")
-                            stop()
-                            break
+                            // Check if silence has lasted long enough
+                            if (currentTime - lastSpeechTime >= SILENCE_DURATION_MS) {
+                                Log.d(TAG, "✓ VAD: Silence detected, stopping")
+                                stop()
+                                break
+                            }
                         }
+                    }
+                } else if (vad == null && audioBuffer.size > SAMPLE_RATE * 2 * 2) {
+                    // Fallback: no VAD - use fixed duration
+                    val currentTime = System.currentTimeMillis()
+                    val recordingDuration = currentTime - recordingStartTime
+                    
+                    if (!speechDetected && recordingDuration >= 500) {
+                        speechDetected = true
+                        lastSpeechTime = currentTime
+                        Log.d(TAG, "⚠️ Fallback mode: Recording without VAD (started after 500ms)")
+                    }
+                    
+                    // Stop after 3 seconds of recording (since we have no VAD)
+                    if (speechDetected && recordingDuration >= 3000) {
+                        Log.d(TAG, "⚠️ Fallback: Stopping after 3 seconds (no VAD available)")
+                        stop()
+                        break
                     }
                 }
 
                 listener?.onRecording()
 
-                // Check max duration
+                // Check absolute max duration
                 val currentTime = System.currentTimeMillis()
                 val totalDuration = currentTime - recordingStartTime
 
                 if (totalDuration >= MAX_RECORDING_DURATION_MS) {
-                    Log.d(TAG, "Max recording duration reached")
+                    Log.d(TAG, "✓ Max recording duration reached")
                     stop()
                     break
                 }
             } else if (bytesRead < 0) {
-                Log.e(TAG, "Error reading audio: $bytesRead")
+                Log.e(TAG, "✗ Audio read error: $bytesRead")
+                listener?.onRecordingError("Audio read error")
                 break
             }
 
             // Small delay to prevent busy loop
             delay(10)
         }
+        
+        Log.d(TAG, "📻 Recording ended - ${totalBytesRead / (SAMPLE_RATE * 2)}s of audio captured")
     }
 
     /**

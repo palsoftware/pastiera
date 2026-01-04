@@ -1,7 +1,11 @@
 package it.palsoftware.pastiera.inputmethod.whisper
 
 /**
- * Represents available Whisper models for speech recognition.
+ * Represents available Whisper ONNX models for speech recognition.
+ * All models are from DocWolle's curated ONNX-accelerated collection:
+ * https://huggingface.co/DocWolle/whisperOnnx
+ * 
+ * Optimized for mobile with INT8 quantization and KV-Cache support.
  */
 enum class WhisperModel(
     val displayName: String,
@@ -10,26 +14,12 @@ enum class WhisperModel(
     val isMultilingual: Boolean,
     val description: String
 ) {
-    TINY_EN(
-        displayName = "Tiny (English only)",
-        fileName = "whisper-tiny.en.tflite",
-        sizeBytes = 42 * 1024 * 1024, // ~42 MB
-        isMultilingual = false,
-        description = "Fast, English only, good for clear speech"
-    ),
-    BASE(
-        displayName = "Base (Multilingual)",
-        fileName = "whisper-base.TOP_WORLD.tflite",
-        sizeBytes = 108 * 1024 * 1024, // ~108 MB
-        isMultilingual = true,
-        description = "Balanced quality and speed, supports top world languages"
-    ),
     SMALL(
-        displayName = "Small (Multilingual)",
-        fileName = "whisper-small.tflite",
-        sizeBytes = 388 * 1024 * 1024, // ~388 MB
+        displayName = "Small (Multilingual) - Recommended",
+        fileName = "whisper_small_int8.zip",
+        sizeBytes = 243 * 1024 * 1024, // 243 MB
         isMultilingual = true,
-        description = "Excellent quality, may be slower on some devices"
+        description = "Excellent quality, INT8 quantized, supports 99 languages"
     );
 
     companion object {
@@ -41,9 +31,11 @@ enum class WhisperModel(
 
 /**
  * Download URLs for Whisper models from Hugging Face.
+ * Models are from DocWolle's curated ONNX-accelerated collection:
+ * https://huggingface.co/DocWolle/whisperOnnx
  */
 object WhisperModelUrls {
-    private const val BASE_URL = "https://huggingface.co/DocWolle/whisper_tflite_models/resolve/main"
+    private const val BASE_URL = "https://huggingface.co/DocWolle/whisperOnnx/resolve/main"
     
     fun getDownloadUrl(model: WhisperModel): String {
         return "$BASE_URL/${model.fileName}"
@@ -59,6 +51,16 @@ object WhisperModelUrls {
 data class WhisperResult(
     val text: String,
     val language: String,
-    val confidence: Float = 1.0f
+    val confidence: Float = 1.0f,
+    val model: String = "unknown",
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0,
+    val costUsd: Double = 0.0
+)
+
+data class UsageInfo(
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0,
+    val costUsd: Double = 0.0
 )
 

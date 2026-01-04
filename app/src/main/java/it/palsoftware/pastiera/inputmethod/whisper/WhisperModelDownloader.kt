@@ -9,6 +9,7 @@ import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
+import java.util.zip.ZipInputStream
 
 /**
  * Downloads Whisper models from Hugging Face.
@@ -44,13 +45,28 @@ class WhisperModelDownloader(private val context: Context) {
     }
 
     /**
-     * Checks if a model is downloaded.
+     * Checks if a model is downloaded and extracted.
+     * For DocWolle ONNX models: checks for ONNX files in the models directory.
      */
     fun isModelDownloaded(model: WhisperModel): Boolean {
-        val modelFile = File(getModelsDir(), model.fileName)
-        val vocabFile = getVocabFile(model)
-        return modelFile.exists() && vocabFile.exists() && 
-               modelFile.length() > 0 && vocabFile.length() > 0
+        val modelsDir = getModelsDir()
+        if (!modelsDir.exists()) {
+            Log.d(TAG, "Models directory doesn't exist: ${modelsDir.absolutePath}")
+            return false
+        }
+        
+        val modelFiles = modelsDir.listFiles() ?: return false
+        
+        // For ONNX models: check if there are extracted ONNX files
+        val hasOnnxFiles = modelFiles.any { it.extension == "onnx" }
+        
+        if (!hasOnnxFiles) {
+            Log.d(TAG, "No ONNX files found. Model not downloaded.")
+            return false
+        }
+        
+        Log.d(TAG, "Model '${model.displayName}' is downloaded. Found ${modelFiles.count { it.extension == "onnx" }} ONNX files")
+        return true
     }
 
     /**
@@ -66,13 +82,14 @@ class WhisperModelDownloader(private val context: Context) {
     }
 
     /**
-     * Gets the size of downloaded model files.
+     * Gets the total size of downloaded ONNX model files.
      */
     fun getDownloadedSize(model: WhisperModel): Long {
-        val modelFile = File(getModelsDir(), model.fileName)
-        val vocabFile = getVocabFile(model)
-        return (if (modelFile.exists()) modelFile.length() else 0) +
-               (if (vocabFile.exists()) vocabFile.length() else 0)
+        val modelsDir = getModelsDir()
+        val modelFiles = modelsDir.listFiles() ?: return 0L
+        
+        // Sum size of all ONNX files (they're the actual models)
+        return modelFiles.filter { it.extension == "onnx" }.sumOf { it.length() }
     }
 
     /**
@@ -104,7 +121,20 @@ class WhisperModelDownloader(private val context: Context) {
             // Download model file
             val modelUrl = WhisperModelUrls.getDownloadUrl(model)
             Log.d(TAG, "Downloading model from $modelUrl")
-            downloadFile(modelUrl, modelFile, listener)
+            
+            // If URL ends with .zip, download and extract it
+            if (modelUrl.endsWith(".zip")) {
+                val zipFile = File(modelsDir, "${model.fileName}.zip")
+                downloadFile(modelUrl, zipFile, listener)
+                
+                Log.d(TAG, "Extracting ZIP file...")
+                extractZipFile(zipFile, modelsDir)
+                zipFile.delete() // Clean up ZIP after extraction
+                Log.d(TAG, "Extraction complete")
+            } else {
+                // Direct ONNX file download
+                downloadFile(modelUrl, modelFile, listener)
+            }
 
             Log.d(TAG, "Download complete: ${modelFile.absolutePath}")
             Result.success(modelFile)
@@ -211,6 +241,47 @@ class WhisperModelDownloader(private val context: Context) {
             Log.e(TAG, errorMsg, e)
             throw Exception(errorMsg, e)
         }
+    }
+
+    /**
+     * Extracts a ZIP file containing ONNX models.
+     * DocWolle's models are packaged in ZIP format.
+     */
+    private fun extractZipFile(zipFile: File, targetDir: File) {
+        Log.d(TAG, "Extracting ZIP file: ${zipFile.name}")
+        
+        ZipInputStream(zipFile.inputStream()).use { zipInput ->
+            var zipEntry = zipInput.nextEntry
+            
+            while (zipEntry != null) {
+                val entryName = zipEntry.name
+                
+                // Skip directories
+                if (zipEntry.isDirectory) {
+                    zipEntry = zipInput.nextEntry
+                    continue
+                }
+                
+                // Extract only .onnx and .bin files
+                if (entryName.endsWith(".onnx") || entryName.endsWith(".bin")) {
+                    // Extract just the filename (ignore directory structure in ZIP)
+                    val fileName = entryName.substringAfterLast('/')
+                    val outputFile = File(targetDir, fileName)
+                    
+                    Log.d(TAG, "Extracting: $entryName -> ${outputFile.name}")
+                    
+                    outputFile.outputStream().use { fileOutput ->
+                        zipInput.copyTo(fileOutput)
+                    }
+                    
+                    Log.d(TAG, "Extracted: ${outputFile.name} (${outputFile.length()} bytes)")
+                }
+                
+                zipEntry = zipInput.nextEntry
+            }
+        }
+        
+        Log.d(TAG, "ZIP extraction complete")
     }
 
     /**

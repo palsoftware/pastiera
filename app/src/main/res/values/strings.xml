@@ -582,4 +582,27 @@
 
     <!-- Trackpad Debug Accessibility Service -->
     <string name="trackpad_debug_service_description">Displays trackpad events in a small overlay for debugging purposes</string>
+
+    <!-- Whisper Settings - Tabs -->
+    <string name="whisper_tab_local">Local</string>
+    <string name="whisper_tab_openai_api">OpenAI API</string>
+
+    <!-- OpenAI API Settings -->
+    <string name="openai_info">Use OpenAI\'s cloud-based Whisper API for superior transcription quality across multiple languages. Requires a valid OpenAI API key.</string>
+    <string name="openai_enabled_title">Use OpenAI API</string>
+    <string name="openai_api_key_title">API Key</string>
+    <string name="openai_api_key_placeholder">sk-...</string>
+    <string name="openai_validate_button">Validate</string>
+    <string name="openai_api_key_valid">API Key is valid!</string>
+    <string name="openai_model_title">Model</string>
+    <string name="openai_language_title">Language (ISO 639-1)</string>
+    <string name="openai_prompt_title">Prompt Hint (Optional)</string>
+    <string name="openai_prompt_description">Helps the model understand context. e.g., "This is a technical discussion about software development"</string>
+    <string name="openai_prompt_placeholder">Optional: Context to improve transcription accuracy</string>
+    <string name="openai_processing">Processing audio with OpenAI API...</string>
+    <string name="openai_error_api_key_missing">OpenAI API key not configured</string>
+    <string name="openai_error_invalid_api_key">Invalid API key. Please check and try again.</string>
+    <string name="openai_error_initialization">Failed to initialize OpenAI client</string>
+    <string name="openai_error_transcription">Transcription failed: %1$s</string>
+    <string name="openai_error_generic">An error occurred during transcription</string>
 </resources>

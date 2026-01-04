@@ -17,12 +17,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
+import it.palsoftware.pastiera.inputmethod.whisper.UsageStatsManager
+import it.palsoftware.pastiera.inputmethod.whisper.TranscriptionStats
 
 /**
- * Manages Whisper-based speech recognition using ONNX Runtime.
- * Uses DocWolle's optimized ONNX models from HuggingFace.
+ * Manages OpenRouter Audio Speech Recognition.
+ * Supports multiple audio models from OpenRouter API.
+ * Provides seamless integration with model selection and pricing display.
  */
-class WhisperRecognitionManager(
+class OpenRouterWhisperRecognitionManager(
     private val context: Context,
     private val inputConnectionProvider: () -> InputConnection?,
     private val onError: ((String) -> Unit)? = null,
@@ -31,27 +34,24 @@ class WhisperRecognitionManager(
     private val onAudioLevelChanged: ((Float) -> Unit)? = null
 ) {
     companion object {
-        private const val TAG = "WhisperOnnxRecognitionMgr"
+        private const val TAG = "OpenRouterWhisperMgr"
     }
 
-    private var onnxManager: WhisperOnnxManager? = null
-    private var transcriber: WhisperTranscriber? = null
+    private var openRouterClient: OpenRouterWhisperClient? = null
     private var whisperRecorder: WhisperRecorder? = null
     private var isRecognizing = false
     private var isProcessing = false
 
     /**
-     * Checks if Whisper ONNX models are available.
+     * Checks if OpenRouter API is configured properly
      */
     fun isAvailable(): Boolean {
-        // Check if models are downloaded
-        val selectedModel = SettingsManager.getWhisperModel(context)
-        val downloader = WhisperModelDownloader(context)
-        return downloader.isModelDownloaded(selectedModel)
+        val apiKey = SettingsManager.getOpenRouterApiKey(context)
+        return apiKey.isNotEmpty()
     }
 
     /**
-     * Formats text according to standard auto-capitalization rules.
+     * Formats text according to standard auto-capitalization rules
      */
     private fun formatTextWithAutoCapitalization(text: String): String {
         if (text.isEmpty()) return text
@@ -89,7 +89,7 @@ class WhisperRecognitionManager(
     }
 
     /**
-     * Inserts recognized text into the input connection.
+     * Inserts recognized text into the input connection
      */
     private fun insertRecognizedText(text: String) {
         Handler(Looper.getMainLooper()).post {
@@ -119,55 +119,33 @@ class WhisperRecognitionManager(
     }
 
     /**
-     * Initializes ONNX Manager and Transcriber.
+     * Initializes the OpenRouter client
      */
-    private fun ensureOnnxManager(): Boolean {
-        if (onnxManager != null && transcriber != null) {
+    private fun ensureOpenRouterClient(): Boolean {
+        if (openRouterClient != null) {
             return true
         }
 
         try {
-            // Check if models are actually downloaded
-            if (!areModelsDownloaded()) {
-                Log.e(TAG, "Whisper models not downloaded yet")
-                onError?.invoke(context.getString(R.string.whisper_error_model_not_found))
+            val apiKey = SettingsManager.getOpenRouterApiKey(context)
+            if (apiKey.isEmpty()) {
+                Log.e(TAG, "OpenRouter API key not configured")
+                onError?.invoke(context.getString(R.string.openai_error_api_key_missing))
                 return false
             }
-            
-            onnxManager = WhisperOnnxManager.getInstance(context)
-            val initResult = onnxManager!!.initialize()
-            
-            if (!initResult.isSuccess) {
-                Log.e(TAG, "Failed to initialize ONNX Manager: ${initResult.exceptionOrNull()?.message}")
-                onError?.invoke(context.getString(R.string.whisper_error_model_not_found))
-                return false
-            }
-            
-            transcriber = WhisperTranscriber(onnxManager!!)
-            Log.d(TAG, "ONNX Manager and Transcriber initialized")
+
+            openRouterClient = OpenRouterWhisperClient(apiKey)
+            Log.d(TAG, "OpenRouter client initialized")
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing ONNX Manager", e)
-            onError?.invoke(context.getString(R.string.whisper_error_initialization))
+            Log.e(TAG, "Error initializing OpenRouter client", e)
+            onError?.invoke(context.getString(R.string.openai_error_initialization))
             return false
         }
     }
-    
-    /**
-     * Checks if Whisper models are downloaded.
-     */
-    private fun areModelsDownloaded(): Boolean {
-        val selectedModel = SettingsManager.getWhisperModel(context)
-        val downloader = WhisperModelDownloader(context)
-        
-        val isDownloaded = downloader.isModelDownloaded(selectedModel)
-        Log.d(TAG, "Model $selectedModel downloaded: $isDownloaded")
-        
-        return isDownloaded
-    }
 
     /**
-     * Starts Whisper speech recognition.
+     * Starts OpenRouter Whisper speech recognition
      */
     fun startRecognition() {
         // Check RECORD_AUDIO permission
@@ -183,8 +161,8 @@ class WhisperRecognitionManager(
             return
         }
 
-        // Ensure ONNX Manager is initialized
-        if (!ensureOnnxManager()) {
+        // Ensure client is initialized
+        if (!ensureOpenRouterClient()) {
             return
         }
 
@@ -200,11 +178,12 @@ class WhisperRecognitionManager(
                     }
 
                     override fun onRecording() {
+                        // Update audio level feedback
                         onAudioLevelChanged?.invoke(10f)
                     }
 
                     override fun onRecordingDone() {
-                        Log.d(TAG, "Recording done, starting ONNX transcription")
+                        Log.d(TAG, "Recording done, starting transcription via OpenRouter API")
                         onAudioLevelChanged?.invoke(-20f)
                         startTranscription()
                     }
@@ -221,17 +200,17 @@ class WhisperRecognitionManager(
                 start()
             }
 
-            Log.d(TAG, "Whisper ONNX recognition started")
+            Log.d(TAG, "OpenRouter Whisper recognition started")
         } catch (e: Exception) {
-            Log.e(TAG, "Error starting Whisper ONNX recognition", e)
+            Log.e(TAG, "Error starting OpenRouter Whisper recognition", e)
             isRecognizing = false
             onRecognitionStateChanged?.invoke(false)
-            onError?.invoke(context.getString(R.string.whisper_error_generic))
+            onError?.invoke(context.getString(R.string.openai_error_generic))
         }
     }
 
     /**
-     * Starts transcription after recording is complete.
+     * Starts transcription after recording is complete
      */
     private fun startTranscription() {
         if (isProcessing) {
@@ -241,15 +220,13 @@ class WhisperRecognitionManager(
 
         isProcessing = true
 
-        // Show "processing" toast
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(context, R.string.whisper_processing, Toast.LENGTH_SHORT).show()
-        }
+        // No toast - auto-stop is more intuitive
+        Log.d(TAG, "Processing audio via OpenRouter API...")
 
         // Run transcription in background
-        CoroutineScope(Dispatchers.Default).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Get the recorded audio buffer (ByteArray with WAV data)
+                // Get the recorded audio buffer
                 val audioByteBuffer = WhisperRecordBuffer.getOutputBuffer()
                 if (audioByteBuffer == null || audioByteBuffer.isEmpty()) {
                     Log.w(TAG, "No audio buffer")
@@ -264,35 +241,87 @@ class WhisperRecognitionManager(
 
                 Log.d(TAG, "Audio buffer size: ${audioByteBuffer.size} bytes")
 
-                // Convert ByteArray (WAV) to FloatArray (PCM samples)
-                val audioBuffer = convertWavToFloatArray(audioByteBuffer)
-
-                // Get selected language (use OpenAI language setting as default)
-                val languageCode = SettingsManager.getOpenAiLanguage(context)
+                // Get selected model and language
+                val model = SettingsManager.getOpenRouterModel(context)
+                var language = SettingsManager.getOpenRouterLanguage(context).takeIf { it.isNotEmpty() }
                 
-                Log.d(TAG, "Calling WhisperTranscriber with language=$languageCode")
+                // Fall back to system language if not set
+                if (language.isNullOrEmpty()) {
+                    language = java.util.Locale.getDefault().language
+                    Log.d(TAG, "Using system language: $language")
+                }
+                
+                Log.d(TAG, "Calling OpenRouter API with model=$model, language=$language")
+                Log.d(TAG, "Audio file size: ${audioByteBuffer.size} bytes")
 
-                // Call ONNX Transcriber
-                val result = transcriber?.transcribe(audioBuffer, languageCode)
+                // Call OpenRouter API
+                val result = openRouterClient?.transcribeAudio(
+                    audioByteBuffer,
+                    model,
+                    language
+                )
 
                 withContext(Dispatchers.Main) {
-                    isProcessing = false
-                    isRecognizing = false
-                    onRecognitionStateChanged?.invoke(false)
-
+                    stopSpeechRecognition()
+                    
                     if (result?.isSuccess == true) {
-                        val text = result.getOrNull()
-                        if (!text.isNullOrEmpty()) {
-                            Log.d(TAG, "Transcription successful: '$text'")
-                            insertRecognizedText(text)
+                        val transcriptionResult = result.getOrNull()
+                        if (transcriptionResult != null && transcriptionResult.text.isNotEmpty()) {
+                            Log.d(TAG, "Transcription successful: '${transcriptionResult.text}'")
+                            
+                            // Save usage statistics
+                            try {
+                                val statsManager = UsageStatsManager(context)
+                                // Count words by counting spaces + 1 (if text is not empty)
+                                val wordCount = if (transcriptionResult.text.isEmpty()) {
+                                    0
+                                } else {
+                                    transcriptionResult.text.split("\\s+".toRegex()).filter { it.isNotEmpty() }.size
+                                }
+                                // Audio duration: audioByteBuffer size / (16000 Hz * 2 bytes per sample)
+                                val audioLengthMs = audioByteBuffer?.size?.toLong()?.times(1000L)?.div(32000L) ?: 0L
+                                
+                                val stat = TranscriptionStats(
+                                    id = java.util.UUID.randomUUID().toString(),
+                                    engine = "openrouter",
+                                    model = transcriptionResult.model,
+                                    timestamp = java.time.LocalDateTime.now().toString(),
+                                    audioLengthMs = audioLengthMs,
+                                    textLength = transcriptionResult.text.length,
+                                    wordCount = wordCount,
+                                    costUsd = transcriptionResult.costUsd,
+                                    successFul = true
+                                )
+                                statsManager.addStat(stat)
+                                
+                                // Also save per-model breakdown
+                                val prefs = context.getSharedPreferences("usage_stats", android.content.Context.MODE_PRIVATE)
+                                val modelKey = "model_${stat.model}".replace("/", "_").replace("-", "_")
+                                val currentCount = prefs.getLong("${modelKey}_count", 0L)
+                                val currentWords = prefs.getLong("${modelKey}_words", 0L)
+                                val currentCost = prefs.getFloat("${modelKey}_cost", 0f)
+                                
+                                prefs.edit().apply {
+                                    putLong("${modelKey}_count", currentCount + 1)
+                                    putLong("${modelKey}_words", currentWords + wordCount)
+                                    putFloat("${modelKey}_cost", (currentCost + stat.costUsd).toFloat())
+                                    apply()
+                                }
+                                
+                                Log.d(TAG, "Stats saved - Model: ${stat.model}, Words: $wordCount, WPM: ${"%.1f".format(stat.getWordsPerMinute())}, Cost: $${stat.costUsd}")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error saving stats: ${e.message}")
+                            }
+                            
+                            insertRecognizedText(transcriptionResult.text)
                         } else {
-                            Log.w(TAG, "Empty transcription result")
+                            Log.w(TAG, "No transcription result")
                             onError?.invoke(context.getString(R.string.speech_recognition_error_no_match))
                         }
                     } else {
                         val errorMsg = result?.exceptionOrNull()?.message ?: "Unknown error"
                         Log.e(TAG, "Transcription failed: $errorMsg")
-                        onError?.invoke(context.getString(R.string.whisper_error_generic))
+                        onError?.invoke(context.getString(R.string.openai_error_generic))
                     }
                 }
             } catch (e: Exception) {
@@ -301,58 +330,35 @@ class WhisperRecognitionManager(
                     isProcessing = false
                     isRecognizing = false
                     onRecognitionStateChanged?.invoke(false)
-                    onError?.invoke(context.getString(R.string.whisper_error_generic))
+                    onError?.invoke(context.getString(R.string.openai_error_generic))
                 }
             }
         }
     }
 
     /**
-     * Stops recognition if active.
+     * Stops recognition if active
      */
     fun stopRecognition() {
         whisperRecorder?.stop()
         isRecognizing = false
+        isProcessing = false
         onRecognitionStateChanged?.invoke(false)
-        Log.d(TAG, "Whisper ONNX recognition stopped")
+        Log.d(TAG, "OpenRouter Whisper recognition stopped")
     }
 
     /**
-     * Converts WAV ByteArray to PCM FloatArray.
-     * Assumes 16-bit PCM, mono, 16kHz sample rate.
+     * Stops speech recognition (internal)
      */
-    private fun convertWavToFloatArray(wavData: ByteArray): FloatArray {
-        // Skip WAV header (44 bytes for standard WAV file)
-        val dataStartIdx = 44
-        if (wavData.size <= dataStartIdx) {
-            return FloatArray(0)
-        }
-
-        // Extract 16-bit PCM samples
-        val numSamples = (wavData.size - dataStartIdx) / 2
-        val floatArray = FloatArray(numSamples)
-
-        var floatIndex = 0
-        var byteIndex = dataStartIdx
-
-        while (byteIndex < wavData.size - 1) {
-            // Convert 16-bit little-endian to float (-1.0 to 1.0)
-            val loByte = wavData[byteIndex].toInt() and 0xFF
-            val hiByte = (wavData[byteIndex + 1].toInt() and 0xFF) shl 8
-
-            val sample = (hiByte or loByte).toShort().toFloat() / 32768.0f
-            floatArray[floatIndex] = sample
-
-            floatIndex++
-            byteIndex += 2
-        }
-
-        Log.d(TAG, "Converted WAV ${wavData.size} bytes to ${floatArray.size} float samples")
-        return floatArray
+    private fun stopSpeechRecognition() {
+        whisperRecorder?.stop()
+        isRecognizing = false
+        isProcessing = false
+        onRecognitionStateChanged?.invoke(false)
     }
 
     /**
-     * Releases all resources.
+     * Releases all resources
      */
     fun destroy() {
         whisperRecorder?.release()
@@ -360,6 +366,7 @@ class WhisperRecognitionManager(
         WhisperRecordBuffer.clear()
         isRecognizing = false
         isProcessing = false
-        Log.d(TAG, "Whisper ONNX recognition manager destroyed")
+        Log.d(TAG, "OpenRouter Whisper recognition manager destroyed")
     }
 }
+
