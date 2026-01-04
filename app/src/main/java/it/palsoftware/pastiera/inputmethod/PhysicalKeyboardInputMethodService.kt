@@ -70,6 +70,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     // Speech recognition using SpeechRecognizer (modern approach)
     private var speechRecognitionManager: SpeechRecognitionManager? = null
+    private var whisperRecognitionManager: it.palsoftware.pastiera.inputmethod.whisper.WhisperRecognitionManager? = null
     private var isSpeechRecognitionActive: Boolean = false
     private var pendingSpeechRecognition: Boolean = false
     
@@ -273,48 +274,91 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return
         }
         
-        // Initialize manager if not already created
-        if (speechRecognitionManager == null) {
-            speechRecognitionManager = SpeechRecognitionManager(
-                context = this,
-                inputConnectionProvider = { currentInputConnection },
-                onError = { errorMessage ->
-                    Log.e(TAG, "Speech recognition error: $errorMessage")
-                },
-                onRecognitionStateChanged = { isActive ->
-                    // Update internal state
-                    isSpeechRecognitionActive = isActive
-                    
-                    // Reset Alt and Ctrl modifiers when recognition starts
-                    if (isActive) {
-                        modifierStateController.clearAltState()
-                        modifierStateController.clearCtrlState()
-                    }
-                    
-                    // Update microphone button color and hint message based on recognition state
-                    uiHandler.post {
-                        candidatesBarController.setMicrophoneButtonActive(isActive)
-                        candidatesBarController.showSpeechRecognitionHint(isActive)
-                        // Reset audio level when recognition stops
-                        if (!isActive) {
-                            candidatesBarController.updateMicrophoneAudioLevel(-10f)
-                        } else {
-                            // Update status bar after resetting modifiers
-                            updateStatusBarText()
+        // Check if Whisper is enabled
+        val useWhisper = it.palsoftware.pastiera.SettingsManager.getUseWhisper(this)
+        
+        if (useWhisper) {
+            // Use Whisper for offline recognition
+            if (whisperRecognitionManager == null) {
+                whisperRecognitionManager = it.palsoftware.pastiera.inputmethod.whisper.WhisperRecognitionManager(
+                    context = this,
+                    inputConnectionProvider = { currentInputConnection },
+                    onError = { errorMessage ->
+                        Log.e(TAG, "Whisper recognition error: $errorMessage")
+                        uiHandler.post {
+                            Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onRecognitionStateChanged = { isActive ->
+                        isSpeechRecognitionActive = isActive
+                        
+                        if (isActive) {
+                            modifierStateController.clearAltState()
+                            modifierStateController.clearCtrlState()
+                        }
+                        
+                        uiHandler.post {
+                            candidatesBarController.setMicrophoneButtonActive(isActive)
+                            candidatesBarController.showSpeechRecognitionHint(isActive)
+                            if (!isActive) {
+                                candidatesBarController.updateMicrophoneAudioLevel(-10f)
+                            } else {
+                                updateStatusBarText()
+                            }
+                        }
+                    },
+                    shouldDisableAutoCapitalize = { inputContextState.shouldDisableAutoCapitalize },
+                    onAudioLevelChanged = { rmsdB ->
+                        uiHandler.post {
+                            candidatesBarController.updateMicrophoneAudioLevel(rmsdB)
                         }
                     }
-                },
-                shouldDisableAutoCapitalize = { inputContextState.shouldDisableAutoCapitalize },
-                onAudioLevelChanged = { rmsdB ->
-                    // Update microphone button based on audio level
-                    uiHandler.post {
-                        candidatesBarController.updateMicrophoneAudioLevel(rmsdB)
+                )
+            }
+            whisperRecognitionManager?.startRecognition()
+        } else {
+            // Use Google SpeechRecognizer (existing implementation)
+            if (speechRecognitionManager == null) {
+                speechRecognitionManager = SpeechRecognitionManager(
+                    context = this,
+                    inputConnectionProvider = { currentInputConnection },
+                    onError = { errorMessage ->
+                        Log.e(TAG, "Speech recognition error: $errorMessage")
+                    },
+                    onRecognitionStateChanged = { isActive ->
+                        // Update internal state
+                        isSpeechRecognitionActive = isActive
+                        
+                        // Reset Alt and Ctrl modifiers when recognition starts
+                        if (isActive) {
+                            modifierStateController.clearAltState()
+                            modifierStateController.clearCtrlState()
+                        }
+                        
+                        // Update microphone button color and hint message based on recognition state
+                        uiHandler.post {
+                            candidatesBarController.setMicrophoneButtonActive(isActive)
+                            candidatesBarController.showSpeechRecognitionHint(isActive)
+                            // Reset audio level when recognition stops
+                            if (!isActive) {
+                                candidatesBarController.updateMicrophoneAudioLevel(-10f)
+                            } else {
+                                // Update status bar after resetting modifiers
+                                updateStatusBarText()
+                            }
+                        }
+                    },
+                    shouldDisableAutoCapitalize = { inputContextState.shouldDisableAutoCapitalize },
+                    onAudioLevelChanged = { rmsdB ->
+                        // Update microphone button based on audio level
+                        uiHandler.post {
+                            candidatesBarController.updateMicrophoneAudioLevel(rmsdB)
+                        }
                     }
-                }
-            )
+                )
+            }
+            speechRecognitionManager?.startRecognition()
         }
-        
-        speechRecognitionManager?.startRecognition()
     }
 
     /**
@@ -322,6 +366,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      */
     private fun stopSpeechRecognition() {
         speechRecognitionManager?.stopRecognition()
+        whisperRecognitionManager?.stopRecognition()
     }
 
     private fun getSuggestionSettings(): SuggestionSettings {
