@@ -7,6 +7,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -26,6 +28,8 @@ fun VariationPickerDialog(
     onVariationSelected: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var customInput by remember { mutableStateOf("") }
+    
     Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(
@@ -64,6 +68,38 @@ fun VariationPickerDialog(
                 }
                 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                // Custom input field
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = customInput,
+                        onValueChange = { newValue ->
+                            customInput = limitInputToSingleCodePoint(newValue)
+                        },
+                        label = { Text(stringResource(R.string.custom_variation_input)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            if (customInput.isNotEmpty()) {
+                                onVariationSelected(customInput)
+                                onDismiss()
+                            }
+                        },
+                        enabled = customInput.isNotEmpty()
+                    ) {
+                        Text(stringResource(R.string.add))
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
                 
                 // Empty option button
                 OutlinedButton(
@@ -125,9 +161,18 @@ fun VariationPickerDialog(
     }
 }
 
-
-
-
+/**
+ * Limits input to a single Unicode code point (handles emojis and special characters correctly).
+ */
+private fun limitInputToSingleCodePoint(value: String): String {
+    if (value.isEmpty()) return ""
+    return try {
+        val endIndex = value.offsetByCodePoints(0, 1)
+        value.substring(0, endIndex)
+    } catch (_: Exception) {
+        value
+    }
+}
 
 
 

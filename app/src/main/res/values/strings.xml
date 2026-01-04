@@ -331,6 +331,8 @@
     <string name="variation_instructions_description">Tap on any variation box to select a character. Each letter can have up to 7 variation characters.</string>
     <string name="variation_picker_title">Select variation for %1$s</string>
     <string name="variation_picker_clear">Clear (Empty)</string>
+    <string name="custom_variation_input">Custom character</string>
+    <string name="add">Add</string>
     <string name="variation_reset_to_default">Reset to Default</string>
     <string name="variation_reset_confirm_title">Reset to Default</string>
     <string name="variation_reset_confirm_message">Are you sure you want to reset all variations to default? This action cannot be undone.</string>

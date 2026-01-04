@@ -270,6 +270,8 @@
     <string name="variation_customize_title">Variationen anpassen</string>
     <string name="variation_picker_title">Variation für %1$s auswählen</string>
     <string name="variation_picker_clear">Leeren (Leer)</string>
+    <string name="custom_variation_input">Eigenes Zeichen</string>
+    <string name="add">Hinzufügen</string>
     <string name="variation_reset_to_default">Auf Standard zurücksetzen</string>
     <string name="variation_reset_confirm_title">Auf Standard zurücksetzen</string>
     <string name="variation_reset_confirm_message">Sind Sie sicher, dass Sie alle Variationen auf die Standardwerte zurücksetzen möchten? Diese Aktion kann nicht rückgängig gemacht werden.</string>
