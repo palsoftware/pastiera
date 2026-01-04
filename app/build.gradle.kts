@@ -209,6 +209,11 @@ dependencies {
     // Shizuku for ADB shell access
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+    // TensorFlow Lite for Whisper Speech Recognition
+    implementation("org.tensorflow:tensorflow-lite:2.15.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
+    // Voice Activity Detection (VAD) for Whisper
+    implementation("com.github.gkonovalov.android-vad:webrtc:2.0.9")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

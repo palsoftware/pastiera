@@ -849,6 +849,53 @@ object SettingsManager {
             .putString(KEY_LONG_PRESS_MODIFIER, validModifier)
             .apply()
     }
+
+    // =================================================================
+    // Whisper Speech Recognition Settings
+    // =================================================================
+
+    private const val KEY_USE_WHISPER = "use_whisper_speech_recognition"
+    private const val KEY_WHISPER_MODEL = "whisper_model"
+    private const val DEFAULT_USE_WHISPER = false
+    private const val DEFAULT_WHISPER_MODEL = "BASE" // WhisperModel enum name
+
+    /**
+     * Gets whether Whisper should be used instead of Google Speech Recognition.
+     */
+    fun getUseWhisper(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_USE_WHISPER, DEFAULT_USE_WHISPER)
+    }
+
+    /**
+     * Sets whether to use Whisper for speech recognition.
+     */
+    fun setUseWhisper(context: Context, useWhisper: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_USE_WHISPER, useWhisper)
+            .apply()
+    }
+
+    /**
+     * Gets the selected Whisper model.
+     */
+    fun getWhisperModel(context: Context): it.palsoftware.pastiera.inputmethod.whisper.WhisperModel {
+        val modelName = getPreferences(context).getString(KEY_WHISPER_MODEL, DEFAULT_WHISPER_MODEL) ?: DEFAULT_WHISPER_MODEL
+        return try {
+            it.palsoftware.pastiera.inputmethod.whisper.WhisperModel.valueOf(modelName)
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "Invalid Whisper model name: $modelName, using default")
+            it.palsoftware.pastiera.inputmethod.whisper.WhisperModel.BASE
+        }
+    }
+
+    /**
+     * Sets the Whisper model to use.
+     */
+    fun setWhisperModel(context: Context, model: it.palsoftware.pastiera.inputmethod.whisper.WhisperModel) {
+        getPreferences(context).edit()
+            .putString(KEY_WHISPER_MODEL, model.name)
+            .apply()
+    }
     
     /**
      * Returns true if long press uses Shift, false if it uses Alt.

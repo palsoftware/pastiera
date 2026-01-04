@@ -277,6 +277,26 @@
     <string name="speech_recognition_error_generic">Speech recognition error.</string>
     <string name="speech_recognition_error_not_available">Speech recognition not available.</string>
     
+    <!-- Whisper Speech Recognition -->
+    <string name="whisper_enabled_title">Use Whisper (Offline)</string>
+    <string name="whisper_enabled_description">Use Whisper for offline speech recognition instead of Google</string>
+    <string name="whisper_model_title">Whisper Model</string>
+    <string name="whisper_model_description">Select the model for speech recognition quality and speed</string>
+    <string name="whisper_model_download_title">Download Models</string>
+    <string name="whisper_model_download_description">Download Whisper models for offline speech recognition</string>
+    <string name="whisper_processing">Processing...</string>
+    <string name="whisper_error_model_not_found">Whisper model not found. Please download it first.</string>
+    <string name="whisper_error_initialization">Error initializing Whisper engine.</string>
+    <string name="whisper_error_generic">Whisper recognition error.</string>
+    <string name="whisper_model_tiny_en">Tiny (English only) - 75 MB</string>
+    <string name="whisper_model_base">Base (Multilingual) - 150 MB</string>
+    <string name="whisper_model_small">Small (Multilingual) - 500 MB</string>
+    <string name="whisper_model_download_in_progress">Downloading model...</string>
+    <string name="whisper_model_download_complete">Model downloaded successfully</string>
+    <string name="whisper_model_download_failed">Model download failed</string>
+    <string name="whisper_model_status_downloaded">Downloaded</string>
+    <string name="whisper_model_status_not_downloaded">Not downloaded</string>
+    
     <!-- Auto Correct Edit Screen -->
     <string name="auto_correct_search_placeholder">Search corrections...</string>
     <string name="auto_correct_search_description">Search</string>
