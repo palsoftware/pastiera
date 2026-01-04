@@ -42,6 +42,14 @@
     <!-- Auto Show Keyboard Section -->
     <string name="auto_show_keyboard_title">Tastatur automatisch anzeigen</string>
     
+    <!-- Alt+Ctrl Speech Recognition Shortcut Section -->
+    <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl Spracherkennung</string>
+    <string name="alt_ctrl_speech_shortcut_description">Alt+Ctrl Tastenkombination aktivieren, um Spracherkennung zu starten</string>
+
+    <!-- Show Voice Input Button Section -->
+    <string name="show_voice_input_button_title">Spracheingabe-Button anzeigen</string>
+    <string name="show_voice_input_button_description">Das Mikrofon-Symbol in der Eingabemethodenleiste für Spracheingabe anzeigen</string>
+    
     <!-- Info Section -->
     <string name="info_title">Informationen</string>
     <string name="info_description">Einstellungen werden automatisch gespeichert und sofort auf die Eingabemethode angewendet.</string>
@@ -278,6 +286,10 @@
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Statische Variationsleiste</string>
     <string name="static_variation_bar_mode_description">Immer einen festen Satz von Hilfstasten in der Variationszeile anzeigen anstelle von kontextbasierten Variationen.</string>
+
+    <!-- Disable Accented Letters -->
+    <string name="disable_accented_letters_title">Akzentuierte Buchstaben ausblenden</string>
+    <string name="disable_accented_letters_description">Buchstaben-Variationen (ä, ö, ü) verstecken, um nur Wortvorhersagen anzuzeigen</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>

@@ -72,6 +72,9 @@ fun AutoCorrectionCategoryScreen(
     var useEditTypeRanking by remember {
         mutableStateOf(SettingsManager.getUseEditTypeRanking(context))
     }
+    var disableAccentedLetters by remember {
+        mutableStateOf(SettingsManager.isAccentedLettersDisabled(context))
+    }
     var navigationDirection by remember { mutableStateOf(LocalNavigationDirection.Push) }
     val navigationStack = remember {
         mutableStateListOf<AutoCorrectionDestination>(AutoCorrectionDestination.Main)
@@ -285,6 +288,49 @@ fun AutoCorrectionCategoryScreen(
                                     )
                                 }
                             }
+
+                        // Disable Accented Letters Toggle
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.TextFields,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.disable_accented_letters_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.disable_accented_letters_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = disableAccentedLetters,
+                                    onCheckedChange = { disabled ->
+                                        disableAccentedLetters = disabled
+                                        SettingsManager.setAccentedLettersDisabled(context, disabled)
+                                    },
+                                    enabled = experimentalSuggestionsEnabled
+                                )
+                            }
+                        }
 
                         Surface(
                             modifier = Modifier

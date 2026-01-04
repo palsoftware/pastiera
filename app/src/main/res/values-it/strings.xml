@@ -259,6 +259,10 @@
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Barra variazioni statica</string>
     <string name="static_variation_bar_mode_description">Mostra sempre una serie fissa di tasti di utilità nella barra variazioni invece delle variazioni contestuali.</string>
+
+    <!-- Disable Accented Letters -->
+    <string name="disable_accented_letters_title">Disabilita lettere accentate</string>
+    <string name="disable_accented_letters_description">Nascondi le variazioni di lettere accentate (à, è, ì, ò, ù) per mostrare solo le previsioni di parole</string>
     
     <!-- Auto Correct Edit Screen -->
     <string name="auto_correct_search_placeholder">Cerca correzioni...</string>

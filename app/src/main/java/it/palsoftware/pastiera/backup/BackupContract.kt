@@ -222,6 +222,7 @@ object PreferenceSchemas {
             "trackpad_gestures_enabled" to PreferenceValueType.BOOLEAN,
             "trackpad_swipe_threshold" to PreferenceValueType.FLOAT,
             "use_keyboard_proximity" to PreferenceValueType.BOOLEAN,
+            "disable_accented_letters" to PreferenceValueType.BOOLEAN,
             "use_edit_type_ranking" to PreferenceValueType.BOOLEAN,
             "custom_input_styles" to PreferenceValueType.STRING
         ),

@@ -288,6 +288,10 @@
     <string name="update_dialog_open_github">Открыть GitHub</string>
     <string name="update_dialog_later">Позже</string>
     <string name="update_dialog_download_apk">Скачать APK</string>
+
+    <!-- Disable Accented Letters -->
+    <string name="disable_accented_letters_title">Отключить буквы с акцентами</string>
+    <string name="disable_accented_letters_description">Скрыть варианты букв с акцентами, чтобы показывать только предсказания слов</string>
     
     <!-- Custom Input Styles -->
     <string name="custom_input_styles_title">Языки и раскладки</string>

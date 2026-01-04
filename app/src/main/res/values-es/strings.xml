@@ -277,6 +277,10 @@
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Barra de variaciones estática</string>
     <string name="static_variation_bar_mode_description">Mostrar siempre un conjunto fijo de teclas de utilidad en la fila de variaciones en lugar de variaciones contextuales.</string>
+
+    <!-- Disable Accented Letters -->
+    <string name="disable_accented_letters_title">Desactivar letras acentuadas</string>
+    <string name="disable_accented_letters_description">Ocultar las variaciones de letras acentuadas (á, é, í, ó, ú) para mostrar solo predicciones de palabras</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_tab_emoji">Emoji</string>

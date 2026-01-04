@@ -399,19 +399,26 @@ class VariationBarView(
 
         // Decide whether to use suggestions, dynamic variations (from cursor) or static utility keys.
         val staticModeEnabled = SettingsManager.isStaticVariationBarModeEnabled(context)
+        val disableAccentedLetters = SettingsManager.isAccentedLettersDisabled(context)
         // Variations are controlled separately from suggestions
         val canShowVariations = !snapshot.shouldDisableVariations
         val canShowSuggestions = !snapshot.shouldDisableSuggestions
         // Legacy variations: always honor them when present, independent of suggestions.
-        val hasDynamicVariations = canShowVariations && snapshot.variations.isNotEmpty()
+        // But skip dynamic variations if accented letters are disabled
+        val hasDynamicVariations = !disableAccentedLetters && canShowVariations && snapshot.variations.isNotEmpty()
         val hasSuggestions = canShowSuggestions && snapshot.suggestions.isNotEmpty()
         val useDynamicVariations = !staticModeEnabled && hasDynamicVariations
         val allowStaticFallback = staticModeEnabled || snapshot.shouldDisableVariations
 
         val effectiveVariations: List<String>
         val isStaticContent: Boolean
-        // Legacy behavior: give priority to letter variations when available, otherwise suggestions.
+        // Priority: suggestions (if accented letters disabled), then letter variations, then suggestions, then static
         when {
+            disableAccentedLetters && hasSuggestions -> {
+                // When accented letters are disabled, prioritize suggestions
+                effectiveVariations = snapshot.suggestions
+                isStaticContent = false
+            }
             useDynamicVariations -> {
                 effectiveVariations = snapshot.variations
                 isStaticContent = false
@@ -592,24 +599,27 @@ class VariationBarView(
         val buttonsContainerView = buttonsContainer ?: return
         buttonsContainerView.removeAllViews()
         
-        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(fixedButtonSize)
-        microphoneButtonView = microphoneButton
-        (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
-        val micParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
-            marginStart = spacingBetweenButtons
-        }
-        buttonsContainerView.addView(microphoneButton, micParams)
-        microphoneButton.setOnClickListener {
-            NotificationHelper.triggerHapticFeedback(context)
-            // Use callback if available (modern SpeechRecognizer approach), otherwise fallback to Activity
-            if (onSpeechRecognitionRequested != null) {
-                onSpeechRecognitionRequested?.invoke()
-            } else {
-                startSpeechRecognition(inputConnection)
+        // Only add microphone button if the setting is enabled
+        if (SettingsManager.getShowVoiceInputButton(context)) {
+            val microphoneButton = microphoneButtonView ?: createMicrophoneButton(fixedButtonSize)
+            microphoneButtonView = microphoneButton
+            (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
+            val micParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
+                marginStart = spacingBetweenButtons
             }
+            buttonsContainerView.addView(microphoneButton, micParams)
+            microphoneButton.setOnClickListener {
+                NotificationHelper.triggerHapticFeedback(context)
+                // Use callback if available (modern SpeechRecognizer approach), otherwise fallback to Activity
+                if (onSpeechRecognitionRequested != null) {
+                    onSpeechRecognitionRequested?.invoke()
+                } else {
+                    startSpeechRecognition(inputConnection)
+                }
+            }
+            microphoneButton.alpha = 1f
+            microphoneButton.visibility = View.VISIBLE
         }
-        microphoneButton.alpha = 1f
-        microphoneButton.visibility = View.VISIBLE
 
         // Language switch button (language code)
         val languageButton = languageButtonView ?: createLanguageButton(fixedButtonSize)

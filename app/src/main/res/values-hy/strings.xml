@@ -322,5 +322,9 @@
     <string name="installed_dictionaries_import_invalid_format">Բառարանի ձևաչափը սխալ է</string>
     <string name="installed_dictionaries_import_failed">Ներմուծումը ձախողվեց</string>
     <string name="installed_dictionaries_imported_badge">Ներմուծված</string>
+
+    <!-- Disable Accented Letters -->
+    <string name="disable_accented_letters_title">Անջատել շեշտավոր տառերը</string>
+    <string name="disable_accented_letters_description">Թաքցնել շեշտավոր տառերի տարբերակները՝ ցույց տալու միայն բառերի կանխատեսումները</string>
 </resources>
 
