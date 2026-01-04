@@ -60,6 +60,10 @@ fun TextInputSettingsScreen(
         mutableStateOf(SettingsManager.getAltCtrlSpeechShortcutEnabled(context))
     }
     
+    var showVoiceInputButton by remember {
+        mutableStateOf(SettingsManager.getShowVoiceInputButton(context))
+    }
+    
     // Handle system back button
     BackHandler { onBack() }
     
@@ -377,6 +381,49 @@ fun TextInputSettingsScreen(
                         onCheckedChange = { enabled ->
                             altCtrlSpeechShortcut = enabled
                             SettingsManager.setAltCtrlSpeechShortcutEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+
+            // Show Voice Input Button
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.show_voice_input_button_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.show_voice_input_button_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                    Switch(
+                        checked = showVoiceInputButton,
+                        onCheckedChange = { enabled ->
+                            showVoiceInputButton = enabled
+                            SettingsManager.setShowVoiceInputButton(context, enabled)
                         }
                     )
                 }

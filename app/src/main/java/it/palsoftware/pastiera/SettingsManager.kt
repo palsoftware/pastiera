@@ -52,6 +52,7 @@ object SettingsManager {
     private const val KEY_CLIPBOARD_RETENTION_TIME = "clipboard_retention_time" // How long to keep clipboard entries (in minutes)
     private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled" // Whether trackpad gesture suggestions are enabled
     private const val KEY_TRACKPAD_SWIPE_THRESHOLD = "trackpad_swipe_threshold" // Threshold for swipe detection on trackpad
+    private const val KEY_SHOW_VOICE_INPUT_BUTTON = "show_voice_input_button" // Whether to show the voice input microphone button
 
     private const val VARIATIONS_FILE_NAME = "variations.json"
     
@@ -94,6 +95,7 @@ object SettingsManager {
     private const val DEFAULT_TRACKPAD_SWIPE_THRESHOLD = 300f
     private const val MIN_TRACKPAD_SWIPE_THRESHOLD = 120f
     private const val MAX_TRACKPAD_SWIPE_THRESHOLD = 600f
+    private const val DEFAULT_SHOW_VOICE_INPUT_BUTTON = true
 
     /**
      * Returns the SharedPreferences instance for Pastiera.
@@ -1581,6 +1583,26 @@ object SettingsManager {
     fun getMinTrackpadSwipeThreshold(): Float = MIN_TRACKPAD_SWIPE_THRESHOLD
     fun getMaxTrackpadSwipeThreshold(): Float = MAX_TRACKPAD_SWIPE_THRESHOLD
     fun getDefaultTrackpadSwipeThreshold(): Float = DEFAULT_TRACKPAD_SWIPE_THRESHOLD
+
+    /**
+     * Returns whether the voice input microphone button should be shown.
+     * @param context The context
+     * @return Whether the voice input button is enabled
+     */
+    fun getShowVoiceInputButton(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SHOW_VOICE_INPUT_BUTTON, DEFAULT_SHOW_VOICE_INPUT_BUTTON)
+    }
+
+    /**
+     * Sets whether the voice input microphone button should be shown.
+     * @param context The context
+     * @param enabled Whether to show the voice input button
+     */
+    fun setShowVoiceInputButton(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SHOW_VOICE_INPUT_BUTTON, enabled)
+            .apply()
+    }
 
     /**
      * Returns the File for variations.json in filesDir.

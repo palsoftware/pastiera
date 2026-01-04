@@ -592,24 +592,27 @@ class VariationBarView(
         val buttonsContainerView = buttonsContainer ?: return
         buttonsContainerView.removeAllViews()
         
-        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(fixedButtonSize)
-        microphoneButtonView = microphoneButton
-        (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
-        val micParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
-            marginStart = spacingBetweenButtons
-        }
-        buttonsContainerView.addView(microphoneButton, micParams)
-        microphoneButton.setOnClickListener {
-            NotificationHelper.triggerHapticFeedback(context)
-            // Use callback if available (modern SpeechRecognizer approach), otherwise fallback to Activity
-            if (onSpeechRecognitionRequested != null) {
-                onSpeechRecognitionRequested?.invoke()
-            } else {
-                startSpeechRecognition(inputConnection)
+        // Only add microphone button if the setting is enabled
+        if (SettingsManager.getShowVoiceInputButton(context)) {
+            val microphoneButton = microphoneButtonView ?: createMicrophoneButton(fixedButtonSize)
+            microphoneButtonView = microphoneButton
+            (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
+            val micParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
+                marginStart = spacingBetweenButtons
             }
+            buttonsContainerView.addView(microphoneButton, micParams)
+            microphoneButton.setOnClickListener {
+                NotificationHelper.triggerHapticFeedback(context)
+                // Use callback if available (modern SpeechRecognizer approach), otherwise fallback to Activity
+                if (onSpeechRecognitionRequested != null) {
+                    onSpeechRecognitionRequested?.invoke()
+                } else {
+                    startSpeechRecognition(inputConnection)
+                }
+            }
+            microphoneButton.alpha = 1f
+            microphoneButton.visibility = View.VISIBLE
         }
-        microphoneButton.alpha = 1f
-        microphoneButton.visibility = View.VISIBLE
 
         // Language switch button (language code)
         val languageButton = languageButtonView ?: createLanguageButton(fixedButtonSize)

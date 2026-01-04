@@ -52,6 +52,10 @@
     <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl Speech Recognition</string>
     <string name="alt_ctrl_speech_shortcut_description">Enable Alt+Ctrl keyboard shortcut to start speech recognition</string>
 
+    <!-- Show Voice Input Button Section -->
+    <string name="show_voice_input_button_title">Show Voice Input Button</string>
+    <string name="show_voice_input_button_description">Display the microphone button in the input method bar for voice input</string>
+
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Static Variation Bar</string>
     <string name="static_variation_bar_mode_description">Always show a fixed set of utility keys in the variation row instead of context-based variations.</string>
