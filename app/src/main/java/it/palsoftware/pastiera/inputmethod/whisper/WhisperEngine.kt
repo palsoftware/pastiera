@@ -143,11 +143,33 @@ class WhisperEngine(private val context: Context) {
         val inputTensor = interpreter.getInputTensor(0)
         val outputTensor = interpreter.getOutputTensor(0)
         
-        // Prepare input buffer
-        val inputSize = inputTensor.shape()[0] * inputTensor.shape()[1] * inputTensor.shape()[2] * Float.SIZE_BYTES / 8
-        val inputBuffer = ByteBuffer.allocateDirect(inputSize).apply {
+        Log.d(TAG, "Input tensor shape: ${inputTensor.shape().contentToString()}")
+        Log.d(TAG, "Mel spectrogram size: ${melSpectrogram.size}")
+        
+        // Prepare input buffer - calculate correct size
+        // Shape is typically [1, n_mels, n_frames] = [1, 80, 3000]
+        val inputShape = inputTensor.shape()
+        val expectedInputSize = inputShape.fold(1) { acc, dim -> acc * dim }
+        val inputBufferSize = expectedInputSize * 4 // 4 bytes per float
+        
+        Log.d(TAG, "Expected input size: $expectedInputSize floats, buffer size: $inputBufferSize bytes")
+        Log.d(TAG, "Actual mel spectrogram size: ${melSpectrogram.size} floats")
+        
+        // Adjust mel spectrogram size if needed
+        val adjustedMel = if (melSpectrogram.size != expectedInputSize) {
+            Log.w(TAG, "Mel spectrogram size mismatch! Expected $expectedInputSize, got ${melSpectrogram.size}")
+            FloatArray(expectedInputSize).also {
+                val copySize = minOf(melSpectrogram.size, expectedInputSize)
+                System.arraycopy(melSpectrogram, 0, it, 0, copySize)
+            }
+        } else {
+            melSpectrogram
+        }
+        
+        // Create input buffer
+        val inputBuffer = ByteBuffer.allocateDirect(inputBufferSize).apply {
             order(ByteOrder.nativeOrder())
-            melSpectrogram.forEach { putFloat(it) }
+            adjustedMel.forEach { putFloat(it) }
             rewind()
         }
         
