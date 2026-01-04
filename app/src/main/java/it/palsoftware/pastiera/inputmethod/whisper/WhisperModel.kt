@@ -12,22 +12,22 @@ enum class WhisperModel(
 ) {
     TINY_EN(
         displayName = "Tiny (English only)",
-        fileName = "whisper-tiny-en.tflite",
-        sizeBytes = 75 * 1024 * 1024, // ~75 MB
+        fileName = "whisper-tiny.en.tflite",
+        sizeBytes = 42 * 1024 * 1024, // ~42 MB
         isMultilingual = false,
         description = "Fast, English only, good for clear speech"
     ),
     BASE(
         displayName = "Base (Multilingual)",
-        fileName = "whisper-base.tflite",
-        sizeBytes = 150 * 1024 * 1024, // ~150 MB
+        fileName = "whisper-base.TOP_WORLD.tflite",
+        sizeBytes = 108 * 1024 * 1024, // ~108 MB
         isMultilingual = true,
-        description = "Balanced quality and speed, supports 99 languages"
+        description = "Balanced quality and speed, supports top world languages"
     ),
     SMALL(
         displayName = "Small (Multilingual)",
         fileName = "whisper-small.tflite",
-        sizeBytes = 500 * 1024 * 1024, // ~500 MB
+        sizeBytes = 388 * 1024 * 1024, // ~388 MB
         isMultilingual = true,
         description = "Excellent quality, may be slower on some devices"
     );
