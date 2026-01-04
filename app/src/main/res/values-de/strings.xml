@@ -320,6 +320,7 @@
     <string name="settings_category_text_input">Texteingabe</string>
     <string name="settings_category_auto_correction">Autokorrektur</string>
     <string name="settings_category_customization">Anpassung</string>
+    <string name="settings_category_speech_recognition">Spracherkennung</string>
     <string name="settings_category_advanced">Erweitert</string>
     
     <!-- Keyboard Layout Settings -->

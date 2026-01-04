@@ -390,6 +390,7 @@
     <string name="settings_category_text_input">Smart Features</string>
     <string name="settings_category_auto_correction">Auto-correction</string>
     <string name="settings_category_customization">Customization</string>
+    <string name="settings_category_speech_recognition">Speech Recognition</string>
     <string name="settings_category_advanced">Advanced</string>
     
     <!-- Languages (Input Method Subtypes) -->
