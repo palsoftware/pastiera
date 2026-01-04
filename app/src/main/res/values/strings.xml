@@ -196,9 +196,11 @@
     
     <!-- Long Press Modifier Section -->
     <string name="long_press_modifier_title">Long Press Modifier</string>
-    <string name="long_press_modifier_description">Choose whether long press simulates Alt+key or Shift+key</string>
+    <string name="long_press_modifier_description">Choose what long press does: Alt+key, Shift+key, character variations, or Sym mappings</string>
     <string name="long_press_modifier_alt">Alt</string>
     <string name="long_press_modifier_shift">Shift</string>
+    <string name="long_press_modifier_variations">Variations</string>
+    <string name="long_press_modifier_sym">Sym</string>
     
     <!-- Keyboard Layout Section -->
     <string name="keyboard_layout_title">Keyboard Layout</string>

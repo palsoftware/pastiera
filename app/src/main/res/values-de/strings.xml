@@ -187,9 +187,11 @@
     
     <!-- Long Press Modifier Section -->
     <string name="long_press_modifier_title">Modifikator für langen Druck</string>
-    <string name="long_press_modifier_description">Wählen Sie, ob langer Druck Alt+Taste oder Shift+Taste simuliert</string>
+    <string name="long_press_modifier_description">Wählen Sie, was langer Druck macht: Alt+Taste, Shift+Taste, Zeichenvariationen oder Sym-Belegungen</string>
     <string name="long_press_modifier_alt">Alt</string>
     <string name="long_press_modifier_shift">Shift</string>
+    <string name="long_press_modifier_variations">Variationen</string>
+    <string name="long_press_modifier_sym">Sym</string>
     
     <!-- About Section -->
     <string name="about_github">GitHub</string>

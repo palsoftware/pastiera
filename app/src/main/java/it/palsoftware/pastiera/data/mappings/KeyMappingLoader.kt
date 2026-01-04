@@ -107,9 +107,21 @@ object KeyMappingLoader {
             while (keys.hasNext()) {
                 val keyName = keys.next()
                 val keyCode = keyCodeMap[keyName]
-                val emoji = mappingsObject.getString(keyName)
                 if (keyCode != null) {
-                    symKeyMap[keyCode] = emoji
+                    // Support both String and Object format for backward compatibility
+                    val value = mappingsObject.get(keyName)
+                    val emoji = when (value) {
+                        is String -> value // Old format: "KEYCODE_O": "😀"
+                        is JSONObject -> {
+                            // New format: "KEYCODE_O": { "lowercase": "😀", "uppercase": "😁" }
+                            // For now, just use lowercase as default (non-shifted)
+                            value.optString("lowercase", "")
+                        }
+                        else -> ""
+                    }
+                    if (emoji.isNotEmpty()) {
+                        symKeyMap[keyCode] = emoji
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -133,15 +145,90 @@ object KeyMappingLoader {
             while (keys.hasNext()) {
                 val keyName = keys.next()
                 val keyCode = keyCodeMap[keyName]
-                val character = mappingsObject.getString(keyName)
                 if (keyCode != null) {
-                    symKeyMap[keyCode] = character
+                    // Support both String and Object format for backward compatibility
+                    val value = mappingsObject.get(keyName)
+                    val character = when (value) {
+                        is String -> value // Old format
+                        is JSONObject -> value.optString("lowercase", "") // New format
+                        else -> ""
+                    }
+                    if (character.isNotEmpty()) {
+                        symKeyMap[keyCode] = character
+                    }
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error loading SYM page 2 mappings", e)
-            symKeyMap[KeyEvent.KEYCODE_Q] = "¿"
-            symKeyMap[KeyEvent.KEYCODE_W] = "¡"
+        }
+        return symKeyMap
+    }
+    
+    /**
+     * Loads uppercase/shifted Sym key mappings from JSON.
+     * Only returns entries with explicit "uppercase" definitions.
+     * Falls back to empty map if file doesn't exist or has no uppercase mappings.
+     */
+    fun loadSymKeyMappingsUppercase(assets: AssetManager): Map<Int, String> {
+        val symKeyMap = mutableMapOf<Int, String>()
+        try {
+            val filePath = "common/sym/sym_key_mappings.json"
+            val inputStream: InputStream = assets.open(filePath)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val jsonObject = JSONObject(jsonString)
+            val mappingsObject = jsonObject.getJSONObject("mappings")
+
+            val keys = mappingsObject.keys()
+            while (keys.hasNext()) {
+                val keyName = keys.next()
+                val keyCode = keyCodeMap[keyName]
+                if (keyCode != null) {
+                    val value = mappingsObject.get(keyName)
+                    if (value is JSONObject) {
+                        // New format with uppercase support
+                        val uppercase = value.optString("uppercase", "")
+                        if (uppercase.isNotEmpty()) {
+                            symKeyMap[keyCode] = uppercase
+                        }
+                    }
+                    // If String format (old), don't add to uppercase map (no shift variant)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading uppercase SYM mappings", e)
+        }
+        return symKeyMap
+    }
+    
+    /**
+     * Loads uppercase/shifted Sym key mappings for Page 2 from JSON.
+     * Only returns entries with explicit "uppercase" definitions.
+     */
+    fun loadSymKeyMappingsPage2Uppercase(assets: AssetManager): Map<Int, String> {
+        val symKeyMap = mutableMapOf<Int, String>()
+        try {
+            val filePath = "common/sym/sym_key_mappings_page2.json"
+            val inputStream: InputStream = assets.open(filePath)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val jsonObject = JSONObject(jsonString)
+            val mappingsObject = jsonObject.getJSONObject("mappings")
+
+            val keys = mappingsObject.keys()
+            while (keys.hasNext()) {
+                val keyName = keys.next()
+                val keyCode = keyCodeMap[keyName]
+                if (keyCode != null) {
+                    val value = mappingsObject.get(keyName)
+                    if (value is JSONObject) {
+                        val uppercase = value.optString("uppercase", "")
+                        if (uppercase.isNotEmpty()) {
+                            symKeyMap[keyCode] = uppercase
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading uppercase SYM page 2 mappings", e)
         }
         return symKeyMap
     }

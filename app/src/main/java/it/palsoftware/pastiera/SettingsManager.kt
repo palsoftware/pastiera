@@ -834,17 +834,22 @@ object SettingsManager {
     }
     
     /**
-     * Returns the long-press modifier type ("alt" or "shift").
+     * Returns the long-press modifier type ("alt", "shift", "variations", or "sym").
      */
     fun getLongPressModifier(context: Context): String {
         return getPreferences(context).getString(KEY_LONG_PRESS_MODIFIER, DEFAULT_LONG_PRESS_MODIFIER) ?: DEFAULT_LONG_PRESS_MODIFIER
     }
     
     /**
-     * Sets the long-press modifier type ("alt" or "shift").
+     * Sets the long-press modifier type ("alt", "shift", "variations", or "sym").
      */
     fun setLongPressModifier(context: Context, modifier: String) {
-        val validModifier = if (modifier == "shift") "shift" else "alt"
+        val validModifier = when (modifier) {
+            "shift" -> "shift"
+            "variations" -> "variations"
+            "sym" -> "sym"
+            else -> "alt"
+        }
         getPreferences(context).edit()
             .putString(KEY_LONG_PRESS_MODIFIER, validModifier)
             .apply()
@@ -852,9 +857,24 @@ object SettingsManager {
     
     /**
      * Returns true if long press uses Shift, false if it uses Alt.
+     * @deprecated Use getLongPressModifier() for more granular control
      */
     fun isLongPressShift(context: Context): Boolean {
         return getLongPressModifier(context) == "shift"
+    }
+    
+    /**
+     * Returns true if long press uses Variations mode.
+     */
+    fun isLongPressVariations(context: Context): Boolean {
+        return getLongPressModifier(context) == "variations"
+    }
+    
+    /**
+     * Returns true if long press uses Sym mode.
+     */
+    fun isLongPressSym(context: Context): Boolean {
+        return getLongPressModifier(context) == "sym"
     }
     
     /**

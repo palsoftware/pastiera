@@ -8,6 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
@@ -138,11 +140,14 @@ fun KeyboardTimingSettingsScreen(
                 }
             }
         
-            // Long Press Modifier (Alt/Shift)
+            // Long Press Modifier (Alt/Shift/Variations/Sym) - Dropdown Style
+            var showModifierMenu by remember { mutableStateOf(false) }
+            
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
+                    .clickable { showModifierMenu = true }
             ) {
                 Row(
                     modifier = Modifier
@@ -165,41 +170,82 @@ fun KeyboardTimingSettingsScreen(
                             maxLines = 1
                         )
                         Text(
-                            text = stringResource(R.string.long_press_modifier_description),
+                            text = when (longPressModifier) {
+                                "alt" -> stringResource(R.string.long_press_modifier_alt)
+                                "shift" -> stringResource(R.string.long_press_modifier_shift)
+                                "variations" -> stringResource(R.string.long_press_modifier_variations)
+                                "sym" -> stringResource(R.string.long_press_modifier_sym)
+                                else -> stringResource(R.string.long_press_modifier_alt)
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
                         )
                     }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.long_press_modifier_alt),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (longPressModifier == "alt") 
-                                MaterialTheme.colorScheme.primary 
-                            else 
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Switch(
-                            checked = longPressModifier == "shift",
-                            onCheckedChange = { useShift ->
-                                val newModifier = if (useShift) "shift" else "alt"
-                                longPressModifier = newModifier
-                                SettingsManager.setLongPressModifier(context, newModifier)
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                // Dropdown Menu
+                DropdownMenu(
+                    expanded = showModifierMenu,
+                    onDismissRequest = { showModifierMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.long_press_modifier_alt)) },
+                        onClick = {
+                            longPressModifier = "alt"
+                            SettingsManager.setLongPressModifier(context, "alt")
+                            showModifierMenu = false
+                        },
+                        leadingIcon = {
+                            if (longPressModifier == "alt") {
+                                Icon(Icons.Default.Check, contentDescription = null)
                             }
-                        )
-                        Text(
-                            text = stringResource(R.string.long_press_modifier_shift),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (longPressModifier == "shift") 
-                                MaterialTheme.colorScheme.primary 
-                            else 
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.long_press_modifier_shift)) },
+                        onClick = {
+                            longPressModifier = "shift"
+                            SettingsManager.setLongPressModifier(context, "shift")
+                            showModifierMenu = false
+                        },
+                        leadingIcon = {
+                            if (longPressModifier == "shift") {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.long_press_modifier_variations)) },
+                        onClick = {
+                            longPressModifier = "variations"
+                            SettingsManager.setLongPressModifier(context, "variations")
+                            showModifierMenu = false
+                        },
+                        leadingIcon = {
+                            if (longPressModifier == "variations") {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.long_press_modifier_sym)) },
+                        onClick = {
+                            longPressModifier = "sym"
+                            SettingsManager.setLongPressModifier(context, "sym")
+                            showModifierMenu = false
+                        },
+                        leadingIcon = {
+                            if (longPressModifier == "sym") {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        }
+                    )
                 }
             }
         
