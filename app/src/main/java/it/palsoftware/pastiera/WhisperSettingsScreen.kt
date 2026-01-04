@@ -30,7 +30,7 @@ fun WhisperSettingsScreen(
     
     var useWhisper by remember { mutableStateOf(SettingsManager.getUseWhisper(context)) }
     var selectedModel by remember { mutableStateOf(SettingsManager.getWhisperModel(context)) }
-    var isDownloading by remember { mutableStateOf(false) }
+    var downloadingModel by remember { mutableStateOf<WhisperModel?>(null) }
     var downloadProgress by remember { mutableStateOf(0f) }
     var downloadedModels by remember { mutableStateOf(setOf<WhisperModel>()) }
     
@@ -138,6 +138,7 @@ fun WhisperSettingsScreen(
                     WhisperModel.values().forEach { model ->
                         val isDownloaded = downloadedModels.contains(model)
                         val isSelected = selectedModel == model
+                        val isDownloadingThis = downloadingModel == model
                         
                         ElevatedCard(
                             modifier = Modifier
@@ -178,24 +179,36 @@ fun WhisperSettingsScreen(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = model.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "${model.sizeBytes / (1024 * 1024)} MB",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                    if (isDownloaded) {
-                                        Text(
-                                            text = stringResource(R.string.whisper_model_status_downloaded),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.tertiary
-                                        )
-                                    }
-                                }
+                                                text = model.description,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "${model.sizeBytes / (1024 * 1024)} MB",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.padding(top = 4.dp)
+                                            )
+                                            if (isDownloaded) {
+                                                Text(
+                                                    text = stringResource(R.string.whisper_model_status_downloaded),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.tertiary
+                                                )
+                                            } else if (isDownloadingThis) {
+                                                Text(
+                                                    text = stringResource(R.string.whisper_model_download_in_progress) + " ${(downloadProgress * 100).toInt()}%",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                LinearProgressIndicator(
+                                                    progress = { downloadProgress },
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(top = 4.dp)
+                                                )
+                                            }
+                                        }
                                 
                                 // Download/Delete Button
                                 if (isDownloaded) {
@@ -218,8 +231,8 @@ fun WhisperSettingsScreen(
                                 } else {
                                     IconButton(
                                         onClick = {
-                                            if (!isDownloading) {
-                                                isDownloading = true
+                                            if (downloadingModel == null) {
+                                                downloadingModel = model
                                                 downloadProgress = 0f
                                                 scope.launch {
                                                     try {
@@ -244,7 +257,7 @@ fun WhisperSettingsScreen(
                                                         }
                                                         
                                                         // Back on Main thread for UI updates
-                                                        isDownloading = false
+                                                        downloadingModel = null
                                                         if (result.isSuccess) {
                                                             downloadedModels = downloadedModels + model
                                                             android.widget.Toast.makeText(
@@ -264,7 +277,7 @@ fun WhisperSettingsScreen(
                                                         android.util.Log.d("WhisperSettings", "Download result: ${result.isSuccess}")
                                                     } catch (e: Exception) {
                                                         android.util.Log.e("WhisperSettings", "Exception during download", e)
-                                                        isDownloading = false
+                                                        downloadingModel = null
                                                         android.widget.Toast.makeText(
                                                             context,
                                                             "Error: ${e.message}",
@@ -274,9 +287,9 @@ fun WhisperSettingsScreen(
                                                 }
                                             }
                                         },
-                                        enabled = !isDownloading
+                                        enabled = downloadingModel == null
                                     ) {
-                                        if (isDownloading) {
+                                        if (isDownloadingThis) {
                                             androidx.compose.material3.CircularProgressIndicator(
                                                 modifier = androidx.compose.ui.Modifier.size(24.dp),
                                                 strokeWidth = 2.dp
@@ -291,16 +304,6 @@ fun WhisperSettingsScreen(
                                 }
                             }
                         }
-                    }
-                    
-                    // Download Progress
-                    if (isDownloading) {
-                        LinearProgressIndicator(
-                            progress = { downloadProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 16.dp)
-                        )
                     }
                 }
             }
