@@ -1,6 +1,50 @@
-# Dictionary Pre-processing Script
+# Pastiera Scripts
 
-This script converts JSON dictionary files into a serialized format for faster loading at runtime.
+This directory contains utility scripts for dictionary processing and autocorrection generation.
+
+## 📚 Available Scripts
+
+### 1. generate_autocorrections.py
+
+Generate autocorrection rules from base dictionaries for multiple languages.
+
+**What it does:**
+- Converts accented/umlauted words to ASCII equivalents
+- German: ä→ae, ö→oe, ü→ue, ß→ss
+- French, Spanish, Italian, Polish: Generic accent removal
+- Preserves manually defined rules
+
+**Usage:**
+
+```bash
+# Generate for all supported languages (de, fr, es, en, it, pl)
+python3 scripts/generate_autocorrections.py
+
+# Generate for specific languages only
+python3 scripts/generate_autocorrections.py de fr
+
+# Overwrite existing rules (don't preserve manual edits)
+python3 scripts/generate_autocorrections.py --no-preserve
+```
+
+**Output:**
+- Files: `app/src/main/assets/common/autocorrect/auto_corrections_{lang}.json`
+- Format: Simple JSON `{"from": "to", ...}`
+- Automatically loaded by the app at runtime
+
+**Example Output:**
+```
+DE:   7911 rules → auto_corrections_de.json
+FR:  15449 rules → auto_corrections_fr.json  
+ES:  10683 rules → auto_corrections_es.json
+EN:    121 rules → auto_corrections_en.json
+IT:   1816 rules → auto_corrections_it.json
+PL:  15472 rules → auto_corrections_pl.json
+```
+
+### 2. preprocess_dictionaries.py
+
+Convert JSON dictionary files into serialized format for faster loading.
 
 ## Performance Improvement
 

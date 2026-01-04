@@ -7,12 +7,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -25,8 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import it.palsoftware.pastiera.inputmethod.AutoCorrector
 import it.palsoftware.pastiera.R
 import org.json.JSONObject
@@ -54,6 +53,9 @@ fun AutoCorrectEditScreen(
     // State for the add/edit dialog
     var showAddDialog by remember { mutableStateOf(false) }
     var editingKey by remember { mutableStateOf<String?>(null) }
+    
+    // State for delete all confirmation
+    var showDeleteAllDialog by remember { mutableStateOf(false) }
     
     // State for search query
     var searchQuery by remember { mutableStateOf("") }
@@ -107,126 +109,137 @@ fun AutoCorrectEditScreen(
                             modifier = Modifier.padding(start = 8.dp)
                         )
                     }
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.auto_correct_add_correction)
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Delete all button (only show if there are corrections)
+                        if (corrections.isNotEmpty()) {
+                            IconButton(onClick = { showDeleteAllDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.DeleteSweep,
+                                    contentDescription = "Alle Regeln löschen",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                        IconButton(onClick = { showAddDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.auto_correct_add_correction)
+                            )
+                        }
                     }
                 }
             }
         }
         ) { paddingValues ->
-            AnimatedContent(
-                targetState = Unit,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                },
-                label = "auto_correct_edit_animation"
+            LazyColumn(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(paddingValues)
             ) {
-                Column(
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .padding(paddingValues)
-                        .verticalScroll(rememberScrollState())
-                ) {
-            // Header with description
-            Surface(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = stringResource(R.string.auto_correct_edit_description),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
-            
-            // Search field
-            Surface(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = { Text(stringResource(R.string.auto_correct_search_placeholder)) },
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = stringResource(R.string.auto_correct_search_description)
+                // Header with description
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(R.string.auto_correct_edit_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
                         )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
+                    }
+                }
+                
+                // Search field
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            placeholder = { Text(stringResource(R.string.auto_correct_search_placeholder)) },
+                            singleLine = true,
+                            leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.auto_correct_clear_search)
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = stringResource(R.string.auto_correct_search_description)
                                 )
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = stringResource(R.string.auto_correct_clear_search)
+                                        )
+                                    }
+                                }
                             }
+                        )
+                    }
+                }
+                
+                // List of corrections
+                if (filteredCorrections.isEmpty()) {
+                    // Message shown when there are no corrections or no search results
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (searchQuery.isNotEmpty()) {
+                                    stringResource(R.string.auto_correct_no_corrections_found)
+                                } else {
+                                    stringResource(R.string.auto_correct_no_corrections)
+                                },
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
-                )
-            }
-            
-            // List of corrections
-            if (filteredCorrections.isEmpty()) {
-                // Message shown when there are no corrections or no search results
-                Surface(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = if (searchQuery.isNotEmpty()) {
-                            stringResource(R.string.auto_correct_no_corrections_found)
-                        } else {
-                            stringResource(R.string.auto_correct_no_corrections)
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            } else {
-                // Show corrections in insertion order (newest first)
-                filteredCorrections.forEach { (original, corrected) ->
-                    CorrectionItem(
-                        original = original,
-                        corrected = corrected,
-                        onEdit = {
-                            editingKey = original
-                            showAddDialog = true
-                        },
-                        onDelete = {
-                            val newCorrections = corrections.toMutableMap()
-                            newCorrections.remove(original)
-                            corrections = newCorrections.toLinkedHashMap()
-                            saveCorrections(context, languageCode, corrections, null)
-                            // Reload all corrections (including new languages)
-                            // Use a context that allows access to assets
-                            try {
-                                val assets = context.assets
-                                AutoCorrector.loadCorrections(assets, context)
-                            } catch (e: Exception) {
-                                // Fallback: ricarica solo questa lingua
-                                AutoCorrector.loadCustomCorrections(
-                                    languageCode,
-                                    correctionsToJson(corrections)
-                                )
+                } else {
+                    // Show corrections in insertion order (newest first) - OPTIMIZED with items()
+                    items(filteredCorrections.toList()) { (original, corrected) ->
+                        CorrectionItem(
+                            original = original,
+                            corrected = corrected,
+                            onEdit = {
+                                editingKey = original
+                                showAddDialog = true
+                            },
+                            onDelete = {
+                                val newCorrections = corrections.toMutableMap()
+                                newCorrections.remove(original)
+                                corrections = newCorrections.toLinkedHashMap()
+                                saveCorrections(context, languageCode, corrections, null)
+                                // Reload all corrections (including new languages)
+                                // Use a context that allows access to assets
+                                try {
+                                    val assets = context.assets
+                                    AutoCorrector.loadCorrections(assets, context)
+                                } catch (e: Exception) {
+                                    // Fallback: ricarica solo questa lingua
+                                    AutoCorrector.loadCustomCorrections(
+                                        languageCode,
+                                        correctionsToJson(corrections)
+                                    )
+                                }
                             }
-                        }
-                    )
-                }
+                        )
+                    }
                 }
             }
         }
-    }
     
     // Dialog per aggiungere/modificare una correzione
     if (showAddDialog) {
@@ -271,6 +284,55 @@ fun AutoCorrectEditScreen(
                 }
                 showAddDialog = false
                 editingKey = null
+            }
+        )
+    }
+    
+    // Delete all confirmation dialog
+    if (showDeleteAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAllDialog = false },
+            title = {
+                Text(
+                    text = "Alle Regeln löschen?",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            },
+            text = {
+                Text(
+                    text = "Möchtest du wirklich alle ${corrections.size} Autokorrektur-Regeln für ${getLanguageDisplayName(context, languageCode)} löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Delete all corrections
+                        corrections = linkedMapOf()
+                        saveCorrections(context, languageCode, corrections, null)
+                        // Reload corrections
+                        try {
+                            val assets = context.assets
+                            AutoCorrector.loadCorrections(assets, context)
+                        } catch (e: Exception) {
+                            AutoCorrector.loadCustomCorrections(
+                                languageCode,
+                                correctionsToJson(corrections)
+                            )
+                        }
+                        showDeleteAllDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Alle löschen")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAllDialog = false }) {
+                    Text("Abbrechen")
+                }
             }
         )
     }
