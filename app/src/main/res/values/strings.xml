@@ -277,6 +277,26 @@
     <string name="speech_recognition_error_generic">Speech recognition error.</string>
     <string name="speech_recognition_error_not_available">Speech recognition not available.</string>
     
+    <!-- Whisper Speech Recognition -->
+    <string name="whisper_enabled_title">Use Whisper (Offline)</string>
+    <string name="whisper_enabled_description">Use Whisper for offline speech recognition instead of Google</string>
+    <string name="whisper_model_title">Whisper Model</string>
+    <string name="whisper_model_description">Select the model for speech recognition quality and speed</string>
+    <string name="whisper_model_download_title">Download Models</string>
+    <string name="whisper_model_download_description">Download Whisper models for offline speech recognition</string>
+    <string name="whisper_processing">Processing...</string>
+    <string name="whisper_error_model_not_found">Whisper model not found. Please download it first.</string>
+    <string name="whisper_error_initialization">Error initializing Whisper engine.</string>
+    <string name="whisper_error_generic">Whisper recognition error.</string>
+    <string name="whisper_model_tiny_en">Tiny (English only) - 75 MB</string>
+    <string name="whisper_model_base">Base (Multilingual) - 150 MB</string>
+    <string name="whisper_model_small">Small (Multilingual) - 500 MB</string>
+    <string name="whisper_model_download_in_progress">Downloading model...</string>
+    <string name="whisper_model_download_complete">Model downloaded successfully</string>
+    <string name="whisper_model_download_failed">Model download failed</string>
+    <string name="whisper_model_status_downloaded">Downloaded</string>
+    <string name="whisper_model_status_not_downloaded">Not downloaded</string>
+    
     <!-- Auto Correct Edit Screen -->
     <string name="auto_correct_search_placeholder">Search corrections...</string>
     <string name="auto_correct_search_description">Search</string>
@@ -370,6 +390,7 @@
     <string name="settings_category_text_input">Smart Features</string>
     <string name="settings_category_auto_correction">Auto-correction</string>
     <string name="settings_category_customization">Customization</string>
+    <string name="settings_category_speech_recognition">Speech Recognition</string>
     <string name="settings_category_advanced">Advanced</string>
     
     <!-- Languages (Input Method Subtypes) -->
@@ -443,6 +464,8 @@
     <string name="tutorial_page_nav_mode_description">Nav Mode lets you navigate the device UI with letter shortcuts such as IJKL or ESDF.\nTo activate:\n• Press Ctrl twice quickly\n• Letter keys become navigation controls\n• Press Ctrl again to exit\nEvery shortcut can be remapped in Advanced Settings.</string>
     <string name="tutorial_page_customization_title">Customization</string>
     <string name="tutorial_page_customization_description">Pastiera offers many customization options:\n• Customizable keyboard layouts\n• Launcher shortcuts &amp; Power Shortcuts\n• IME bar can act as a swipe bar to move the cursor\n• Custom mappings for Nav Mode\nExplore the settings to find the perfect configuration for you!</string>
+    <string name="tutorial_page_ai_features_title">AI &amp; Voice Features</string>
+    <string name="tutorial_page_ai_features_description">Pastiera includes optional AI features like voice input and speech recognition. You can enable or disable these features at any time in the settings.</string>
     <string name="tutorial_page_ready_title">Ready to Start</string>
     <string name="tutorial_page_ready_description">You are now ready to use Pastiera! Remember that you can always return to settings to further customize the keyboard to your needs.</string>
     <string name="tutorial_enable_button">Enable Pastiera</string>
@@ -561,4 +584,27 @@
 
     <!-- Trackpad Debug Accessibility Service -->
     <string name="trackpad_debug_service_description">Displays trackpad events in a small overlay for debugging purposes</string>
+
+    <!-- Whisper Settings - Tabs -->
+    <string name="whisper_tab_local">Local</string>
+    <string name="whisper_tab_openai_api">OpenAI API</string>
+
+    <!-- OpenAI API Settings -->
+    <string name="openai_info">Use OpenAI\'s cloud-based Whisper API for superior transcription quality across multiple languages. Requires a valid OpenAI API key.</string>
+    <string name="openai_enabled_title">Use OpenAI API</string>
+    <string name="openai_api_key_title">API Key</string>
+    <string name="openai_api_key_placeholder">sk-...</string>
+    <string name="openai_validate_button">Validate</string>
+    <string name="openai_api_key_valid">API Key is valid!</string>
+    <string name="openai_model_title">Model</string>
+    <string name="openai_language_title">Language (ISO 639-1)</string>
+    <string name="openai_prompt_title">Prompt Hint (Optional)</string>
+    <string name="openai_prompt_description">Helps the model understand context. e.g., "This is a technical discussion about software development"</string>
+    <string name="openai_prompt_placeholder">Optional: Context to improve transcription accuracy</string>
+    <string name="openai_processing">Processing audio with OpenAI API...</string>
+    <string name="openai_error_api_key_missing">OpenAI API key not configured</string>
+    <string name="openai_error_invalid_api_key">Invalid API key. Please check and try again.</string>
+    <string name="openai_error_initialization">Failed to initialize OpenAI client</string>
+    <string name="openai_error_transcription">Transcription failed: %1$s</string>
+    <string name="openai_error_generic">An error occurred during transcription</string>
 </resources>

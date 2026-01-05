@@ -592,24 +592,40 @@ class VariationBarView(
         val buttonsContainerView = buttonsContainer ?: return
         buttonsContainerView.removeAllViews()
         
-        val microphoneButton = microphoneButtonView ?: createMicrophoneButton(fixedButtonSize)
-        microphoneButtonView = microphoneButton
-        (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
-        val micParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
-            marginStart = spacingBetweenButtons
-        }
-        buttonsContainerView.addView(microphoneButton, micParams)
-        microphoneButton.setOnClickListener {
-            NotificationHelper.triggerHapticFeedback(context)
-            // Use callback if available (modern SpeechRecognizer approach), otherwise fallback to Activity
-            if (onSpeechRecognitionRequested != null) {
-                onSpeechRecognitionRequested?.invoke()
-            } else {
-                startSpeechRecognition(inputConnection)
+        // Check if voice input button should be shown
+        // Show mic button if Voice Input Button is explicitly enabled by user
+        // (AI Features check happens when button is clicked)
+        val voiceInputButtonEnabled = SettingsManager.getVoiceInputButtonEnabled(context)
+        
+        if (voiceInputButtonEnabled) {
+            val microphoneButton = microphoneButtonView ?: createMicrophoneButton(fixedButtonSize)
+            microphoneButtonView = microphoneButton
+            (microphoneButton.parent as? ViewGroup)?.removeView(microphoneButton)
+            val micParams = LinearLayout.LayoutParams(fixedButtonSize, fixedButtonSize).apply {
+                marginStart = spacingBetweenButtons
             }
+            buttonsContainerView.addView(microphoneButton, micParams)
+            microphoneButton.setOnClickListener {
+                NotificationHelper.triggerHapticFeedback(context)
+                // Use callback if available (modern SpeechRecognizer approach), otherwise fallback to Activity
+                if (onSpeechRecognitionRequested != null) {
+                    onSpeechRecognitionRequested?.invoke()
+                } else {
+                    startSpeechRecognition(inputConnection)
+                }
+            }
+            microphoneButton.setOnLongClickListener {
+                NotificationHelper.triggerHapticFeedback(context)
+                // Open Speech Recognition Settings
+                openSpeechRecognitionSettings()
+                true
+            }
+            microphoneButton.alpha = 1f
+            microphoneButton.visibility = View.VISIBLE
+        } else {
+            removeMicrophoneImmediate()
+            microphoneButtonView = null
         }
-        microphoneButton.alpha = 1f
-        microphoneButton.visibility = View.VISIBLE
 
         // Language switch button (language code)
         val languageButton = languageButtonView ?: createLanguageButton(fixedButtonSize)
@@ -981,6 +997,17 @@ class VariationBarView(
     }
 
     private fun startSpeechRecognition(inputConnection: android.view.inputmethod.InputConnection?) {
+        // Check if AI Features are enabled
+        val aiFeaturesEnabled = SettingsManager.getAiFeaturesEnabled(context)
+        if (!aiFeaturesEnabled) {
+            android.widget.Toast.makeText(
+                context,
+                "AI Features are disabled. Enable them in Settings → Speech Recognition to use voice input.",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        
         try {
             val intent = Intent(context, SpeechRecognitionActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -991,6 +1018,11 @@ class VariationBarView(
             Log.d(TAG, "Speech recognition started")
         } catch (e: Exception) {
             Log.e(TAG, "Unable to launch speech recognition", e)
+            android.widget.Toast.makeText(
+                context,
+                "Speech recognition is not available on this device.",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -1002,6 +1034,18 @@ class VariationBarView(
             context.startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Error opening Settings", e)
+        }
+    }
+    
+    private fun openSpeechRecognitionSettings() {
+        try {
+            val intent = Intent(context, SettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra("openScreen", "SpeechRecognition")
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error opening Speech Recognition Settings", e)
         }
     }
     

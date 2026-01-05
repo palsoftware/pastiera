@@ -231,6 +231,26 @@
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Jetzt sprechen…</string>
     
+    <!-- Whisper Speech Recognition -->
+    <string name="whisper_enabled_title">Whisper verwenden (Offline)</string>
+    <string name="whisper_enabled_description">Whisper für Offline-Spracherkennung verwenden statt Google</string>
+    <string name="whisper_model_title">Whisper-Modell</string>
+    <string name="whisper_model_description">Modell für Spracherkennungsqualität und -geschwindigkeit auswählen</string>
+    <string name="whisper_model_download_title">Modelle herunterladen</string>
+    <string name="whisper_model_download_description">Whisper-Modelle für Offline-Spracherkennung herunterladen</string>
+    <string name="whisper_processing">Verarbeite...</string>
+    <string name="whisper_error_model_not_found">Whisper-Modell nicht gefunden. Bitte zuerst herunterladen.</string>
+    <string name="whisper_error_initialization">Fehler beim Initialisieren der Whisper-Engine.</string>
+    <string name="whisper_error_generic">Whisper-Erkennungsfehler.</string>
+    <string name="whisper_model_tiny_en">Tiny (nur Englisch) - 75 MB</string>
+    <string name="whisper_model_base">Base (Mehrsprachig) - 150 MB</string>
+    <string name="whisper_model_small">Small (Mehrsprachig) - 500 MB</string>
+    <string name="whisper_model_download_in_progress">Modell wird heruntergeladen...</string>
+    <string name="whisper_model_download_complete">Modell erfolgreich heruntergeladen</string>
+    <string name="whisper_model_download_failed">Modell-Download fehlgeschlagen</string>
+    <string name="whisper_model_status_downloaded">Heruntergeladen</string>
+    <string name="whisper_model_status_not_downloaded">Nicht heruntergeladen</string>
+    
     <!-- Auto Correct Edit Screen -->
     <string name="auto_correct_search_placeholder">Korrekturen suchen…</string>
     <string name="auto_correct_search_description">Suchen</string>
@@ -300,6 +320,7 @@
     <string name="settings_category_text_input">Texteingabe</string>
     <string name="settings_category_auto_correction">Autokorrektur</string>
     <string name="settings_category_customization">Anpassung</string>
+    <string name="settings_category_speech_recognition">Spracherkennung</string>
     <string name="settings_category_advanced">Erweitert</string>
     
     <!-- Keyboard Layout Settings -->

@@ -15,10 +15,17 @@ class SettingsActivity : ComponentActivity() {
             overridePendingTransition(R.anim.slide_in_from_right, 0)
         }
         enableEdgeToEdge()
+        
+        val openScreen = intent.getStringExtra("openScreen")
+        
         setContent {
             PastieraTheme {
                 SettingsScreen(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    initialDestination = when (openScreen) {
+                        "SpeechRecognition" -> SettingsDestination.SpeechRecognition
+                        else -> null
+                    }
                 )
             }
         }

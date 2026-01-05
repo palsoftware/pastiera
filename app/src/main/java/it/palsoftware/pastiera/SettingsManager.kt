@@ -849,6 +849,279 @@ object SettingsManager {
             .putString(KEY_LONG_PRESS_MODIFIER, validModifier)
             .apply()
     }
+
+    // =================================================================
+    // Whisper Speech Recognition Settings
+    // =================================================================
+
+    private const val KEY_USE_WHISPER = "use_whisper_speech_recognition"
+    private const val KEY_WHISPER_MODEL = "whisper_model"
+    private const val DEFAULT_USE_WHISPER = false
+    private const val DEFAULT_WHISPER_MODEL = "SMALL" // WhisperModel enum name (DocWolle ONNX small_int8)
+    
+    // OpenAI API Integration Keys
+    private const val KEY_WHISPER_MODE = "whisper_mode" // "local", "api"
+    private const val KEY_USE_OPENAI_API = "use_openai_api"
+    private const val KEY_OPENAI_API_KEY = "openai_api_key"
+    private const val KEY_OPENAI_MODEL = "openai_model"
+    private const val KEY_OPENAI_API_LANGUAGE = "openai_api_language"
+    private const val KEY_OPENAI_API_PROMPT = "openai_api_prompt"
+    private const val KEY_OPENAI_API_TEMPERATURE = "openai_api_temperature"
+    
+    private const val DEFAULT_WHISPER_MODE = "google" // "google" (Android native), "local", or "api"
+    private const val DEFAULT_USE_OPENAI_API = false
+    private const val DEFAULT_OPENAI_MODEL = "gpt-4o-transcribe"
+    private const val DEFAULT_OPENAI_API_LANGUAGE = "de" // German by default
+    private const val DEFAULT_OPENAI_API_PROMPT = ""
+    private const val DEFAULT_OPENAI_API_TEMPERATURE = 0f
+    
+    // OpenRouter API Integration Keys
+    private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
+    private const val KEY_OPENROUTER_MODEL = "openrouter_model"
+    private const val KEY_OPENROUTER_LANGUAGE = "openrouter_language"
+    
+    private const val DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash"
+    private const val DEFAULT_OPENROUTER_LANGUAGE = "de"
+    
+    // Voice Input Button Settings
+    private const val KEY_VOICE_INPUT_BUTTON_ENABLED = "voice_input_button_enabled"
+    private const val DEFAULT_VOICE_INPUT_BUTTON_ENABLED = true
+    
+    // AI Features Settings
+    private const val KEY_AI_FEATURES_ENABLED = "ai_features_enabled"
+    private const val DEFAULT_AI_FEATURES_ENABLED = true
+
+    /**
+     * Gets whether Whisper should be used instead of Google Speech Recognition.
+     */
+    fun getUseWhisper(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_USE_WHISPER, DEFAULT_USE_WHISPER)
+    }
+
+    /**
+     * Sets whether to use Whisper for speech recognition.
+     */
+    fun setUseWhisper(context: Context, useWhisper: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_USE_WHISPER, useWhisper)
+            .apply()
+    }
+
+    /**
+     * Gets the selected Whisper model.
+     */
+    fun getWhisperModel(context: Context): it.palsoftware.pastiera.inputmethod.whisper.WhisperModel {
+        val modelName = getPreferences(context).getString(KEY_WHISPER_MODEL, DEFAULT_WHISPER_MODEL) ?: DEFAULT_WHISPER_MODEL
+        return try {
+            it.palsoftware.pastiera.inputmethod.whisper.WhisperModel.valueOf(modelName)
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "Invalid Whisper model name: $modelName, using default")
+            it.palsoftware.pastiera.inputmethod.whisper.WhisperModel.SMALL
+        }
+    }
+
+    /**
+     * Sets the Whisper model to use.
+     */
+    fun setWhisperModel(context: Context, model: it.palsoftware.pastiera.inputmethod.whisper.WhisperModel) {
+        getPreferences(context).edit()
+            .putString(KEY_WHISPER_MODEL, model.name)
+            .apply()
+    }
+    
+    /**
+     * Gets the Whisper mode: "local" or "api"
+     */
+    fun getWhisperMode(context: Context): String {
+        return getPreferences(context).getString(KEY_WHISPER_MODE, DEFAULT_WHISPER_MODE) ?: DEFAULT_WHISPER_MODE
+    }
+    
+    /**
+     * Sets the Whisper mode: "local" or "api"
+     */
+    fun setWhisperMode(context: Context, mode: String) {
+        getPreferences(context).edit()
+            .putString(KEY_WHISPER_MODE, mode)
+            .apply()
+    }
+    
+    /**
+     * Gets whether to use OpenAI API for Whisper
+     */
+    fun getUseOpenAiApi(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_USE_OPENAI_API, DEFAULT_USE_OPENAI_API)
+    }
+    
+    /**
+     * Sets whether to use OpenAI API for Whisper
+     */
+    fun setUseOpenAiApi(context: Context, useApi: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_USE_OPENAI_API, useApi)
+            .apply()
+    }
+    
+    /**
+     * Gets the OpenAI API key (stored encrypted)
+     */
+    fun getOpenAiApiKey(context: Context): String {
+        return getPreferences(context).getString(KEY_OPENAI_API_KEY, "") ?: ""
+    }
+    
+    /**
+     * Sets the OpenAI API key (should be encrypted before storage)
+     */
+    fun setOpenAiApiKey(context: Context, apiKey: String) {
+        getPreferences(context).edit()
+            .putString(KEY_OPENAI_API_KEY, apiKey)
+            .apply()
+    }
+    
+    /**
+     * Gets the OpenAI model to use (e.g., "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "whisper-1")
+     */
+    fun getOpenAiModel(context: Context): String {
+        return getPreferences(context).getString(KEY_OPENAI_MODEL, DEFAULT_OPENAI_MODEL) ?: DEFAULT_OPENAI_MODEL
+    }
+    
+    /**
+     * Sets the OpenAI model to use
+     */
+    fun setOpenAiModel(context: Context, model: String) {
+        getPreferences(context).edit()
+            .putString(KEY_OPENAI_MODEL, model)
+            .apply()
+    }
+    
+    /**
+     * Gets the language code for OpenAI API transcription
+     */
+    fun getOpenAiLanguage(context: Context): String {
+        return getPreferences(context).getString(KEY_OPENAI_API_LANGUAGE, DEFAULT_OPENAI_API_LANGUAGE) ?: DEFAULT_OPENAI_API_LANGUAGE
+    }
+    
+    /**
+     * Sets the language code for OpenAI API transcription
+     */
+    fun setOpenAiLanguage(context: Context, language: String) {
+        getPreferences(context).edit()
+            .putString(KEY_OPENAI_API_LANGUAGE, language)
+            .apply()
+    }
+    
+    /**
+     * Gets the prompt hint for OpenAI API transcription
+     */
+    fun getOpenAiPrompt(context: Context): String {
+        return getPreferences(context).getString(KEY_OPENAI_API_PROMPT, DEFAULT_OPENAI_API_PROMPT) ?: DEFAULT_OPENAI_API_PROMPT
+    }
+    
+    /**
+     * Sets the prompt hint for OpenAI API transcription
+     */
+    fun setOpenAiPrompt(context: Context, prompt: String) {
+        getPreferences(context).edit()
+            .putString(KEY_OPENAI_API_PROMPT, prompt)
+            .apply()
+    }
+    
+    /**
+     * Gets the temperature for OpenAI API transcription
+     */
+    fun getOpenAiTemperature(context: Context): Float {
+        return getPreferences(context).getFloat(KEY_OPENAI_API_TEMPERATURE, DEFAULT_OPENAI_API_TEMPERATURE)
+    }
+    
+    /**
+     * Sets the temperature for OpenAI API transcription
+     */
+    fun setOpenAiTemperature(context: Context, temperature: Float) {
+        getPreferences(context).edit()
+            .putFloat(KEY_OPENAI_API_TEMPERATURE, temperature)
+            .apply()
+    }
+    
+    // ===== OpenRouter API Methods =====
+    
+    /**
+     * Gets the OpenRouter API key
+     */
+    fun getOpenRouterApiKey(context: Context): String {
+        return getPreferences(context).getString(KEY_OPENROUTER_API_KEY, "") ?: ""
+    }
+    
+    /**
+     * Sets the OpenRouter API key
+     */
+    fun setOpenRouterApiKey(context: Context, apiKey: String) {
+        getPreferences(context).edit()
+            .putString(KEY_OPENROUTER_API_KEY, apiKey)
+            .apply()
+    }
+    
+    /**
+     * Gets the selected OpenRouter model
+     */
+    fun getOpenRouterModel(context: Context): String {
+        return getPreferences(context).getString(KEY_OPENROUTER_MODEL, DEFAULT_OPENROUTER_MODEL) ?: DEFAULT_OPENROUTER_MODEL
+    }
+    
+    /**
+     * Sets the selected OpenRouter model
+     */
+    fun setOpenRouterModel(context: Context, model: String) {
+        getPreferences(context).edit()
+            .putString(KEY_OPENROUTER_MODEL, model)
+            .apply()
+    }
+    
+    /**
+     * Gets the language for OpenRouter transcription
+     */
+    fun getOpenRouterLanguage(context: Context): String {
+        return getPreferences(context).getString(KEY_OPENROUTER_LANGUAGE, DEFAULT_OPENROUTER_LANGUAGE) ?: DEFAULT_OPENROUTER_LANGUAGE
+    }
+    
+    /**
+     * Sets the language for OpenRouter transcription
+     */
+    fun setOpenRouterLanguage(context: Context, language: String) {
+        getPreferences(context).edit()
+            .putString(KEY_OPENROUTER_LANGUAGE, language)
+            .apply()
+    }
+    
+    /**
+     * Returns whether the voice input button is enabled
+     */
+    fun getVoiceInputButtonEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VOICE_INPUT_BUTTON_ENABLED, DEFAULT_VOICE_INPUT_BUTTON_ENABLED)
+    }
+    
+    /**
+     * Sets whether the voice input button is enabled
+     */
+    fun setVoiceInputButtonEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VOICE_INPUT_BUTTON_ENABLED, enabled)
+            .apply()
+    }
+    
+    /**
+     * Returns whether AI features (voice input, speech recognition) are enabled
+     */
+    fun getAiFeaturesEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_AI_FEATURES_ENABLED, DEFAULT_AI_FEATURES_ENABLED)
+    }
+    
+    /**
+     * Sets whether AI features (voice input, speech recognition) are enabled
+     */
+    fun setAiFeaturesEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_AI_FEATURES_ENABLED, enabled)
+            .apply()
+    }
     
     /**
      * Returns true if long press uses Shift, false if it uses Alt.
