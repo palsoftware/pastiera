@@ -88,6 +88,11 @@ sealed class TutorialPageType {
         val title: String,
         val description: String
     ) : TutorialPageType()
+    
+    data class AiFeatures(
+        val title: String,
+        val description: String
+    ) : TutorialPageType()
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -128,6 +133,10 @@ fun TutorialScreen(
             icon = Icons.Filled.Settings,
             iconTint = MaterialTheme.colorScheme.primary
         ),
+        TutorialPageType.AiFeatures(
+            title = stringResource(R.string.tutorial_page_ai_features_title),
+            description = stringResource(R.string.tutorial_page_ai_features_description)
+        ),
         TutorialPageType.Standard(
             title = stringResource(R.string.tutorial_page_ready_title),
             description = stringResource(R.string.tutorial_page_ready_description),
@@ -142,6 +151,9 @@ fun TutorialScreen(
     // Check IME status
     var isPastieraEnabled by remember { mutableStateOf(false) }
     var isPastieraSelected by remember { mutableStateOf(false) }
+    
+    // AI Features state
+    var aiFeaturesEnabled by remember { mutableStateOf(SettingsManager.getAiFeaturesEnabled(context)) }
     
     LaunchedEffect(Unit) {
         checkImeStatus(context) { enabled, selected ->
@@ -229,6 +241,17 @@ fun TutorialScreen(
                             page = pageType,
                             isPastieraEnabled = isPastieraEnabled,
                             isPastieraSelected = isPastieraSelected,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    is TutorialPageType.AiFeatures -> {
+                        TutorialAiFeaturesPageContent(
+                            page = pageType,
+                            aiFeaturesEnabled = aiFeaturesEnabled,
+                            onAiFeaturesEnabledChange = { enabled ->
+                                aiFeaturesEnabled = enabled
+                                SettingsManager.setAiFeaturesEnabled(context, enabled)
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -697,4 +720,126 @@ private fun checkImeStatus(
         android.util.Log.e("TutorialActivity", "Error checking IME status", e)
         callback(false, false)
     }
+}
+
+@Composable
+private fun TutorialAiFeaturesPageContent(
+    page: TutorialPageType.AiFeatures,
+    aiFeaturesEnabled: Boolean,
+    onAiFeaturesEnabledChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var voiceInputButtonEnabled by remember { mutableStateOf(SettingsManager.getVoiceInputButtonEnabled(context)) }
+    
+    TutorialPageLayout(
+        title = page.title,
+        description = page.description,
+        modifier = modifier,
+        iconContent = {
+            Surface(
+                modifier = Modifier
+                    .size(TutorialIconSurfaceSize)
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)),
+                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Mic,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(TutorialIconSize)
+                    )
+                }
+            }
+        },
+        content = {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // AI Features Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
+                    ) {
+                        Text(
+                            text = "AI Features (Work in Progress)",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Master toggle for speech recognition & voice input features",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = aiFeaturesEnabled,
+                        onCheckedChange = onAiFeaturesEnabledChange
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Voice Input Button Toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
+                    ) {
+                        Text(
+                            text = "Voice Input Button",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Show microphone button during typing",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = voiceInputButtonEnabled,
+                        onCheckedChange = { enabled ->
+                            voiceInputButtonEnabled = enabled
+                            SettingsManager.setVoiceInputButtonEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
+        }
+    )
 }

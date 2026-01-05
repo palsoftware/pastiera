@@ -66,7 +66,8 @@ sealed class SettingsDestination {
  */
 @Composable
 fun SettingsScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialDestination: SettingsDestination? = null
 ) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
@@ -74,7 +75,11 @@ fun SettingsScreen(
     var checkingForUpdates by remember { mutableStateOf(false) }
     var navigationDirection by remember { mutableStateOf(NavigationDirection.Push) }
     val navigationStack = remember {
-        mutableStateListOf<SettingsDestination>(SettingsDestination.Main)
+        val initialStack = mutableStateListOf<SettingsDestination>(SettingsDestination.Main)
+        if (initialDestination != null && initialDestination != SettingsDestination.Main) {
+            initialStack.add(initialDestination)
+        }
+        initialStack
     }
     val currentDestination by remember {
         derivedStateOf { navigationStack.last() }

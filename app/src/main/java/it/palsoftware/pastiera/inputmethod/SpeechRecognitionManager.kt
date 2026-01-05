@@ -128,6 +128,7 @@ class SpeechRecognitionManager(
             // Create SpeechRecognizer - let system find the best available service
             Log.d(TAG, "Creating SpeechRecognizer instance")
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)?.apply {
+                Log.d(TAG, "SpeechRecognizer created, now setting listener")
                 setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {
                         Log.d(TAG, "Speech recognition ready for speech")
@@ -157,14 +158,6 @@ class SpeechRecognitionManager(
                     }
 
                     override fun onError(error: Int) {
-                        // Notify that recognition is finished (due to error)
-                        onRecognitionStateChanged?.invoke(false)
-                        
-                        // Clear partial text on error
-                        if (isComposingPartialText) {
-                            clearPartialText()
-                        }
-                        
                         val errorMessage = when (error) {
                             SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO - Audio recording error"
                             SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT - Other client side errors"
@@ -179,23 +172,50 @@ class SpeechRecognitionManager(
                         }
                         Log.w(TAG, "Speech recognition error: $errorMessage")
                         
-                        // Show user-friendly error message
-                        Handler(Looper.getMainLooper()).post {
-                            val userMessage = when (error) {
-                                SpeechRecognizer.ERROR_NO_MATCH -> context.getString(R.string.speech_recognition_error_no_match)
-                                SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> context.getString(R.string.speech_recognition_error_timeout)
-                                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> context.getString(R.string.speech_recognition_error_permission)
-                                SpeechRecognizer.ERROR_NETWORK -> context.getString(R.string.speech_recognition_error_network)
-                                else -> context.getString(R.string.speech_recognition_error_generic)
+                        // Only ignore truly non-critical errors (no speech detected)
+                        val isIgnorableError = error in listOf(
+                            SpeechRecognizer.ERROR_NO_MATCH,
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                        )
+                        
+                        Log.d(TAG, "Error is ignorable: $isIgnorableError, showing toast: ${!isIgnorableError}")
+                        
+                        if (!isIgnorableError) {
+                            // Notify that recognition is finished
+                            onRecognitionStateChanged?.invoke(false)
+                            
+                            // Clear partial text on error
+                            if (isComposingPartialText) {
+                                clearPartialText()
                             }
-                            Toast.makeText(context, userMessage, Toast.LENGTH_SHORT).show()
-                            onError?.invoke(userMessage)
+                            
+                            // Show user-friendly error message
+                            Handler(Looper.getMainLooper()).post {
+                                val userMessage = when (error) {
+                                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> context.getString(R.string.speech_recognition_error_permission)
+                                    SpeechRecognizer.ERROR_NETWORK -> context.getString(R.string.speech_recognition_error_network)
+                                    else -> context.getString(R.string.speech_recognition_error_generic)
+                                }
+                                Log.e(TAG, "Showing error toast: $userMessage")
+                                Toast.makeText(context, userMessage, Toast.LENGTH_SHORT).show()
+                                onError?.invoke(userMessage)
+                            }
+                        } else {
+                            // For non-critical errors, just log them without showing to user
+                            Log.d(TAG, "Ignorable error, no toast shown: $errorMessage")
                         }
                     }
 
                     override fun onResults(results: Bundle) {
                         // Notify that recognition is finished
                         onRecognitionStateChanged?.invoke(false)
+                        
+                        // Destroy and reset SpeechRecognizer for next session
+                        // Set to null FIRST to prevent race conditions if user clicks mic again immediately
+                        val recognizerToDestroy = speechRecognizer
+                        speechRecognizer = null
+                        Log.d(TAG, "SpeechRecognizer set to null, destroying instance to prepare for next session")
+                        recognizerToDestroy?.destroy()
                         
                         val matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val confidenceScores = results.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
@@ -389,6 +409,7 @@ class SpeechRecognitionManager(
             }
             
             Log.d(TAG, "Starting speech recognition with language: $languageTag")
+            Log.d(TAG, "SpeechRecognizer state before startListening: ${if (speechRecognizer != null) "exists" else "null"}")
             speechRecognizer?.startListening(intent)
             Log.d(TAG, "Speech recognition started via SpeechRecognizer")
         } catch (e: SecurityException) {

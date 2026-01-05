@@ -464,6 +464,8 @@
     <string name="tutorial_page_nav_mode_description">Nav Mode lets you navigate the device UI with letter shortcuts such as IJKL or ESDF.\nTo activate:\n• Press Ctrl twice quickly\n• Letter keys become navigation controls\n• Press Ctrl again to exit\nEvery shortcut can be remapped in Advanced Settings.</string>
     <string name="tutorial_page_customization_title">Customization</string>
     <string name="tutorial_page_customization_description">Pastiera offers many customization options:\n• Customizable keyboard layouts\n• Launcher shortcuts &amp; Power Shortcuts\n• IME bar can act as a swipe bar to move the cursor\n• Custom mappings for Nav Mode\nExplore the settings to find the perfect configuration for you!</string>
+    <string name="tutorial_page_ai_features_title">AI &amp; Voice Features</string>
+    <string name="tutorial_page_ai_features_description">Pastiera includes optional AI features like voice input and speech recognition. You can enable or disable these features at any time in the settings.</string>
     <string name="tutorial_page_ready_title">Ready to Start</string>
     <string name="tutorial_page_ready_description">You are now ready to use Pastiera! Remember that you can always return to settings to further customize the keyboard to your needs.</string>
     <string name="tutorial_enable_button">Enable Pastiera</string>

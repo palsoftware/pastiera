@@ -868,7 +868,7 @@ object SettingsManager {
     private const val KEY_OPENAI_API_PROMPT = "openai_api_prompt"
     private const val KEY_OPENAI_API_TEMPERATURE = "openai_api_temperature"
     
-    private const val DEFAULT_WHISPER_MODE = "local" // "local" or "api"
+    private const val DEFAULT_WHISPER_MODE = "google" // "google" (Android native), "local", or "api"
     private const val DEFAULT_USE_OPENAI_API = false
     private const val DEFAULT_OPENAI_MODEL = "gpt-4o-transcribe"
     private const val DEFAULT_OPENAI_API_LANGUAGE = "de" // German by default
@@ -882,6 +882,14 @@ object SettingsManager {
     
     private const val DEFAULT_OPENROUTER_MODEL = "google/gemini-2.5-flash"
     private const val DEFAULT_OPENROUTER_LANGUAGE = "de"
+    
+    // Voice Input Button Settings
+    private const val KEY_VOICE_INPUT_BUTTON_ENABLED = "voice_input_button_enabled"
+    private const val DEFAULT_VOICE_INPUT_BUTTON_ENABLED = true
+    
+    // AI Features Settings
+    private const val KEY_AI_FEATURES_ENABLED = "ai_features_enabled"
+    private const val DEFAULT_AI_FEATURES_ENABLED = true
 
     /**
      * Gets whether Whisper should be used instead of Google Speech Recognition.
@@ -1080,6 +1088,38 @@ object SettingsManager {
     fun setOpenRouterLanguage(context: Context, language: String) {
         getPreferences(context).edit()
             .putString(KEY_OPENROUTER_LANGUAGE, language)
+            .apply()
+    }
+    
+    /**
+     * Returns whether the voice input button is enabled
+     */
+    fun getVoiceInputButtonEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_VOICE_INPUT_BUTTON_ENABLED, DEFAULT_VOICE_INPUT_BUTTON_ENABLED)
+    }
+    
+    /**
+     * Sets whether the voice input button is enabled
+     */
+    fun setVoiceInputButtonEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_VOICE_INPUT_BUTTON_ENABLED, enabled)
+            .apply()
+    }
+    
+    /**
+     * Returns whether AI features (voice input, speech recognition) are enabled
+     */
+    fun getAiFeaturesEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_AI_FEATURES_ENABLED, DEFAULT_AI_FEATURES_ENABLED)
+    }
+    
+    /**
+     * Sets whether AI features (voice input, speech recognition) are enabled
+     */
+    fun setAiFeaturesEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_AI_FEATURES_ENABLED, enabled)
             .apply()
     }
     

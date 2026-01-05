@@ -51,6 +51,9 @@ fun WhisperSettingsScreen(
     // Engine selection (Meta-Menu)
     var selectedEngine by remember { mutableStateOf(SettingsManager.getWhisperMode(context)) }
     
+    // Voice Input Button
+    var voiceInputButtonEnabled by remember { mutableStateOf(SettingsManager.getVoiceInputButtonEnabled(context)) }
+    
     // OpenRouter settings
     var openRouterApiKey by remember { mutableStateOf(SettingsManager.getOpenRouterApiKey(context)) }
     var openRouterModel by remember { mutableStateOf(SettingsManager.getOpenRouterModel(context)) }
@@ -133,6 +136,11 @@ fun WhisperSettingsScreen(
                     onEngineSelected = { engine ->
                         selectedEngine = engine
                         SettingsManager.setWhisperMode(context, engine)
+                    },
+                    voiceInputButtonEnabled = voiceInputButtonEnabled,
+                    onVoiceInputButtonEnabledChange = { enabled ->
+                        voiceInputButtonEnabled = enabled
+                        SettingsManager.setVoiceInputButtonEnabled(context, enabled)
                     },
                     onLocalSettingsClick = { navigateTo(WhisperScreen.Local) },
                     onOpenAiSettingsClick = { navigateTo(WhisperScreen.OpenAi) },
@@ -217,6 +225,8 @@ private fun WhisperMainScreen(
     modifier: Modifier = Modifier,
     selectedEngine: String,
     onEngineSelected: (String) -> Unit,
+    voiceInputButtonEnabled: Boolean,
+    onVoiceInputButtonEnabledChange: (Boolean) -> Unit,
     onLocalSettingsClick: () -> Unit,
     onOpenAiSettingsClick: () -> Unit,
     onOpenRouterSettingsClick: () -> Unit = {}
@@ -230,6 +240,46 @@ private fun WhisperMainScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Voice Input Button Option
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp)
+                ) {
+                    Text(
+                        text = "Voice Input Microphone",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Show microphone button below text input",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                Switch(
+                    checked = voiceInputButtonEnabled,
+                    onCheckedChange = onVoiceInputButtonEnabledChange
+                )
+            }
+        }
+        
+        // Spacer
+        Spacer(modifier = Modifier.height(8.dp))
+        
         // Info
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -1307,23 +1357,33 @@ private suspend fun fetchOpenRouterModels(apiKey: String): List<Pair<String, Str
                 
                 if (supportsAudio) {
                     val pricing = model.optJSONObject("pricing")
-                    val promptPrice = pricing?.optString("prompt", "0") ?: "0"
+                    
+                    // Check for audio input token pricing first
+                    var audioInputPrice = pricing?.optString("audio", "")
+                    
+                    // Fallback to regular input tokens (prompt) if no audio-specific pricing
+                    if (audioInputPrice.isNullOrEmpty()) {
+                        audioInputPrice = pricing?.optString("prompt", "0") ?: "0"
+                    }
                     
                     // Format label with model name and pricing
+                    // Note: OpenRouter API returns prices per token (e.g., "0.0000007")
+                    // We need to multiply by 1,000,000 to get price per million tokens
                     val label = try {
-                        val priceDouble = promptPrice.toDouble()
-                        if (priceDouble > 0) {
-                            // Convert to per-million tokens for readability
-                            val pricePerMillion = priceDouble * 1_000_000
-                            "$name • \$${"%.2f".format(pricePerMillion)}/M tokens"
+                        val pricePerToken = audioInputPrice?.toDouble() ?: 0.0
+                        val pricePerMillionTokens = pricePerToken * 1_000_000
+                        if (pricePerMillionTokens > 0) {
+                            // Format to 2 decimal places for display
+                            "$name • \$${"%.2f".format(pricePerMillionTokens)}/M audio tokens"
                         } else {
                             name
                         }
                     } catch (e: NumberFormatException) {
+                        Log.e("OpenRouterModels", "Cannot parse price '$audioInputPrice' as Double")
                         name
                     }
                     
-                    Log.d("OpenRouterModels", "✓ Found audio model: $id")
+                    Log.d("OpenRouterModels", "✓ Found audio model: $id with pricing: $audioInputPrice per token")
                     audioModels.add(id to label)
                 }
             } catch (e: Exception) {
