@@ -82,6 +82,8 @@ class StatusBarController(
             variationBarView?.onAddUserWord = value
         }
     
+    var onSuggestionSelected: ((String) -> Unit)? = null
+    
     var onLanguageSwitchRequested: (() -> Unit)? = null
         set(value) {
             field = value
@@ -1152,7 +1154,8 @@ class StatusBarController(
             onVariationSelectedListener,
             snapshot.shouldDisableSuggestions,
             snapshot.addWordCandidate,
-            onAddUserWord
+            onAddUserWord,
+            onSuggestionSelected
         )
         
         if (snapshot.clipboardOverlay) {

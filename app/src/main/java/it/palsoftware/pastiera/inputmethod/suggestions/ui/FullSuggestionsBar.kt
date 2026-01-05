@@ -177,7 +177,8 @@ class FullSuggestionsBar(private val context: Context) {
         listener: VariationButtonHandler.OnVariationSelectedListener?,
         shouldDisableSuggestions: Boolean,
         addWordCandidate: String?,
-        onAddUserWord: ((String) -> Unit)?
+        onAddUserWord: ((String) -> Unit)?,
+        onSuggestionSelected: ((String) -> Unit)? = null
     ) {
         val bar = container ?: return
         val frame = frameContainer ?: return
@@ -206,7 +207,7 @@ class FullSuggestionsBar(private val context: Context) {
             return
         }
 
-        renderSlots(bar, slots, inputConnection, listener, shouldDisableSuggestions, addWordCandidate, onAddUserWord)
+        renderSlots(bar, slots, inputConnection, listener, shouldDisableSuggestions, addWordCandidate, onAddUserWord, onSuggestionSelected)
         lastSlots = slots
     }
 
@@ -228,7 +229,8 @@ class FullSuggestionsBar(private val context: Context) {
         listener: VariationButtonHandler.OnVariationSelectedListener?,
         shouldDisableSuggestions: Boolean,
         addWordCandidate: String?,
-        onAddUserWord: ((String) -> Unit)?
+        onAddUserWord: ((String) -> Unit)?,
+        onSuggestionSelected: ((String) -> Unit)? = null
     ) {
         bar.removeAllViews()
         suggestionButtons.clear()
@@ -295,7 +297,8 @@ class FullSuggestionsBar(private val context: Context) {
                             suggestion,
                             inputConnection,
                             listener,
-                            shouldDisableSuggestions
+                            shouldDisableSuggestions,
+                            onSuggestionSelected
                         )
                         setOnClickListener { view ->
                             flashSlot(slotIndex)

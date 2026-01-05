@@ -3,8 +3,6 @@ package it.palsoftware.pastiera.core.suggestions
 import android.util.Log
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.core.AutoSpaceTracker
-import java.io.File
-import org.json.JSONObject
 
 class CurrentWordTracker(
     private val onWordChanged: (String) -> Unit,
@@ -16,39 +14,10 @@ class CurrentWordTracker(
     private val tag = "CurrentWordTracker"
     private val debugLogging = false
     
-    // #region agent log
-    private fun debugLog(hypothesisId: String, location: String, message: String, data: Map<String, Any?> = emptyMap()) {
-        try {
-            val logFile = File("/Users/andrea/Desktop/DEV/Pastiera/pastiera/.cursor/debug.log")
-            val logEntry = JSONObject().apply {
-                put("sessionId", "debug-session")
-                put("runId", "run1")
-                put("hypothesisId", hypothesisId)
-                put("location", location)
-                put("message", message)
-                put("timestamp", System.currentTimeMillis())
-                put("data", JSONObject(data))
-            }
-            logFile.appendText(logEntry.toString() + "\n")
-        } catch (e: Exception) {
-            // Ignore log errors
-        }
-    }
-    // #endregion
-
     val currentWord: String
         get() = current.toString()
 
     fun setWord(word: String) {
-        // #region agent log
-        val wordBefore = current.toString()
-        debugLog("D", "CurrentWordTracker.setWord:entry", "setWord called", mapOf(
-            "wordBefore" to wordBefore,
-            "wordBeforeLength" to wordBefore.length,
-            "newWord" to word,
-            "newWordLength" to word.length
-        ))
-        // #endregion
         current.clear()
         if (word.length <= maxLength) {
             current.append(word)
@@ -57,25 +26,10 @@ class CurrentWordTracker(
         }
         if (debugLogging) Log.d(tag, "setWord currentWord='$current'")
         onWordChanged(current.toString())
-        // #region agent log
-        val wordAfter = current.toString()
-        debugLog("D", "CurrentWordTracker.setWord:exit", "setWord completed", mapOf(
-            "wordAfter" to wordAfter,
-            "wordAfterLength" to wordAfter.length
-        ))
-        // #endregion
     }
 
     fun onCharacterCommitted(text: CharSequence) {
         if (text.isEmpty()) return
-        // #region agent log
-        val wordBefore = current.toString()
-        debugLog("A", "CurrentWordTracker.onCharacterCommitted:entry", "onCharacterCommitted called", mapOf(
-            "text" to text.toString(),
-            "wordBefore" to wordBefore,
-            "wordBeforeLength" to wordBefore.length
-        ))
-        // #endregion
         text.forEach { char ->
             // Special case: "\bX" pattern means "replace last with X" (used by multi-tap).
             if (char == '\b') {
@@ -90,14 +44,6 @@ class CurrentWordTracker(
                     current.append(normalizedChar)
                     if (debugLogging) Log.d(tag, "currentWord='$current'")
                     onWordChanged(current.toString())
-                    // #region agent log
-                    val wordAfter = current.toString()
-                    debugLog("A", "CurrentWordTracker.onCharacterCommitted:charAdded", "character added to tracker", mapOf(
-                        "char" to normalizedChar.toString(),
-                        "wordAfter" to wordAfter,
-                        "wordAfterLength" to wordAfter.length
-                    ))
-                    // #endregion
                 }
             } else {
                 if (debugLogging) Log.d(tag, "reset on non-letter char='$char'")

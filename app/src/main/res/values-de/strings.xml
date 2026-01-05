@@ -472,4 +472,19 @@
     <string name="trackpad_tutorial_complete">Verstanden</string>
     <string name="trackpad_tutorial_next">Weiter</string>
     <string name="trackpad_tutorial_previous">Zurück</string>
+    <string name="user_dict_frequency_label">Verwendungen: %1$d</string>
+    <string name="user_dict_import_corpus_title">Textkorpus importieren</string>
+    <string name="user_dict_import_corpus_description">Lerne aus einer Textdatei (z. B. Chat-Backup), um die Nächste-Wort-Vorhersage zu verbessern.</string>
+    <string name="user_dict_import_select_file">Datei auswählen</string>
+    <string name="user_dict_import_processing">Datei wird verarbeitet...</string>
+    <string name="user_dict_import_success">Import erfolgreich! %1$d neue Wortkombinationen gelernt.</string>
+    <string name="user_dict_import_error">Import fehlgeschlagen: %1$s</string>
+    <string name="user_dict_import_select_language">Sprache für das Lernen auswählen</string>
+    <string name="user_dict_import_corpus_help">Wähle eine Textdatei (z.B. einen Chat-Export im .txt Format), um die Vorhersage für das nächste Wort zu verbessern. Die Daten bleiben lokal auf deinem Gerät.</string>
+    <string name="user_dict_reset_title">Autokorrektur zurücksetzen</string>
+    <string name="user_dict_reset_description">Alle gelernten Wörter und kontextuellen Muster löschen.</string>
+    <string name="user_dict_reset_confirm_title">Autokorrektur zurücksetzen?</string>
+    <string name="user_dict_reset_confirm_message">Dies wird alles permanent löschen, was die Tastatur aus deinem Tippverlauf gelernt hat. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="user_dict_reset_confirm_button">Alles zurücksetzen</string>
+    <string name="delete_all">Alles löschen</string>
 </resources>

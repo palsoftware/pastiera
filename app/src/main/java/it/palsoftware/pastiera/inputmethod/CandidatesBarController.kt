@@ -47,6 +47,13 @@ class CandidatesBarController(
             candidatesStatusBar.onAddUserWord = value
         }
 
+    var onSuggestionSelected: ((String) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onSuggestionSelected = value
+            candidatesStatusBar.onSuggestionSelected = value
+        }
+
     var onLanguageSwitchRequested: (() -> Unit)? = null
         set(value) {
             field = value

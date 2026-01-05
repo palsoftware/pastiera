@@ -20,7 +20,8 @@ object SuggestionButtonHandler {
         suggestion: String,
         inputConnection: InputConnection?,
         listener: VariationButtonHandler.OnVariationSelectedListener? = null,
-        shouldDisableAutoCapitalize: Boolean
+        shouldDisableAutoCapitalize: Boolean,
+        onSuggestionSelected: ((String) -> Unit)? = null
     ): View.OnClickListener {
         return View.OnClickListener {
             Log.d(TAG, "Click on suggestion button: $suggestion")
@@ -40,6 +41,7 @@ object SuggestionButtonHandler {
             val committed = replaceCurrentWord(inputConnection, suggestion, forceLeadingCapital)
             if (committed) {
                 NotificationHelper.triggerHapticFeedback(context)
+                onSuggestionSelected?.invoke(suggestion)
             }
             listener?.onVariationSelected(suggestion)
         }
@@ -106,19 +108,36 @@ object SuggestionButtonHandler {
         val deleteAfter = wordAfterCursor.length
         val replacement = CasingHelper.applyCasing(suggestion, currentWord, forceLeadingCapital)
         val nextChar = after.getOrNull(end)
-        val shouldAppendSpace = !replacement.endsWith("'") &&
+        
+        // Punctuation handling: if the suggestion is a single punctuation mark,
+        // we might want to attach it directly to the previous word by removing a preceding space.
+        val punctuationToAttach = setOf(',', '.', '!', '?', ':', ';')
+        val isDirectPunctuation = replacement.length == 1 && replacement[0] in punctuationToAttach
+        
+        var finalDeleteBefore = deleteBefore
+        if (isDirectPunctuation && wordBeforeCursor.isEmpty() && before.endsWith(" ")) {
+            // Check if there's a space before the cursor that we should remove
+            // Only remove if it's a single space (avoid removing newlines or multiple spaces)
+            val charBefore = before.lastOrNull()
+            if (charBefore == ' ') {
+                finalDeleteBefore += 1
+                Log.d(TAG, "Attaching punctuation '$replacement': removing preceding space")
+            }
+        }
+
+        val shouldAppendSpace = !replacement.endsWith("'") && !isDirectPunctuation &&
             (nextChar == null || (!nextChar.isWhitespace() && !boundaryChars.contains(nextChar)))
 
-        val deleted = inputConnection.deleteSurroundingText(deleteBefore, deleteAfter)
+        val deleted = inputConnection.deleteSurroundingText(finalDeleteBefore, deleteAfter)
         if (deleted) {
-            Log.d(TAG, "Deleted ${deleteBefore + deleteAfter} chars ('$currentWord') before inserting suggestion")
+            Log.d(TAG, "Deleted ${finalDeleteBefore + deleteAfter} chars before inserting suggestion")
         } else {
             Log.w(TAG, "Unable to delete surrounding word; inserting anyway")
         }
 
-        val textToCommit = if (shouldAppendSpace) "$replacement " else replacement
+        val textToCommit = if (shouldAppendSpace || isDirectPunctuation) "$replacement " else replacement
         val committed = inputConnection.commitText(textToCommit, 1)
-        if (committed && shouldAppendSpace) {
+        if (committed && (shouldAppendSpace || isDirectPunctuation)) {
             AutoSpaceTracker.markAutoSpace()
             Log.d(TAG, "Suggestion auto-space marked")
         }

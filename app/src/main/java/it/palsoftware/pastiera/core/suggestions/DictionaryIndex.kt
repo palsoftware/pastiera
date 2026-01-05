@@ -10,8 +10,19 @@ import kotlinx.serialization.Serializable
 data class DictionaryIndex(
     val normalizedIndex: Map<String, List<SerializableDictionaryEntry>>,
     val prefixCache: Map<String, List<SerializableDictionaryEntry>>,
+    val ngrams: Map<String, List<SerializableNGramEntry>>? = null,
     val symDeletes: Map<String, List<String>>? = null,
     val symMeta: SymSpellMeta? = null
+)
+
+/**
+ * Serializable version of NGramEntry.
+ */
+@Serializable
+data class SerializableNGramEntry(
+    val context: List<String>,
+    val word: String,
+    val frequency: Int
 )
 
 /**

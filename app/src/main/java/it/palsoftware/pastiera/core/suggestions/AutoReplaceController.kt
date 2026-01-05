@@ -12,27 +12,12 @@ class AutoReplaceController(
     private val suggestionEngine: SuggestionEngine,
     private val settingsProvider: () -> SuggestionSettings
 ) {
-    // #region agent log
-    private fun debugLog(hypothesisId: String, location: String, message: String, data: Map<String, Any?> = emptyMap()) {
-        try {
-            val logFile = File("/Users/andrea/Desktop/DEV/Pastiera/pastiera/.cursor/debug.log")
-            val logEntry = JSONObject().apply {
-                put("sessionId", "debug-session")
-                put("runId", "run1")
-                put("hypothesisId", hypothesisId)
-                put("location", location)
-                put("message", message)
-                put("timestamp", System.currentTimeMillis())
-                put("data", JSONObject(data))
-            }
-            logFile.appendText(logEntry.toString() + "\n")
-        } catch (e: Exception) {
-            // Ignore log errors
-        }
-    }
-    // #endregion
 
-    data class ReplaceResult(val replaced: Boolean, val committed: Boolean)
+    data class ReplaceResult(
+        val replaced: Boolean,
+        val committed: Boolean,
+        val committedWord: String? = null
+    )
     
     // Track last replacement for undo
     private data class LastReplacement(
@@ -99,7 +84,9 @@ class AutoReplaceController(
         keyCode: Int,
         event: KeyEvent?,
         tracker: CurrentWordTracker,
-        inputConnection: InputConnection?
+        inputConnection: InputConnection?,
+        contextHistory: List<String> = emptyList(),
+        cachedSuggestions: List<SuggestionResult> = emptyList()
     ): ReplaceResult {
         val unicodeChar = event?.unicodeChar ?: 0
         val boundaryChar = when {
@@ -111,12 +98,20 @@ class AutoReplaceController(
 
         val settings = settingsProvider()
         if (!settings.autoReplaceOnSpaceEnter || inputConnection == null) {
+            val wordBefore = tracker.currentWord
             tracker.onBoundaryReached(boundaryChar, inputConnection)
-            return ReplaceResult(false, unicodeChar != 0)
+            return ReplaceResult(false, unicodeChar != 0, if (wordBefore.isBlank()) null else wordBefore)
+        }
+
+        val word = tracker.currentWord
+        if (word.isBlank()) {
+            tracker.onBoundaryReached(boundaryChar, inputConnection)
+            return ReplaceResult(false, unicodeChar != 0, null)
         }
 
         // If cursor is after non-letter/digit and not standard punctuation (e.g., emoji),
         // skip auto-replace to avoid dropping trailing symbols.
+        // Moved here to avoid IPC call when word is already blank.
         val textBefore = inputConnection.getTextBeforeCursor(16, 0)?.toString().orEmpty()
         val lastCharBeforeCursor = textBefore.lastOrNull()
         val allowedPunctuation = it.palsoftware.pastiera.core.Punctuation.BOUNDARY + "-"
@@ -125,38 +120,39 @@ class AutoReplaceController(
             lastCharBeforeCursor !in allowedPunctuation &&
             !lastCharBeforeCursor.isWhitespace()
         ) {
+            val wordBefore = tracker.currentWord
             tracker.onBoundaryReached(boundaryChar, inputConnection)
-            return ReplaceResult(false, unicodeChar != 0)
+            return ReplaceResult(false, unicodeChar != 0, if (wordBefore.isBlank()) null else wordBefore)
         }
-
-        val word = tracker.currentWord
-        // #region agent log
-        val textBeforeReal = inputConnection?.getTextBeforeCursor(16, 0)?.toString().orEmpty()
-        debugLog("C", "AutoReplaceController.handleBoundary:beforeReplace", "handleBoundary called", mapOf(
-            "trackerWord" to word,
-            "trackerWordLength" to word.length,
-            "textBeforeReal" to textBeforeReal,
-            "textBeforeRealLength" to textBeforeReal.length,
-            "keyCode" to keyCode,
-            "boundaryChar" to (boundaryChar?.toString() ?: "null")
-        ))
-        // #endregion
         if (word.isBlank()) {
             tracker.onBoundaryReached(boundaryChar, inputConnection)
-            return ReplaceResult(false, unicodeChar != 0)
+            return ReplaceResult(false, unicodeChar != 0, null)
         }
 
         val apostropheSplit = splitApostropheWord(word)
         val lookupWord = apostropheSplit?.root ?: word
 
-        val suggestions = suggestionEngine.suggest(
-            lookupWord,
-            limit = 1,
-            includeAccentMatching = settings.accentMatching,
-            useKeyboardProximity = settings.useKeyboardProximity,
-            useEditTypeRanking = settings.useEditTypeRanking
-        )
-        val topRaw = suggestions.firstOrNull()
+        // Optimization: Use cached suggestions if they match the current lookup word
+        val topRaw = if (cachedSuggestions.isNotEmpty() && 
+            cachedSuggestions.firstOrNull()?.let { res -> 
+                // Check if the cached suggestion was for the current word (case-insensitive)
+                // Note: normalized comparison is better
+                val normRes = res.candidate.lowercase().take(lookupWord.length)
+                normRes == lookupWord.lowercase() || res.distance > 0
+            } == true) {
+            cachedSuggestions.firstOrNull()
+        } else {
+            // Fallback to synchronous suggest only if cache is empty or doesn't match
+            suggestionEngine.suggest(
+                lookupWord,
+                limit = 1,
+                includeAccentMatching = settings.accentMatching,
+                useKeyboardProximity = settings.useKeyboardProximity,
+                useEditTypeRanking = settings.useEditTypeRanking,
+                contextHistory = contextHistory
+            ).firstOrNull()
+        }
+
         val top = topRaw?.let {
             if (apostropheSplit != null) {
                 val recomposed = recomposeApostropheCandidate(apostropheSplit, it.candidate) ?: return@let null
@@ -188,27 +184,8 @@ class AutoReplaceController(
 
         if (shouldReplace) {
             val replacement = applyCasing(top!!.candidate, word)
-            // #region agent log
-            val textBeforeDelete = inputConnection.getTextBeforeCursor(16, 0)?.toString().orEmpty()
-            debugLog("C", "AutoReplaceController.handleBoundary:beforeDelete", "about to deleteSurroundingText", mapOf(
-                "trackerWord" to word,
-                "trackerWordLength" to word.length,
-                "deleteCount" to word.length,
-                "textBeforeDelete" to textBeforeDelete,
-                "textBeforeDeleteLength" to textBeforeDelete.length,
-                "replacement" to replacement
-            ))
-            // #endregion
             inputConnection.beginBatchEdit()
             inputConnection.deleteSurroundingText(word.length, 0)
-            // #region agent log
-            val textAfterDelete = inputConnection.getTextBeforeCursor(16, 0)?.toString().orEmpty()
-            debugLog("C", "AutoReplaceController.handleBoundary:afterDelete", "deleteSurroundingText completed", mapOf(
-                "textAfterDelete" to textAfterDelete,
-                "textAfterDeleteLength" to textAfterDelete.length,
-                "deletedCount" to word.length
-            ))
-            // #endregion
             inputConnection.commitText(replacement, 1)
             repository.markUsed(replacement)
             
@@ -231,13 +208,14 @@ class AutoReplaceController(
                 }
                 Log.d("AutoReplaceController", "Committed boundary '$boundaryChar', markAutoSpace=${shouldAppendBoundary && boundaryChar == ' '}")
             }
-            return ReplaceResult(true, true)
+            return ReplaceResult(true, true, replacement)
         }
 
         // Clear last replacement if no replacement happened
         lastReplacement = null
+        val wordBefore = tracker.currentWord
         tracker.onBoundaryReached(boundaryChar, inputConnection)
-        return ReplaceResult(false, unicodeChar != 0)
+        return ReplaceResult(false, unicodeChar != 0, if (wordBefore.isBlank()) null else wordBefore)
     }
 
     fun handleBackspaceUndo(

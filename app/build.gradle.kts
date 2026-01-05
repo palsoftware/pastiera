@@ -3,6 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization") version "2.0.21"
+    id("com.google.devtools.ksp") version "2.0.21-1.0.27"
 }
 
 import java.io.File
@@ -201,14 +202,19 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     // Emoji2 per supporto emoji future-proof
     implementation("androidx.emoji2:emoji2:1.4.0")
-    implementation("androidx.emoji2:emoji2-views:1.4.0")
-    implementation("androidx.emoji2:emoji2-views-helper:1.4.0")
     // Kotlinx Serialization for dictionary optimization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-cbor:1.6.3")
     // Shizuku for ADB shell access
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+
+    // Room database for user dictionary and ngrams
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -25,15 +25,15 @@
     <!-- Auto Capitalize Section -->
     <string name="auto_capitalize_title">Auto-Capitalize First Letter</string>
     <string name="auto_capitalize_description">Automatically capitalizes the first letter when starting to type in an empty text field.</string>
-
+    
     <!-- Auto Capitalize After Period Section -->
     <string name="auto_capitalize_after_period_title">Auto-Capitalize After Period</string>
     <string name="auto_capitalize_after_period_description">Automatically capitalizes the next letter after typing a period followed by a space (end of sentence).</string>
-
+    
     <!-- Double Space to Period Section -->
     <string name="double_space_to_period_title">Double Space to Period</string>
     <string name="double_space_to_period_description">Double tap space to insert a period followed by a space and capitalize the next letter.</string>
-
+    
     <!-- Clear Alt on Space Section -->
     <string name="clear_alt_on_space_title">Clear Alt on Space</string>
     <string name="clear_alt_on_space_description">Automatically disable Alt or Alt-Lock when pressing Space.</string>
@@ -51,7 +51,7 @@
     <!-- Alt+Ctrl Speech Recognition Shortcut Section -->
     <string name="alt_ctrl_speech_shortcut_title">Alt+Ctrl Speech Recognition</string>
     <string name="alt_ctrl_speech_shortcut_description">Enable Alt+Ctrl keyboard shortcut to start speech recognition</string>
-
+    
     <!-- Static Variation Bar Mode -->
     <string name="static_variation_bar_mode_title">Static Variation Bar</string>
     <string name="static_variation_bar_mode_description">Always show a fixed set of utility keys in the variation row instead of context-based variations.</string>
@@ -158,6 +158,20 @@
     <string name="user_dict_empty_state">No user words saved yet.</string>
     <string name="user_dict_edit_title">Edit word</string>
     <string name="user_dict_frequency_label">Uses: %1$d</string>
+    <string name="user_dict_import_corpus_title">Import text corpus</string>
+    <string name="user_dict_import_corpus_description">Learn from a text file (e.g. chat backup) to improve next-word predictions.</string>
+    <string name="user_dict_import_select_file">Select file</string>
+    <string name="user_dict_import_processing">Processing file...</string>
+    <string name="user_dict_import_success">Import successful! Learned %1$d new word combinations.</string>
+    <string name="user_dict_import_error">Import failed: %1$s</string>
+    <string name="user_dict_import_select_language">Select language for learning</string>
+    <string name="user_dict_import_corpus_help">Select a text file (e.g., a chat export in .txt format) to improve next-word predictions. The data stays local on your device.</string>
+    <string name="user_dict_reset_title">Reset Autocorrection</string>
+    <string name="user_dict_reset_description">Delete all learned words and contextual patterns.</string>
+    <string name="user_dict_reset_confirm_title">Reset Autocorrection?</string>
+    <string name="user_dict_reset_confirm_message">This will permanently delete everything the keyboard has learned from your typing history. This cannot be undone.</string>
+    <string name="user_dict_reset_confirm_button">Reset All</string>
+    <string name="delete_all">Delete All</string>
     
     <!-- SYM Customization Screen -->
     <string name="sym_customize_title">Customize SYM Keyboard</string>

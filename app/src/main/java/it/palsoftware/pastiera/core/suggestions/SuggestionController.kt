@@ -14,9 +14,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
-import java.io.File
-import org.json.JSONObject
 
 class SuggestionController(
     context: Context,
@@ -43,18 +42,63 @@ class SuggestionController(
                 if (debugLogging) {
                     Log.d("PastieraIME", "trackerWordChanged='$word' len=${word.length}")
                 }
-                val next = suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
-                latestSuggestions.set(next)
-                suggestionsListener?.invoke(next)
+                currentSuggestionJob?.cancel()
+                currentSuggestionJob = suggestionScope.launch {
+                    val next = suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
+                    latestSuggestions.set(next)
+                    withContext(Dispatchers.Main) {
+                        suggestionsListener?.invoke(next)
+                    }
+                }
             }
         },
         onWordReset = {
-            latestSuggestions.set(emptyList())
-            suggestionsListener?.invoke(emptyList())
+            val settings = settingsProvider()
+            if (settings.suggestionsEnabled) {
+                currentSuggestionJob?.cancel()
+                currentSuggestionJob = suggestionScope.launch {
+                    val next = suggestionEngine.suggest("", settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking, contextHistory)
+                    latestSuggestions.set(next)
+                    withContext(Dispatchers.Main) {
+                        suggestionsListener?.invoke(next)
+                    }
+                }
+            } else {
+                latestSuggestions.set(emptyList())
+                suggestionsListener?.invoke(emptyList())
+            }
         }
     )
     private var autoReplaceController = AutoReplaceController(dictionaryRepository, suggestionEngine, settingsProvider)
     
+    private fun addToContextHistory(word: String) {
+        if (word.isBlank()) return
+        contextHistory.add(word)
+        if (contextHistory.size > 3) {
+            contextHistory.removeAt(0)
+        }
+    }
+
+    private fun learnFromContext(committed: String) {
+        if (committed.isBlank()) return
+        
+        // If it's a word, normalize it. If it's punctuation, keep it.
+        val isWord = committed.any { it.isLetterOrDigit() }
+        
+        // Learn N-Grams (Bigrams, Trigrams, etc.)
+        for (len in 1..contextHistory.size) {
+            val context = contextHistory.takeLast(len)
+            dictionaryRepository.addNGram(context, committed)
+        }
+        
+        // Only add actual words to the unigram dictionary
+        if (isWord) {
+            dictionaryRepository.addUserEntryQuick(committed)
+        }
+        
+        addToContextHistory(committed)
+    }
+
     /**
      * Updates the locale and reloads the dictionary for the new language.
      */
@@ -77,14 +121,31 @@ class SuggestionController(
             onWordChanged = { word ->
                 val settings = settingsProvider()
                 if (settings.suggestionsEnabled) {
-                    val next = suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
-                    latestSuggestions.set(next)
-                    suggestionsListener?.invoke(next)
+                    currentSuggestionJob?.cancel()
+                    currentSuggestionJob = suggestionScope.launch {
+                        val next = suggestionEngine.suggest(word, settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking)
+                        latestSuggestions.set(next)
+                        withContext(Dispatchers.Main) {
+                            suggestionsListener?.invoke(next)
+                        }
+                    }
                 }
             },
             onWordReset = {
-                latestSuggestions.set(emptyList())
-                suggestionsListener?.invoke(emptyList())
+                val settings = settingsProvider()
+                if (settings.suggestionsEnabled) {
+                    currentSuggestionJob?.cancel()
+                    currentSuggestionJob = suggestionScope.launch {
+                        val next = suggestionEngine.suggest("", settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking, contextHistory)
+                        latestSuggestions.set(next)
+                        withContext(Dispatchers.Main) {
+                            suggestionsListener?.invoke(next)
+                        }
+                    }
+                } else {
+                    latestSuggestions.set(emptyList())
+                    suggestionsListener?.invoke(emptyList())
+                }
             }
         )
         
@@ -108,44 +169,19 @@ class SuggestionController(
     private val latestSuggestions: AtomicReference<List<SuggestionResult>> = AtomicReference(emptyList())
     // Dedicated IO scope so dictionary preload never blocks the main thread.
     private val loadScope = CoroutineScope(Dispatchers.IO)
+    private val suggestionScope = CoroutineScope(Dispatchers.Default)
     private var currentLoadJob: Job? = null
+    private var currentSuggestionJob: Job? = null
     private val cursorHandler = Handler(Looper.getMainLooper())
     private var cursorRunnable: Runnable? = null
     private val cursorDebounceMs = 120L
     private var pendingAddUserWord: String? = null
+    private val contextHistory = mutableListOf<String>()
     
-    // #region agent log
-    private fun debugLog(hypothesisId: String, location: String, message: String, data: Map<String, Any?> = emptyMap()) {
-        try {
-            val logFile = File("/Users/andrea/Desktop/DEV/Pastiera/pastiera/.cursor/debug.log")
-            val logEntry = JSONObject().apply {
-                put("sessionId", "debug-session")
-                put("runId", "run1")
-                put("hypothesisId", hypothesisId)
-                put("location", location)
-                put("message", message)
-                put("timestamp", System.currentTimeMillis())
-                put("data", JSONObject(data))
-            }
-            logFile.appendText(logEntry.toString() + "\n")
-        } catch (e: Exception) {
-            // Ignore log errors
-        }
-    }
-    // #endregion
-
     var suggestionsListener: ((List<SuggestionResult>) -> Unit)? = onSuggestionsUpdated
 
     fun onCharacterCommitted(text: CharSequence, inputConnection: InputConnection?) {
         if (!isEnabled()) return
-        // #region agent log
-        val trackerWordBefore = tracker.currentWord
-        debugLog("A", "SuggestionController.onCharacterCommitted:entry", "onCharacterCommitted called", mapOf(
-            "text" to text.toString(),
-            "trackerWordBefore" to trackerWordBefore,
-            "trackerWordLengthBefore" to trackerWordBefore.length
-        ))
-        // #endregion
         if (debugLogging) {
             val caller = Throwable().stackTrace.getOrNull(1)?.let { "${it.className}#${it.methodName}:${it.lineNumber}" }
             Log.d("PastieraIME", "SuggestionController.onCharacterCommitted('$text') caller=$caller")
@@ -155,8 +191,8 @@ class SuggestionController(
         // Normalize curly/variant apostrophes to straight for tracking and suggestions.
         val normalizedText = text
             .toString()
-            .replace("'", "'")
-            .replace("'", "'")
+            .replace("’", "'")
+            .replace("‘", "'")
             .replace("ʼ", "'")
         
         // Clear last replacement if user types new characters
@@ -169,14 +205,6 @@ class SuggestionController(
         }
         
         tracker.onCharacterCommitted(normalizedText)
-        // #region agent log
-        val trackerWordAfter = tracker.currentWord
-        debugLog("A", "SuggestionController.onCharacterCommitted:exit", "tracker updated after onCharacterCommitted", mapOf(
-            "trackerWordAfter" to trackerWordAfter,
-            "trackerWordLengthAfter" to trackerWordAfter.length,
-            "normalizedText" to normalizedText
-        ))
-        // #endregion
     }
 
     fun refreshFromInputConnection(inputConnection: InputConnection?) {
@@ -197,23 +225,52 @@ class SuggestionController(
         }
         ensureDictionaryLoaded()
 
-        // CRITICAL FIX: Sync tracker with actual text before processing boundary
-        // The cursor debounce can cause tracker to be out of sync with the actual text field
-        if (inputConnection != null && dictionaryRepository.isReady) {
-            val word = extractWordAtCursor(inputConnection)
-            if (!word.isNullOrBlank()) {
-                tracker.setWord(word)
-                Log.d("PastieraIME", "SYNC: Synced tracker to actual word='$word' before boundary")
+        // Removed the synchronous sync with InputConnection here to avoid cursor lag.
+        // The tracker is already updated via onCharacterCommitted and onCursorMoved (debounced).
+
+        val result = autoReplaceController.handleBoundary(
+            keyCode,
+            event,
+            tracker,
+            inputConnection,
+            contextHistory,
+            latestSuggestions.get()
+        )
+        
+        // Move all learning and next-word prediction to background to keep cursor movement instant
+        suggestionScope.launch {
+            // Learn NGrams and update contextHistory
+            result.committedWord?.let { committed ->
+                learnFromContext(committed)
+            }
+            
+            // Also learn from the boundary character itself if it's relevant punctuation (e.g. comma)
+            val boundaryChar = event?.unicodeChar?.toChar() ?: when(keyCode) {
+                KeyEvent.KEYCODE_COMMA -> ','
+                KeyEvent.KEYCODE_PERIOD -> '.'
+                else -> null
+            }
+            
+            if (boundaryChar != null && (boundaryChar == ',' || boundaryChar == '.' || boundaryChar == '!' || boundaryChar == '?')) {
+                learnFromContext(boundaryChar.toString())
+            }
+
+            // Predict next words after a boundary key (e.g. space)
+            val settings = settingsProvider()
+            if (settings.suggestionsEnabled) {
+                val next = suggestionEngine.suggest("", settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking, contextHistory)
+                latestSuggestions.set(next)
+                withContext(Dispatchers.Main) {
+                    suggestionsListener?.invoke(next)
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    latestSuggestions.set(emptyList())
+                    suggestionsListener?.invoke(emptyList())
+                }
             }
         }
-
-        val result = autoReplaceController.handleBoundary(keyCode, event, tracker, inputConnection)
-        if (result.replaced) {
-            NotificationHelper.triggerHapticFeedback(appContext)
-        } else {
-            pendingAddUserWord = null
-        }
-        suggestionsListener?.invoke(emptyList())
+        
         return result
     }
 
@@ -226,21 +283,72 @@ class SuggestionController(
         if (!isEnabled()) return
         if (inputConnection == null || !dictionaryRepository.isReady) return
         
+        // Try to recover context history from the text before the cursor
+        rebuildContextHistory(inputConnection)
+        
         val word = extractWordAtCursor(inputConnection)
         if (!word.isNullOrBlank()) {
             tracker.setWord(word)
+        } else {
+            // Even if word is blank, trigger suggestions (next-word prediction)
+            val settings = settingsProvider()
+            if (settings.suggestionsEnabled) {
+                currentSuggestionJob?.cancel()
+                currentSuggestionJob = suggestionScope.launch {
+                    val next = suggestionEngine.suggest("", settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking, contextHistory)
+                    latestSuggestions.set(next)
+                    withContext(Dispatchers.Main) {
+                        suggestionsListener?.invoke(next)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun rebuildContextHistory(inputConnection: InputConnection) {
+        try {
+            // Keep it small and fast (32 chars is enough for ~3-4 words)
+            val textBefore = inputConnection.getTextBeforeCursor(32, 0)?.toString() ?: ""
+            if (textBefore.isEmpty()) {
+                contextHistory.clear()
+                return
+            }
+            
+            // Simple tokenization: split by whitespace and keep relevant punctuation
+            val tokens = mutableListOf<String>()
+            val parts = textBefore.trim().split("\\s+".toRegex())
+            
+            parts.forEach { part ->
+                if (part.isEmpty()) return@forEach
+                
+                val currentWord = StringBuilder()
+                part.forEach { char ->
+                    if (char.isLetterOrDigit() || char == '\'') {
+                        currentWord.append(char)
+                    } else {
+                        if (currentWord.isNotEmpty()) {
+                            tokens.add(currentWord.toString())
+                            currentWord.setLength(0)
+                        }
+                        if (char == ',' || char == '.' || char == '!' || char == '?') {
+                            tokens.add(char.toString())
+                        }
+                    }
+                }
+                if (currentWord.isNotEmpty()) {
+                    tokens.add(currentWord.toString())
+                }
+            }
+            
+            contextHistory.clear()
+            contextHistory.addAll(tokens.takeLast(3))
+        } catch (e: Exception) {
+            contextHistory.clear()
         }
     }
 
     fun onCursorMoved(inputConnection: InputConnection?) {
         if (!isEnabled()) return
-        // #region agent log
-        val trackerWordBefore = tracker.currentWord
-        debugLog("A", "SuggestionController.onCursorMoved:entry", "onCursorMoved called", mapOf(
-            "trackerWordBefore" to trackerWordBefore,
-            "trackerWordLengthBefore" to trackerWordBefore.length
-        ))
-        // #endregion
         ensureDictionaryLoaded()
         cursorRunnable?.let { cursorHandler.removeCallbacks(it) }
         if (inputConnection == null) {
@@ -249,40 +357,33 @@ class SuggestionController(
             return
         }
         cursorRunnable = Runnable {
-            // #region agent log
-            val trackerWordBeforeExtract = tracker.currentWord
-            debugLog("B", "SuggestionController.onCursorMoved:runnable", "extractWordAtCursor about to be called", mapOf(
-                "trackerWordBeforeExtract" to trackerWordBeforeExtract,
-                "trackerWordLengthBeforeExtract" to trackerWordBeforeExtract.length
-            ))
-            // #endregion
+            // Try to recover context history from the text before the cursor
+            rebuildContextHistory(inputConnection)
+            
             if (!dictionaryRepository.isReady) {
                 tracker.reset()
                 suggestionsListener?.invoke(emptyList())
                 return@Runnable
             }
             val word = extractWordAtCursor(inputConnection)
-            // #region agent log
-            debugLog("B", "SuggestionController.onCursorMoved:afterExtract", "extractWordAtCursor returned", mapOf(
-                "extractedWord" to (word ?: "null"),
-                "extractedWordLength" to (word?.length ?: 0),
-                "trackerWordBeforeSet" to trackerWordBeforeExtract,
-                "trackerWordLengthBeforeSet" to trackerWordBeforeExtract.length
-            ))
-            // #endregion
             if (!word.isNullOrBlank()) {
                 tracker.setWord(word)
-                // #region agent log
-                val trackerWordAfter = tracker.currentWord
-                debugLog("B", "SuggestionController.onCursorMoved:afterSet", "tracker.setWord called", mapOf(
-                    "trackerWordAfter" to trackerWordAfter,
-                    "trackerWordLengthAfter" to trackerWordAfter.length,
-                    "extractedWord" to word
-                ))
-                // #endregion
             } else {
                 tracker.reset()
-                suggestionsListener?.invoke(emptyList())
+                // Trigger next-word prediction even on empty word (e.g. after space or manual move to whitespace)
+                val settings = settingsProvider()
+                if (settings.suggestionsEnabled) {
+                    currentSuggestionJob?.cancel()
+                    currentSuggestionJob = suggestionScope.launch {
+                        val next = suggestionEngine.suggest("", settings.maxSuggestions, settings.accentMatching, settings.useKeyboardProximity, settings.useEditTypeRanking, contextHistory)
+                        latestSuggestions.set(next)
+                        withContext(Dispatchers.Main) {
+                            suggestionsListener?.invoke(next)
+                        }
+                    }
+                } else {
+                    suggestionsListener?.invoke(emptyList())
+                }
             }
         }
         cursorHandler.postDelayed(cursorRunnable!!, cursorDebounceMs)
@@ -291,6 +392,7 @@ class SuggestionController(
     fun onContextReset() {
         if (!isEnabled()) return
         tracker.onContextChanged()
+        contextHistory.clear()
         pendingAddUserWord = null
         suggestionsListener?.invoke(emptyList())
     }
@@ -298,11 +400,22 @@ class SuggestionController(
     fun onNavModeToggle() {
         if (!isEnabled()) return
         tracker.onContextChanged()
+        contextHistory.clear()
     }
 
     fun addUserWord(word: String) {
         if (!isEnabled()) return
         dictionaryRepository.addUserEntryQuick(word)
+    }
+
+    fun onSuggestionSelected(suggestion: String) {
+        if (!isEnabled()) return
+        suggestionScope.launch {
+            learnFromContext(suggestion)
+            withContext(Dispatchers.Main) {
+                tracker.reset()
+            }
+        }
     }
 
     fun removeUserWord(word: String) {
@@ -368,14 +481,6 @@ class SuggestionController(
         return try {
             val before = inputConnection.getTextBeforeCursor(12, 0)?.toString() ?: ""
             val after = inputConnection.getTextAfterCursor(12, 0)?.toString() ?: ""
-            // #region agent log
-            debugLog("B", "SuggestionController.extractWordAtCursor:before", "getTextBeforeCursor/getTextAfterCursor called", mapOf(
-                "before" to before,
-                "beforeLength" to before.length,
-                "after" to after,
-                "afterLength" to after.length
-            ))
-            // #endregion
             val boundary = " \t\n\r" + it.palsoftware.pastiera.core.Punctuation.BOUNDARY
             var start = before.length
             while (start > 0 && !boundary.contains(before[start - 1])) {
@@ -386,14 +491,6 @@ class SuggestionController(
                 end++
             }
             val word = before.substring(start) + after.substring(0, end)
-            // #region agent log
-            debugLog("B", "SuggestionController.extractWordAtCursor:after", "word extracted", mapOf(
-                "extractedWord" to (if (word.isBlank()) "null" else word),
-                "extractedWordLength" to word.length,
-                "beforeSubstring" to before.substring(start),
-                "afterSubstring" to after.substring(0, end)
-            ))
-            // #endregion
             if (word.isBlank()) null else word
         } catch (_: Exception) {
             null

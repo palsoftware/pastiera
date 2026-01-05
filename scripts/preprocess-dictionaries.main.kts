@@ -18,9 +18,17 @@ data class SerializableDictionaryEntry(
 )
 
 @Serializable
+data class SerializableNGramEntry(
+    val context: List<String>,
+    val word: String,
+    val frequency: Int
+)
+
+@Serializable
 data class DictionaryIndex(
     val normalizedIndex: Map<String, List<SerializableDictionaryEntry>>,
-    val prefixCache: Map<String, List<SerializableDictionaryEntry>>
+    val prefixCache: Map<String, List<SerializableDictionaryEntry>>,
+    val ngrams: Map<String, List<SerializableNGramEntry>>? = null
 )
 
 fun normalize(word: String, locale: Locale = Locale.ITALIAN): String {
@@ -174,6 +182,53 @@ fun main(args: Array<String>) {
             
             log("  Loaded ${entries.size} entries")
             
+            // OPTIONAL: Load corpus for NGram extraction
+            val ngrams = mutableMapOf<String, MutableList<SerializableNGramEntry>>()
+            val corpusFile = File(dictionariesDir, "${language}_corpus.txt")
+            if (corpusFile.exists()) {
+                log("  Processing corpus for NGrams: ${corpusFile.name}")
+                val text = corpusFile.readText().lowercase(locale)
+                val tokens = text.split("\\s+".toRegex()).filter { it.length > 1 }
+                
+                // Bigrams
+                for (i in 0 until tokens.size - 1) {
+                    val w1 = tokens[i]
+                    val w2 = tokens[i + 1]
+                    val contextKey = w1
+                    val list = ngrams.getOrPut(contextKey) { mutableListOf() }
+                    val existing = list.find { it.word == w2 }
+                    if (existing != null) {
+                        list.remove(existing)
+                        list.add(existing.copy(frequency = existing.frequency + 1))
+                    } else {
+                        list.add(SerializableNGramEntry(listOf(w1), w2, 1))
+                    }
+                }
+                
+                // Trigrams
+                for (i in 0 until tokens.size - 2) {
+                    val w1 = tokens[i]
+                    val w2 = tokens[i + 1]
+                    val w3 = tokens[i + 2]
+                    val contextKey = "$w1|$w2"
+                    val list = ngrams.getOrPut(contextKey) { mutableListOf() }
+                    val existing = list.find { it.word == w3 }
+                    if (existing != null) {
+                        list.remove(existing)
+                        list.add(existing.copy(frequency = existing.frequency + 1))
+                    } else {
+                        list.add(SerializableNGramEntry(listOf(w1, w2), w3, 1))
+                    }
+                }
+                
+                // Sort and prune ngrams to keep file size reasonable
+                ngrams.forEach { (key, list) ->
+                    val pruned = list.sortedByDescending { it.frequency }.take(10)
+                    ngrams[key] = pruned.toMutableList()
+                }
+                log("  Extracted ${ngrams.size} contextual ngrams")
+            }
+
             val normalizedIndex = mutableMapOf<String, MutableList<SerializableDictionaryEntry>>()
             val prefixCache = mutableMapOf<String, MutableList<SerializableDictionaryEntry>>()
             val cachePrefixLength = 4
@@ -207,7 +262,8 @@ fun main(args: Array<String>) {
             
             val serializableIndex = DictionaryIndex(
                 normalizedIndex = normalizedIndex,
-                prefixCache = prefixCache
+                prefixCache = prefixCache,
+                ngrams = ngrams
             )
             
             val json = Json {

@@ -743,6 +743,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             suggestionController.clearPendingAddWord()
             updateStatusBarText()
         }
+        candidatesBarController.onSuggestionSelected = { suggestion ->
+            suggestionController.onSuggestionSelected(suggestion)
+            updateStatusBarText()
+        }
         candidatesBarController.onLanguageSwitchRequested = {
             cycleToNextLanguage()
         }

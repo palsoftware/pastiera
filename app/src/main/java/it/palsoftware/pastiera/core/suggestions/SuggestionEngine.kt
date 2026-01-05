@@ -294,9 +294,12 @@ class SuggestionEngine(
         limit: Int = 3,
         includeAccentMatching: Boolean = true,
         useKeyboardProximity: Boolean = true,
-        useEditTypeRanking: Boolean = true
+        useEditTypeRanking: Boolean = true,
+        contextHistory: List<String> = emptyList()
     ): List<SuggestionResult> {
-        if (currentWord.isBlank()) return emptyList()
+        if (currentWord.isBlank()) {
+            return predictNextWords(limit, contextHistory)
+        }
         if (!repository.isReady) return emptyList()
 
         // Apostrophe branch: split and suggest on the root to avoid over-corrections.
@@ -307,7 +310,8 @@ class SuggestionEngine(
                 limit = (limit * 2).coerceAtMost(12),
                 includeAccentMatching = includeAccentMatching,
                 useKeyboardProximity = useKeyboardProximity,
-                useEditTypeRanking = useEditTypeRanking
+                useEditTypeRanking = useEditTypeRanking,
+                contextHistory = contextHistory
             )
             val filtered = rootResults
                 .filter { it.distance <= 1 } // stay conservative on apostrophated forms
@@ -326,8 +330,74 @@ class SuggestionEngine(
             limit = limit,
             includeAccentMatching = includeAccentMatching,
             useKeyboardProximity = useKeyboardProximity,
-            useEditTypeRanking = useEditTypeRanking
+            useEditTypeRanking = useEditTypeRanking,
+            contextHistory = contextHistory
         )
+    }
+
+    private fun predictNextWords(limit: Int, contextHistory: List<String>): List<SuggestionResult> {
+        if (!repository.isReady) return emptyList()
+
+        val suggestions = mutableListOf<SuggestionResult>()
+        val seen = mutableSetOf<String>()
+
+        // Stupid Backoff Strategy: Trigrams (2 words context) -> Bigrams (1 word context) -> Unigrams (No context)
+        
+        // 1. Try Trigrams (if context history has >= 2 words)
+        if (contextHistory.size >= 2) {
+            val trigramContext = contextHistory.takeLast(2)
+            val trigrams = repository.getNGramsForContext(trigramContext)
+            trigrams.forEach { entry ->
+                if (seen.add(entry.word.lowercase())) {
+                    suggestions.add(
+                        SuggestionResult(
+                            candidate = entry.word,
+                            distance = 0,
+                            score = 3.0 + (entry.frequency / 100.0), // Highest base score
+                            source = SuggestionSource.USER
+                        )
+                    )
+                }
+            }
+        }
+
+        // 2. Try Bigrams (if context history has >= 1 word)
+        if (suggestions.size < limit && contextHistory.isNotEmpty()) {
+            val bigramContext = contextHistory.takeLast(1)
+            val bigrams = repository.getNGramsForContext(bigramContext)
+            bigrams.forEach { entry ->
+                if (seen.add(entry.word.lowercase())) {
+                    suggestions.add(
+                        SuggestionResult(
+                            candidate = entry.word,
+                            distance = 0,
+                            score = 2.0 + (entry.frequency / 100.0), // Medium base score
+                            source = SuggestionSource.USER
+                        )
+                    )
+                }
+            }
+        }
+
+        // 3. Fallback to Unigrams (Frequent words)
+        if (suggestions.size < limit) {
+            val topWords = repository.getTopFrequentWords(limit * 2)
+            for (entry in topWords) {
+                if (seen.add(entry.word.lowercase())) {
+                    suggestions.add(
+                        SuggestionResult(
+                            candidate = entry.word,
+                            distance = 0,
+                            score = 1.0 + (repository.effectiveFrequency(entry) / 1600.0), // Lowest base score
+                            source = entry.source
+                        )
+                    )
+                }
+                if (suggestions.size >= limit) break
+            }
+        }
+
+        return suggestions.sortedByDescending { it.score }.take(limit)
     }
 
     private fun suggestInternal(
@@ -335,7 +405,8 @@ class SuggestionEngine(
         limit: Int,
         includeAccentMatching: Boolean,
         useKeyboardProximity: Boolean,
-        useEditTypeRanking: Boolean
+        useEditTypeRanking: Boolean,
+        contextHistory: List<String> = emptyList()
     ): List<SuggestionResult> {
         val normalizedWord = normalize(currentWord)
         val normalizedWordBare = normalizedWord.replace("'", "")
@@ -395,6 +466,15 @@ class SuggestionEngine(
         } else emptyList()
         val seen = HashSet<String>(limit * 3)
         val top = ArrayList<SuggestionResult>(limit)
+
+        // Pre-fetch ngrams for contextual bonus to avoid DB queries in the loop
+        val currentBigrams = if (contextHistory.isNotEmpty()) {
+            repository.getNGramsForContext(contextHistory.takeLast(1)).map { it.word.lowercase() }.toSet()
+        } else emptySet()
+        
+        val currentTrigrams = if (contextHistory.size >= 2) {
+            repository.getNGramsForContext(contextHistory.takeLast(2)).map { it.word.lowercase() }.toSet()
+        } else emptySet()
 
         // Comparator with three-tier priority: USER words > prefix completions > edit-distance
         val comparator = Comparator<SuggestionResult> { a, b ->
@@ -520,11 +600,14 @@ class SuggestionEngine(
 
                 // Filter out capitalized words for prefix completions when input is lowercase
                 // (likely proper nouns like "Hardy" when typing "hard")
-                // Exception: Never filter user dictionary words
+                // Exception: Never filter user dictionary words.
+                // Exception: Never filter if we want case-insensitive suggestions (helpful for proper nouns).
                 val inputIsLowercase = currentWord.firstOrNull()?.isLowerCase() == true
                 val candidateIsCapitalized = entry.word.firstOrNull()?.isUpperCase() == true
-                if (isPrefix && inputIsLowercase && candidateIsCapitalized && entry.source != SuggestionSource.USER) {
-                    return@forEach // Skip capitalized prefix completions when user typed lowercase
+                if (isPrefix && inputIsLowercase && candidateIsCapitalized && 
+                    entry.source != SuggestionSource.USER) {
+                    // We allow it, but maybe with a tiny penalty if we want to prioritize exact case matches
+                    // For now, we just don't return@forEach anymore
                 }
 
                 val bareCandidate = normCandidate.replace("'", "")
@@ -574,6 +657,27 @@ class SuggestionEngine(
                 }
                 val completionLengthPenalty = if (isCompletion && currentWord.length >= 4 && (candidateLen - currentWord.length) >= 3) -0.35 else 0.0
                 val sameRootBonus = if (distance == 1 && bareCandidate == normalizedWordBare) 0.25 else 0.0
+                
+                // Casing bonus: if the word is the same but casing differs, it's likely a correction (e.g. problem -> Problem)
+                val casingCorrectionBonus = if (distance == 0 && entry.word != currentWord && entry.word.equals(currentWord, ignoreCase = true)) {
+                    6.0 // Very high boost to surface casing corrections (e.g. for German nouns)
+                } else 0.0
+
+                // Contextual Bonus (NGrams)
+                var contextualBonus = 0.0
+                if (contextHistory.isNotEmpty()) {
+                    val entryWordLower = entry.word.lowercase()
+                    // Try to find if this candidate is a likely next word in the current context
+                    // Bigram context (1 word)
+                    if (currentBigrams.contains(entryWordLower)) {
+                        contextualBonus += 1.0 // Significant boost for context matches
+                    }
+                    
+                    // Trigram context (2 words)
+                    if (currentTrigrams.isNotEmpty() && currentTrigrams.contains(entryWordLower)) {
+                        contextualBonus += 1.5 // Even higher boost for trigram matches
+                    }
+                }
 
                 // Apply edit type ranking when enabled
                 var editTypeBonus = 0.0
@@ -616,7 +720,9 @@ class SuggestionEngine(
                         lengthSimilarityBonus +
                         numericMalus +
                         completionLengthPenalty +
-                        sameRootBonus
+                        sameRootBonus +
+                        casingCorrectionBonus +
+                        contextualBonus
                     ) * sourceBoost
                 val key = entry.word.lowercase(locale)
                 if (!seen.add(key)) return@forEach

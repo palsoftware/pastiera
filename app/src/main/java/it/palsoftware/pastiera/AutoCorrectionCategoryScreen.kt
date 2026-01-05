@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.BackHandler
@@ -29,12 +31,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Delete
+import android.content.Intent
+import android.content.Context
+import it.palsoftware.pastiera.core.suggestions.UserDictionaryStore
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import it.palsoftware.pastiera.core.suggestions.CorpusImporter
+import kotlinx.coroutines.launch
+import java.util.Locale
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import it.palsoftware.pastiera.R
-import android.content.Intent
-import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -325,6 +337,47 @@ fun AutoCorrectionCategoryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
+                                .clickable { navigateTo(AutoCorrectionDestination.CorpusImport) }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.UploadFile,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.user_dict_import_corpus_title),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.user_dict_import_corpus_description),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
                         ) {
                                 Row(
                                     modifier = Modifier
@@ -565,13 +618,89 @@ fun AutoCorrectionCategoryScreen(
                                     Text(
                                         text = stringResource(R.string.auto_correct_max_distance_description),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        // Reset Dictionary Option
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                        
+                        var showResetDialog by remember { mutableStateOf(false) }
+                        
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .clickable { showResetDialog = true }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.user_dict_reset_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.error,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.user_dict_reset_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
                                     )
                                 }
                             }
                         }
+
+                        if (showResetDialog) {
+                            val userStore = remember { it.palsoftware.pastiera.core.suggestions.UserDictionaryStore() }
+                            AlertDialog(
+                                onDismissRequest = { showResetDialog = false },
+                                title = { Text(stringResource(R.string.user_dict_reset_confirm_title)) },
+                                text = { Text(stringResource(R.string.user_dict_reset_confirm_message)) },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            userStore.resetAll(context)
+                                            showResetDialog = false
+                                            // Notify IME to reload dictionary
+                                            val intent = Intent("it.palsoftware.pastiera.ACTION_USER_DICTIONARY_UPDATED").apply {
+                                                setPackage(context.packageName)
+                                            }
+                                            context.sendBroadcast(intent)
+                                        },
+                                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                    ) {
+                                        Text(stringResource(R.string.user_dict_reset_confirm_button))
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showResetDialog = false }) {
+                                        Text(stringResource(R.string.cancel))
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
+            }
             }
             
             AutoCorrectionDestination.Settings -> {
@@ -598,6 +727,13 @@ fun AutoCorrectionCategoryScreen(
                     onBack = { navigateBack() }
                 )
             }
+
+            AutoCorrectionDestination.CorpusImport -> {
+                CorpusImportScreen(
+                    modifier = modifier,
+                    onBack = { navigateBack() }
+                )
+            }
         }
     }
 }
@@ -607,6 +743,7 @@ private sealed class AutoCorrectionDestination {
     object Settings : AutoCorrectionDestination()
     data class Edit(val languageCode: String) : AutoCorrectionDestination()
     object UserDictionary : AutoCorrectionDestination()
+    object CorpusImport : AutoCorrectionDestination()
 }
 
 private enum class UserDictSource { DEFAULT, USER }
@@ -637,6 +774,7 @@ private fun UserDictionaryScreen(
         }
     }
     val hasEntries = entries.isNotEmpty()
+    var showClearAllDialog by remember { mutableStateOf(false) }
 
     fun refreshEntries() {
         // Ensure cache is populated from persistent storage before snapshots/removals.
@@ -728,6 +866,14 @@ private fun UserDictionaryScreen(
                                 )
                             )
                         }
+                        
+                        IconButton(onClick = { showClearAllDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.delete_all)
+                            )
+                        }
+
                         IconButton(onClick = { showAddDialog = true }) {
                             Icon(
                                 imageVector = Icons.Filled.Add,
@@ -862,6 +1008,32 @@ private fun UserDictionaryScreen(
             }
         )
     }
+
+    if (showClearAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearAllDialog = false },
+            title = { Text(stringResource(R.string.user_dict_reset_confirm_title)) },
+            text = { Text(stringResource(R.string.user_dict_reset_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        userStore.resetAll(context)
+                        refreshEntries()
+                        showClearAllDialog = false
+                        notifyDictionaryUpdated()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.user_dict_reset_confirm_button))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearAllDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -908,6 +1080,226 @@ private fun UserDictWordDialog(
             }
         }
     )
+}
+
+@Composable
+private fun CorpusImportScreen(
+    modifier: Modifier = Modifier,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val userStore = remember { it.palsoftware.pastiera.core.suggestions.UserDictionaryStore() }
+    val importer = remember { CorpusImporter(context, userStore) }
+    
+    var importing by remember { mutableStateOf(false) }
+    var progress by remember { mutableStateOf(0f) }
+    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var isError by remember { mutableStateOf(false) }
+
+    // Language selection
+    val supportedLanguages = listOf("de", "en", "it", "fr", "es", "pl")
+    var selectedLanguage by remember { mutableStateOf(Locale.getDefault().language) }
+    if (selectedLanguage !in supportedLanguages) {
+        selectedLanguage = "en"
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            importing = true
+            resultMessage = null
+            scope.launch {
+                val locale = Locale(selectedLanguage)
+                val result = importer.importFromUri(it, locale) { p ->
+                    progress = p
+                }
+                importing = false
+                if (result.isSuccess) {
+                    val count = result.getOrNull() ?: 0
+                    resultMessage = context.getString(R.string.user_dict_import_success, count)
+                    isError = false
+                    
+                    // Notify IME to reload dictionary
+                    val intent = Intent("it.palsoftware.pastiera.ACTION_USER_DICTIONARY_UPDATED").apply {
+                        setPackage(context.packageName)
+                    }
+                    context.sendBroadcast(intent)
+                } else {
+                    resultMessage = context.getString(R.string.user_dict_import_error, result.exceptionOrNull()?.message)
+                    isError = true
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.statusBars),
+                tonalElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.settings_back_content_description)
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.user_dict_import_corpus_title),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(paddingValues)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.user_dict_import_corpus_description),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(R.string.user_dict_import_corpus_help),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            // Language Selection Section
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.user_dict_import_select_language),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    supportedLanguages.forEach { lang ->
+                        val label = when (lang) {
+                            "de" -> stringResource(R.string.input_method_name_de)
+                            "en" -> stringResource(R.string.input_method_name_en)
+                            "it" -> stringResource(R.string.input_method_name_it)
+                            "fr" -> stringResource(R.string.input_method_name_fr)
+                            "es" -> stringResource(R.string.input_method_name_es)
+                            "pl" -> stringResource(R.string.input_method_name_pl)
+                            else -> lang.uppercase()
+                        }
+                        FilterChip(
+                            selected = selectedLanguage == lang,
+                            onClick = { selectedLanguage = lang },
+                            label = { Text(label) },
+                            enabled = !importing
+                        )
+                    }
+                }
+            }
+
+            if (importing) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(vertical = 16.dp)
+                ) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        strokeCap = StrokeCap.Round
+                    )
+                    Text(
+                        text = stringResource(R.string.user_dict_import_processing),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${(progress * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else {
+                Button(
+                    onClick = { filePickerLauncher.launch("text/plain") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = MaterialTheme.shapes.large
+                ) {
+                    Icon(imageVector = Icons.Filled.UploadFile, contentDescription = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.user_dict_import_select_file),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+            }
+
+            resultMessage?.let { message ->
+                Surface(
+                    color = if (isError) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isError) Icons.Filled.Close else Icons.Filled.TextFields,
+                            contentDescription = null,
+                            tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (isError) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 private enum class LocalNavigationDirection {

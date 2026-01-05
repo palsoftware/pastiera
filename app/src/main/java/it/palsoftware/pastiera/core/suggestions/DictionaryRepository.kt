@@ -91,6 +91,8 @@ class DictionaryRepository(
 
     private val prefixCache: MutableMap<String, MutableList<DictionaryEntry>> = mutableMapOf()
     private val normalizedIndex: MutableMap<String, MutableList<DictionaryEntry>> = mutableMapOf()
+    private val ngramIndex: MutableMap<String, MutableList<UserDictionaryStore.NGramEntry>> = mutableMapOf()
+    private var topFrequentWordsCache: List<DictionaryEntry>? = null
     @Volatile private var symSpell: SymSpell? = null
     @Volatile private var symSpellBuilt: Boolean = false
     @Volatile var isReady: Boolean = false
@@ -237,6 +239,26 @@ class DictionaryRepository(
         userDictionaryStore.markUsed(context, word)
     }
 
+    fun addNGram(contextWords: List<String>, word: String) {
+        userDictionaryStore.addNGram(context, contextWords, word)
+    }
+
+    fun getNGramsForContext(contextWords: List<String>): List<UserDictionaryStore.NGramEntry> {
+        val contextKey = contextWords.joinToString("|") { it.lowercase() }
+        val staticResults = ngramIndex[contextKey] ?: emptyList()
+        val userResults = userDictionaryStore.getNGramsForContext(contextWords)
+        
+        // Merge and sort
+        val merged = (staticResults + userResults)
+            .groupBy { it.word.lowercase() }
+            .map { (_, entries) -> 
+                entries.maxBy { it.frequency } 
+            }
+            .sortedByDescending { it.frequency }
+            
+        return merged
+    }
+
     fun isKnownWord(word: String): Boolean {
         if (!isReady) return false
         val normalized = normalize(word)
@@ -327,6 +349,14 @@ class DictionaryRepository(
     }
 
     /**
+     * Returns the most frequent words in the dictionary.
+     */
+    fun getTopFrequentWords(limit: Int = 3): List<DictionaryEntry> {
+        if (!isReady) return emptyList()
+        return topFrequentWordsCache?.take(limit) ?: emptyList()
+    }
+
+    /**
      * Returns top entries for a normalized term, sorted by frequency.
      * Useful for single-character inputs to surface multiple variants (e.g., accented).
      */
@@ -411,6 +441,12 @@ class DictionaryRepository(
 
         index.prefixCache.forEach { (prefix, entries) ->
             prefixCache[prefix] = entries.map { it.toDictionaryEntry() }.toMutableList()
+        }
+
+        index.ngrams?.forEach { (contextKey, entries) ->
+            ngramIndex[contextKey] = entries.map { 
+                UserDictionaryStore.NGramEntry(it.context, it.word, it.frequency, 0L)
+            }.toMutableList()
         }
 
         if (index.symDeletes != null && index.symMeta != null) {
@@ -613,5 +649,17 @@ class DictionaryRepository(
         normalizedIndex.values.forEach { list ->
             list.sortByDescending { effectiveFrequency(it) }
         }
+        
+        // Pre-calculate top frequent words
+        val top = normalizedIndex.values.asSequence()
+            .flatten()
+            .sortedByDescending { entry ->
+                val freq = effectiveFrequency(entry).toDouble()
+                if (entry.source == SuggestionSource.USER) freq * 10.0 else freq
+            }
+            .take(20)
+            .toList()
+        
+        topFrequentWordsCache = top
     }
 }
