@@ -193,6 +193,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val trackpadScope = CoroutineScope(Dispatchers.IO)
     private lateinit var trackpadGestureDetector: TrackpadGestureDetector
 
+    private var modifierStateBeforeHold: it.palsoftware.pastiera.core.ModifierStateController.LogicalState? = null
+    private var variationInteractedDuringHold: Boolean = false
+    private var modifierDownTimes = mutableMapOf<Int, Long>()
+    private var otherKeyInteractedDuringHold: Boolean = false
+    private var shiftLayerLatched: Boolean = false
+    private var altLayerLatched: Boolean = false
+
     private val multiTapHandler = Handler(Looper.getMainLooper())
     private val multiTapController = MultiTapController(
         handler = multiTapHandler,
@@ -739,17 +746,42 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         candidatesBarController = CandidatesBarController(this, clipboardHistoryManager, assets, PhysicalKeyboardInputMethodService::class.java)
         candidatesBarController.onAddUserWord = { word ->
+            if (shiftLayerLatched || altLayerLatched) {
+                shiftLayerLatched = false
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+            }
+            variationInteractedDuringHold = true
             suggestionController.addUserWord(word)
             suggestionController.clearPendingAddWord()
             updateStatusBarText()
         }
         candidatesBarController.onLanguageSwitchRequested = {
+            if (shiftLayerLatched || altLayerLatched) {
+                shiftLayerLatched = false
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+            }
+            variationInteractedDuringHold = true
             cycleToNextLanguage()
         }
 
         // Register listener for variation selection (both controllers)
         val variationListener = object : VariationButtonHandler.OnVariationSelectedListener {
             override fun onVariationSelected(variation: String) {
+                // Clear any UI latches when a variation is selected
+                if (shiftLayerLatched || altLayerLatched) {
+                    shiftLayerLatched = false
+                    altLayerLatched = false
+                    modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                    modifierStateBeforeHold = null
+                }
+
+                // Set interaction flag - restore logic handled in onKeyUp
+                variationInteractedDuringHold = true
+                
                 // Update variations after one has been selected (refresh view if needed)
                 updateStatusBarText()
             }
@@ -758,16 +790,37 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         // Register listener for cursor movement (both controllers)
         val cursorListener = {
+            if (shiftLayerLatched || altLayerLatched) {
+                shiftLayerLatched = false
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+            }
+            variationInteractedDuringHold = true
             updateStatusBarText()
         }
         candidatesBarController.onCursorMovedListener = cursorListener
 
         // Register listener for speech recognition
         candidatesBarController.onSpeechRecognitionRequested = {
+            if (shiftLayerLatched || altLayerLatched) {
+                shiftLayerLatched = false
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+            }
+            variationInteractedDuringHold = true
             startSpeechRecognition()
         }
         // Register listener for clipboard page
         candidatesBarController.onClipboardRequested = {
+            if (shiftLayerLatched || altLayerLatched) {
+                shiftLayerLatched = false
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+            }
+            variationInteractedDuringHold = true
             ensureInputViewCreated()
             // Toggle clipboard as SYM page 3
             symLayoutController.openClipboardPage()
@@ -775,6 +828,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
         // Register listener for emoji picker page
         candidatesBarController.onEmojiPickerRequested = {
+            if (shiftLayerLatched || altLayerLatched) {
+                shiftLayerLatched = false
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+            }
+            variationInteractedDuringHold = true
             ensureInputViewCreated()
             // Toggle emoji picker as SYM page 4
             symLayoutController.openEmojiPickerPage()
@@ -1220,6 +1280,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
      * @param preserveNavMode If true, keeps Ctrl latch active when nav mode is enabled.
      */
     private fun resetModifierStates(preserveNavMode: Boolean = false) {
+        shiftLayerLatched = false
+        altLayerLatched = false
+        modifierStateBeforeHold = null
+        
         modifierStateController.resetModifiers(
             preserveNavMode = preserveNavMode,
             onNavModeCancelled = { navModeController.cancelNotification() }
@@ -1283,6 +1347,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             shouldDisableDoubleSpaceToPeriod = state.shouldDisableDoubleSpaceToPeriod,
             shouldDisableVariations = state.shouldDisableVariations,
             isEmailField = state.isEmailField,
+            shiftLayerLatched = shiftLayerLatched,
+            altLayerLatched = altLayerLatched,
             // Legacy flag for backward compatibility
             shouldDisableSmartFeatures = shouldDisableSmartFeatures
         )
@@ -1993,6 +2059,31 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             keyCode == KeyEvent.KEYCODE_ALT_LEFT ||
             keyCode == KeyEvent.KEYCODE_ALT_RIGHT
 
+        if (event?.repeatCount == 0 && isModifierKey) {
+            // If already latched, pressing the key again cancels the latch and restores original state
+            if ((keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) && shiftLayerLatched) {
+                shiftLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+                updateStatusBarText()
+                return true // Consume the key down to avoid re-triggering logic
+            }
+            if ((keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) && altLayerLatched) {
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+                updateStatusBarText()
+                return true
+            }
+
+            modifierStateBeforeHold = modifierStateController.captureLogicalState()
+            variationInteractedDuringHold = false
+            otherKeyInteractedDuringHold = false
+            modifierDownTimes[keyCode] = event.eventTime
+        } else if (!isModifierKey && event?.repeatCount == 0) {
+            otherKeyInteractedDuringHold = true
+        }
+
         multiTapController.resetForNewKey(keyCode)
         if (!isModifierKey) {
             modifierStateController.registerNonModifierKey()
@@ -2233,10 +2324,36 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Shift release for double-tap
         if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
             if (shiftPressed) {
-                val result = modifierStateController.handleShiftKeyUp(keyCode)
-                if (result.shouldUpdateStatusBar) {
+                val downTime = modifierDownTimes[keyCode] ?: 0L
+                val holdDuration = if (downTime > 0) event?.eventTime?.minus(downTime) ?: 0L else 0L
+                val isLongHold = holdDuration > 300L
+                
+                val stickyEnabled = SettingsManager.isStaticVariationBarLayerStickyEnabled(this)
+                val isIntentionalHold = variationInteractedDuringHold || (isLongHold && !otherKeyInteractedDuringHold)
+
+                if (isIntentionalHold) {
+                    // ALWAYS restore logical state to what it was before the hold
+                    modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                    
+                    // Toggle ONLY decides if the UI layer stays latched
+                    shiftLayerLatched = stickyEnabled && !variationInteractedDuringHold
+                    
+                    variationInteractedDuringHold = false
+                    otherKeyInteractedDuringHold = false
+                    modifierStateBeforeHold = null
+                    
+                    // Reset physical flags BEFORE updating the UI
+                    modifierStateController.shiftPressed = false
+                    modifierStateController.shiftPhysicallyPressed = false
                     updateStatusBarText()
+                } else {
+                    // Normal tap behavior
+                    val result = modifierStateController.handleShiftKeyUp(keyCode)
+                    if (result.shouldUpdateStatusBar) {
+                        updateStatusBarText()
+                    }
                 }
+                modifierDownTimes.remove(keyCode)
             }
             return super.onKeyUp(keyCode, event)
         }
@@ -2244,10 +2361,29 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Ctrl release for double-tap
         if (keyCode == KeyEvent.KEYCODE_CTRL_LEFT || keyCode == KeyEvent.KEYCODE_CTRL_RIGHT) {
             if (ctrlPressed) {
-                val result = modifierStateController.handleCtrlKeyUp(keyCode)
-                if (result.shouldUpdateStatusBar) {
+                val downTime = modifierDownTimes[keyCode] ?: 0L
+                val holdDuration = if (downTime > 0) event?.eventTime?.minus(downTime) ?: 0L else 0L
+                val isLongHold = holdDuration > 300L
+
+                val isIntentionalHold = variationInteractedDuringHold || (isLongHold && !otherKeyInteractedDuringHold)
+
+                if (isIntentionalHold) {
+                    modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                    variationInteractedDuringHold = false
+                    otherKeyInteractedDuringHold = false
+                    modifierStateBeforeHold = null
+                    
+                    // Reset physical flags BEFORE updating the UI
+                    modifierStateController.ctrlPressed = false
+                    modifierStateController.ctrlPhysicallyPressed = false
                     updateStatusBarText()
+                } else {
+                    val result = modifierStateController.handleCtrlKeyUp(keyCode)
+                    if (result.shouldUpdateStatusBar) {
+                        updateStatusBarText()
+                    }
                 }
+                modifierDownTimes.remove(keyCode)
             }
             return super.onKeyUp(keyCode, event)
         }
@@ -2255,10 +2391,35 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Handle Alt release for double-tap
         if (keyCode == KeyEvent.KEYCODE_ALT_LEFT || keyCode == KeyEvent.KEYCODE_ALT_RIGHT) {
             if (altPressed) {
-                val result = modifierStateController.handleAltKeyUp(keyCode)
-                if (result.shouldUpdateStatusBar) {
+                val downTime = modifierDownTimes[keyCode] ?: 0L
+                val holdDuration = if (downTime > 0) event?.eventTime?.minus(downTime) ?: 0L else 0L
+                val isLongHold = holdDuration > 300L
+
+                val stickyEnabled = SettingsManager.isStaticVariationBarLayerStickyEnabled(this)
+                val isIntentionalHold = variationInteractedDuringHold || (isLongHold && !otherKeyInteractedDuringHold)
+
+                if (isIntentionalHold) {
+                    // ALWAYS restore logical state
+                    modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                    
+                    // UI latch for Alt
+                    altLayerLatched = stickyEnabled && !variationInteractedDuringHold
+                    
+                    variationInteractedDuringHold = false
+                    otherKeyInteractedDuringHold = false
+                    modifierStateBeforeHold = null
+                    
+                    // Reset physical flags BEFORE updating the UI
+                    modifierStateController.altPressed = false
+                    modifierStateController.altPhysicallyPressed = false
                     updateStatusBarText()
+                } else {
+                    val result = modifierStateController.handleAltKeyUp(keyCode)
+                    if (result.shouldUpdateStatusBar) {
+                        updateStatusBarText()
+                    }
                 }
+                modifierDownTimes.remove(keyCode)
             }
             return super.onKeyUp(keyCode, event)
         }
@@ -2377,6 +2538,17 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     }
 
     private fun acceptSuggestionAtIndex(third: Int) {
+        // Clear any UI latches when a suggestion is selected via trackpad
+        if (shiftLayerLatched || altLayerLatched) {
+            shiftLayerLatched = false
+            altLayerLatched = false
+            modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+            modifierStateBeforeHold = null
+        }
+
+        // Mark as interaction to preserve modifiers if held
+        variationInteractedDuringHold = true
+        
         // Allow gesture only when suggestions bar should be visible/usable
         val allowGesture =
             symPage == 0 &&

@@ -52,6 +52,20 @@ object VariationRepository {
     }
 
     /**
+     * Loads static utility variations for Shift modifier from JSON assets or custom file.
+     */
+    fun loadStaticVariationsShift(assets: AssetManager, context: Context? = null): List<String> {
+        return loadVariationsArray(assets, context, "staticVariationsShift")
+    }
+
+    /**
+     * Loads static utility variations for Alt modifier from JSON assets or custom file.
+     */
+    fun loadStaticVariationsAlt(assets: AssetManager, context: Context? = null): List<String> {
+        return loadVariationsArray(assets, context, "staticVariationsAlt")
+    }
+
+    /**
      * Loads email-specific variations from JSON assets or custom file.
      * Always loads from JSON, returns empty list if not found.
      * These are shown in the variation bar when the current field is an email field.

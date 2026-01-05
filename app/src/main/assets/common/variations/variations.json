@@ -44,6 +44,24 @@
     ",",
     "."
   ],
+  "staticVariationsShift": [
+    "{",
+    "}",
+    "€",
+    "=",
+    "~",
+    ";",
+    "¿"
+  ],
+  "staticVariationsAlt": [
+    "<",
+    ">",
+    "¥",
+    "|",
+    "`",
+    "´",
+    "°"
+  ],
   "emailVariations": [
     "gmail",
     "icloud",

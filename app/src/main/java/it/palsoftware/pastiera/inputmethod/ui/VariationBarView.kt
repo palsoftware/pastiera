@@ -204,6 +204,8 @@ class VariationBarView(
     private var lastCursorMoveX = 0f
     private var currentInputConnection: android.view.inputmethod.InputConnection? = null
     private var staticVariations: List<String> = emptyList()
+    private var staticVariationsShift: List<String> = emptyList()
+    private var staticVariationsAlt: List<String> = emptyList()
     private var emailVariations: List<String> = emptyList()
     private var lastInputConnectionUsed: android.view.inputmethod.InputConnection? = null
     private var lastIsStaticContent: Boolean? = null
@@ -426,6 +428,16 @@ class VariationBarView(
                         emailVariations = VariationRepository.loadEmailVariations(context.assets, context)
                     }
                     emailVariations
+                } else if (snapshot.shiftPhysicallyPressed || snapshot.shiftLayerLatched) {
+                    if (staticVariationsShift.isEmpty()) {
+                        staticVariationsShift = VariationRepository.loadStaticVariationsShift(context.assets, context)
+                    }
+                    staticVariationsShift
+                } else if (snapshot.altPhysicallyPressed || snapshot.altLayerLatched) {
+                    if (staticVariationsAlt.isEmpty()) {
+                        staticVariationsAlt = VariationRepository.loadStaticVariationsAlt(context.assets, context)
+                    }
+                    staticVariationsAlt
                 } else {
                     if (staticVariations.isEmpty()) {
                         staticVariations = VariationRepository.loadStaticVariations(context.assets, context)
@@ -1433,6 +1445,8 @@ class VariationBarView(
 
     fun invalidateStaticVariations() {
         staticVariations = emptyList()
+        staticVariationsShift = emptyList()
+        staticVariationsAlt = emptyList()
         emailVariations = emptyList()
     }
 

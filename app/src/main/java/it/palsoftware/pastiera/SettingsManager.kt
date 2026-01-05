@@ -46,6 +46,7 @@ object SettingsManager {
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Whether the first-run tutorial has been completed
     private const val KEY_SWIPE_INCREMENTAL_THRESHOLD = "swipe_incremental_threshold" // Distance in DIP for cursor movement
     private const val KEY_STATIC_VARIATION_BAR_MODE = "static_variation_bar_mode" // Use static variation bar instead of dynamic cursor-based variations
+    private const val KEY_STATIC_VARIATION_BAR_MODIFIER_HOLD_RESTORATION = "static_variation_bar_modifier_hold_restoration"
     private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
     private const val KEY_ADDITIONAL_IME_SUBTYPES = "additional_ime_subtypes" // Comma-separated list of language codes for additional IME subtypes
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Whether clipboard history is enabled
@@ -303,6 +304,22 @@ object SettingsManager {
     fun setStaticVariationBarModeEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_STATIC_VARIATION_BAR_MODE, enabled)
+            .apply()
+    }
+
+    /**
+     * Returns true if the variation bar layer should stay sticky after a modifier hold.
+     */
+    fun isStaticVariationBarLayerStickyEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_STATIC_VARIATION_BAR_MODIFIER_HOLD_RESTORATION, true)
+    }
+
+    /**
+     * Sets whether the variation bar layer should stay sticky after a modifier hold.
+     */
+    fun setStaticVariationBarLayerStickyEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_STATIC_VARIATION_BAR_MODIFIER_HOLD_RESTORATION, enabled)
             .apply()
     }
 
@@ -1610,7 +1627,13 @@ object SettingsManager {
     /**
      * Saves variations to variations.json file in filesDir.
      */
-    fun saveVariations(context: Context, variations: Map<String, List<String>>, staticVariations: List<String>? = null) {
+    fun saveVariations(
+        context: Context,
+        variations: Map<String, List<String>>,
+        staticVariations: List<String>? = null,
+        staticVariationsShift: List<String>? = null,
+        staticVariationsAlt: List<String>? = null
+    ) {
         try {
             val variationsObject = JSONObject()
             for ((letter, chars) in variations) {
@@ -1624,15 +1647,43 @@ object SettingsManager {
             val jsonObject = JSONObject()
             jsonObject.put("variations", variationsObject)
             
-            // Preserve staticVariations
+            val currentJson = loadCurrentJson(context)
+            
+            // Preserve/Update staticVariations
             if (staticVariations != null) {
                 val staticArray = org.json.JSONArray()
                 staticVariations.forEach { staticArray.put(it) }
                 jsonObject.put("staticVariations", staticArray)
             } else {
-                loadCurrentJson(context)?.let { currentJson ->
-                    if (currentJson.has("staticVariations")) {
-                        jsonObject.put("staticVariations", currentJson.getJSONArray("staticVariations"))
+                currentJson?.let { 
+                    if (it.has("staticVariations")) {
+                        jsonObject.put("staticVariations", it.getJSONArray("staticVariations"))
+                    }
+                }
+            }
+
+            // Preserve/Update staticVariationsShift
+            if (staticVariationsShift != null) {
+                val staticArray = org.json.JSONArray()
+                staticVariationsShift.forEach { staticArray.put(it) }
+                jsonObject.put("staticVariationsShift", staticArray)
+            } else {
+                currentJson?.let { 
+                    if (it.has("staticVariationsShift")) {
+                        jsonObject.put("staticVariationsShift", it.getJSONArray("staticVariationsShift"))
+                    }
+                }
+            }
+
+            // Preserve/Update staticVariationsAlt
+            if (staticVariationsAlt != null) {
+                val staticArray = org.json.JSONArray()
+                staticVariationsAlt.forEach { staticArray.put(it) }
+                jsonObject.put("staticVariationsAlt", staticArray)
+            } else {
+                currentJson?.let { 
+                    if (it.has("staticVariationsAlt")) {
+                        jsonObject.put("staticVariationsAlt", it.getJSONArray("staticVariationsAlt"))
                     }
                 }
             }

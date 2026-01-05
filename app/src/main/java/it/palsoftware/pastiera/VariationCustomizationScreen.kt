@@ -61,6 +61,12 @@ fun VariationCustomizationScreen(
     var staticVariations by remember {
         mutableStateOf(VariationRepository.loadStaticVariations(context.assets, context).take(7))
     }
+    var staticVariationsShift by remember {
+        mutableStateOf(VariationRepository.loadStaticVariationsShift(context.assets, context).take(7))
+    }
+    var staticVariationsAlt by remember {
+        mutableStateOf(VariationRepository.loadStaticVariationsAlt(context.assets, context).take(7))
+    }
     
     // Generate alphabet list with uppercase followed by lowercase for each letter (A, a, B, b, ...)
     val alphabet = remember {
@@ -75,6 +81,7 @@ fun VariationCustomizationScreen(
     // State for static variation input dialog
     var showStaticInputDialog by remember { mutableStateOf(false) }
     var staticInputIndex by remember { mutableStateOf<Int?>(null) }
+    var staticInputType by remember { mutableStateOf("normal") } // "normal", "shift", "alt"
     var staticInputValue by remember { mutableStateOf("") }
     
     // State for reset confirmation dialog
@@ -83,6 +90,10 @@ fun VariationCustomizationScreen(
     // State for static variation bar mode
     var staticVariationBarMode by remember {
         mutableStateOf(SettingsManager.isStaticVariationBarModeEnabled(context))
+    }
+    
+    var staticVariationLayerSticky by remember {
+        mutableStateOf(SettingsManager.isStaticVariationBarLayerStickyEnabled(context))
     }
     
     Scaffold(
@@ -183,6 +194,49 @@ fun VariationCustomizationScreen(
                     )
                 }
             }
+
+            // Modifier Hold Restoration toggle
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFields,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Einrastendes Layer",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "Shift/Alt-Symbole bleiben nach Loslassen aktiv",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = staticVariationLayerSticky,
+                        onCheckedChange = { enabled ->
+                            staticVariationLayerSticky = enabled
+                            SettingsManager.setStaticVariationBarLayerStickyEnabled(context, enabled)
+                        }
+                    )
+                }
+            }
             
             // Static variations row
             VariationRow(
@@ -192,6 +246,7 @@ fun VariationCustomizationScreen(
                 labelColor = Color.Transparent,
                 onBoxClick = { index ->
                     staticInputIndex = index
+                    staticInputType = "normal"
                     staticInputValue = limitInputToSingleCodePoint(staticVariations.getOrNull(index) ?: "")
                     showStaticInputDialog = true
                 },
@@ -199,7 +254,47 @@ fun VariationCustomizationScreen(
                     val reordered = reorderEntries(staticVariations, fromIndex, toIndex)
                     if (reordered != staticVariations) {
                         staticVariations = reordered
-                        SettingsManager.saveVariations(context, variations, reordered)
+                        SettingsManager.saveVariations(context, variations, reordered, staticVariationsShift, staticVariationsAlt)
+                    }
+                }
+            )
+
+            // Shift variations row
+            VariationRow(
+                letter = "Shift",
+                variations = staticVariationsShift,
+                labelWidth = 64.dp,
+                onBoxClick = { index ->
+                    staticInputIndex = index
+                    staticInputType = "shift"
+                    staticInputValue = limitInputToSingleCodePoint(staticVariationsShift.getOrNull(index) ?: "")
+                    showStaticInputDialog = true
+                },
+                onReorder = { fromIndex, toIndex ->
+                    val reordered = reorderEntries(staticVariationsShift, fromIndex, toIndex)
+                    if (reordered != staticVariationsShift) {
+                        staticVariationsShift = reordered
+                        SettingsManager.saveVariations(context, variations, staticVariations, reordered, staticVariationsAlt)
+                    }
+                }
+            )
+
+            // Alt variations row
+            VariationRow(
+                letter = "Alt",
+                variations = staticVariationsAlt,
+                labelWidth = 64.dp,
+                onBoxClick = { index ->
+                    staticInputIndex = index
+                    staticInputType = "alt"
+                    staticInputValue = limitInputToSingleCodePoint(staticVariationsAlt.getOrNull(index) ?: "")
+                    showStaticInputDialog = true
+                },
+                onReorder = { fromIndex, toIndex ->
+                    val reordered = reorderEntries(staticVariationsAlt, fromIndex, toIndex)
+                    if (reordered != staticVariationsAlt) {
+                        staticVariationsAlt = reordered
+                        SettingsManager.saveVariations(context, variations, staticVariations, staticVariationsShift, reordered)
                     }
                 }
             )
@@ -229,7 +324,7 @@ fun VariationCustomizationScreen(
                             if (reordered != current) {
                                 updatedMap[letterStr] = reordered
                                 variations = updatedMap
-                                SettingsManager.saveVariations(context, updatedMap, staticVariations)
+                                SettingsManager.saveVariations(context, updatedMap, staticVariations, staticVariationsShift, staticVariationsAlt)
                             }
                         }
                     )
@@ -265,7 +360,7 @@ fun VariationCustomizationScreen(
                 variations = updatedVariations
                 
                 // Save directly to variations.json file
-                SettingsManager.saveVariations(context, variations, staticVariations)
+                SettingsManager.saveVariations(context, variations, staticVariations, staticVariationsShift, staticVariationsAlt)
             },
             onDismiss = {
                 showPickerDialog = false
@@ -313,13 +408,32 @@ fun VariationCustomizationScreen(
                     onClick = {
                         val index = staticInputIndex
                         if (index != null) {
+                            val currentEntries = when (staticInputType) {
+                                "shift" -> staticVariationsShift
+                                "alt" -> staticVariationsAlt
+                                else -> staticVariations
+                            }
+                            
                             val trimmedStatic = updateVariationEntries(
-                                currentEntries = staticVariations,
+                                currentEntries = currentEntries,
                                 index = index,
                                 newValue = staticInputValue
                             )
-                            staticVariations = trimmedStatic
-                            SettingsManager.saveVariations(context, variations, trimmedStatic)
+                            
+                            when (staticInputType) {
+                                "shift" -> {
+                                    staticVariationsShift = trimmedStatic
+                                    SettingsManager.saveVariations(context, variations, staticVariations, trimmedStatic, staticVariationsAlt)
+                                }
+                                "alt" -> {
+                                    staticVariationsAlt = trimmedStatic
+                                    SettingsManager.saveVariations(context, variations, staticVariations, staticVariationsShift, trimmedStatic)
+                                }
+                                else -> {
+                                    staticVariations = trimmedStatic
+                                    SettingsManager.saveVariations(context, variations, trimmedStatic, staticVariationsShift, staticVariationsAlt)
+                                }
+                            }
                         }
                         
                         showStaticInputDialog = false
@@ -361,6 +475,8 @@ fun VariationCustomizationScreen(
                         val repoVariations = VariationRepository.loadVariations(context.assets, context)
                         variations = repoVariations.mapKeys { it.key.toString() }
                         staticVariations = VariationRepository.loadStaticVariations(context.assets, context).take(7)
+                        staticVariationsShift = VariationRepository.loadStaticVariationsShift(context.assets, context).take(7)
+                        staticVariationsAlt = VariationRepository.loadStaticVariationsAlt(context.assets, context).take(7)
                         showResetConfirmDialog = false
                     },
                     colors = ButtonDefaults.textButtonColors(

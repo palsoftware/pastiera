@@ -62,6 +62,10 @@ class ModifierStateController(
             state = if (enabled) ShiftState.CAPS else ShiftState.OFF
         }
 
+        fun restore(newState: ShiftState) {
+            state = newState
+        }
+
         fun reset() {
             state = ShiftState.OFF
             lastTapTime = 0
@@ -99,6 +103,35 @@ class ModifierStateController(
         val altPhysicallyPressed: Boolean,
         val altOneShot: Boolean
     )
+
+    data class LogicalState(
+        val shiftState: ShiftState,
+        val ctrlOneShot: Boolean,
+        val ctrlLatchActive: Boolean,
+        val ctrlLatchFromNavMode: Boolean,
+        val altOneShot: Boolean,
+        val altLatchActive: Boolean
+    )
+
+    fun captureLogicalState(): LogicalState {
+        return LogicalState(
+            shiftState = shiftStateMachine.state,
+            ctrlOneShot = ctrlState.oneShot,
+            ctrlLatchActive = ctrlState.latchActive,
+            ctrlLatchFromNavMode = ctrlState.latchFromNavMode,
+            altOneShot = altState.oneShot,
+            altLatchActive = altState.latchActive
+        )
+    }
+
+    fun restoreLogicalState(captured: LogicalState) {
+        shiftStateMachine.restore(captured.shiftState)
+        ctrlState.oneShot = captured.ctrlOneShot
+        ctrlState.latchActive = captured.ctrlLatchActive
+        ctrlState.latchFromNavMode = captured.ctrlLatchFromNavMode
+        altState.oneShot = captured.altOneShot
+        altState.latchActive = captured.altLatchActive
+    }
 
     val shiftState: ShiftState
         get() = shiftStateMachine.state
