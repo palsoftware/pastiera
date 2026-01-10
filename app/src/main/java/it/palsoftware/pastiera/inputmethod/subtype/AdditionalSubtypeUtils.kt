@@ -209,6 +209,8 @@ object AdditionalSubtypeUtils {
             "es" -> R.string.input_method_name_es
             "pt" -> R.string.input_method_name_pt
             "ru" -> R.string.input_method_name_ru
+            "hu" -> R.string.input_method_name_hu
+            "gd" -> R.string.input_method_name_gd
             else -> 0 // Use 0 for custom locales - Android will auto-generate name from locale
         }
     }
@@ -387,7 +389,7 @@ object AdditionalSubtypeUtils {
         try {
             val systemLocales = getSystemEnabledLocales(context)
             val localesWithDict = getLocalesWithDictionary(context)
-            val baseSubtypesInMethodXml = setOf("en_US", "it_IT", "fr_FR", "de_DE", "pl_PL", "es_ES", "pt_PT", "ru_RU")
+            val baseSubtypesInMethodXml = setOf("en_US", "it_IT", "fr_FR", "de_DE", "pl_PL", "es_ES", "pt_PT", "ru_RU", "hu_HU", "gd_GB")
             
             // Get current custom input styles
             val currentStyles = SettingsManager.getCustomInputStyles(context)
@@ -542,6 +544,8 @@ object AdditionalSubtypeUtils {
             "es" -> listOf("es_ES", "es_MX", "es_AR", "es")
             "pt" -> listOf("pt_PT", "pt_BR", "pt")
             "ru" -> listOf("ru_RU", "ru")
+            "hu" -> listOf("hu_HU", "hu")
+            "gd" -> listOf("gd_GB", "gd")
             else -> listOf(langCode)
         }
         return variants

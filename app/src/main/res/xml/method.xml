@@ -42,5 +42,14 @@
         android:imeSubtypeLocale="ru_RU"
         android:imeSubtypeMode="keyboard"
         android:imeSubtypeExtraValue="noSuggestions=true" />
+    <subtype
+        android:label="@string/input_method_name_hu"
+        android:imeSubtypeLocale="hu_HU"
+        android:imeSubtypeMode="keyboard"
+        android:imeSubtypeExtraValue="noSuggestions=true" />
+    <subtype
+        android:label="@string/input_method_name_gd"
+        android:imeSubtypeLocale="gd_GB"
+        android:imeSubtypeMode="keyboard"
+        android:imeSubtypeExtraValue="noSuggestions=true" />
 </input-method>
-

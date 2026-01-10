@@ -933,6 +933,8 @@ private fun getLocaleVariantsForLanguage(langCode: String): List<String> {
         "pt" -> listOf("pt_PT", "pt_BR")
         "pl" -> listOf("pl_PL")
         "ru" -> listOf("ru_RU")
+        "hu" -> listOf("hu_HU")
+        "gd" -> listOf("gd_GB")
         else -> listOf("${langCode}_${langCode.uppercase()}") // Generic fallback
     }
 }

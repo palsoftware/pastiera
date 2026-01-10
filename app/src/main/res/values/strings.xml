@@ -9,6 +9,8 @@
     <string name="input_method_name_es">Español</string>
     <string name="input_method_name_pt">Português</string>
     <string name="input_method_name_ru">Русский</string>
+    <string name="input_method_name_hu">Magyar</string>
+    <string name="input_method_name_gd">Gàidhlig</string>
     
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>

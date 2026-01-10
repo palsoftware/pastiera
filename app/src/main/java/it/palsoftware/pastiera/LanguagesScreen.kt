@@ -409,7 +409,9 @@ private fun getLocaleTagForLanguage(languageCode: String): String {
         "es" to "es_ES",
         "pl" to "pl_PL",
         "it" to "it_IT",
-        "en" to "en_US"
+        "en" to "en_US",
+        "hu" to "hu_HU",
+        "gd" to "gd_GB"
     )
     return localeMap[languageCode.lowercase()] ?: languageCode
 }

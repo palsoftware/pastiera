@@ -1,0 +1,165 @@
+{
+  "name": "Scottish Gaelic",
+  "description": "Scottish Gaelic with multi-tap accents",
+  "mappings": {
+    "KEYCODE_Q": {
+      "lowercase": "q",
+      "uppercase": "Q"
+    },
+    "KEYCODE_W": {
+      "lowercase": "w",
+      "uppercase": "W"
+    },
+    "KEYCODE_E": {
+      "lowercase": "e",
+      "uppercase": "E",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "e",
+          "uppercase": "E"
+        },
+        {
+          "lowercase": "è",
+          "uppercase": "È"
+        }
+      ]
+    },
+    "KEYCODE_R": {
+      "lowercase": "r",
+      "uppercase": "R"
+    },
+    "KEYCODE_T": {
+      "lowercase": "t",
+      "uppercase": "T"
+    },
+    "KEYCODE_Y": {
+      "lowercase": "y",
+      "uppercase": "Y"
+    },
+    "KEYCODE_U": {
+      "lowercase": "u",
+      "uppercase": "U",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "u",
+          "uppercase": "U"
+        },
+        {
+          "lowercase": "ù",
+          "uppercase": "Ù"
+        }
+      ]
+    },
+    "KEYCODE_I": {
+      "lowercase": "i",
+      "uppercase": "I",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "i",
+          "uppercase": "I"
+        },
+        {
+          "lowercase": "ì",
+          "uppercase": "Ì"
+        }
+      ]
+    },
+    "KEYCODE_O": {
+      "lowercase": "o",
+      "uppercase": "O",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "o",
+          "uppercase": "O"
+        },
+        {
+          "lowercase": "ò",
+          "uppercase": "Ò"
+        }
+      ]
+    },
+    "KEYCODE_P": {
+      "lowercase": "p",
+      "uppercase": "P"
+    },
+    "KEYCODE_A": {
+      "lowercase": "a",
+      "uppercase": "A",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "a",
+          "uppercase": "A"
+        },
+        {
+          "lowercase": "à",
+          "uppercase": "À"
+        }
+      ]
+    },
+    "KEYCODE_S": {
+      "lowercase": "s",
+      "uppercase": "S"
+    },
+    "KEYCODE_D": {
+      "lowercase": "d",
+      "uppercase": "D"
+    },
+    "KEYCODE_F": {
+      "lowercase": "f",
+      "uppercase": "F"
+    },
+    "KEYCODE_G": {
+      "lowercase": "g",
+      "uppercase": "G"
+    },
+    "KEYCODE_H": {
+      "lowercase": "h",
+      "uppercase": "H"
+    },
+    "KEYCODE_J": {
+      "lowercase": "j",
+      "uppercase": "J"
+    },
+    "KEYCODE_K": {
+      "lowercase": "k",
+      "uppercase": "K"
+    },
+    "KEYCODE_L": {
+      "lowercase": "l",
+      "uppercase": "L"
+    },
+    "KEYCODE_Z": {
+      "lowercase": "z",
+      "uppercase": "Z"
+    },
+    "KEYCODE_X": {
+      "lowercase": "x",
+      "uppercase": "X"
+    },
+    "KEYCODE_C": {
+      "lowercase": "c",
+      "uppercase": "C"
+    },
+    "KEYCODE_V": {
+      "lowercase": "v",
+      "uppercase": "V"
+    },
+    "KEYCODE_B": {
+      "lowercase": "b",
+      "uppercase": "B"
+    },
+    "KEYCODE_N": {
+      "lowercase": "n",
+      "uppercase": "N"
+    },
+    "KEYCODE_M": {
+      "lowercase": "m",
+      "uppercase": "M"
+    }
+  }
+}

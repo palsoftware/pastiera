@@ -1,0 +1,181 @@
+{
+  "name": "Hungarian (QWERTZ)",
+  "description": "Hungarian QWERTZ keyboard with multi-tap accents",
+  "mappings": {
+    "KEYCODE_Q": {
+      "lowercase": "q",
+      "uppercase": "Q"
+    },
+    "KEYCODE_W": {
+      "lowercase": "w",
+      "uppercase": "W"
+    },
+    "KEYCODE_E": {
+      "lowercase": "e",
+      "uppercase": "E",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "e",
+          "uppercase": "E"
+        },
+        {
+          "lowercase": "é",
+          "uppercase": "É"
+        }
+      ]
+    },
+    "KEYCODE_R": {
+      "lowercase": "r",
+      "uppercase": "R"
+    },
+    "KEYCODE_T": {
+      "lowercase": "t",
+      "uppercase": "T"
+    },
+    "KEYCODE_Y": {
+      "lowercase": "z",
+      "uppercase": "Z"
+    },
+    "KEYCODE_U": {
+      "lowercase": "u",
+      "uppercase": "U",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "u",
+          "uppercase": "U"
+        },
+        {
+          "lowercase": "ú",
+          "uppercase": "Ú"
+        },
+        {
+          "lowercase": "ü",
+          "uppercase": "Ü"
+        },
+        {
+          "lowercase": "ű",
+          "uppercase": "Ű"
+        }
+      ]
+    },
+    "KEYCODE_I": {
+      "lowercase": "i",
+      "uppercase": "I",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "i",
+          "uppercase": "I"
+        },
+        {
+          "lowercase": "í",
+          "uppercase": "Í"
+        }
+      ]
+    },
+    "KEYCODE_O": {
+      "lowercase": "o",
+      "uppercase": "O",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "o",
+          "uppercase": "O"
+        },
+        {
+          "lowercase": "ó",
+          "uppercase": "Ó"
+        },
+        {
+          "lowercase": "ö",
+          "uppercase": "Ö"
+        },
+        {
+          "lowercase": "ő",
+          "uppercase": "Ő"
+        }
+      ]
+    },
+    "KEYCODE_P": {
+      "lowercase": "p",
+      "uppercase": "P"
+    },
+    "KEYCODE_A": {
+      "lowercase": "a",
+      "uppercase": "A",
+      "multiTapEnabled": true,
+      "taps": [
+        {
+          "lowercase": "a",
+          "uppercase": "A"
+        },
+        {
+          "lowercase": "á",
+          "uppercase": "Á"
+        }
+      ]
+    },
+    "KEYCODE_S": {
+      "lowercase": "s",
+      "uppercase": "S"
+    },
+    "KEYCODE_D": {
+      "lowercase": "d",
+      "uppercase": "D"
+    },
+    "KEYCODE_F": {
+      "lowercase": "f",
+      "uppercase": "F"
+    },
+    "KEYCODE_G": {
+      "lowercase": "g",
+      "uppercase": "G"
+    },
+    "KEYCODE_H": {
+      "lowercase": "h",
+      "uppercase": "H"
+    },
+    "KEYCODE_J": {
+      "lowercase": "j",
+      "uppercase": "J"
+    },
+    "KEYCODE_K": {
+      "lowercase": "k",
+      "uppercase": "K"
+    },
+    "KEYCODE_L": {
+      "lowercase": "l",
+      "uppercase": "L"
+    },
+    "KEYCODE_Z": {
+      "lowercase": "y",
+      "uppercase": "Y"
+    },
+    "KEYCODE_X": {
+      "lowercase": "x",
+      "uppercase": "X"
+    },
+    "KEYCODE_C": {
+      "lowercase": "c",
+      "uppercase": "C"
+    },
+    "KEYCODE_V": {
+      "lowercase": "v",
+      "uppercase": "V"
+    },
+    "KEYCODE_B": {
+      "lowercase": "b",
+      "uppercase": "B"
+    },
+    "KEYCODE_N": {
+      "lowercase": "n",
+      "uppercase": "N"
+    },
+    "KEYCODE_M": {
+      "lowercase": "m",
+      "uppercase": "M"
+    }
+  }
+}
