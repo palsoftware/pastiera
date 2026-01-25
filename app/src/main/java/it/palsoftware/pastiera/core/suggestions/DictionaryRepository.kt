@@ -112,7 +112,7 @@ class AndroidDictionaryRepository(
     @Volatile private var symSpell: SymSpell? = null
     @Volatile private var symSpellBuilt: Boolean = false
     @Volatile override var isReady: Boolean = false
-        private set
+        internal set
     @Volatile private var loadStarted: Boolean = false
     
     override val isLoadStarted: Boolean
@@ -510,7 +510,7 @@ class AndroidDictionaryRepository(
         }
     }
 
-    private fun index(entries: List<DictionaryEntry>, keepExisting: Boolean = false) {
+    internal fun index(entries: List<DictionaryEntry>, keepExisting: Boolean = false) {
         if (!keepExisting) {
             prefixCache.clear()
             normalizedIndex.clear()
@@ -615,7 +615,7 @@ class AndroidDictionaryRepository(
         }
     }
 
-    private fun normalize(word: String): String {
+    internal fun normalize(word: String): String {
         val normalized = Normalizer.normalize(word.lowercase(baseLocale), Normalizer.Form.NFD)
         // Remove combining marks (accents) explicitly - same logic as SuggestionEngine
         val withoutAccents = normalized.replace("\\p{Mn}".toRegex(), "")
@@ -624,7 +624,7 @@ class AndroidDictionaryRepository(
         return withoutAccents.replace("[^\\p{L}]".toRegex(), "")
     }
 
-    private fun sortCachesByEffectiveFrequency() {
+    internal fun sortCachesByEffectiveFrequency() {
         prefixCache.values.forEach { list ->
             list.sortByDescending { effectiveFrequency(it) }
         }
