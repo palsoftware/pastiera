@@ -23,17 +23,35 @@ import java.io.FileInputStream
 import java.io.InputStream
 import kotlin.math.pow
 
+interface DictionaryRepository {
+    val isReady: Boolean
+    val isLoadStarted: Boolean
+    suspend fun loadIfNeeded()
+    suspend fun refreshUserEntries()
+    fun addUserEntryQuick(word: String)
+    fun removeUserEntry(word: String)
+    fun markUsed(word: String)
+    fun effectiveFrequency(entry: DictionaryEntry): Int
+    fun getExactWordFrequency(word: String): Int
+    fun lookupByPrefixMerged(prefix: String, maxSize: Int): List<DictionaryEntry>
+    fun symSpellLookup(term: String, maxSuggestions: Int): List<SymSpell.SuggestItem>
+    fun bestEntryForNormalized(normalized: String): DictionaryEntry?
+    fun topByNormalized(normalized: String, limit: Int = 5): List<DictionaryEntry>
+    fun isKnownWord(word: String): Boolean
+    fun ensureLoadScheduled(background: () -> Unit)
+}
+
 /**
  * Loads and indexes lightweight dictionaries from assets and merges them with the user dictionary.
  */
-class DictionaryRepository(
+class AndroidDictionaryRepository(
     private val context: Context,
     private val assets: AssetManager,
     private val userDictionaryStore: UserDictionaryStore,
     private val baseLocale: Locale = Locale.ITALIAN,
     private val cachePrefixLength: Int = 4,
     debugLogging: Boolean = false
-) {
+) : DictionaryRepository {
 
     companion object {
         // Avoid concurrent heavy loads across repositories to reduce memory spikes.
@@ -93,18 +111,18 @@ class DictionaryRepository(
     private val normalizedIndex: MutableMap<String, MutableList<DictionaryEntry>> = mutableMapOf()
     @Volatile private var symSpell: SymSpell? = null
     @Volatile private var symSpellBuilt: Boolean = false
-    @Volatile var isReady: Boolean = false
+    @Volatile override var isReady: Boolean = false
         private set
     @Volatile private var loadStarted: Boolean = false
     
-    val isLoadStarted: Boolean
+    override val isLoadStarted: Boolean
         get() = loadStarted
     private val tag = "DictionaryRepo"
     private val debugLogging: Boolean = debugLogging
     private val maxRawFrequency = 255.0
     private val scaledFrequencyMax = 1600.0
 
-    suspend fun loadIfNeeded() {
+    override suspend fun loadIfNeeded() {
         if (isReady) return
         // Must not run on main thread
         if (Looper.myLooper() == Looper.getMainLooper()) return
@@ -180,12 +198,12 @@ class DictionaryRepository(
         }
     }
 
-    fun ensureLoadScheduled(background: () -> Unit) {
+    override fun ensureLoadScheduled(background: () -> Unit) {
         if (isReady || loadStarted) return
         background()
     }
 
-    suspend fun refreshUserEntries() {
+    override suspend fun refreshUserEntries() {
         coroutineContext.ensureActive()
         // Ensure dictionary base is loaded first (if not already)
         if (!isReady && !loadStarted) {
@@ -217,7 +235,7 @@ class DictionaryRepository(
      * Lightweight add: updates persistent store, then merges a single USER entry
      * into the in-memory indices and SymSpell without rebuilding everything.
      */
-    fun addUserEntryQuick(word: String) {
+    override fun addUserEntryQuick(word: String) {
         userDictionaryStore.addWord(context, word)
         // Find latest frequency from snapshot; default to 1
         val freq = userDictionaryStore.getSnapshot()
@@ -228,16 +246,16 @@ class DictionaryRepository(
         addToSymSpell(listOf(entry))
     }
 
-    fun removeUserEntry(word: String) {
+    override fun removeUserEntry(word: String) {
         userDictionaryStore.removeWord(context, word)
         // Caller should refresh asynchronously; keep legacy path noop here.
     }
 
-    fun markUsed(word: String) {
+    override fun markUsed(word: String) {
         userDictionaryStore.markUsed(context, word)
     }
 
-    fun isKnownWord(word: String): Boolean {
+    override fun isKnownWord(word: String): Boolean {
         if (!isReady) return false
         val normalized = normalize(word)
         return normalizedIndex[normalized]?.isNotEmpty() == true
@@ -248,7 +266,7 @@ class DictionaryRepository(
      * restore a meaningful range for ranking and SymSpell. The exponent (<1)
      * boosts mid/high values without making low values explode.
      */
-    fun effectiveFrequency(entry: DictionaryEntry): Int {
+    override fun effectiveFrequency(entry: DictionaryEntry): Int {
         val raw = entry.frequency.coerceAtLeast(0).coerceAtMost(maxRawFrequency.toInt())
         val normalized = raw / maxRawFrequency
         val scaled = (normalized.pow(0.75) * scaledFrequencyMax).toInt()
@@ -260,7 +278,7 @@ class DictionaryRepository(
      * Returns the maximum frequency if multiple entries exist (e.g., different sources).
      * Returns 0 if the word doesn't exist.
      */
-    fun getExactWordFrequency(word: String): Int {
+    override fun getExactWordFrequency(word: String): Int {
         if (!isReady) return 0
         val normalized = normalize(word)
         val bucket = normalizedIndex[normalized] ?: return 0
@@ -290,7 +308,7 @@ class DictionaryRepository(
      * transpositions (e.g., "teh" -> "the", "caio" -> "ciao") that would otherwise live
      * under a different prefix.
      */
-    fun lookupByPrefixMerged(prefix: String, maxSize: Int): List<DictionaryEntry> {
+    override fun lookupByPrefixMerged(prefix: String, maxSize: Int): List<DictionaryEntry> {
         if (!isReady || prefix.isBlank()) return emptyList()
         val normalizedPrefix = normalize(prefix)
         val maxPrefixLength = normalizedPrefix.length.coerceAtMost(cachePrefixLength)
@@ -312,12 +330,12 @@ class DictionaryRepository(
         return seen.values.toList()
     }
 
-    fun symSpellLookup(term: String, maxSuggestions: Int): List<SymSpell.SuggestItem> {
+    override fun symSpellLookup(term: String, maxSuggestions: Int): List<SymSpell.SuggestItem> {
         val engine = symSpell ?: return emptyList()
         return engine.lookup(term, maxSuggestions)
     }
 
-    fun bestEntryForNormalized(normalized: String): DictionaryEntry? {
+    override fun bestEntryForNormalized(normalized: String): DictionaryEntry? {
         return normalizedIndex[normalized]?.maxByOrNull { effectiveFrequency(it) }
     }
 
@@ -330,7 +348,7 @@ class DictionaryRepository(
      * Returns top entries for a normalized term, sorted by frequency.
      * Useful for single-character inputs to surface multiple variants (e.g., accented).
      */
-    fun topByNormalized(normalized: String, limit: Int = 5): List<DictionaryEntry> {
+    override fun topByNormalized(normalized: String, limit: Int): List<DictionaryEntry> {
         if (!isReady) return emptyList()
         return normalizedIndex[normalized]
             ?.sortedByDescending { effectiveFrequency(it) }

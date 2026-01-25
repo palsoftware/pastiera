@@ -202,7 +202,7 @@ class FullSuggestionsBar(
             
             // Extract language code from locale (e.g., "it_IT" -> "it", "en_US" -> "en")
             val langCode = locale.split("_")[0]
-            DictionaryRepository.hasDictionaryForLocale(context, langCode)
+            it.palsoftware.pastiera.core.suggestions.AndroidDictionaryRepository.hasDictionaryForLocale(context, langCode)
         } catch (e: Exception) {
             false
         }
