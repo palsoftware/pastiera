@@ -33,7 +33,71 @@ class AutoReplaceController(
     }
     // #endregion
 
-    data class ReplaceResult(val replaced: Boolean, val committed: Boolean)
+    public data class ReplaceResult(val replaced: Boolean, val committed: Boolean)
+
+    companion object {
+        internal data class ApostropheSplit(val prefix: String, val root: String)
+
+        internal fun normalizeApostrophes(input: String): String {
+            return input
+                .replace("’", "'")
+                .replace("‘", "'")
+                .replace("ʼ", "'")
+        }
+
+        internal fun stripAccents(input: String): String {
+            return Normalizer.normalize(input, Normalizer.Form.NFD)
+                .replace("\\p{Mn}".toRegex(), "")
+        }
+
+        /**
+         * Split a word with a single apostrophe into prefix (with apostrophe) and root.
+         * Language-agnostic: only checks structure/length, not locale.
+         */
+        internal fun splitApostropheWord(word: String): ApostropheSplit? {
+            val normalized = normalizeApostrophes(word)
+            val apostropheCount = normalized.count { it == '\'' }
+            if (apostropheCount != 1) return null
+            val idx = normalized.indexOf('\'')
+            if (idx <= 0 || idx >= normalized.lastIndex) return null
+
+            val prefix = normalized.substring(0, idx + 1)
+            val root = normalized.substring(idx + 1)
+            val prefixRaw = prefix.dropLast(1)
+
+            val isPrefixOk = prefixRaw.isNotEmpty() &&
+                    prefixRaw.length <= 3 &&
+                    prefixRaw.all { it.isLetter() }
+            val isRootOk = root.length >= 3 && root.all { it.isLetter() }
+            return if (isPrefixOk && isRootOk) ApostropheSplit(prefix, root) else null
+        }
+
+        internal fun isAccentOnlyVariant(input: String, candidate: String): Boolean {
+            if (input.equals(candidate, ignoreCase = true)) return false
+            val normalizedInput = stripAccents(input.lowercase())
+            val normalizedCandidate = stripAccents(candidate.lowercase())
+            return normalizedInput == normalizedCandidate
+        }
+
+        internal fun recomposeApostropheCandidate(
+            split: ApostropheSplit,
+            candidate: String
+        ): String? {
+            val prefix = split.prefix
+            val normalizedCandidate = normalizeApostrophes(candidate)
+            val hasApostrophe = normalizedCandidate.contains('\'')
+            val matchesPrefix = normalizedCandidate.length >= prefix.length &&
+                    normalizedCandidate.substring(0, prefix.length).equals(prefix, ignoreCase = true)
+
+            val rootPart = when {
+                matchesPrefix -> candidate.substring(prefix.length)
+                hasApostrophe -> return null // don't mix different apostrophe prefixes
+                else -> candidate
+            }
+            val recasedRoot = CasingHelper.applyCasing(rootPart, split.root, forceLeadingCapital = false)
+            return prefix + recasedRoot
+        }
+    }
     
     // Track last replacement for undo
     private data class LastReplacement(
@@ -45,68 +109,6 @@ class AutoReplaceController(
     
     // Track rejected words to avoid auto-correcting them again
     private val rejectedWords = mutableSetOf<String>()
-
-    private data class ApostropheSplit(val prefix: String, val root: String)
-
-    private fun normalizeApostrophes(input: String): String {
-        return input
-            .replace("’", "'")
-            .replace("‘", "'")
-            .replace("ʼ", "'")
-    }
-
-    private fun recomposeApostropheCandidate(
-        split: ApostropheSplit,
-        candidate: String
-    ): String? {
-        val prefix = split.prefix
-        val normalizedCandidate = normalizeApostrophes(candidate)
-        val hasApostrophe = normalizedCandidate.contains('\'')
-        val matchesPrefix = normalizedCandidate.length >= prefix.length &&
-            normalizedCandidate.substring(0, prefix.length).equals(prefix, ignoreCase = true)
-
-        val rootPart = when {
-            matchesPrefix -> candidate.substring(prefix.length)
-            hasApostrophe -> return null // don't mix different apostrophe prefixes
-            else -> candidate
-        }
-        val recasedRoot = CasingHelper.applyCasing(rootPart, split.root, forceLeadingCapital = false)
-        return prefix + recasedRoot
-    }
-
-    /**
-     * Split a word with a single apostrophe into prefix (with apostrophe) and root.
-     * Language-agnostic: only checks structure/length, not locale.
-     */
-    private fun splitApostropheWord(word: String): ApostropheSplit? {
-        val normalized = normalizeApostrophes(word)
-        val apostropheCount = normalized.count { it == '\'' }
-        if (apostropheCount != 1) return null
-        val idx = normalized.indexOf('\'')
-        if (idx <= 0 || idx >= normalized.lastIndex) return null
-
-        val prefix = normalized.substring(0, idx + 1)
-        val root = normalized.substring(idx + 1)
-        val prefixRaw = prefix.dropLast(1)
-
-        val isPrefixOk = prefixRaw.isNotEmpty() &&
-                prefixRaw.length <= 3 &&
-                prefixRaw.all { it.isLetter() }
-        val isRootOk = root.length >= 3 && root.all { it.isLetter() }
-        return if (isPrefixOk && isRootOk) ApostropheSplit(prefix, root) else null
-    }
-
-    private fun stripAccents(input: String): String {
-        return Normalizer.normalize(input, Normalizer.Form.NFD)
-            .replace("\\p{Mn}".toRegex(), "")
-    }
-
-    private fun isAccentOnlyVariant(input: String, candidate: String): Boolean {
-        if (input.equals(candidate, ignoreCase = true)) return false
-        val normalizedInput = stripAccents(input.lowercase())
-        val normalizedCandidate = stripAccents(candidate.lowercase())
-        return normalizedInput == normalizedCandidate
-    }
 
     private fun hasTrailingHardBoundary(textBeforeCursor: String): Boolean {
         var i = textBeforeCursor.length - 1
