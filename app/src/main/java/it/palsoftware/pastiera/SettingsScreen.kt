@@ -218,6 +218,12 @@ private fun SettingsMainScreen(
     onBackClick: () -> Unit,
     onCustomInputStylesClick: () -> Unit
 ) {
+    val thisDevice = android.os.Build.BRAND + " " + android.os.Build.MODEL
+    val thisKeyboard = when (it.palsoftware.pastiera.data.mappings.KeyMappingLoader.getDeviceName()) {
+        "titan2" -> "Unihertz"
+        "Q25" ->  "Blackberry"
+        else -> "unknown"
+    }
     Scaffold(
         topBar = {
             Surface(
@@ -588,7 +594,7 @@ private fun SettingsMainScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
+                        .height(70.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -615,6 +621,12 @@ private fun SettingsMainScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1
+                            )
+                            Text(
+                                text = "Device: " + thisDevice  + "; Keyboard: "  + thisKeyboard,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
                             )
                         }
                     }

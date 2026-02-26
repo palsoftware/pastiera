@@ -173,6 +173,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private val CURSOR_UPDATE_DELAY = 50L
     private val MULTI_TAP_TIMEOUT_MS = 400L
 
+    // Keyboard type
+    private var kbdIsUnihertz: Boolean = false
+    private var kbdIsQ25: Boolean = false
+
+    // Unihertz CTRL scancode
+    private final val UNIHERTZ_CTRL = 251
+
+    // For Q25, right shift is used as ctrl; as such,
+    // we need to
+    // - keep track of whether "ctrl" is pressed
+    // - for as long as it is, we'll need to patch the meta state of
+    //   every character that is input
+    private var ctrlPressedQ25 = false
+
     // Modifier/nav/SYM controllers
     private lateinit var modifierStateController: ModifierStateController
     private lateinit var navModeController: NavModeController
@@ -453,7 +467,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (restarting) {
             return
         }
-        
+
         val state = inputContextState
         val isEditable = state.isEditable
         val isReallyEditable = state.isReallyEditable
@@ -756,6 +770,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     override fun onCreate() {
         super.onCreate()
+
+        // detect keyboard type
+        kbdIsQ25 = android.os.Build.DEVICE == "Q25"
+        kbdIsUnihertz = android.os.Build.DEVICE.contains("titan", ignoreCase = true)
+
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
         clearAltOnSpaceEnabled = SettingsManager.getClearAltOnSpace(this)
 
@@ -2116,7 +2135,49 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         return super.onKeyLongPress(keyCode, event)
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+    private fun patchCtrlState(e: KeyEvent?): KeyEvent? {
+        if (e == null)
+            return e
+        // for any key, while "CTRL" is pressed:
+        // - clear SHIFT_RIGHT_ON if SHIFT_LEFT_ON is pressed
+        // - clear both SHIFT_RIGHT_ON and SHIFT_ON, if not
+        // - set CTRL_LEFT_ON and CTRL_ON
+        val crtMeta = e.metaState
+        val metaClrMask = KeyEvent.META_SHIFT_RIGHT_ON or
+                if ((crtMeta and KeyEvent.META_SHIFT_LEFT_ON) != 0) 0 else KeyEvent.META_SHIFT_ON
+        // this only gets called once with ctrlPressedQ25==0 - on the onKeyUp of "CTRL"
+        val metaSetMask = if (!ctrlPressedQ25) 0 else KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        // non-ctrl keys should be passed through as they were
+        if (e.keyCode != KeyEvent.KEYCODE_SHIFT_RIGHT)
+            return KeyEvent(
+                e.downTime, e.eventTime, e.action,
+                e.keyCode, e.repeatCount,
+                crtMeta and metaClrMask.inv() or metaSetMask,
+                e.deviceId, e.scanCode, e.flags, e.source
+            )
+        // for ctrl itself, patch the keycode and scancode too
+        // (use the Unihertz scancode)
+        return KeyEvent(
+            e.downTime, e.eventTime, e.action,
+            KeyEvent.KEYCODE_CTRL_LEFT, e.repeatCount,
+            crtMeta and metaClrMask.inv() or metaSetMask,
+            e.deviceId, UNIHERTZ_CTRL, e.flags, e.source
+        )
+    }
+
+    override fun onKeyDown(keyCode_: Int, event_: KeyEvent?): Boolean {
+        // remap right shift to ctrl on the Q25
+        var keyCode: Int = keyCode_
+        var event: KeyEvent? = event_
+        if (kbdIsQ25) {
+            if ((keyCode_ == KeyEvent.KEYCODE_SHIFT_RIGHT)) {
+                keyCode = KeyEvent.KEYCODE_CTRL_LEFT
+                ctrlPressedQ25 = true
+            }
+            if (ctrlPressedQ25)
+                event = patchCtrlState(event_)
+        }
+
         // Check if we have an editable field at the very start
         val info = currentInputEditorInfo
         val initialInputConnection = currentInputConnection
@@ -2441,7 +2502,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
     }
 
-    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+    override fun onKeyUp(keyCode_: Int, event_: KeyEvent?): Boolean {
+        // remap right shift to ctrl on the Q25
+        var keyCode: Int = keyCode_
+        var event: KeyEvent? = event_
+        if (kbdIsQ25) {
+            if ((keyCode_ == KeyEvent.KEYCODE_SHIFT_RIGHT)) {
+                keyCode = KeyEvent.KEYCODE_CTRL_LEFT
+                ctrlPressedQ25 = false
+                event = patchCtrlState(event_)
+            }
+            // patch the event if CTRL is pressed
+            if (ctrlPressedQ25)
+                event = patchCtrlState(event_)
+        }
+
         // Check if we have an editable field at the start (same logic as onKeyDown)
         val info = currentInputEditorInfo
         val ic = currentInputConnection
