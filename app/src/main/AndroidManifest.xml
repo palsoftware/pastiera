@@ -90,6 +90,13 @@
             android:exported="false"
             android:label="@string/online_layouts_title"
             android:theme="@style/Theme.Pastiera" />
+        
+        <!-- Activity for AutoCorrection batch import -->
+        <activity
+            android:name=".AutoCorrectionImportActivity"
+            android:exported="false"
+            android:label="AutoCorrection Import"
+            android:theme="@style/Theme.Pastiera" />
 
         <!-- Activity for trackpad debug -->
         <activity
