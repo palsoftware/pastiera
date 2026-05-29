@@ -1067,7 +1067,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
-        prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
+        // Use device-protected storage for Direct Boot support (Android N+)
+        // This allows the IME to remain active even before device unlock
+        prefs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                val deviceContext = createDeviceProtectedStorageContext()
+                deviceContext.getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
+            } catch (e: Exception) {
+                Log.e("PhysicalKeyboardIME", "Failed to create device protected storage, using default", e)
+                getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
+            }
+        } else {
+            getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
+        }
         clearAltOnSpaceEnabled = SettingsManager.getClearAltOnSpace(this)
         physicalKeyboardProfileOverride = SettingsManager.getPhysicalKeyboardProfileOverride(this)
 

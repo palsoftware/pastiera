@@ -17,6 +17,9 @@
     <!-- Permesso per mostrare finestre overlay (per debug trackpad) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <!-- Permission to receive boot notifications (Direct Boot support) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Query per vedere tutte le app installate che possono essere avviate -->
     <queries>
         <intent>
@@ -105,6 +108,7 @@
             android:name=".inputmethod.PhysicalKeyboardInputMethodService"
             android:label="${imeLabel}"
             android:permission="android.permission.BIND_INPUT_METHOD"
+            android:directBootAware="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.view.InputMethod" />
@@ -114,6 +118,17 @@
                 android:resource="@xml/method" />
         </service>
 
+        <!-- BroadcastReceiver for Direct Boot support -->
+        <receiver
+            android:name=".inputmethod.DirectBootReceiver"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+        
         <!-- Attività helper per il riconoscimento vocale -->
         <activity
             android:name=".inputmethod.SpeechRecognitionActivity"
