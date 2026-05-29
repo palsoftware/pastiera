@@ -409,6 +409,49 @@ object DeviceSpecific {
         }
     }
 
+    // convert keycode to digit
+    // used by the lockscreen PIN input accessibility service
+    fun getDigitFromKeyCode(keyCode: Int): String? {
+        // Blackberry keyboards, as well as the the Minimal phone, have a dedicated 0 key
+        // and [123456789] are mapped to [WERSDFZXC]
+        if (currentDeviceProfile().family == KeyboardFamily.BLACKBERRY ||
+            currentDeviceProfile().family == KeyboardFamily.MINIMAL )
+        {
+            return when (keyCode) {
+                KeyEvent.KEYCODE_W, KeyEvent.KEYCODE_1 -> "1"
+                KeyEvent.KEYCODE_E, KeyEvent.KEYCODE_2 -> "2"
+                KeyEvent.KEYCODE_R, KeyEvent.KEYCODE_3 -> "3"
+                KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_4 -> "4"
+                KeyEvent.KEYCODE_D, KeyEvent.KEYCODE_5 -> "5"
+                KeyEvent.KEYCODE_F, KeyEvent.KEYCODE_6 -> "6"
+                KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_7 -> "7"
+                KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_8 -> "8"
+                KeyEvent.KEYCODE_C, KeyEvent.KEYCODE_9 -> "9"
+                                    KeyEvent.KEYCODE_0 -> "0"
+                else -> null
+            }
+        }
+        // Unihertz keyboards have a different mapping;
+        // [1234567890] are mapped to [WERSDFXCVQ]
+        if (currentDeviceProfile().family == KeyboardFamily.UNIHERTZ)
+        {
+            return when (keyCode) {
+                KeyEvent.KEYCODE_W, KeyEvent.KEYCODE_1 -> "1"
+                KeyEvent.KEYCODE_E, KeyEvent.KEYCODE_2 -> "2"
+                KeyEvent.KEYCODE_R, KeyEvent.KEYCODE_3 -> "3"
+                KeyEvent.KEYCODE_S, KeyEvent.KEYCODE_4 -> "4"
+                KeyEvent.KEYCODE_D, KeyEvent.KEYCODE_5 -> "5"
+                KeyEvent.KEYCODE_F, KeyEvent.KEYCODE_6 -> "6"
+                KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_7 -> "7"
+                KeyEvent.KEYCODE_C, KeyEvent.KEYCODE_8 -> "8"
+                KeyEvent.KEYCODE_V, KeyEvent.KEYCODE_9 -> "9"
+                KeyEvent.KEYCODE_Q, KeyEvent.KEYCODE_0 -> "0"
+                else -> null
+            }
+        }
+        // otherwise, mapping doesn't apply
+        return null
+    }
     fun physicalKeyboardName(): String {
         return currentDeviceProfile().physicalLayoutName
     }

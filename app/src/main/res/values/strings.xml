@@ -966,4 +966,8 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="sym_key_content_description">%1$s, %2$s</string>
     <string name="status_bar_button_minimal_ui_description">Toggle compact keyboard UI</string>
     <string name="status_bar_buttons_reset">Reset</string>
+    <!-- Lockscreen PIN -->
+    <string name="accessibility_service_description">Enable PIN typing on the lock screen</string>
+    <string name="settings_accessibility_lockscreen_pin_entry">Enable PIN typing on the lock screen</string>
+    <string name="settings_accessibility_lockscreen_pin_entry_description">Requires the Accessibility service to be enabled</string>
 </resources>

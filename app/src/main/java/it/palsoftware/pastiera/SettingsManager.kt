@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.KeyEvent
+import it.palsoftware.pastiera.accessibility.LockscreenPinEntry
 import it.palsoftware.pastiera.inputmethod.DeviceSpecific
 import org.json.JSONArray
 import org.json.JSONObject
@@ -89,6 +90,9 @@ object SettingsManager {
     private const val KEY_APP_ENTER_BEHAVIOR_PRESET = "app_enter_behavior_preset"
     private const val KEY_APP_ENTER_BEHAVIOR_OVERRIDES = "app_enter_behavior_overrides"
     
+    private const val KEY_LOCKSCREEN_PIN_ENTRY = "lockscreen_pin_entry"
+    private const val DEFAULT_LOCKSCREEN_PIN_ENTRY = true
+
     // Status bar button slot configuration keys
     private const val KEY_STATUS_BAR_SLOT_LEFT = "status_bar_slot_left"
     private const val KEY_STATUS_BAR_SLOT_RIGHT_1 = "status_bar_slot_right_1"
@@ -2261,6 +2265,27 @@ object SettingsManager {
             .apply()
     }
 
+    /**
+     * Returns whether PIN entry on lockscreen is enabled
+     */
+    fun getLockscreenPinEntry(context: Context): Boolean {
+        // only return the actual value if the accessibility service is enabled
+        if (LockscreenPinEntry.connected.value)
+            return getPreferences(context).getBoolean(KEY_LOCKSCREEN_PIN_ENTRY, DEFAULT_LOCKSCREEN_PIN_ENTRY)
+        return false
+    }
+
+    /**
+     * Enable/disablin PIN entry on lockscreen
+     */
+    fun setLockscreenPinEntry(context: Context, enabled: Boolean) {
+        // only attempt to set the value if the accessibility service is enabled
+        if (enabled && ! LockscreenPinEntry.connected.value)
+            return
+        getPreferences(context).edit()
+            .putBoolean(KEY_LOCKSCREEN_PIN_ENTRY, enabled)
+            .apply()
+    }
     /**
      * Returns whether Alt+Shift shortcut for keyboard layout cycling is enabled.
      */
