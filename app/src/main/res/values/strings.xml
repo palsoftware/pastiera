@@ -855,6 +855,12 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <!-- Units -->
     <string name="dip_unit">DIP</string>
     
+    <!-- Default layout -->
+    <string name="default_layout_title">Default layout</string>
+    <string name="default_layout_description">Always start in this language and keyboard layout when a text field opens.</string>
+    <string name="default_layout_none">Last used</string>
+    <string name="default_layout_label">Layout</string>
+
     <!-- Custom Input Styles -->
     <string name="custom_input_styles_title">Languages and Keyboard Layouts</string>
     <string name="custom_input_styles_description">Add additional languages and keyboard layouts that are not tied to system locale</string>

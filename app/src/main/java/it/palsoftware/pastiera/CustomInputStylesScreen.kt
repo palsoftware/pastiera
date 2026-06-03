@@ -78,6 +78,9 @@ fun CustomInputStylesScreen(
         mutableStateOf(loadCustomInputStyles(context))
     }
     
+    // Default input style (language + layout forced on every new input field; null = keep last used)
+    var defaultStyle by remember { mutableStateOf(SettingsManager.getDefaultInputStyle(context)) }
+
     // Dialog state
     var showAddDialog by remember { mutableStateOf(false) }
     var deleteConfirmStyle by remember { mutableStateOf<CustomInputStyle?>(null) }
@@ -169,6 +172,23 @@ fun CustomInputStylesScreen(
 
             item {
                 LayoutSwitchShortcutsCard()
+            }
+
+            item {
+                // Default layout selector: forces a chosen input style (language + layout)
+                // on every new input field
+                DefaultLayoutCard(
+                    inputStyles = inputStyles,
+                    selected = defaultStyle,
+                    onSelect = { locale, layout ->
+                        SettingsManager.setDefaultInputStyle(context, locale, layout)
+                        defaultStyle = if (locale != null && layout != null) {
+                            SettingsManager.DefaultInputStyle(locale, layout)
+                        } else {
+                            null
+                        }
+                    }
+                )
             }
 
             if (inputStyles.isEmpty()) {
@@ -372,6 +392,97 @@ fun CustomInputStylesScreen(
                 }
             }
         )
+    }
+}
+
+/**
+ * Card that lets the user pick a default input style (language + keyboard layout) which the
+ * keyboard switches to whenever a new text field is opened. Follows the same Card + dropdown
+ * layout as [AppLanguageSelectorCard] so all selectors on this screen share one look.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DefaultLayoutCard(
+    inputStyles: List<CustomInputStyle>,
+    selected: SettingsManager.DefaultInputStyle?,
+    onSelect: (locale: String?, layout: String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val selectedLabel = if (selected == null) {
+        stringResource(R.string.default_layout_none)
+    } else {
+        "${getLocaleDisplayName(selected.locale)} - ${selected.layout}"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = stringResource(R.string.default_layout_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Text(
+                text = stringResource(R.string.default_layout_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it }
+            ) {
+                OutlinedTextField(
+                    value = selectedLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text(stringResource(R.string.default_layout_label)) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    // "Last used" disables the feature (no forced input style)
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.default_layout_none)) },
+                        onClick = {
+                            onSelect(null, null)
+                            expanded = false
+                        }
+                    )
+                    inputStyles.forEach { style ->
+                        DropdownMenuItem(
+                            text = { Text(style.displayName) },
+                            onClick = {
+                                onSelect(style.locale, style.layout)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
