@@ -856,7 +856,7 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="dip_unit">DIP</string>
     
     <!-- Default layout -->
-    <string name="default_layout_title">Default layout</string>
+    <string name="default_layout_title">Default Layout</string>
     <string name="default_layout_description">Always start in this language and keyboard layout when a text field opens.</string>
     <string name="default_layout_none">Last used</string>
     <string name="default_layout_label">Layout</string>
