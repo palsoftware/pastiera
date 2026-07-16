@@ -1144,6 +1144,10 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="local_media_no_folder">No local folder selected.</string>
     <string name="local_media_folder_selected">Folder selected: %1$s</string>
     <string name="local_media_choose_folder_prompt">Choose a local folder to show your own images here.</string>
+    <string name="emoji_shortcodes_title">Emoji shortcodes</string>
+    <string name="emoji_shortcodes_description">Type :smile: to insert the matching emoji while typing.</string>
+    <string name="symbol_shortcodes_title">Symbol shortcodes</string>
+    <string name="symbol_shortcodes_description">Type :tm: for ™ or :copy: for ©.</string>
     <string name="snippets_title">Snippets</string>
     <string name="snippets_description">Save your own quick text snippets for emails, usernames, links, or any repeated text.</string>
     <string name="snippets_setting_description">Show snippet suggestions while typing shortcuts with %1$s.</string>

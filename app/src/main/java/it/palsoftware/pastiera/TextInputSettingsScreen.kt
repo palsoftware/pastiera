@@ -39,6 +39,12 @@ fun TextInputSettingsScreen(
     val context = LocalContext.current
 
     var showSnippetsScreen by remember { mutableStateOf(false) }
+    var emojiShortcodeEnabled by remember {
+        mutableStateOf(SettingsManager.getEmojiShortcodeEnabled(context))
+    }
+    var symbolShortcodeEnabled by remember {
+        mutableStateOf(SettingsManager.getSymbolShortcodeEnabled(context))
+    }
     var snippetsEnabled by remember {
         mutableStateOf(SettingsManager.getSnippetsEnabled(context))
     }
@@ -292,6 +298,24 @@ fun TextInputSettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             SettingsSectionHeader(text = stringResource(R.string.snippets_title))
+            SettingsSwitchRow(
+                title = stringResource(R.string.emoji_shortcodes_title),
+                description = stringResource(R.string.emoji_shortcodes_description),
+                checked = emojiShortcodeEnabled,
+                onCheckedChange = { enabled ->
+                    emojiShortcodeEnabled = enabled
+                    SettingsManager.setEmojiShortcodeEnabled(context, enabled)
+                }
+            )
+            SettingsSwitchRow(
+                title = stringResource(R.string.symbol_shortcodes_title),
+                description = stringResource(R.string.symbol_shortcodes_description),
+                checked = symbolShortcodeEnabled,
+                onCheckedChange = { enabled ->
+                    symbolShortcodeEnabled = enabled
+                    SettingsManager.setSymbolShortcodeEnabled(context, enabled)
+                }
+            )
             SettingsSwitchRow(
                 title = stringResource(R.string.snippets_title),
                 description = stringResource(R.string.snippets_setting_description, snippetsTrigger),
