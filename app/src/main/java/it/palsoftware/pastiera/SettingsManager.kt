@@ -82,6 +82,7 @@ object SettingsManager {
     private const val KEY_PENDING_RESTORE_SYM_PAGE = "pending_restore_sym_page" // Temporary SYM page state saved when opening settings
     private const val KEY_SYM_PAGES_CONFIG = "sym_pages_config" // Order/enabled pages for SYM
     private const val KEY_KLIPY_API_KEY = "klipy_api_key" // API key used for GIF search
+    private const val KEY_LOCAL_MEDIA_FOLDER_URI = "local_media_folder_uri" // Persisted SAF tree uri for local media tab
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_SYM_AUTO_CLOSE_ON_TOUCH = "sym_auto_close_on_touch" // Auto-close SYM layout after tapping on-screen SYM keys
     private const val KEY_SHIFT_TAP_LATCHES = "shift_tap_latches"
@@ -280,6 +281,7 @@ object SettingsManager {
     private const val DEFAULT_LAYOUT_AWARE_CTRL_SHORTCUTS = false
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
     private const val DEFAULT_SUGGESTIONS_ENABLED = true
+    private const val DEFAULT_LOCAL_MEDIA_FOLDER_URI = ""
     private const val DEFAULT_ACCENT_MATCHING_ENABLED = true
     private const val DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER = false
     private const val DEFAULT_MAX_AUTO_REPLACE_DISTANCE = 1
@@ -4196,6 +4198,17 @@ object SettingsManager {
     fun setKlipyApiKey(context: Context, apiKey: String) {
         getPreferences(context).edit()
             .putString(KEY_KLIPY_API_KEY, apiKey.trim())
+            .apply()
+    }
+
+    fun getLocalMediaFolderUri(context: Context): String {
+        return getPreferences(context).getString(KEY_LOCAL_MEDIA_FOLDER_URI, DEFAULT_LOCAL_MEDIA_FOLDER_URI)
+            ?: DEFAULT_LOCAL_MEDIA_FOLDER_URI
+    }
+
+    fun setLocalMediaFolderUri(context: Context, uri: String) {
+        getPreferences(context).edit()
+            .putString(KEY_LOCAL_MEDIA_FOLDER_URI, uri.trim())
             .apply()
     }
     
