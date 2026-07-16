@@ -105,7 +105,7 @@ class StatusBarController(
             variationBarView?.onAddUserWordSubstitutionRequested = value
         }
 
-    var onSuggestionCommitted: (() -> Unit)? = null
+    var onSuggestionCommitted: ((String) -> Unit)? = null
 
     var onHideSuggestion: ((String) -> Unit)? = null
 

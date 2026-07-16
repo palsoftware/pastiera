@@ -23,7 +23,7 @@ object SuggestionButtonHandler {
         inputConnection: InputConnection?,
         listener: VariationButtonHandler.OnVariationSelectedListener? = null,
         shouldDisableAutoCapitalize: Boolean,
-        onSuggestionCommitted: (() -> Unit)? = null
+        onSuggestionCommitted: ((String) -> Unit)? = null
     ): View.OnClickListener {
         return View.OnClickListener {
             Log.d(TAG, "Click on suggestion button: $suggestion")
@@ -42,7 +42,7 @@ object SuggestionButtonHandler {
 
             val committed = replaceCurrentWord(inputConnection, suggestion, forceLeadingCapital)
             if (committed) {
-                onSuggestionCommitted?.invoke()
+                onSuggestionCommitted?.invoke(suggestion)
             }
             listener?.onVariationSelected(suggestion)
         }
