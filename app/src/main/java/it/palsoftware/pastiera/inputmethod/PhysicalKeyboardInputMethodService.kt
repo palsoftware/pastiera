@@ -48,7 +48,9 @@ import it.palsoftware.pastiera.data.layout.LayoutFileStore
 import it.palsoftware.pastiera.data.layout.LayoutMapping
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.data.variation.VariationRepository
+import it.palsoftware.pastiera.inputmethod.ui.SnippetPopup
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
+import it.palsoftware.pastiera.snippets.SnippetManager
 import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils
 import it.palsoftware.pastiera.inputmethod.aospkeyboard.AospKeyboardView
 import it.palsoftware.pastiera.inputmethod.aospkeyboard.SoftwareKeyboardLayoutTemplates
@@ -229,6 +231,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var textInputController: TextInputController
     private lateinit var autoCorrectionManager: AutoCorrectionManager
     private lateinit var suggestionController: SuggestionController
+    private lateinit var snippetManager: SnippetManager
+    private var snippetPopup: SnippetPopup? = null
     private lateinit var variationStateController: VariationStateController
     private lateinit var inputEventRouter: InputEventRouter
     private lateinit var typingSoundPlayer: TypingSoundPlayer
@@ -923,6 +927,85 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         return actionId?.let { performEnterEditorAction(keyCode, it, ic, event) } ?: false
     }
 
+    private fun checkAndShowSnippetShortcode() {
+        if (!::snippetManager.isInitialized) return
+        if (!SettingsManager.getSnippetsEnabled(this)) {
+            snippetPopup?.dismiss()
+            return
+        }
+
+        val inputConnection = currentInputConnection ?: return
+        val trigger = SettingsManager.getSnippetsTrigger(this).firstOrNull() ?: '!'
+        val textBeforeCursor = inputConnection.getTextBeforeCursor(120, 0)?.toString() ?: return
+
+        val completed = snippetManager.extractCompletedSnippet(textBeforeCursor, trigger)
+        if (completed != null) {
+            val value = snippetManager.lookupExactSnippet(completed.shortcut)
+            if (value != null) {
+                replaceCompletedSnippetWithValue(value, completed.shortcut, completed.boundary, trigger)
+                return
+            }
+        }
+
+        val (shortcut, _) = snippetManager.extractCurrentSnippet(textBeforeCursor, trigger) ?: run {
+            snippetPopup?.dismiss()
+            return
+        }
+
+        val suggestions = snippetManager.searchSnippets(shortcut, 10)
+        if (suggestions.isEmpty()) {
+            snippetPopup?.dismiss()
+            return
+        }
+
+        val anchorView = window?.window?.decorView ?: return
+        if (snippetPopup?.isShowing() == true) {
+            snippetPopup?.updateSuggestions(suggestions)
+        } else {
+            snippetPopup = SnippetPopup(
+                context = this,
+                trigger = trigger,
+                onSnippetSelected = { value, selectedShortcut ->
+                    replaceSnippetWithValue(value, selectedShortcut, trigger)
+                },
+                onDismiss = {
+                    snippetPopup = null
+                }
+            ).also { popup ->
+                popup.show(anchorView, suggestions)
+            }
+        }
+    }
+
+    private fun replaceSnippetWithValue(value: String, shortcut: String, trigger: Char) {
+        val inputConnection = currentInputConnection ?: return
+        val textBeforeCursor = inputConnection.getTextBeforeCursor(160, 0)?.toString() ?: return
+        val (_, triggerIndex) = snippetManager.extractCurrentSnippet(textBeforeCursor, trigger) ?: return
+        val charsToDelete = textBeforeCursor.length - triggerIndex
+
+        inputConnection.beginBatchEdit()
+        inputConnection.deleteSurroundingText(charsToDelete, 0)
+        markSelectionUpdateSkipAfterCommit()
+        inputConnection.commitText(value, 1)
+        inputConnection.endBatchEdit()
+        snippetPopup?.dismiss()
+    }
+
+    private fun replaceCompletedSnippetWithValue(value: String, shortcut: String, boundary: String, trigger: Char) {
+        val inputConnection = currentInputConnection ?: return
+        val textBeforeCursor = inputConnection.getTextBeforeCursor(160, 0)?.toString() ?: return
+        val completed = snippetManager.extractCompletedSnippet(textBeforeCursor, trigger) ?: return
+        if (!completed.shortcut.equals(shortcut, ignoreCase = true) || completed.boundary != boundary) return
+        val charsToDelete = completed.shortcut.length + boundary.length + 1
+
+        inputConnection.beginBatchEdit()
+        inputConnection.deleteSurroundingText(charsToDelete, 0)
+        markSelectionUpdateSkipAfterCommit()
+        inputConnection.commitText(value + boundary, 1)
+        inputConnection.endBatchEdit()
+        snippetPopup?.dismiss()
+    }
+
     private fun notifyDebugKeyEvent(
         keyCode: Int,
         event: KeyEvent?,
@@ -1420,6 +1503,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Initialize clipboard history manager first (needed by candidatesBarController)
         clipboardHistoryManager = ClipboardHistoryManager(this)
         clipboardHistoryManager.onCreate()
+        snippetManager = SnippetManager(this)
 
         candidatesBarController = CandidatesBarController(this, clipboardHistoryManager, assets, PhysicalKeyboardInputMethodService::class.java)
         candidatesBarController.onAddUserWord = { word ->
@@ -2052,7 +2136,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val ic = inputConnection ?: return false
 
         if (text == " ") {
-            return SoftwareKeyboardTextInputHandler.handleSpaceInput(
+            val handled = SoftwareKeyboardTextInputHandler.handleSpaceInput(
                 textInputController = textInputController,
                 inputConnection = ic,
                 shouldDisableDoubleSpaceToPeriod = snapshot.shouldDisableDoubleSpaceToPeriod,
@@ -2068,6 +2152,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 },
                 onStatusBarUpdate = { updateStatusBarText() }
             )
+            if (handled) {
+                checkAndShowSnippetShortcode()
+            }
+            return handled
         }
 
         markSelectionUpdateSkipAfterCommit()
@@ -2075,6 +2163,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (!snapshot.shouldDisableSuggestions) {
             suggestionController.onCharacterCommitted(text, ic)
         }
+        checkAndShowSnippetShortcode()
         updateStatusBarText()
         return true
     }
@@ -3626,6 +3715,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (hasEditableField && ::candidatesBarController.isInitialized) {
             candidatesBarController.resetSuggestionActionMode()
         }
+        if (hasEditableField && snippetPopup?.isShowing() == true) {
+            if (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK) {
+                snippetPopup?.dismiss()
+                return true
+            }
+            if (snippetPopup?.handlePhysicalKey(keyCode, event) == true) {
+                return true
+            }
+        }
 
         if (shouldPlayTypingSound(hasEditableField, keyCode, event)) {
             typingSoundPlayer.play(keyCode)
@@ -4343,7 +4441,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             return true
         }
         
-        return super.onKeyUp(keyCode, event)
+        val handled = super.onKeyUp(keyCode, event)
+        if (!isPureModifierKey(keyCode)) {
+            checkAndShowSnippetShortcode()
+        }
+        return handled
     }
 
     /**
