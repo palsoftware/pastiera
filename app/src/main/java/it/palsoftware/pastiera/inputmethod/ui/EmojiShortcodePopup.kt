@@ -94,6 +94,10 @@ class EmojiShortcodePopup(
 
     fun isShowing(): Boolean = popupWindow.isShowing
 
+    fun selectedSuggestion(): Pair<String, String>? {
+        return suggestions.getOrNull(selectedIndex)
+    }
+
     fun handlePhysicalKey(keyCode: Int, event: KeyEvent?): Boolean {
         if (suggestions.isEmpty()) return false
         when (keyCode) {
