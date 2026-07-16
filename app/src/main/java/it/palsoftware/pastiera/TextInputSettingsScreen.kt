@@ -37,6 +37,16 @@ fun TextInputSettingsScreen(
     onNavModeSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+
+    var showSnippetsScreen by remember { mutableStateOf(false) }
+    var snippetsEnabled by remember {
+        mutableStateOf(SettingsManager.getSnippetsEnabled(context))
+    }
+    var snippetsTrigger by remember {
+        mutableStateOf(SettingsManager.getSnippetsTrigger(context))
+    }
+    var showSnippetsTriggerDialog by remember { mutableStateOf(false) }
+    var pendingSnippetsTrigger by remember { mutableStateOf(snippetsTrigger) }
     
     var autoCapitalizeFirstLetter by remember {
         mutableStateOf(SettingsManager.getAutoCapitalizeFirstLetter(context))
@@ -121,7 +131,21 @@ fun TextInputSettingsScreen(
     }
     
     // Handle system back button
-    BackHandler { onBack() }
+    BackHandler {
+        if (showSnippetsScreen) {
+            showSnippetsScreen = false
+        } else {
+            onBack()
+        }
+    }
+
+    if (showSnippetsScreen) {
+        SnippetsScreen(
+            modifier = modifier,
+            onBack = { showSnippetsScreen = false }
+        )
+        return
+    }
 
     if (autoSpacePunctuationDialogVisible) {
         AlertDialog(
@@ -194,6 +218,42 @@ fun TextInputSettingsScreen(
             }
         )
     }
+
+    if (showSnippetsTriggerDialog) {
+        AlertDialog(
+            onDismissRequest = { showSnippetsTriggerDialog = false },
+            title = { Text(stringResource(R.string.snippets_trigger_dialog_title)) },
+            text = {
+                OutlinedTextField(
+                    value = pendingSnippetsTrigger,
+                    onValueChange = { value ->
+                        pendingSnippetsTrigger = value.takeLast(1)
+                    },
+                    label = { Text(stringResource(R.string.snippets_trigger_label)) },
+                    supportingText = {
+                        Text(stringResource(R.string.snippets_trigger_dialog_description))
+                    },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val normalized = pendingSnippetsTrigger.trim().take(1).ifEmpty { "!" }
+                    snippetsTrigger = normalized
+                    pendingSnippetsTrigger = normalized
+                    SettingsManager.setSnippetsTrigger(context, normalized)
+                    showSnippetsTriggerDialog = false
+                }) {
+                    Text(stringResource(R.string.snippets_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSnippetsTriggerDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
     
     Scaffold(
         topBar = {
@@ -231,6 +291,30 @@ fun TextInputSettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            SettingsSectionHeader(text = stringResource(R.string.snippets_title))
+            SettingsSwitchRow(
+                title = stringResource(R.string.snippets_title),
+                description = stringResource(R.string.snippets_setting_description, snippetsTrigger),
+                checked = snippetsEnabled,
+                onCheckedChange = { enabled ->
+                    snippetsEnabled = enabled
+                    SettingsManager.setSnippetsEnabled(context, enabled)
+                }
+            )
+            SettingsNavigationRow(
+                title = stringResource(R.string.snippets_manage_title),
+                description = stringResource(R.string.snippets_manage_description, snippetsTrigger),
+                onClick = { showSnippetsScreen = true },
+                trailingContent = {
+                    TextButton(onClick = {
+                        pendingSnippetsTrigger = snippetsTrigger
+                        showSnippetsTriggerDialog = true
+                    }) {
+                        Text(stringResource(R.string.snippets_trigger_button))
+                    }
+                }
+            )
+
             SettingsSectionHeader(text = stringResource(R.string.text_input_section_capitalization))
             SettingsSwitchRow(
                 title = stringResource(R.string.auto_capitalize_title),
@@ -573,7 +657,8 @@ private fun SettingsNavigationRow(
     title: String,
     description: String,
     iconInset: androidx.compose.ui.unit.Dp = 16.dp,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailingContent: (@Composable RowScope.() -> Unit)? = null
 ) {
     SettingsRowFrame(
         modifier = Modifier.clickable(onClick = onClick),
@@ -600,12 +685,16 @@ private fun SettingsNavigationRow(
                 maxLines = 2
             )
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
+        if (trailingContent != null) {
+            trailingContent()
+        } else {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 

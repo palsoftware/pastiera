@@ -65,6 +65,9 @@ object SettingsManager {
     private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
     private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
     private const val KEY_SUGGESTIONS_ENABLED = "suggestions_enabled"
+    private const val KEY_SNIPPETS_ENABLED = "snippets_enabled"
+    private const val KEY_SNIPPETS_TRIGGER = "snippets_trigger"
+    private const val KEY_SNIPPETS = "snippets"
     private const val KEY_ACCENT_MATCHING_ENABLED = "accent_matching_enabled"
     private const val KEY_AUTO_REPLACE_ON_SPACE_ENTER = "auto_replace_on_space_enter"
     private const val KEY_MAX_AUTO_REPLACE_DISTANCE = "max_auto_replace_distance"
@@ -280,6 +283,8 @@ object SettingsManager {
     private const val DEFAULT_LAYOUT_AWARE_CTRL_SHORTCUTS = false
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
     private const val DEFAULT_SUGGESTIONS_ENABLED = true
+    private const val DEFAULT_SNIPPETS_ENABLED = true
+    private const val DEFAULT_SNIPPETS_TRIGGER = "!"
     private const val DEFAULT_ACCENT_MATCHING_ENABLED = true
     private const val DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER = false
     private const val DEFAULT_MAX_AUTO_REPLACE_DISTANCE = 1
@@ -2530,6 +2535,57 @@ object SettingsManager {
         getPreferences(context).edit()
             .putBoolean(KEY_SUGGESTIONS_ENABLED, enabled)
             .apply()
+    }
+
+    fun getSnippetsEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SNIPPETS_ENABLED, DEFAULT_SNIPPETS_ENABLED)
+    }
+
+    fun setSnippetsEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SNIPPETS_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getSnippetsTrigger(context: Context): String {
+        val stored = getPreferences(context).getString(KEY_SNIPPETS_TRIGGER, DEFAULT_SNIPPETS_TRIGGER).orEmpty()
+        return stored.take(1).ifEmpty { DEFAULT_SNIPPETS_TRIGGER }
+    }
+
+    fun setSnippetsTrigger(context: Context, trigger: String) {
+        val normalized = trigger.trim().take(1).ifEmpty { DEFAULT_SNIPPETS_TRIGGER }
+        getPreferences(context).edit()
+            .putString(KEY_SNIPPETS_TRIGGER, normalized)
+            .apply()
+    }
+
+    fun getSnippets(context: Context): LinkedHashMap<String, String> {
+        val jsonString = getPreferences(context).getString(KEY_SNIPPETS, null) ?: return linkedMapOf()
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            val snippets = linkedMapOf<String, String>()
+            jsonObject.keys().forEach { key ->
+                snippets[key] = jsonObject.getString(key)
+            }
+            snippets
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading snippets", e)
+            linkedMapOf()
+        }
+    }
+
+    fun saveSnippets(context: Context, snippets: Map<String, String>) {
+        try {
+            val jsonObject = JSONObject()
+            snippets.forEach { (shortcut, value) ->
+                jsonObject.put(shortcut.lowercase(), value)
+            }
+            getPreferences(context).edit()
+                .putString(KEY_SNIPPETS, jsonObject.toString())
+                .apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving snippets", e)
+        }
     }
 
     /**
