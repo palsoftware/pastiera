@@ -4,6 +4,8 @@
 
 Pastiera Enhanced 4.0 is a rewrite of the Enhanced fork on top of the newer upstream Pastiera base.
 
+Builds on this branch are posted here first for faster troubleshooting and testing. These changes are intended to be split into pull requests against the main Pastiera branch once they are stable enough for upstream review.
+
 ### Added
 - Predictive text integration with next-word predictions, bundled common phrase fallback, local learning, and removable predictions.
 - Unified Mode, which can show predictions inside the existing variations/status bar instead of stacking a separate prediction row.
