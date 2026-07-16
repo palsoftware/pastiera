@@ -954,6 +954,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
         val inputConnection = currentInputConnection ?: return
         val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0)?.toString() ?: return
+        val boundaryChar = textBeforeCursor.lastOrNull()
+        if (boundaryChar == ' ' || boundaryChar == '\n' || boundaryChar == '\t') {
+            val contentBeforeBoundary = textBeforeCursor.dropLast(1)
+            val (shortcode, _) = emojiShortcodeManager.extractCurrentShortcode(contentBeforeBoundary) ?: run {
+                emojiShortcodePopup?.dismiss()
+                return
+            }
+            val suggestion = emojiShortcodeManager.searchShortcodes(shortcode, 10)
+                .firstOrNull { (character, _) -> shortcodeCategoryEnabled(character, emojiEnabled, symbolEnabled) }
+            if (suggestion != null) {
+                val (character, selectedShortcode) = suggestion
+                replaceShortcodeWithEmoji(character, selectedShortcode, suffix = boundaryChar.toString())
+                return
+            }
+            emojiShortcodePopup?.dismiss()
+            return
+        }
         val completedShortcode = emojiShortcodeManager.extractCompletedShortcode(textBeforeCursor)
         if (completedShortcode != null) {
             val character = emojiShortcodeManager.lookupExactShortcode(completedShortcode)
@@ -1084,7 +1101,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
     }
 
-    private fun replaceShortcodeWithEmoji(emoji: String, shortcode: String) {
+    private fun replaceShortcodeWithEmoji(emoji: String, shortcode: String, suffix: String = "") {
         val inputConnection = currentInputConnection ?: return
         val textBeforeCursor = inputConnection.getTextBeforeCursor(100, 0)?.toString() ?: return
         val lastColonIndex = textBeforeCursor.lastIndexOf(':')
@@ -1094,7 +1111,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         inputConnection.beginBatchEdit()
         inputConnection.deleteSurroundingText(charsToDelete, 0)
         markSelectionUpdateSkipAfterCommit()
-        inputConnection.commitText(emoji, 1)
+        inputConnection.commitText(emoji + suffix, 1)
         inputConnection.endBatchEdit()
         emojiShortcodePopup?.dismiss()
     }
@@ -3829,6 +3846,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         if (hasEditableField && emojiShortcodePopup?.isShowing() == true) {
             if (keyCode == KeyEvent.KEYCODE_ESCAPE || keyCode == KeyEvent.KEYCODE_BACK) {
                 emojiShortcodePopup?.dismiss()
+                return true
+            }
+            if (keyCode == KeyEvent.KEYCODE_SPACE) {
+                val (character, selectedShortcode) = emojiShortcodePopup?.selectedSuggestion() ?: return true
+                replaceShortcodeWithEmoji(character, selectedShortcode, suffix = " ")
                 return true
             }
             if (emojiShortcodePopup?.handlePhysicalKey(keyCode, event) == true) {
