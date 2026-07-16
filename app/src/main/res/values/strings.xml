@@ -1126,6 +1126,17 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="status_bar_button_settings_description">Open settings</string>
     <string name="status_bar_button_symbols">Symbols</string>
     <string name="status_bar_button_symbols_description">Symbols keyboard</string>
+    <string name="sym_enable_gif_picker_page_title">GIF picker</string>
+    <string name="sym_enable_gif_picker_page_description">Search and send GIFs from the SYM page cycle.</string>
+    <string name="gif_picker_search_placeholder">Search GIFs</string>
+    <string name="gif_picker_powered_by">Powered by Klipy</string>
+    <string name="gif_picker_missing_api_key">Add a Klipy API key to use GIF search.</string>
+    <string name="gif_picker_empty_prompt">Search for a GIF.</string>
+    <string name="gif_picker_no_results">No GIFs found.</string>
+    <string name="gif_picker_error">Could not load GIFs.</string>
+    <string name="gif_picker_sent">GIF sent.</string>
+    <string name="gif_picker_link_copied">GIF link copied.</string>
+    <string name="gif_picker_fallback_link_inserted">GIF link inserted.</string>
     <string name="status_bar_button_undo">Undo</string>
     <string name="status_bar_button_undo_description">Send Ctrl+Z</string>
     <string name="status_bar_button_redo">Redo</string>
