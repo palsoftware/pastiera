@@ -935,19 +935,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val inputConnection = currentInputConnection
         val editorInfo = currentInputEditorInfo
         if (inputConnection == null) {
-            gifContentSender.copyFallbackLink(result)
-            Toast.makeText(this, getString(R.string.gif_picker_link_copied), Toast.LENGTH_SHORT).show()
+            if (gifContentSender.hasTextFallback(result)) {
+                gifContentSender.copyFallbackLink(result)
+                Toast.makeText(this, getString(R.string.gif_picker_link_copied, result.mediaType.singularName), Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, getString(R.string.gif_picker_not_supported, result.mediaType.singularName), Toast.LENGTH_SHORT).show()
+            }
             return
         }
 
         CoroutineScope(Dispatchers.Main).launch {
-            val committed = if (gifContentSender.supportsGifCommit(editorInfo)) {
+            val committed = if (gifContentSender.supportsMediaCommit(editorInfo, result)) {
                 runCatching {
-                    val preparedGif = withContext(Dispatchers.IO) {
-                        gifContentSender.prepareGif(result)
+                    val preparedMedia = withContext(Dispatchers.IO) {
+                        gifContentSender.prepareMedia(result)
                     }
                     val nonNullEditorInfo = editorInfo ?: return@runCatching false
-                    gifContentSender.commitPreparedGif(preparedGif, inputConnection, nonNullEditorInfo)
+                    gifContentSender.commitPreparedGif(preparedMedia, inputConnection, nonNullEditorInfo)
                 }.getOrDefault(false)
             } else {
                 false
@@ -956,14 +960,20 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             if (committed) {
                 Toast.makeText(
                     this@PhysicalKeyboardInputMethodService,
-                    getString(R.string.gif_picker_sent),
+                    getString(R.string.gif_picker_sent, result.mediaType.singularName),
                     Toast.LENGTH_SHORT
                 ).show()
-            } else {
+            } else if (gifContentSender.hasTextFallback(result)) {
                 gifContentSender.insertFallbackLink(result, inputConnection)
                 Toast.makeText(
                     this@PhysicalKeyboardInputMethodService,
-                    getString(R.string.gif_picker_fallback_link_inserted),
+                    getString(R.string.gif_picker_fallback_link_inserted, result.mediaType.singularName),
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                Toast.makeText(
+                    this@PhysicalKeyboardInputMethodService,
+                    getString(R.string.gif_picker_not_supported, result.mediaType.singularName),
                     Toast.LENGTH_SHORT
                 ).show()
             }
