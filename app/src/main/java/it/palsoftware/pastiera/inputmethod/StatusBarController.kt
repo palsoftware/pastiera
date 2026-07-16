@@ -28,6 +28,9 @@ import it.palsoftware.pastiera.SymPagesConfig
 import it.palsoftware.pastiera.data.layout.LayoutFileStore
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.data.variation.VariationRepository
+import it.palsoftware.pastiera.gif.KlipyGifClient
+import it.palsoftware.pastiera.gif.KlipyGifResult
+import it.palsoftware.pastiera.inputmethod.ui.GifPickerView
 import kotlin.math.max
 import android.view.KeyEvent
 import android.view.inputmethod.InputMethodManager
@@ -129,6 +132,8 @@ class StatusBarController(
         }
 
     var onEmojiPageRequested: (() -> Unit)? = null
+
+    var onGifSelected: ((KlipyGifResult) -> Unit)? = null
     
     var onSymbolsPageRequested: (() -> Unit)? = null
         set(value) {
@@ -293,6 +298,7 @@ class StatusBarController(
     private var clipboardHistoryView: ClipboardHistoryView? = null
     private var lastClipboardCountRendered: Int = -1
     private var emojiPickerView: EmojiPickerView? = null
+    private var gifPickerView: GifPickerView? = null
     private var emojiKeyButtons: MutableList<View> = mutableListOf()
     private var lastSymPageRendered: Int = 0
     private var lastSymMappingsRendered: Map<Int, String>? = null
@@ -1071,6 +1077,29 @@ class StatusBarController(
             view.scrollToTop() // View was just added (happens when reopening after being removed)
         }
         lastSymPageRendered = 4
+    }
+
+    private fun updateGifPickerView() {
+        val container = emojiKeyboardContainer ?: return
+        container.setPadding(0, 0, 0, emojiKeyboardBottomPaddingPx)
+
+        val view = gifPickerView ?: GifPickerView(
+            context = context,
+            gifClient = KlipyGifClient(context),
+            onGifSelected = { result -> onGifSelected?.invoke(result) }
+        ).also { gifPickerView = it }
+        val wasJustAdded = view.parent !== container
+        if (wasJustAdded) {
+            container.removeAllViews()
+            emojiKeyButtons.clear()
+            container.addView(view)
+        }
+        if (lastSymPageRendered != 5) {
+            view.refresh()
+        } else if (wasJustAdded) {
+            view.scrollToTop()
+        }
+        lastSymPageRendered = 5
     }
 
     /**
@@ -2801,6 +2830,8 @@ class StatusBarController(
             } else if (snapshot.symPage == 4) {
                 // Show emoji picker view
                 updateEmojiPickerView(inputConnection, softwareKeyboardHeight = lastSoftwareKeyboardHeight.takeIf { isFullSoftwareKeyboardMode && it > 0 })
+            } else if (snapshot.symPage == 5) {
+                updateGifPickerView()
             } else if (isSoftwareKeyboardSymbolPage && symMappings != null) {
                 updateSoftwareSymbolKeyboard(symMappings, snapshot, inputConnection)
             } else if (symMappings != null) {

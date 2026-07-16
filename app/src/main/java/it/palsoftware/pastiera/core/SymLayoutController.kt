@@ -24,7 +24,8 @@ class SymLayoutController(
         EMOJI,
         SYMBOLS,
         CLIPBOARD,
-        EMOJI_PICKER
+        EMOJI_PICKER,
+        GIF_PICKER
     }
 
     enum class SymKeyResult {
@@ -158,6 +159,7 @@ class SymLayoutController(
             SymPage.SYMBOLS -> altSymManager.getSymMappings2()
             SymPage.CLIPBOARD -> null // Clipboard doesn't use mappings
             SymPage.EMOJI_PICKER -> null // Emoji picker doesn't use mappings
+            SymPage.GIF_PICKER -> null // GIF picker doesn't use mappings
             else -> null
         }
     }
@@ -285,6 +287,7 @@ class SymLayoutController(
             SymPage.SYMBOLS -> altSymManager.getSymMappings2()[keyCode]
             SymPage.CLIPBOARD -> null // Clipboard doesn't use key mappings
             SymPage.EMOJI_PICKER -> null // Emoji picker doesn't use key mappings
+            SymPage.GIF_PICKER -> null // GIF picker doesn't use key mappings
             else -> null
         }
 
@@ -324,6 +327,7 @@ class SymLayoutController(
                 SymPagesConfig.PAGE_SYMBOLS -> SymPage.SYMBOLS
                 SymPagesConfig.PAGE_CLIPBOARD -> SymPage.CLIPBOARD
                 SymPagesConfig.PAGE_EMOJI_PICKER -> SymPage.EMOJI_PICKER
+                SymPagesConfig.PAGE_GIF_PICKER -> SymPage.GIF_PICKER
                 else -> null
             }
         }
@@ -340,6 +344,7 @@ class SymLayoutController(
             2 -> SymPage.SYMBOLS
             3 -> SymPage.CLIPBOARD
             4 -> SymPage.EMOJI_PICKER
+            5 -> SymPage.GIF_PICKER
             else -> null
         }
     }
@@ -349,12 +354,13 @@ class SymLayoutController(
         SymPage.SYMBOLS -> 2
         SymPage.CLIPBOARD -> 3
         SymPage.EMOJI_PICKER -> 4
+        SymPage.GIF_PICKER -> 5
     }
 
     private fun alignSymPageToConfig(config: SymPagesConfig = SettingsManager.getSymPagesConfig(context)) {
         val allowedValues = buildActivePages(config).map { it.toPrefValue() }
         if (allowedValues.isEmpty()) {
-            if (symPage != 0 && symPage != 2 && symPage != 3 && symPage != 4) {
+            if (symPage != 0 && symPage != 2 && symPage != 3 && symPage != 4 && symPage != 5) {
                 // Allow symbols page (2), clipboard page (3) and emoji picker page (4) even if all cycling pages are disabled
                 symPage = 0
                 persistSymPage()
@@ -367,7 +373,7 @@ class SymLayoutController(
         }
 
         // Allow symbols page (2), clipboard page (3) and emoji picker page (4) to remain active even if disabled in cycling settings
-        if (symPage == 2 || symPage == 3 || symPage == 4) {
+        if (symPage == 2 || symPage == 3 || symPage == 4 || symPage == 5) {
             return
         }
 

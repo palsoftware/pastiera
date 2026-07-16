@@ -86,6 +86,7 @@ fun SymCustomizationScreen(
         SymPagesConfig.PAGE_SYMBOLS -> context.getString(R.string.sym_enable_symbols_page_title)
         SymPagesConfig.PAGE_CLIPBOARD -> context.getString(R.string.sym_enable_clipboard_page_title)
         SymPagesConfig.PAGE_EMOJI_PICKER -> context.getString(R.string.sym_enable_emoji_picker_page_title)
+        SymPagesConfig.PAGE_GIF_PICKER -> context.getString(R.string.sym_enable_gif_picker_page_title)
         else -> pageId
     }
     var draggingPageId by remember { mutableStateOf<String?>(null) }
@@ -692,6 +693,48 @@ fun SymCustomizationScreen(
                     checked = symPagesConfig.emojiPickerEnabled,
                     onCheckedChange = { enabled ->
                         persistSymPagesConfig(symPagesConfig.copy(emojiPickerEnabled = enabled))
+                    }
+                )
+            }
+        }
+
+        // GIF picker page toggle
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sym_enable_gif_picker_page_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = stringResource(R.string.sym_enable_gif_picker_page_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+                Switch(
+                    checked = symPagesConfig.gifPickerEnabled,
+                    onCheckedChange = { enabled ->
+                        persistSymPagesConfig(symPagesConfig.copy(gifPickerEnabled = enabled))
                     }
                 )
             }

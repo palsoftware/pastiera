@@ -8,6 +8,7 @@ data class SymPagesConfig(
     val symbolsEnabled: Boolean = true,
     val clipboardEnabled: Boolean = false,
     val emojiPickerEnabled: Boolean = false,
+    val gifPickerEnabled: Boolean = false,
     val symPageOrder: List<String> = DEFAULT_ORDER
 ) {
     companion object {
@@ -15,7 +16,8 @@ data class SymPagesConfig(
         const val PAGE_SYMBOLS = "symbols"
         const val PAGE_CLIPBOARD = "clipboard"
         const val PAGE_EMOJI_PICKER = "emoji_picker"
-        val DEFAULT_ORDER = listOf(PAGE_EMOJI, PAGE_SYMBOLS, PAGE_CLIPBOARD, PAGE_EMOJI_PICKER)
+        const val PAGE_GIF_PICKER = "gif_picker"
+        val DEFAULT_ORDER = listOf(PAGE_EMOJI, PAGE_SYMBOLS, PAGE_CLIPBOARD, PAGE_EMOJI_PICKER, PAGE_GIF_PICKER)
     }
 
     fun normalizedOrder(): List<String> {
@@ -38,6 +40,7 @@ data class SymPagesConfig(
         PAGE_SYMBOLS -> symbolsEnabled
         PAGE_CLIPBOARD -> clipboardEnabled
         PAGE_EMOJI_PICKER -> emojiPickerEnabled
+        PAGE_GIF_PICKER -> gifPickerEnabled
         else -> false
     }
 

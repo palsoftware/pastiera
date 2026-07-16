@@ -81,6 +81,7 @@ object SettingsManager {
     private const val KEY_RESTORE_SYM_PAGE = "restore_sym_page" // SYM page to restore when returning from settings
     private const val KEY_PENDING_RESTORE_SYM_PAGE = "pending_restore_sym_page" // Temporary SYM page state saved when opening settings
     private const val KEY_SYM_PAGES_CONFIG = "sym_pages_config" // Order/enabled pages for SYM
+    private const val KEY_KLIPY_API_KEY = "klipy_api_key" // API key used for GIF search
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_SYM_AUTO_CLOSE_ON_TOUCH = "sym_auto_close_on_touch" // Auto-close SYM layout after tapping on-screen SYM keys
     private const val KEY_SHIFT_TAP_LATCHES = "shift_tap_latches"
@@ -4186,6 +4187,16 @@ object SettingsManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error saving SYM pages config", e)
         }
+    }
+
+    fun getKlipyApiKey(context: Context): String {
+        return getPreferences(context).getString(KEY_KLIPY_API_KEY, "") ?: ""
+    }
+
+    fun setKlipyApiKey(context: Context, apiKey: String) {
+        getPreferences(context).edit()
+            .putString(KEY_KLIPY_API_KEY, apiKey.trim())
+            .apply()
     }
     
     /**

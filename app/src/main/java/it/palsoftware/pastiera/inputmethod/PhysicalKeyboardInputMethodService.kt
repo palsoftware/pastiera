@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -48,6 +49,8 @@ import it.palsoftware.pastiera.data.layout.LayoutFileStore
 import it.palsoftware.pastiera.data.layout.LayoutMapping
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.data.variation.VariationRepository
+import it.palsoftware.pastiera.gif.GifContentSender
+import it.palsoftware.pastiera.gif.KlipyGifResult
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
 import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils
 import it.palsoftware.pastiera.inputmethod.aospkeyboard.AospKeyboardView
@@ -229,6 +232,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     private lateinit var textInputController: TextInputController
     private lateinit var autoCorrectionManager: AutoCorrectionManager
     private lateinit var suggestionController: SuggestionController
+    private lateinit var gifContentSender: GifContentSender
     private lateinit var variationStateController: VariationStateController
     private lateinit var inputEventRouter: InputEventRouter
     private lateinit var typingSoundPlayer: TypingSoundPlayer
@@ -923,6 +927,45 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         return actionId?.let { performEnterEditorAction(keyCode, it, ic, event) } ?: false
     }
 
+    private fun sendGifResult(result: KlipyGifResult) {
+        val inputConnection = currentInputConnection
+        val editorInfo = currentInputEditorInfo
+        if (inputConnection == null) {
+            gifContentSender.copyFallbackLink(result)
+            Toast.makeText(this, getString(R.string.gif_picker_link_copied), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        CoroutineScope(Dispatchers.Main).launch {
+            val committed = if (gifContentSender.supportsGifCommit(editorInfo)) {
+                runCatching {
+                    val preparedGif = withContext(Dispatchers.IO) {
+                        gifContentSender.prepareGif(result)
+                    }
+                    val nonNullEditorInfo = editorInfo ?: return@runCatching false
+                    gifContentSender.commitPreparedGif(preparedGif, inputConnection, nonNullEditorInfo)
+                }.getOrDefault(false)
+            } else {
+                false
+            }
+
+            if (committed) {
+                Toast.makeText(
+                    this@PhysicalKeyboardInputMethodService,
+                    getString(R.string.gif_picker_sent),
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                gifContentSender.insertFallbackLink(result, inputConnection)
+                Toast.makeText(
+                    this@PhysicalKeyboardInputMethodService,
+                    getString(R.string.gif_picker_fallback_link_inserted),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
     private fun notifyDebugKeyEvent(
         keyCode: Int,
         event: KeyEvent?,
@@ -1420,6 +1463,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // Initialize clipboard history manager first (needed by candidatesBarController)
         clipboardHistoryManager = ClipboardHistoryManager(this)
         clipboardHistoryManager.onCreate()
+        gifContentSender = GifContentSender(this)
 
         candidatesBarController = CandidatesBarController(this, clipboardHistoryManager, assets, PhysicalKeyboardInputMethodService::class.java)
         candidatesBarController.onAddUserWord = { word ->
@@ -1547,6 +1591,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             // Toggle emoji picker as SYM page 4
             symLayoutController.openEmojiPickerPage()
             updateStatusBarText()
+        }
+        candidatesBarController.onGifSelected = { result ->
+            sendGifResult(result)
         }
         candidatesBarController.onEmojiPageRequested = {
             ensureInputViewCreated()

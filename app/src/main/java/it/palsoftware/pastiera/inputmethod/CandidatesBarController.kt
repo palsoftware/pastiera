@@ -6,6 +6,7 @@ import android.view.KeyEvent
 import android.widget.LinearLayout
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.SettingsManager
+import it.palsoftware.pastiera.gif.KlipyGifResult
 
 /**
  * Coordinates the two StatusBarController instances (full input view vs
@@ -110,6 +111,13 @@ class CandidatesBarController(
             field = value
             inputStatusBar.onEmojiPageRequested = value
             candidatesStatusBar.onEmojiPageRequested = value
+        }
+
+    var onGifSelected: ((KlipyGifResult) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onGifSelected = value
+            candidatesStatusBar.onGifSelected = value
         }
     
     var onSymbolsPageRequested: (() -> Unit)? = null
