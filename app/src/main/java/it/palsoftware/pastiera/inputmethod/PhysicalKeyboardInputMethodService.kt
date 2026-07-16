@@ -1437,7 +1437,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         candidatesBarController.onAddUserWordSubstitutionRequested = { word ->
             showAddSubstitutionDialog(word)
         }
-        candidatesBarController.onSuggestionCommitted = {
+        candidatesBarController.onSuggestionCommitted = { suggestion ->
             if (shiftLayerLatched || altLayerLatched) {
                 shiftLayerLatched = false
                 altLayerLatched = false
@@ -1448,7 +1448,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 modifierStateController.consumeShiftOneShot()
             }
             variationInteractedDuringHold = true
-            suggestionController.readInitialContext(currentInputConnection)
+            suggestionController.onSuggestionAccepted(suggestion)
             updateStatusBarText()
         }
         candidatesBarController.onHideSuggestion = { suggestion ->
@@ -4888,9 +4888,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 it.palsoftware.pastiera.core.AutoSpaceTracker.markAutoSpace()
             }
 
-            // CRITICAL FIX: Reset tracker after accepting suggestion to prevent duplicate letters
-            // The cursor debounce can cause tracker to be out of sync when user types quickly after accepting
-            suggestionController.onContextReset()
+            suggestionController.onSuggestionAccepted(suggestion)
             NotificationHelper.triggerHapticFeedback(this)
             Log.d(TAG, "Suggestion '$suggestion' inserted successfully")
         }

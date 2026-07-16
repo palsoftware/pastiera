@@ -56,7 +56,7 @@ class CandidatesBarController(
             candidatesStatusBar.onAddUserWordSubstitutionRequested = value
         }
 
-    var onSuggestionCommitted: (() -> Unit)? = null
+    var onSuggestionCommitted: ((String) -> Unit)? = null
         set(value) {
             field = value
             inputStatusBar.onSuggestionCommitted = value

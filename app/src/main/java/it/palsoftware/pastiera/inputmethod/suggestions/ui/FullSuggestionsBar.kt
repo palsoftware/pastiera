@@ -358,7 +358,7 @@ class FullSuggestionsBar(
         addWordCandidate: String?,
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
-        onSuggestionCommitted: (() -> Unit)?,
+        onSuggestionCommitted: ((String) -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?
@@ -609,7 +609,7 @@ class FullSuggestionsBar(
         addWordCandidate: String?,
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
-        onSuggestionCommitted: (() -> Unit)?,
+        onSuggestionCommitted: ((String) -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?

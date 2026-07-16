@@ -473,6 +473,40 @@ class SuggestionController(
 
     fun currentSuggestions(): List<SuggestionResult> = latestSuggestions.get()
 
+    fun onSuggestionAccepted(acceptedWord: String) {
+        if (!isEnabled()) return
+        tracker.reset()
+        pendingAddUserWord = null
+
+        val settings = settingsProvider()
+        if (!settings.suggestionsEnabled) {
+            previousCompletedWord = null
+            previousPreviousCompletedWord = null
+            latestSuggestions.set(emptyList())
+            suggestionsListener?.invoke(emptyList())
+            return
+        }
+
+        val cleanWord = acceptedWord.trim().takeIf { it.any { ch -> ch.isLetterOrDigit() } }
+        if (cleanWord == null) {
+            latestSuggestions.set(emptyList())
+            suggestionsListener?.invoke(emptyList())
+            return
+        }
+
+        val previousWord = previousCompletedWord
+        if (sentenceStartPending) {
+            nextWordPredictor.learnSentenceStart(currentLocale, cleanWord)
+        }
+        previousWord?.let { previous ->
+            nextWordPredictor.learn(currentLocale, previous, cleanWord)
+        }
+        previousPreviousCompletedWord = previousWord
+        previousCompletedWord = cleanWord
+        sentenceStartPending = false
+        publishNextWordPredictions(cleanWord, previousWord)
+    }
+
     fun userDictionarySnapshot(): List<UserDictionaryStore.UserEntry> = userDictionaryStore.getSnapshot()
 
     fun dismissSuggestion(candidate: String, hardDeleteUserWord: Boolean = false) {
