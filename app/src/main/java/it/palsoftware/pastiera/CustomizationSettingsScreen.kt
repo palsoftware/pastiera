@@ -88,6 +88,9 @@ fun CustomizationSettingsScreen(
                 SettingsManager.PastierinaModeOverride.FORCE_MINIMAL
         )
     }
+    var unifiedModeEnabled by remember {
+        mutableStateOf(SettingsManager.getUnifiedSuggestionsVariationsBar(context))
+    }
     var launcherShortcutsEnabled by remember {
         mutableStateOf(SettingsManager.getLauncherShortcutsEnabled(context))
     }
@@ -722,6 +725,48 @@ fun CustomizationSettingsScreen(
                                             SettingsManager.PastierinaModeOverride.FORCE_FULL
                                         }
                                         SettingsManager.setPastierinaModeOverride(context, override)
+                                    }
+                                )
+                            }
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(72.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.unified_mode_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.unified_mode_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                Switch(
+                                    checked = unifiedModeEnabled,
+                                    onCheckedChange = { checked ->
+                                        unifiedModeEnabled = checked
+                                        SettingsManager.setUnifiedSuggestionsVariationsBar(context, checked)
                                     }
                                 )
                             }

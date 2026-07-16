@@ -10,6 +10,7 @@ data class KeyboardThemeColors(
     val ledActive: Int,
     val ledLocked: Int,
     val accent: Int,
+    val keyTap: Int = it.palsoftware.pastiera.defaultKeyboardThemeKeyTapColor(normalKey, accent),
     val cursorSwipe: Int = accent,
     val keyPopup: Int = specialKey,
     val keyPopupSelected: Int = accent,
@@ -18,5 +19,6 @@ data class KeyboardThemeColors(
     val keyCornerRadiusRatio: Float = 0.08f,
     val chromeCornerRadiusRatio: Float = 0.08f,
     val suggestionsHeightScale: Float = 1f,
-    val variationsHeightScale: Float = 1f
+    val variationsHeightScale: Float = 1f,
+    val modifierIndicatorStripScale: Float = 1f
 )

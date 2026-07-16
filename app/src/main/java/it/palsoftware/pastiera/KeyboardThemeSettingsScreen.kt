@@ -1278,6 +1278,7 @@ private fun keyboardThemesEquivalent(
         left.ledActive == right.ledActive &&
         left.ledLocked == right.ledLocked &&
         left.accent == right.accent &&
+        left.keyTap == right.keyTap &&
         left.cursorSwipe == right.cursorSwipe &&
         left.keyPopup == right.keyPopup &&
         left.keyPopupSelected == right.keyPopupSelected &&
@@ -1294,6 +1295,7 @@ private fun keyboardThemesEquivalent(
         left.showLeds == right.showLeds &&
         close(left.suggestionsHeightScale, right.suggestionsHeightScale) &&
         close(left.variationsHeightScale, right.variationsHeightScale) &&
+        close(left.modifierIndicatorStripScale, right.modifierIndicatorStripScale) &&
         left.keyPopupStyle == right.keyPopupStyle &&
         left.keyPopupAttached == right.keyPopupAttached &&
         left.keyPopupTailEnabled == right.keyPopupTailEnabled &&
@@ -1464,6 +1466,14 @@ private fun KeyboardThemeColorsEditor(
         )
         add(
             KeyboardThemeColorEditorItem(
+                label = "Key tap",
+                color = theme.keyTap,
+                presetColor = preset.keyTap,
+                onColorChanged = { onThemeChanged(theme.copy(keyTap = it)) }
+            )
+        )
+        add(
+            KeyboardThemeColorEditorItem(
                 label = stringResource(R.string.keyboard_theme_special_keys),
                 color = theme.specialKey,
                 presetColor = preset.specialKey,
@@ -1616,6 +1626,13 @@ private fun KeyboardThemeKeysEditor(
             presetValue = preset.variationsHeightScale,
             valueRange = 0.65f..1.6f,
             onValueChanged = { onThemeChanged(theme.copy(variationsHeightScale = it)) }
+        )
+        KeyboardThemeSliderRow(
+            label = "Modifier strip thickness",
+            value = theme.modifierIndicatorStripScale,
+            presetValue = preset.modifierIndicatorStripScale,
+            valueRange = 0.35f..1.4f,
+            onValueChanged = { onThemeChanged(theme.copy(modifierIndicatorStripScale = it)) }
         )
         if (isSoftware) {
             KeyboardThemeSwitchRow(

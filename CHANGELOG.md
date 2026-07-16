@@ -1,5 +1,23 @@
 # Changelog
 
+## Pastiera Enhanced 4.0
+
+Pastiera Enhanced 4.0 is a rewrite of the Enhanced fork on top of the newer upstream Pastiera base.
+
+### Added
+- Predictive text integration with next-word predictions, bundled common phrase fallback, local learning, and removable predictions.
+- Unified Mode, which can show predictions inside the existing variations/status bar instead of stacking a separate prediction row.
+- Snippets with searchable shortcut popups, plus improved emoji/symbol shortcode completion.
+- Media picker support inside the emoji picker, including GIFs, stickers, and local images.
+- Theme controls for key tap color and modifier strip thickness.
+
+### Fixed and Improved
+- Fixed media sending crashes and restored GIF/sticker/image sending fallback behavior.
+- Improved prediction replacement after selecting suggestions and advanced predictions after accepted words.
+- Improved shortcode/snippet popup theming, sizing, and unified-mode positioning.
+- Improved SYM popup layout, symbol page padding, page cycling, and close controls.
+- Ported Enhanced behavior onto the newer Pastiera base to make future upstream pull requests easier to split and review.
+
 ## New Features Pastiera 0.2
 
 ### Keyboard Enhancements
@@ -30,4 +48,3 @@
 
 
 *This changelog covers all changes since the last release (v0.1-alpha).*
-

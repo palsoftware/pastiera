@@ -10,8 +10,10 @@ import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.text.Editable
 import android.text.InputType
+import android.text.TextUtils
 import android.text.TextWatcher
 import android.util.LruCache
 import android.util.TypedValue
@@ -56,14 +58,15 @@ import java.nio.ByteBuffer
 class GifPickerView(
     context: Context,
     private val gifClient: KlipyGifClient,
-    private val onGifSelected: (KlipyGifResult) -> Unit
+    private val onGifSelected: (KlipyGifResult) -> Unit,
+    private val fillParentHeight: Boolean = false
 ) : FrameLayout(context) {
 
+    private val headerContainer: LinearLayout
     private val searchField: EditText
     private val recyclerView: RecyclerView
     private val loadingView: ProgressBar
     private val emptyView: TextView
-    private val attributionView: TextView
     private val mediaTypeTabs: LinearLayout
     private val localFolderBar: LinearLayout
     private val localFolderText: TextView
@@ -76,9 +79,10 @@ class GifPickerView(
         onGifTapped = { showPreview(it) },
         onGifLongPressed = { copyGifLink(it) }
     )
-    private val fixedHeight = dpToPx(312f)
-    private val smallPadding = dpToPx(8f)
-    private val previewSpacing = dpToPx(8f)
+    private val fixedHeight = dpToPx(380f)
+    private val smallPadding = dpToPx(6f)
+    private val previewSpacing = dpToPx(4f)
+    private val pageSize = 24
     private val columns = 3
     private var searchJob: Job? = null
     private var searchQuery = ""
@@ -86,6 +90,10 @@ class GifPickerView(
     private var coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var selectedGif: KlipyGifResult? = null
     private var selectedMediaType: KlipyMediaType = KlipyMediaType.GIF
+    private var currentPage = 0
+    private var reachedEnd = false
+    private var loadingPage = false
+    private var currentItems: List<KlipyGifResult> = emptyList()
     private var localFolderReceiverRegistered = false
     private val localMediaRepository = LocalMediaRepository(context)
     private val localFolderReceiver = object : android.content.BroadcastReceiver() {
@@ -104,25 +112,40 @@ class GifPickerView(
 
         val vertical = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, fixedHeight)
+            layoutParams = LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                if (fillParentHeight) LayoutParams.MATCH_PARENT else fixedHeight
+            )
+        }
+
+        headerContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
         }
 
         searchField = EditText(context).apply {
             hint = context.getString(R.string.gif_picker_search_placeholder)
             setTextColor(Color.WHITE)
             setHintTextColor(Color.argb(160, 255, 255, 255))
-            textSize = 14f
+            textSize = 13f
             setSingleLine(true)
             inputType = InputType.TYPE_CLASS_TEXT
             setBackgroundColor(Color.argb(30, 255, 255, 255))
-            val padH = dpToPx(10f)
-            val padV = dpToPx(6f)
+            val padH = dpToPx(8f)
+            val padV = dpToPx(4f)
             setPadding(padH, padV, padH, padV)
+            isCursorVisible = searchInputCaptureEnabled
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                showSoftInputOnFocus = false
+            }
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(smallPadding, smallPadding, smallPadding, 0)
+                setMargins(smallPadding, smallPadding / 2, smallPadding, 0)
             }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -134,6 +157,9 @@ class GifPickerView(
                     scheduleSearch()
                 }
             })
+            setOnClickListener {
+                setSearchInputCaptureEnabled(true)
+            }
         }
 
         mediaTypeTabs = LinearLayout(context).apply {
@@ -143,7 +169,7 @@ class GifPickerView(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(smallPadding, smallPadding / 2, smallPadding, 0)
+                setMargins(smallPadding, dpToPx(2f), smallPadding, 0)
             }
         }
         KlipyMediaType.entries.forEach { type ->
@@ -175,7 +201,7 @@ class GifPickerView(
 
         recyclerView = RecyclerView(context).apply {
             overScrollMode = View.OVER_SCROLL_ALWAYS
-            clipToPadding = false
+            clipToPadding = true
             setPadding(smallPadding, smallPadding, smallPadding, smallPadding)
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -187,6 +213,11 @@ class GifPickerView(
             addItemDecoration(object : RecyclerView.ItemDecoration() {
                 override fun getItemOffsets(outRect: android.graphics.Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
                     outRect.set(previewSpacing / 2, previewSpacing / 2, previewSpacing / 2, previewSpacing / 2)
+                }
+            })
+            addOnScrollListener(object : RecyclerView.OnScrollListener() {
+                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    maybeLoadNextPage()
                 }
             })
         }
@@ -211,24 +242,11 @@ class GifPickerView(
             visibility = View.GONE
         }
 
-        attributionView = TextView(context).apply {
-            text = context.getString(R.string.gif_picker_powered_by)
-            textSize = 11f
-            setTextColor(Color.argb(160, 255, 255, 255))
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(smallPadding, 0, smallPadding, smallPadding / 2)
-            }
-        }
-
-        vertical.addView(searchField)
-        vertical.addView(mediaTypeTabs)
-        vertical.addView(localFolderBar)
+        headerContainer.addView(searchField)
+        headerContainer.addView(mediaTypeTabs)
+        headerContainer.addView(localFolderBar)
+        vertical.addView(headerContainer)
         vertical.addView(recyclerView)
-        vertical.addView(attributionView)
 
         addView(vertical)
         addView(loadingView)
@@ -308,10 +326,10 @@ class GifPickerView(
         }
         searchJob?.cancel()
         if (searchQuery.isBlank()) {
-            applyTrending()
+            loadFirstPage()
             return
         }
-        applySearchNow()
+        loadFirstPage()
     }
 
     fun resetToTrending() {
@@ -321,12 +339,13 @@ class GifPickerView(
         searchField.setText("")
         hidePreview()
         showMessage(context.getString(R.string.gif_picker_empty_prompt, selectedMediaType.displayName))
-        applyTrending()
+        loadFirstPage()
     }
 
     fun handleSearchKeyDown(event: KeyEvent): Boolean {
         if (!searchInputCaptureEnabled) return false
         if (event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) return false
+        focusSearchField()
 
         return when (event.keyCode) {
             KeyEvent.KEYCODE_DEL -> {
@@ -366,14 +385,37 @@ class GifPickerView(
         }
     }
 
+    fun isSearchInputActive(): Boolean = searchInputCaptureEnabled
+
     fun disableSearchInputCapture() {
-        searchInputCaptureEnabled = false
-        searchField.clearFocus()
-        searchField.alpha = 0.75f
+        setSearchInputCaptureEnabled(false)
+    }
+
+    private fun focusSearchField() {
+        if (!searchField.hasFocus()) {
+            searchField.requestFocus()
+        }
+        val editable = searchField.text
+        if (editable != null) {
+            searchField.setSelection(editable.length)
+        }
+    }
+
+    private fun setSearchInputCaptureEnabled(enabled: Boolean) {
+        searchInputCaptureEnabled = enabled
+        searchField.isCursorVisible = enabled
+        searchField.alpha = if (enabled) 1f else 0.75f
+        if (enabled) {
+            focusSearchField()
+        } else {
+            searchField.clearFocus()
+        }
     }
 
     fun scrollToTop() {
-        recyclerView.post { recyclerView.scrollToPosition(0) }
+        recyclerView.post {
+            recyclerView.scrollToPosition(0)
+        }
     }
 
     override fun onDetachedFromWindow() {
@@ -410,9 +452,9 @@ class GifPickerView(
         return TextView(context).apply {
             text = type.displayName
             gravity = Gravity.CENTER
-            textSize = 12f
+            textSize = 11f
             setTextColor(Color.WHITE)
-            setPadding(dpToPx(12f), dpToPx(6f), dpToPx(12f), dpToPx(6f))
+            setPadding(dpToPx(10f), dpToPx(4f), dpToPx(10f), dpToPx(4f))
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
                 marginStart = dpToPx(2f)
                 marginEnd = dpToPx(2f)
@@ -446,11 +488,7 @@ class GifPickerView(
         localFolderBar.visibility = if (isLocal) View.VISIBLE else View.GONE
         if (!isLocal) return
         val folderUri = localMediaRepository.getSelectedFolderUri()
-        localFolderText.text = if (folderUri == null) {
-            context.getString(R.string.local_media_no_folder)
-        } else {
-            context.getString(R.string.local_media_folder_selected, folderUri.lastPathSegment ?: "folder")
-        }
+        localFolderText.visibility = View.GONE
     }
 
     private fun openLocalFolderPicker() {
@@ -489,7 +527,7 @@ class GifPickerView(
         searchJob?.cancel()
         searchJob = coroutineScope.launch {
             delay(180)
-            applySearchNow()
+            loadFirstPage(cancelExisting = false)
         }
     }
 
@@ -499,87 +537,107 @@ class GifPickerView(
         searchField.setSelection(editable.length)
     }
 
-    private fun applySearchNow() {
-        if (searchQuery.isBlank()) {
-            applyTrending()
-            return
+    private fun loadFirstPage(cancelExisting: Boolean = true) {
+        if (cancelExisting) {
+            searchJob?.cancel()
         }
-
-        loadingView.visibility = View.VISIBLE
-        emptyView.visibility = View.GONE
-        recyclerView.visibility = View.VISIBLE
-
-        searchJob?.cancel()
         searchJob = coroutineScope.launch {
-            try {
-                val results = withContext(Dispatchers.IO) {
-                    if (selectedMediaType == KlipyMediaType.LOCAL) {
-                        localMediaRepository.getItems().filter {
-                            it.title.contains(searchQuery, ignoreCase = true)
-                        }
-                    } else {
-                        gifClient.search(searchQuery, mediaType = selectedMediaType)
-                    }
-                }
-                loadingView.visibility = View.GONE
-                if (results.isEmpty()) {
-                    resultAdapter.submitList(emptyList())
-                    showMessage(context.getString(R.string.gif_picker_no_results, selectedMediaType.displayName))
-                } else {
-                    emptyView.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                    resultAdapter.submitList(results)
-                    scrollToTop()
-                }
-            } catch (e: CancellationException) {
-                loadingView.visibility = View.GONE
-                throw e
-            } catch (_: Exception) {
-                loadingView.visibility = View.GONE
-                resultAdapter.submitList(emptyList())
-                showMessage(context.getString(R.string.gif_picker_error))
+            loadPage(reset = true)
+        }
+    }
+
+    private fun maybeLoadNextPage() {
+        if (selectedMediaType == KlipyMediaType.LOCAL || loadingPage || reachedEnd || currentItems.isEmpty()) return
+        val layoutManager = recyclerView.layoutManager as? GridLayoutManager ?: return
+        val lastVisible = layoutManager.findLastVisibleItemPosition()
+        if (lastVisible >= currentItems.size - (columns * 2)) {
+            ensureActiveScope()
+            coroutineScope.launch {
+                loadPage(reset = false)
             }
         }
     }
 
-    private fun applyTrending() {
-        loadingView.visibility = View.VISIBLE
-        emptyView.visibility = View.GONE
-        recyclerView.visibility = View.VISIBLE
+    private suspend fun loadPage(reset: Boolean) {
+        if (loadingPage) return
+        loadingPage = true
+        if (reset) {
+            currentPage = 0
+            reachedEnd = false
+            currentItems = emptyList()
+            loadingView.visibility = View.VISIBLE
+            emptyView.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+        }
 
-        searchJob?.cancel()
-        searchJob = coroutineScope.launch {
-            try {
-                val results = withContext(Dispatchers.IO) {
-                    if (selectedMediaType == KlipyMediaType.LOCAL) {
-                        localMediaRepository.getItems()
-                    } else {
-                        gifClient.trending(mediaType = selectedMediaType)
+        try {
+            val nextPage = currentPage + 1
+            val querySnapshot = searchQuery
+            val typeSnapshot = selectedMediaType
+            val results = withContext(Dispatchers.IO) {
+                when {
+                    typeSnapshot == KlipyMediaType.LOCAL && querySnapshot.isBlank() -> localMediaRepository.getItems()
+                    typeSnapshot == KlipyMediaType.LOCAL -> localMediaRepository.getItems().filter {
+                        it.title.contains(querySnapshot, ignoreCase = true)
                     }
+                    querySnapshot.isBlank() -> gifClient.trending(
+                        mediaType = typeSnapshot,
+                        limit = pageSize,
+                        page = nextPage
+                    )
+                    else -> gifClient.search(
+                        querySnapshot,
+                        mediaType = typeSnapshot,
+                        limit = pageSize,
+                        page = nextPage
+                    )
                 }
-                loadingView.visibility = View.GONE
-                if (results.isEmpty()) {
-                    resultAdapter.submitList(emptyList())
-                    val message = if (selectedMediaType == KlipyMediaType.LOCAL && localMediaRepository.getSelectedFolderUri() == null) {
+            }
+
+            loadingView.visibility = View.GONE
+            if (reset && results.isEmpty()) {
+                currentItems = emptyList()
+                resultAdapter.submitList(emptyList())
+                val message = when {
+                    typeSnapshot == KlipyMediaType.LOCAL && localMediaRepository.getSelectedFolderUri() == null ->
                         context.getString(R.string.local_media_choose_folder_prompt)
-                    } else {
-                        context.getString(R.string.gif_picker_empty_prompt, selectedMediaType.displayName)
-                    }
-                    showMessage(message)
-                } else {
-                    emptyView.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                    resultAdapter.submitList(results)
+                    querySnapshot.isNotBlank() ->
+                        context.getString(R.string.gif_picker_no_results, typeSnapshot.displayName)
+                    else ->
+                        context.getString(R.string.gif_picker_empty_prompt, typeSnapshot.displayName)
+                }
+                showMessage(message)
+                return
+            }
+
+            if (results.size < pageSize || typeSnapshot == KlipyMediaType.LOCAL) {
+                reachedEnd = true
+            }
+            if (results.isNotEmpty()) {
+                currentPage = nextPage
+                emptyView.visibility = View.GONE
+                recyclerView.visibility = View.VISIBLE
+                val seen = currentItems.mapTo(HashSet()) { it.id }
+                currentItems = currentItems + results.filter { seen.add(it.id) }
+                resultAdapter.submitList(currentItems)
+                if (reset) {
                     scrollToTop()
                 }
-            } catch (e: CancellationException) {
-                loadingView.visibility = View.GONE
-                throw e
-            } catch (_: Exception) {
-                loadingView.visibility = View.GONE
+            }
+        } catch (e: CancellationException) {
+            loadingView.visibility = View.GONE
+            throw e
+        } catch (_: Exception) {
+            loadingView.visibility = View.GONE
+            if (reset) {
+                currentItems = emptyList()
                 resultAdapter.submitList(emptyList())
                 showMessage(context.getString(R.string.gif_picker_error))
+            } else {
+                reachedEnd = true
             }
+        } finally {
+            loadingPage = false
         }
     }
 
@@ -606,10 +664,9 @@ private class GifResultAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GifResultViewHolder {
         val context = parent.context
-        val container = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
+        val container = FrameLayout(context).apply {
             setBackgroundColor(Color.argb(26, 255, 255, 255))
-            val padding = dpToPx(context, 6f)
+            val padding = dpToPx(context, 3f)
             setPadding(padding, padding, padding, padding)
             layoutParams = RecyclerView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -618,21 +675,28 @@ private class GifResultAdapter(
         }
         val preview = ImageView(context).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
-            layoutParams = LinearLayout.LayoutParams(
+            layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dpToPx(context, 72f)
+                dpToPx(context, 88f)
             )
             setBackgroundColor(Color.argb(35, 255, 255, 255))
         }
         val title = TextView(context).apply {
             setTextColor(Color.WHITE)
-            textSize = 11f
-            maxLines = 2
-            layoutParams = LinearLayout.LayoutParams(
+            setBackgroundColor(Color.argb(135, 0, 0, 0))
+            textSize = 8f
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(context, 3f), 0, dpToPx(context, 3f), 0)
+            layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                dpToPx(context, 14f),
+                Gravity.BOTTOM
             ).apply {
-                topMargin = dpToPx(context, 6f)
+                leftMargin = dpToPx(context, 3f)
+                rightMargin = dpToPx(context, 3f)
+                bottomMargin = dpToPx(context, 3f)
             }
         }
         container.addView(preview)

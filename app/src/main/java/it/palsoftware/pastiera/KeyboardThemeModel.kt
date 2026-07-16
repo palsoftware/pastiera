@@ -35,8 +35,20 @@ internal data class KeyboardThemePreset(
     val keyPopupAttached: Boolean = true,
     val keyPopupTailEnabled: Boolean = true,
     val keyPreviewAfterLongPress: Boolean = false,
-    val keyAlternatesPopupEnabled: Boolean = true
+    val keyAlternatesPopupEnabled: Boolean = true,
+    val modifierIndicatorStripScale: Float = 1f,
+    val keyTap: Int = defaultKeyboardThemeKeyTapColor(normalKey, accent)
 )
+
+internal fun defaultKeyboardThemeKeyTapColor(normalKey: Int, accent: Int): Int {
+    val ratio = 0.28f.coerceIn(0f, 1f)
+    val inverse = 1f - ratio
+    val alpha = ((normalKey ushr 24) * inverse + (accent ushr 24) * ratio).toInt()
+    val red = (((normalKey ushr 16) and 0xFF) * inverse + ((accent ushr 16) and 0xFF) * ratio).toInt()
+    val green = (((normalKey ushr 8) and 0xFF) * inverse + ((accent ushr 8) and 0xFF) * ratio).toInt()
+    val blue = ((normalKey and 0xFF) * inverse + (accent and 0xFF) * ratio).toInt()
+    return (alpha shl 24) or (red shl 16) or (green shl 8) or blue
+}
 
 internal data class KeyboardThemeOption(
     val key: String,
@@ -81,6 +93,7 @@ internal fun KeyboardThemePreset.toAospThemeOverride(): AospKeyboardView.ThemeOv
         ledActive = ledActive,
         ledLocked = ledLocked,
         accent = accent,
+        keyTap = keyTap,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
         keyCornerRadiusRatio = keyCornerRadiusRatio,
@@ -108,6 +121,7 @@ internal fun KeyboardThemePreset.toKeyboardThemeColors(): KeyboardThemeColors =
         ledActive = ledActive,
         ledLocked = ledLocked,
         accent = accent,
+        keyTap = keyTap,
         cursorSwipe = cursorSwipe,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
@@ -116,7 +130,8 @@ internal fun KeyboardThemePreset.toKeyboardThemeColors(): KeyboardThemeColors =
         keyCornerRadiusRatio = keyCornerRadiusRatio,
         chromeCornerRadiusRatio = chromeCornerRadiusRatio,
         suggestionsHeightScale = suggestionsHeightScale,
-        variationsHeightScale = variationsHeightScale
+        variationsHeightScale = variationsHeightScale,
+        modifierIndicatorStripScale = modifierIndicatorStripScale
     )
 
 internal fun KeyboardThemePreset.toSettingsTheme(): SettingsManager.KeyboardThemeSettings =
@@ -130,6 +145,7 @@ internal fun KeyboardThemePreset.toSettingsTheme(): SettingsManager.KeyboardThem
         ledActive = ledActive,
         ledLocked = ledLocked,
         accent = accent,
+        keyTap = keyTap,
         cursorSwipe = cursorSwipe,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
@@ -146,6 +162,7 @@ internal fun KeyboardThemePreset.toSettingsTheme(): SettingsManager.KeyboardThem
         showLeds = showLeds,
         suggestionsHeightScale = suggestionsHeightScale,
         variationsHeightScale = variationsHeightScale,
+        modifierIndicatorStripScale = modifierIndicatorStripScale,
         keyPopupStyle = keyPopupStyle,
         keyPopupAttached = keyPopupAttached,
         keyPopupTailEnabled = keyPopupTailEnabled,
@@ -165,6 +182,7 @@ internal fun SettingsManager.KeyboardThemeSettings.toKeyboardThemePreset(name: S
         ledActive = ledActive,
         ledLocked = ledLocked,
         accent = accent,
+        keyTap = keyTap,
         cursorSwipe = cursorSwipe,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
@@ -181,6 +199,7 @@ internal fun SettingsManager.KeyboardThemeSettings.toKeyboardThemePreset(name: S
         showLeds = showLeds,
         suggestionsHeightScale = suggestionsHeightScale,
         variationsHeightScale = variationsHeightScale,
+        modifierIndicatorStripScale = modifierIndicatorStripScale,
         keyPopupStyle = keyPopupStyle,
         keyPopupAttached = keyPopupAttached,
         keyPopupTailEnabled = keyPopupTailEnabled,
@@ -209,6 +228,7 @@ internal fun keyboardThemeSwatches(): List<Int> = keyboardThemePresets()
             preset.ledInactive,
             preset.ledActive,
             preset.ledLocked,
+            preset.keyTap,
             preset.cursorSwipe,
             preset.keyPopup,
             preset.keyPopupSelected,

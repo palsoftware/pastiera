@@ -58,7 +58,7 @@ class HamburgerMenuView(
             buttonHost.themeOverride = value?.let {
                 StatusBarButtonStyles.ThemeOverride(
                     normalColor = it.statusBarButton,
-                    pressedColor = it.accent,
+                    pressedColor = it.keyTap,
                     iconColor = it.textAndIcons,
                     cornerRadiusRatio = it.chromeCornerRadiusRatio,
                     borderColor = it.divider,
@@ -304,7 +304,7 @@ class HamburgerMenuView(
         button.background = StatusBarButtonStyles.createButtonDrawable(
             heightPx = height,
             normalColor = theme?.statusBarButton ?: StatusBarButtonStyles.NORMAL_COLOR,
-            pressedColor = theme?.accent ?: StatusBarButtonStyles.PRESSED_BLUE,
+            pressedColor = theme?.keyTap ?: StatusBarButtonStyles.PRESSED_BLUE,
             cornerRadiusRatio = theme?.chromeCornerRadiusRatio ?: StatusBarButtonStyles.BUTTON_CORNER_RADIUS_RATIO,
             borderColor = theme?.divider,
             borderWidthPx = if (theme != null) dpToPx(1f) else 0

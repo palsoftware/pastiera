@@ -53,6 +53,7 @@ import it.palsoftware.pastiera.emoji.EmojiShortcodeManager
 import it.palsoftware.pastiera.gif.GifContentSender
 import it.palsoftware.pastiera.gif.KlipyGifResult
 import it.palsoftware.pastiera.inputmethod.ui.EmojiShortcodePopup
+import it.palsoftware.pastiera.inputmethod.ui.KeyboardThemeColors
 import it.palsoftware.pastiera.inputmethod.ui.SnippetPopup
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
 import it.palsoftware.pastiera.snippets.SnippetManager
@@ -968,7 +969,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     Toast.LENGTH_SHORT
                 ).show()
             } else if (gifContentSender.hasTextFallback(result)) {
-                gifContentSender.insertFallbackLink(result, inputConnection)
+                runCatching {
+                    gifContentSender.insertFallbackLink(result, inputConnection)
+                }
                 Toast.makeText(
                     this@PhysicalKeyboardInputMethodService,
                     getString(R.string.gif_picker_fallback_link_inserted, result.mediaType.singularName),
@@ -1048,8 +1051,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         val anchorView = window?.window?.decorView ?: return
+        val popupTheme = typedShortcutPopupTheme()
+        val popupOffset = typedShortcutPopupBottomOffsetDp()
         if (emojiShortcodePopup?.isShowing() == true) {
+            emojiShortcodePopup?.themeOverride = popupTheme
+            emojiShortcodePopup?.bottomOffsetDp = popupOffset
             emojiShortcodePopup?.updateSuggestions(filteredSuggestions)
+            emojiShortcodePopup?.reposition(anchorView)
         } else {
             emojiShortcodePopup = EmojiShortcodePopup(
                 context = this,
@@ -1060,6 +1068,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     emojiShortcodePopup = null
                 }
             ).also { popup ->
+                popup.themeOverride = popupTheme
+                popup.bottomOffsetDp = popupOffset
                 popup.show(anchorView, filteredSuggestions)
             }
         }
@@ -1136,8 +1146,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
 
         val anchorView = window?.window?.decorView ?: return
+        val popupTheme = typedShortcutPopupTheme()
+        val popupOffset = typedShortcutPopupBottomOffsetDp()
         if (snippetPopup?.isShowing() == true) {
+            snippetPopup?.themeOverride = popupTheme
+            snippetPopup?.bottomOffsetDp = popupOffset
             snippetPopup?.updateSuggestions(suggestions)
+            snippetPopup?.reposition(anchorView)
         } else {
             snippetPopup = SnippetPopup(
                 context = this,
@@ -1149,10 +1164,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     snippetPopup = null
                 }
             ).also { popup ->
+                popup.themeOverride = popupTheme
+                popup.bottomOffsetDp = popupOffset
                 popup.show(anchorView, suggestions)
             }
         }
     }
+
+    private fun typedShortcutPopupBottomOffsetDp(): Float =
+        if (SettingsManager.getUnifiedSuggestionsVariationsBar(this)) 64f else 96f
+
+    private fun typedShortcutPopupTheme(): KeyboardThemeColors =
+        SettingsManager.getEffectiveKeyboardTheme(
+            context = this,
+            target = SettingsManager.KeyboardThemeTarget.HARDWARE,
+            locale = getLocaleFromSubtype().toLanguageTag(),
+            layout = activeKeyboardLayoutName
+        ).toKeyboardThemeColors()
 
     private fun replaceSnippetWithValue(value: String, shortcut: String, trigger: Char) {
         val inputConnection = currentInputConnection ?: return
@@ -1811,6 +1839,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             symLayoutController.openEmojiPickerPage()
             updateStatusBarText()
         }
+        candidatesBarController.onGifPickerRequested = {
+            if (shiftLayerLatched || altLayerLatched) {
+                shiftLayerLatched = false
+                altLayerLatched = false
+                modifierStateBeforeHold?.let { modifierStateController.restoreLogicalState(it) }
+                modifierStateBeforeHold = null
+            }
+            variationInteractedDuringHold = true
+            ensureInputViewCreated()
+            candidatesBarController.requestMediaTabOnNextEmojiPickerOpen()
+            if (symPage != 4) {
+                symLayoutController.openEmojiPickerPage()
+            }
+            updateStatusBarText()
+        }
         candidatesBarController.onGifSelected = { result ->
             sendGifResult(result)
         }
@@ -2138,6 +2181,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 attachTrackpadDecorViewMotionHook("provider_changed")
             } else if (key == "pastierina_mode_override") {
                 keyboardVisibilityController.syncMinimalUiOverrideFromSettings()
+            } else if (key == SettingsManager.KEY_UNIFIED_SUGGESTIONS_VARIATIONS_BAR) {
+                invalidateRenderedStatusSnapshot()
             } else if (key == "software_keyboard_mode") {
                 invalidateRenderedStatusSnapshot()
                 keyboardVisibilityController.syncMinimalUiOverrideFromSettings()
@@ -2653,6 +2698,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         super.onViewClicked(focusChanged)
         if (symPage == 4 && ::candidatesBarController.isInitialized) {
             disableEmojiSearchInputCapture()
+        }
+        if ((symPage == 4 || symPage == 5) && ::candidatesBarController.isInitialized) {
+            candidatesBarController.disableGifPickerSearchInputCapture()
         }
     }
 
@@ -3942,11 +3990,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                 !isPureModifierKey(keyCode) &&
                 ::candidatesBarController.isInitialized &&
                 candidatesBarController.isEmojiPickerSearchInputActive()
+        val gifSearchCandidateActive =
+            hasEditableField &&
+                (symPage == 4 || symPage == 5) &&
+                keyCode != KeyEvent.KEYCODE_BACK &&
+                keyCode != KEYCODE_SYM &&
+                !isPureModifierKey(keyCode) &&
+                ::candidatesBarController.isInitialized &&
+                candidatesBarController.isGifPickerSearchInputActive()
         if (emojiSearchCandidateActive) {
             ensureEmojiSearchCursorAnchorMonitoring(initialInputConnection)
             if (shouldReturnEmojiSearchFocusToApp(initialInputConnection)) {
                 disableEmojiSearchInputCapture()
             }
+        }
+        if (
+            gifSearchCandidateActive &&
+            candidatesBarController.handleGifPickerSearchKeyDown(event)
+        ) {
+            return true
         }
         // Let the picker handle text-editing shortcuts before the generic Ctrl router can
         // touch the app editor selection.
@@ -4462,6 +4524,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
                     ctrlOneShot ||
                     ctrlLatchFromNavMode
             )
+        ) {
+            return true
+        }
+
+        if (
+            hasEditableField &&
+            (symPage == 4 || symPage == 5) &&
+            keyCode != KeyEvent.KEYCODE_BACK &&
+            keyCode != KEYCODE_SYM &&
+            !isPureModifierKey(keyCode) &&
+            ::candidatesBarController.isInitialized &&
+            candidatesBarController.isGifPickerSearchInputActive() &&
+            candidatesBarController.shouldConsumeGifPickerSearchKeyUp(event)
         ) {
             return true
         }

@@ -99,6 +99,18 @@ class SymLayoutController(
         return true
     }
 
+    fun openGifPickerPage(): Boolean {
+        val gifPickerPageValue = SymPage.GIF_PICKER.toPrefValue()
+
+        if (symPage == gifPickerPageValue) {
+            closeSymPage()
+            return false
+        }
+        symPage = gifPickerPageValue
+        persistSymPage()
+        return true
+    }
+
     fun openEmojiPage(): Boolean {
         val emojiPageValue = SymPage.EMOJI.toPrefValue()
 

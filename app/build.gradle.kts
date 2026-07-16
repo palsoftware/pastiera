@@ -78,8 +78,8 @@ android {
     namespace = "it.palsoftware.pastiera"
     compileSdk = 36
 
-    val defaultVersionCode = 86
-    val defaultVersionName = "0.86"
+    val defaultVersionCode = 400
+    val defaultVersionName = "4.0"
     val ciVersionCode = providers.gradleProperty("PASTIERA_VERSION_CODE").orNull?.toIntOrNull()
     val ciVersionName = providers.gradleProperty("PASTIERA_VERSION_NAME").orNull
     val nightlyVersionCode = providers.gradleProperty("PASTIERA_NIGHTLY_VERSION_CODE").orNull?.toIntOrNull()
@@ -135,8 +135,8 @@ android {
     productFlavors {
         create("stable") {
             dimension = "channel"
-            manifestPlaceholders["appLabel"] = "Pastiera"
-            manifestPlaceholders["imeLabel"] = "Pastiera"
+            manifestPlaceholders["appLabel"] = "Pastiera Enhanced"
+            manifestPlaceholders["imeLabel"] = "Pastiera Enhanced"
             buildConfigField("String", "RELEASE_CHANNEL", "\"stable\"")
             buildConfigField("boolean", "IS_FDROID_BUILD", if (isFdroidBuild) "true" else "false")
             buildConfigField("boolean", "ENABLE_GITHUB_UPDATE_CHECKS", if (isFdroidBuild) "false" else "true")
@@ -148,8 +148,8 @@ android {
                 versionCode = nightlyVersionCode
             }
             versionNameSuffix = nightlyVersionNameSuffix
-            manifestPlaceholders["appLabel"] = "Pastiera Nightly"
-            manifestPlaceholders["imeLabel"] = "Pastiera Nightly"
+            manifestPlaceholders["appLabel"] = "Pastiera Enhanced"
+            manifestPlaceholders["imeLabel"] = "Pastiera Enhanced"
             buildConfigField("String", "RELEASE_CHANNEL", "\"nightly\"")
             buildConfigField("boolean", "IS_FDROID_BUILD", if (isFdroidBuild) "true" else "false")
             buildConfigField("boolean", "ENABLE_GITHUB_UPDATE_CHECKS", if (isFdroidBuild) "false" else "true")

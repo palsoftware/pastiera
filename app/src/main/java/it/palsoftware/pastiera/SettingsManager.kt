@@ -105,6 +105,7 @@ object SettingsManager {
     private const val KEY_STATIC_VARIATION_BAR_BASE_LAYER_ENABLED = "static_variation_bar_base_layer_enabled" // Toggle top-row preset
     private const val KEY_STATIC_VARIATION_BAR_MODIFIER_HOLD_RESTORATION = "static_variation_bar_modifier_hold_restoration"
     private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
+    const val KEY_UNIFIED_SUGGESTIONS_VARIATIONS_BAR = "unified_suggestions_variations_bar"
     private const val KEY_ADDITIONAL_IME_SUBTYPES = "additional_ime_subtypes" // Comma-separated list of language codes for additional IME subtypes
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Whether clipboard history is enabled
     private const val KEY_CLIPBOARD_RETENTION_TIME = "clipboard_retention_time" // How long to keep clipboard entries (in minutes)
@@ -324,6 +325,7 @@ object SettingsManager {
     private const val DEFAULT_EMOJI_PICKER_EXPANDED_HEIGHT = true
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
     private const val DEFAULT_STATIC_VARIATION_BAR_MODE = false
+    private const val DEFAULT_UNIFIED_SUGGESTIONS_VARIATIONS_BAR = false
     private const val DEFAULT_STATIC_VARIATION_BAR_BASE_LAYER_ENABLED = false
     private const val DEFAULT_EXPERIMENTAL_SUGGESTIONS_ENABLED = true
     private const val DEFAULT_SUGGESTION_DEBUG_LOGGING = true
@@ -415,6 +417,7 @@ object SettingsManager {
         val ledActive: Int,
         val ledLocked: Int,
         val accent: Int,
+        val keyTap: Int = defaultKeyboardThemeKeyTapColor(normalKey, accent),
         val cursorSwipe: Int = accent,
         val keyPopup: Int = specialKey,
         val keyPopupSelected: Int = accent,
@@ -431,6 +434,7 @@ object SettingsManager {
         val showLeds: Boolean = true,
         val suggestionsHeightScale: Float = 1f,
         val variationsHeightScale: Float = 1f,
+        val modifierIndicatorStripScale: Float = 1f,
         val keyPopupStyle: String = KEYBOARD_THEME_POPUP_STYLE_FLOATING,
         val keyPopupAttached: Boolean = true,
         val keyPopupTailEnabled: Boolean = true,
@@ -448,6 +452,7 @@ object SettingsManager {
                 ledActive = ledActive,
                 ledLocked = ledLocked,
                 accent = accent,
+                keyTap = keyTap,
                 cursorSwipe = cursorSwipe,
                 keyPopup = keyPopup,
                 keyPopupSelected = keyPopupSelected,
@@ -456,7 +461,8 @@ object SettingsManager {
                 keyCornerRadiusRatio = keyCornerRadiusRatio,
                 chromeCornerRadiusRatio = chromeCornerRadiusRatio,
                 suggestionsHeightScale = suggestionsHeightScale,
-                variationsHeightScale = variationsHeightScale
+                variationsHeightScale = variationsHeightScale,
+                modifierIndicatorStripScale = modifierIndicatorStripScale
             )
     }
 
@@ -510,6 +516,19 @@ object SettingsManager {
     fun setPastierinaModeActive(context: Context, isActive: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_PASTIERINA_MODE_ACTIVE, isActive)
+            .apply()
+    }
+
+    fun getUnifiedSuggestionsVariationsBar(context: Context): Boolean {
+        return getPreferences(context).getBoolean(
+            KEY_UNIFIED_SUGGESTIONS_VARIATIONS_BAR,
+            DEFAULT_UNIFIED_SUGGESTIONS_VARIATIONS_BAR
+        )
+    }
+
+    fun setUnifiedSuggestionsVariationsBar(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_UNIFIED_SUGGESTIONS_VARIATIONS_BAR, enabled)
             .apply()
     }
 
@@ -645,6 +664,7 @@ object SettingsManager {
             ledActive = 0xFF555555.toInt(),
             ledLocked = 0xFF111111.toInt(),
             accent = 0xFF3F8C96.toInt(),
+            keyTap = defaultKeyboardThemeKeyTapColor(0xFFFAFAFA.toInt(), 0xFF3F8C96.toInt()),
             cursorSwipe = 0xFF3F8C96.toInt(),
             keyPopup = 0xFFDDDDDD.toInt(),
             keyPopupSelected = 0xFF3F8C96.toInt(),
@@ -680,6 +700,7 @@ object SettingsManager {
                 ledActive = 0xFF6496FF.toInt(),
                 ledLocked = 0xFFF76300.toInt(),
                 accent = 0xFF6496FF.toInt(),
+                keyTap = defaultKeyboardThemeKeyTapColor(0xFF15191D.toInt(), 0xFF6496FF.toInt()),
                 cursorSwipe = 0xFF6496FF.toInt(),
                 keyPopup = 0xFF2B3138.toInt(),
                 keyPopupSelected = 0xFF6496FF.toInt(),
@@ -699,6 +720,7 @@ object SettingsManager {
                 ledActive = 0xFF276EF1.toInt(),
                 ledLocked = 0xFFD65A00.toInt(),
                 accent = 0xFF276EF1.toInt(),
+                keyTap = defaultKeyboardThemeKeyTapColor(0xFFFFFFFF.toInt(), 0xFF276EF1.toInt()),
                 cursorSwipe = 0xFF276EF1.toInt(),
                 keyPopup = 0xFFE0E6EE.toInt(),
                 keyPopupSelected = 0xFF276EF1.toInt(),
@@ -795,6 +817,7 @@ object SettingsManager {
                 ledActive = json.optInt("led_active", defaults.ledActive),
                 ledLocked = json.optInt("led_locked", defaults.ledLocked),
                 accent = json.optInt("accent", defaults.accent),
+                keyTap = json.optKeyboardThemeKeyTap(defaults),
                 cursorSwipe = json.optInt("cursor_swipe", defaults.cursorSwipe),
                 keyPopup = json.optInt("key_popup", defaults.keyPopup),
                 keyPopupSelected = json.optInt("key_popup_selected", defaults.keyPopupSelected),
@@ -811,6 +834,7 @@ object SettingsManager {
                 showLeds = json.optBoolean("show_leds", defaults.showLeds),
                 suggestionsHeightScale = json.optDouble("suggestions_height_scale", defaults.suggestionsHeightScale.toDouble()).toFloat(),
                 variationsHeightScale = json.optDouble("variations_height_scale", defaults.variationsHeightScale.toDouble()).toFloat(),
+                modifierIndicatorStripScale = json.optDouble("modifier_indicator_strip_scale", defaults.modifierIndicatorStripScale.toDouble()).toFloat(),
                 keyPopupStyle = normalizeKeyboardThemePopupStyle(json.optString("key_popup_style", defaults.keyPopupStyle)),
                 keyPopupAttached = json.optBoolean("key_popup_attached", defaults.keyPopupAttached),
                 keyPopupTailEnabled = json.optBoolean("key_popup_tail_enabled", defaults.keyPopupTailEnabled),
@@ -1112,6 +1136,7 @@ object SettingsManager {
             ledActive = json.optInt("led_active", defaults.ledActive),
             ledLocked = json.optInt("led_locked", defaults.ledLocked),
             accent = json.optInt("accent", defaults.accent),
+            keyTap = json.optKeyboardThemeKeyTap(defaults),
             cursorSwipe = json.optInt("cursor_swipe", defaults.cursorSwipe),
             keyPopup = json.optInt("key_popup", defaults.keyPopup),
             keyPopupSelected = json.optInt("key_popup_selected", defaults.keyPopupSelected),
@@ -1128,6 +1153,7 @@ object SettingsManager {
             showLeds = json.optBoolean("show_leds", defaults.showLeds),
             suggestionsHeightScale = json.optDouble("suggestions_height_scale", defaults.suggestionsHeightScale.toDouble()).toFloat(),
             variationsHeightScale = json.optDouble("variations_height_scale", defaults.variationsHeightScale.toDouble()).toFloat(),
+            modifierIndicatorStripScale = json.optDouble("modifier_indicator_strip_scale", defaults.modifierIndicatorStripScale.toDouble()).toFloat(),
             keyPopupStyle = normalizeKeyboardThemePopupStyle(json.optString("key_popup_style", defaults.keyPopupStyle)),
             keyPopupAttached = json.optBoolean("key_popup_attached", defaults.keyPopupAttached),
             keyPopupTailEnabled = json.optBoolean("key_popup_tail_enabled", defaults.keyPopupTailEnabled),
@@ -1146,6 +1172,7 @@ object SettingsManager {
             put("led_active", theme.ledActive)
             put("led_locked", theme.ledLocked)
             put("accent", theme.accent)
+            put("key_tap", theme.keyTap)
             put("cursor_swipe", theme.cursorSwipe)
             put("key_popup", theme.keyPopup)
             put("key_popup_selected", theme.keyPopupSelected)
@@ -1162,12 +1189,20 @@ object SettingsManager {
             put("show_leds", theme.showLeds)
             put("suggestions_height_scale", theme.suggestionsHeightScale.toDouble())
             put("variations_height_scale", theme.variationsHeightScale.toDouble())
+            put("modifier_indicator_strip_scale", theme.modifierIndicatorStripScale.toDouble())
             put("key_popup_style", normalizeKeyboardThemePopupStyle(theme.keyPopupStyle))
             put("key_popup_attached", theme.keyPopupAttached)
             put("key_popup_tail_enabled", theme.keyPopupTailEnabled)
             put("key_preview_after_long_press", theme.keyPreviewAfterLongPress)
             put("key_alternates_popup_enabled", theme.keyAlternatesPopupEnabled)
         }
+
+    private fun JSONObject.optKeyboardThemeKeyTap(defaults: KeyboardThemeSettings): Int {
+        if (has("key_tap")) return optInt("key_tap", defaults.keyTap)
+        val normalKey = optInt("normal_key", defaults.normalKey)
+        val accent = optInt("accent", defaults.accent)
+        return defaultKeyboardThemeKeyTapColor(normalKey, accent)
+    }
 
     private fun normalizeKeyboardThemePopupStyle(value: String): String =
         when (value) {

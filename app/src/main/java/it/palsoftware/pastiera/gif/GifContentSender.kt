@@ -57,7 +57,7 @@ class GifContentSender(
         if (!outputFile.exists() || outputFile.length() == 0L) {
             writeMediaToFile(result, outputFile, preparedMimeType)
         }
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.gifprovider", outputFile)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outputFile)
         return PreparedGifContent(
             uri = uri,
             description = ClipDescription(result.title.ifBlank { "Media" }, arrayOf(preparedMimeType)),

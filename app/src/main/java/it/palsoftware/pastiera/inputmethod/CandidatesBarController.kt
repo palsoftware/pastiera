@@ -106,6 +106,13 @@ class CandidatesBarController(
             candidatesStatusBar.onEmojiPickerRequested = value
         }
 
+    var onGifPickerRequested: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onGifPickerRequested = value
+            candidatesStatusBar.onGifPickerRequested = value
+        }
+
     var onEmojiPageRequested: (() -> Unit)? = null
         set(value) {
             field = value
@@ -259,6 +266,31 @@ class CandidatesBarController(
     fun createEmojiPickerSearchInputConnection(): InputConnection? {
         return inputStatusBar.createEmojiPickerSearchInputConnection()
             ?: candidatesStatusBar.createEmojiPickerSearchInputConnection()
+    }
+
+    fun handleGifPickerSearchKeyDown(event: KeyEvent?): Boolean {
+        return inputStatusBar.handleGifPickerSearchKeyDown(event) ||
+            candidatesStatusBar.handleGifPickerSearchKeyDown(event)
+    }
+
+    fun shouldConsumeGifPickerSearchKeyUp(event: KeyEvent?): Boolean {
+        return inputStatusBar.shouldConsumeGifPickerSearchKeyUp(event) ||
+            candidatesStatusBar.shouldConsumeGifPickerSearchKeyUp(event)
+    }
+
+    fun disableGifPickerSearchInputCapture() {
+        inputStatusBar.disableGifPickerSearchInputCapture()
+        candidatesStatusBar.disableGifPickerSearchInputCapture()
+    }
+
+    fun isGifPickerSearchInputActive(): Boolean {
+        return inputStatusBar.isGifPickerSearchInputActive() ||
+            candidatesStatusBar.isGifPickerSearchInputActive()
+    }
+
+    fun requestMediaTabOnNextEmojiPickerOpen() {
+        inputStatusBar.requestMediaTabOnNextEmojiPickerOpen()
+        candidatesStatusBar.requestMediaTabOnNextEmojiPickerOpen()
     }
 
     fun isMinimalUiActive(): Boolean = inputStatusBar.isMinimalUiActive()

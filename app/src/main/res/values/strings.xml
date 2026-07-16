@@ -900,6 +900,8 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
 
     <string name="pastierina_mode_title">Pastierina Mode</string>
     <string name="pastierina_mode_description">Toggle minimal ui</string>
+    <string name="unified_mode_title">Unified Mode</string>
+    <string name="unified_mode_description">Show predictions in the variations row while typing instead of stacking two bars.</string>
     <string name="software_keyboard_mode_title">Keyboard Mode</string>
     <string name="software_keyboard_mode_description">Separate from Pastierina. Controls hardware vs virtual keyboard behaviour.</string>
     <string name="software_keyboard_mode_auto_current">Auto (current: %1$s)</string>
@@ -1129,6 +1131,8 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="sym_enable_gif_picker_page_title">GIF picker</string>
     <string name="sym_enable_gif_picker_page_description">Search and send GIFs from the SYM page cycle.</string>
     <string name="gif_picker_search_placeholder">Search Klipy media</string>
+    <string name="emoji_picker_emojis_tab">Emojis</string>
+    <string name="emoji_picker_gif_tab">Media</string>
     <string name="gif_picker_powered_by">Powered by Klipy</string>
     <string name="gif_picker_missing_api_key">Add your Klipy API key in Text Input settings to use GIF, sticker, and meme search.</string>
     <string name="gif_picker_empty_prompt">Trending %1$s will appear here.</string>

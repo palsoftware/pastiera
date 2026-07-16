@@ -74,6 +74,7 @@ class AospKeyboardView @JvmOverloads constructor(
         val ledActive: Int,
         val ledLocked: Int,
         val accent: Int,
+        val keyTap: Int = it.palsoftware.pastiera.defaultKeyboardThemeKeyTapColor(normalKey, accent),
         val keyPopup: Int = specialKey,
         val keyPopupSelected: Int = accent,
         val keyPopupStyle: String = "floating",
@@ -1540,7 +1541,7 @@ class AospKeyboardView @JvmOverloads constructor(
             return GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = keyCornerRadius(theme)
-                setColor(if (pressed) blendColors(baseColor, theme.accent, 0.28f) else baseColor)
+                setColor(if (pressed) theme.keyTap else baseColor)
                 setStroke(dp(1f), theme.divider)
             }
         }

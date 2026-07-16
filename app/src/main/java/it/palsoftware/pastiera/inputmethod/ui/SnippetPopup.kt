@@ -3,6 +3,7 @@ package it.palsoftware.pastiera.inputmethod.ui
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
@@ -29,6 +30,17 @@ class SnippetPopup(
     private val entriesContainer = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
     }
+    private val titleView = TextView(context).apply {
+        text = "Snippets"
+        setTextColor(textColor())
+        textSize = 12f
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            bottomMargin = dpToPx(4f)
+        }
+    }
     private val popupWindow = PopupWindow(
         contentView,
         dpToPx(420f),
@@ -46,13 +58,19 @@ class SnippetPopup(
     private var selectedIndex = 0
     private var suggestions: List<Pair<String, String>> = emptyList()
     private val itemViews = mutableListOf<View>()
+    var bottomOffsetDp: Float = DEFAULT_BOTTOM_OFFSET_DP
+        set(value) {
+            field = value
+            lastAnchorView?.let { reposition(it) }
+        }
+    var themeOverride: KeyboardThemeColors? = null
+        set(value) {
+            field = value
+            applyTheme()
+        }
+    private var lastAnchorView: View? = null
 
     init {
-        val title = TextView(context).apply {
-            text = "Snippets"
-            setTextColor(Color.WHITE)
-            textSize = 14f
-        }
         val scrollView = ScrollView(context).apply {
             addView(entriesContainer)
             layoutParams = LinearLayout.LayoutParams(
@@ -60,8 +78,9 @@ class SnippetPopup(
                 dpToPx(260f)
             )
         }
-        contentView.addView(title)
+        contentView.addView(titleView)
         contentView.addView(scrollView)
+        applyTheme()
     }
 
     fun show(anchorView: View, suggestions: List<Pair<String, String>>) {
@@ -72,8 +91,11 @@ class SnippetPopup(
         this.suggestions = suggestions
         selectedIndex = 0
         refreshEntries()
+        lastAnchorView = anchorView
         if (!popupWindow.isShowing) {
-            popupWindow.showAtLocation(anchorView, Gravity.BOTTOM or Gravity.START, dpToPx(8f), dpToPx(96f))
+            popupWindow.showAtLocation(anchorView, Gravity.BOTTOM or Gravity.START, dpToPx(8f), bottomOffsetPx())
+        } else {
+            reposition(anchorView)
         }
     }
 
@@ -158,20 +180,20 @@ class SnippetPopup(
             }
             val indexView = TextView(context).apply {
                 text = if (index == 9) "0" else "${index + 1}"
-                setTextColor(Color.LTGRAY)
+                setTextColor(secondaryTextColor())
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
                 layoutParams = LinearLayout.LayoutParams(dpToPx(20f), ViewGroup.LayoutParams.WRAP_CONTENT)
             }
             val shortcutView = TextView(context).apply {
                 text = "$trigger$shortcut"
-                setTextColor(Color.WHITE)
+                setTextColor(textColor())
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
                 maxLines = 1
                 layoutParams = LinearLayout.LayoutParams(dpToPx(88f), ViewGroup.LayoutParams.WRAP_CONTENT)
             }
             val valueView = TextView(context).apply {
                 text = value
-                setTextColor(Color.WHITE)
+                setTextColor(textColor())
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
                 ellipsize = TextUtils.TruncateAt.END
                 maxLines = 1
@@ -188,9 +210,50 @@ class SnippetPopup(
 
     private fun updateSelection() {
         itemViews.forEachIndexed { index, view ->
-            view.setBackgroundColor(if (index == selectedIndex) Color.parseColor("#0D47A1") else Color.TRANSPARENT)
+            view.setBackgroundColor(if (index == selectedIndex) selectedColor() else Color.TRANSPARENT)
         }
     }
+
+    fun reposition(anchorView: View) {
+        lastAnchorView = anchorView
+        if (popupWindow.isShowing) {
+            popupWindow.update(dpToPx(8f), bottomOffsetPx(), -1, -1)
+        }
+    }
+
+    private fun applyTheme() {
+        val theme = themeOverride
+        contentView.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = dpToPx(12f).toFloat()
+            setColor(theme?.background ?: Color.parseColor("#1E1E1E"))
+            theme?.let { setStroke(dpToPx(1f), it.divider) }
+        }
+        titleView.setTextColor(textColor())
+        refreshEntryTextColors(entriesContainer)
+        updateSelection()
+    }
+
+    private fun refreshEntryTextColors(group: ViewGroup) {
+        for (rowIndex in 0 until group.childCount) {
+            val row = group.getChildAt(rowIndex) as? ViewGroup ?: continue
+            for (childIndex in 0 until row.childCount) {
+                val child = row.getChildAt(childIndex) as? TextView ?: continue
+                child.setTextColor(if (childIndex == 0) secondaryTextColor() else textColor())
+            }
+        }
+    }
+
+    private fun textColor(): Int = themeOverride?.textAndIcons ?: Color.WHITE
+
+    private fun secondaryTextColor(): Int = colorWithAlpha(textColor(), 170)
+
+    private fun selectedColor(): Int = themeOverride?.keyTap ?: Color.parseColor("#0D47A1")
+
+    private fun colorWithAlpha(color: Int, alpha: Int): Int =
+        (color and 0x00FFFFFF) or ((alpha.coerceIn(0, 255)) shl 24)
+
+    private fun bottomOffsetPx(): Int = dpToPx(bottomOffsetDp)
 
     private fun dpToPx(dp: Float): Int {
         return TypedValue.applyDimension(
@@ -198,5 +261,9 @@ class SnippetPopup(
             dp,
             context.resources.displayMetrics
         ).toInt()
+    }
+
+    private companion object {
+        const val DEFAULT_BOTTOM_OFFSET_DP = 96f
     }
 }

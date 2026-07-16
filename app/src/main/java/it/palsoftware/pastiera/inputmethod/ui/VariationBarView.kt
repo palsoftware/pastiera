@@ -36,6 +36,7 @@ import it.palsoftware.pastiera.inputmethod.TextSelectionHelper
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
 import it.palsoftware.pastiera.inputmethod.VariationButtonHandler
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
+import it.palsoftware.pastiera.inputmethod.suggestions.SuggestionButtonHandler
 import it.palsoftware.pastiera.data.variation.VariationRepository
 import android.graphics.Paint
 import android.text.TextUtils
@@ -73,6 +74,8 @@ class VariationBarView(
     var onSpeechRecognitionRequested: (() -> Unit)? = null
     var onAddUserWord: ((String) -> Unit)? = null
     var onAddUserWordSubstitutionRequested: ((String) -> Unit)? = null
+    var onSuggestionCommitted: ((String) -> Unit)? = null
+    var onHideSuggestion: ((String) -> Unit)? = null
     var onLanguageSwitchRequested: (() -> Unit)? = null
     var onClipboardRequested: (() -> Unit)? = null
     var onEmojiPickerRequested: (() -> Unit)? = null
@@ -148,6 +151,13 @@ class VariationBarView(
             field = value
             lastVariationAreaVisible = null
         }
+    var compactVerticalPadding: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            applyHeight()
+            lastThemeSignature = null
+        }
     var themeOverride: KeyboardThemeColors? = null
         set(value) {
             if (field == value) {
@@ -157,7 +167,7 @@ class VariationBarView(
             buttonHost?.themeOverride = value?.let {
                 StatusBarButtonStyles.ThemeOverride(
                     normalColor = it.statusBarButton,
-                    pressedColor = it.accent,
+                    pressedColor = it.keyTap,
                     iconColor = it.textAndIcons,
                     cornerRadiusRatio = it.keyCornerRadiusRatio,
                     borderColor = it.divider,
@@ -254,8 +264,9 @@ class VariationBarView(
             context.resources.displayMetrics
         ).toInt()
 
-    private fun verticalPaddingPx(): Int =
-        TypedValue.applyDimension(
+    private fun verticalPaddingPx(): Int {
+        if (compactVerticalPadding) return 4
+        return TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             BASE_VERTICAL_PADDING_DP * min(
                 (themeOverride?.variationsHeightScale ?: 1f).coerceIn(0.65f, 1.6f),
@@ -263,6 +274,7 @@ class VariationBarView(
             ),
             context.resources.displayMetrics
         ).toInt()
+    }
 
     private fun applyHeight() {
         val height = targetHeightPx()
@@ -390,9 +402,11 @@ class VariationBarView(
         // Legacy variations: always honor them when present, independent of suggestions.
         val hasDynamicVariations = canShowVariations && snapshot.variations.isNotEmpty()
         val hasSuggestions = canShowSuggestions && snapshot.suggestions.isNotEmpty()
+        val hasAddWordCandidate = canShowSuggestions && !snapshot.addWordCandidate.isNullOrBlank()
         val useDynamicVariations = statusBarVariationsEnabled && !staticModeEnabled && hasDynamicVariations
         val allowStaticFallback = statusBarVariationsEnabled &&
             (forceVariationAreaVisible || staticModeEnabled || snapshot.shouldDisableVariations)
+        var isSuggestionContent = false
 
         val effectiveVariations: List<String>
         val isStaticContent: Boolean
@@ -405,6 +419,12 @@ class VariationBarView(
             statusBarVariationsEnabled && hasSuggestions -> {
                 effectiveVariations = snapshot.suggestions
                 isStaticContent = false
+                isSuggestionContent = true
+            }
+            statusBarVariationsEnabled && hasAddWordCandidate -> {
+                effectiveVariations = listOfNotNull(snapshot.addWordCandidate)
+                isStaticContent = false
+                isSuggestionContent = true
             }
             allowStaticFallback -> {
                 val variations = if (snapshot.isEmailField) {
@@ -532,6 +552,7 @@ class VariationBarView(
         val variationSlotsForSizing = when {
             !reservesVariationArea -> 0
             isStaticContent -> rawDisplayedVariations.size
+            isSuggestionContent -> rawDisplayedVariations.size.coerceIn(1, 3)
             resizeDynamicVariationsToContent -> rawDisplayedVariations.size.coerceAtMost(dynamicSlotCount)
             else -> dynamicSlotCount
         }
@@ -683,6 +704,7 @@ class VariationBarView(
                 variationButtonHeight,
                 maxButtonWidth,
                 isStaticContent,
+                isSuggestionContent,
                 isAddCandidate,
                 isLast,
                 spacingBetweenButtons
@@ -1073,6 +1095,7 @@ class VariationBarView(
         buttonHeight: Int,
         maxButtonWidth: Int,
         isStatic: Boolean,
+        isSuggestionContent: Boolean,
         isAddCandidate: Boolean,
         isLast: Boolean,
         spacingBetweenButtons: Int
@@ -1103,7 +1126,7 @@ class VariationBarView(
             VariationButtonStyles.createButtonDrawable(
                 heightPx = buttonHeight,
                 normalColor = it.normalKey,
-                pressedColor = it.accent,
+                pressedColor = it.keyTap,
                 cornerRadiusRatio = it.chromeCornerRadiusRatio,
                 borderColor = it.divider,
                 borderWidthPx = dpToPx(1f)
@@ -1128,7 +1151,7 @@ class VariationBarView(
             setPadding(0, 0, 0, 0) // Testing with 0 padding
             if (isAddCandidate) {
                 val addDrawable = ContextCompat.getDrawable(context, android.R.drawable.ic_input_add)?.mutate()
-                addDrawable?.setTint(themeOverride?.accent ?: Color.YELLOW)
+                addDrawable?.setTint(themeOverride?.textAndIcons ?: Color.WHITE)
                 setCompoundDrawablesWithIntrinsicBounds(null, null, addDrawable, null)
                 compoundDrawablePadding = dp4
             }
@@ -1149,6 +1172,14 @@ class VariationBarView(
                     context,
                     onVariationSelectedListener
                 )
+            } else if (isSuggestionContent) {
+                SuggestionButtonHandler.createSuggestionClickListener(
+                    variation,
+                    inputConnection,
+                    onVariationSelectedListener,
+                    shouldDisableAutoCapitalize = false,
+                    onSuggestionCommitted = onSuggestionCommitted
+                )
             } else {
                 VariationButtonHandler.createVariationClickListener(
                     variation,
@@ -1165,6 +1196,12 @@ class VariationBarView(
                 setOnLongClickListener {
                     performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                     onAddUserWordSubstitutionRequested?.invoke(variation)
+                    true
+                }
+            } else if (isSuggestionContent) {
+                setOnLongClickListener {
+                    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                    onHideSuggestion?.invoke(variation)
                     true
                 }
             }
