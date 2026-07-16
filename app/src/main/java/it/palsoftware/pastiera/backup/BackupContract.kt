@@ -228,6 +228,8 @@ object PreferenceSchemas {
             "snippets_enabled" to PreferenceValueType.BOOLEAN,
             "snippets_trigger" to PreferenceValueType.STRING,
             "snippets" to PreferenceValueType.STRING,
+            "emoji_shortcode_enabled" to PreferenceValueType.BOOLEAN,
+            "symbol_shortcode_enabled" to PreferenceValueType.BOOLEAN,
             "accent_matching_enabled" to PreferenceValueType.BOOLEAN,
             "auto_replace_on_space_enter" to PreferenceValueType.BOOLEAN,
             "auto_capitalize_after_period" to PreferenceValueType.BOOLEAN,

@@ -68,6 +68,8 @@ object SettingsManager {
     private const val KEY_SNIPPETS_ENABLED = "snippets_enabled"
     private const val KEY_SNIPPETS_TRIGGER = "snippets_trigger"
     private const val KEY_SNIPPETS = "snippets"
+    private const val KEY_EMOJI_SHORTCODE_ENABLED = "emoji_shortcode_enabled"
+    private const val KEY_SYMBOL_SHORTCODE_ENABLED = "symbol_shortcode_enabled"
     private const val KEY_ACCENT_MATCHING_ENABLED = "accent_matching_enabled"
     private const val KEY_AUTO_REPLACE_ON_SPACE_ENTER = "auto_replace_on_space_enter"
     private const val KEY_MAX_AUTO_REPLACE_DISTANCE = "max_auto_replace_distance"
@@ -284,6 +286,8 @@ object SettingsManager {
     private const val DEFAULT_SUGGESTIONS_ENABLED = true
     private const val DEFAULT_SNIPPETS_ENABLED = true
     private const val DEFAULT_SNIPPETS_TRIGGER = "!"
+    private const val DEFAULT_EMOJI_SHORTCODE_ENABLED = true
+    private const val DEFAULT_SYMBOL_SHORTCODE_ENABLED = true
     private const val DEFAULT_ACCENT_MATCHING_ENABLED = true
     private const val DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER = false
     private const val DEFAULT_MAX_AUTO_REPLACE_DISTANCE = 1
@@ -2585,6 +2589,26 @@ object SettingsManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error saving snippets", e)
         }
+    }
+
+    fun getEmojiShortcodeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_EMOJI_SHORTCODE_ENABLED, DEFAULT_EMOJI_SHORTCODE_ENABLED)
+    }
+
+    fun setEmojiShortcodeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_EMOJI_SHORTCODE_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getSymbolShortcodeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SYMBOL_SHORTCODE_ENABLED, DEFAULT_SYMBOL_SHORTCODE_ENABLED)
+    }
+
+    fun setSymbolShortcodeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SYMBOL_SHORTCODE_ENABLED, enabled)
+            .apply()
     }
 
     /**
