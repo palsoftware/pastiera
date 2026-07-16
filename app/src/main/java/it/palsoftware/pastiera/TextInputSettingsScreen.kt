@@ -37,6 +37,12 @@ fun TextInputSettingsScreen(
     onNavModeSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    var emojiShortcodeEnabled by remember {
+        mutableStateOf(SettingsManager.getEmojiShortcodeEnabled(context))
+    }
+    var symbolShortcodeEnabled by remember {
+        mutableStateOf(SettingsManager.getSymbolShortcodeEnabled(context))
+    }
     
     var autoCapitalizeFirstLetter by remember {
         mutableStateOf(SettingsManager.getAutoCapitalizeFirstLetter(context))
@@ -231,6 +237,26 @@ fun TextInputSettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            SettingsSectionHeader(text = stringResource(R.string.shortcodes_title))
+            SettingsSwitchRow(
+                title = stringResource(R.string.emoji_shortcodes_title),
+                description = stringResource(R.string.emoji_shortcodes_description),
+                checked = emojiShortcodeEnabled,
+                onCheckedChange = { enabled ->
+                    emojiShortcodeEnabled = enabled
+                    SettingsManager.setEmojiShortcodeEnabled(context, enabled)
+                }
+            )
+            SettingsSwitchRow(
+                title = stringResource(R.string.symbol_shortcodes_title),
+                description = stringResource(R.string.symbol_shortcodes_description),
+                checked = symbolShortcodeEnabled,
+                onCheckedChange = { enabled ->
+                    symbolShortcodeEnabled = enabled
+                    SettingsManager.setSymbolShortcodeEnabled(context, enabled)
+                }
+            )
+
             SettingsSectionHeader(text = stringResource(R.string.text_input_section_capitalization))
             SettingsSwitchRow(
                 title = stringResource(R.string.auto_capitalize_title),

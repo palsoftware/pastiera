@@ -225,6 +225,8 @@ object PreferenceSchemas {
             "auto_correct_enabled" to PreferenceValueType.BOOLEAN,
             "auto_correct_enabled_languages" to PreferenceValueType.STRING,
             "suggestions_enabled" to PreferenceValueType.BOOLEAN,
+            "emoji_shortcode_enabled" to PreferenceValueType.BOOLEAN,
+            "symbol_shortcode_enabled" to PreferenceValueType.BOOLEAN,
             "accent_matching_enabled" to PreferenceValueType.BOOLEAN,
             "auto_replace_on_space_enter" to PreferenceValueType.BOOLEAN,
             "auto_capitalize_after_period" to PreferenceValueType.BOOLEAN,

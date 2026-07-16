@@ -1126,6 +1126,11 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="status_bar_button_settings_description">Open settings</string>
     <string name="status_bar_button_symbols">Symbols</string>
     <string name="status_bar_button_symbols_description">Symbols keyboard</string>
+    <string name="shortcodes_title">Shortcodes</string>
+    <string name="emoji_shortcodes_title">Emoji shortcodes</string>
+    <string name="emoji_shortcodes_description">Type :smile: to insert the matching emoji while typing.</string>
+    <string name="symbol_shortcodes_title">Symbol shortcodes</string>
+    <string name="symbol_shortcodes_description">Type :tm: for ™ or :copy: for ©.</string>
     <string name="status_bar_button_undo">Undo</string>
     <string name="status_bar_button_undo_description">Send Ctrl+Z</string>
     <string name="status_bar_button_redo">Redo</string>

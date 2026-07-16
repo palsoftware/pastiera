@@ -65,6 +65,8 @@ object SettingsManager {
     private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
     private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
     private const val KEY_SUGGESTIONS_ENABLED = "suggestions_enabled"
+    private const val KEY_EMOJI_SHORTCODE_ENABLED = "emoji_shortcode_enabled"
+    private const val KEY_SYMBOL_SHORTCODE_ENABLED = "symbol_shortcode_enabled"
     private const val KEY_ACCENT_MATCHING_ENABLED = "accent_matching_enabled"
     private const val KEY_AUTO_REPLACE_ON_SPACE_ENTER = "auto_replace_on_space_enter"
     private const val KEY_MAX_AUTO_REPLACE_DISTANCE = "max_auto_replace_distance"
@@ -279,6 +281,8 @@ object SettingsManager {
     private const val DEFAULT_LAYOUT_AWARE_CTRL_SHORTCUTS = false
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
     private const val DEFAULT_SUGGESTIONS_ENABLED = true
+    private const val DEFAULT_EMOJI_SHORTCODE_ENABLED = true
+    private const val DEFAULT_SYMBOL_SHORTCODE_ENABLED = true
     private const val DEFAULT_ACCENT_MATCHING_ENABLED = true
     private const val DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER = false
     private const val DEFAULT_MAX_AUTO_REPLACE_DISTANCE = 1
@@ -2531,6 +2535,26 @@ object SettingsManager {
             .apply()
     }
 
+    fun getEmojiShortcodeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_EMOJI_SHORTCODE_ENABLED, DEFAULT_EMOJI_SHORTCODE_ENABLED)
+    }
+
+    fun setEmojiShortcodeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_EMOJI_SHORTCODE_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getSymbolShortcodeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SYMBOL_SHORTCODE_ENABLED, DEFAULT_SYMBOL_SHORTCODE_ENABLED)
+    }
+
+    fun setSymbolShortcodeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SYMBOL_SHORTCODE_ENABLED, enabled)
+            .apply()
+    }
+
     /**
      * Returns whether accent matching should be applied to suggestions and auto-replace.
      */
@@ -4123,6 +4147,7 @@ object SettingsManager {
             val symbolsEnabled = jsonObject.optBoolean("symbolsEnabled", true)
             val clipboardEnabled = jsonObject.optBoolean("clipboardEnabled", false)
             val emojiPickerEnabled = jsonObject.optBoolean("emojiPickerEnabled", false)
+            val gifPickerEnabled = jsonObject.optBoolean("gifPickerEnabled", false)
             val legacyEmojiFirst = jsonObject.optBoolean("emojiFirst", true)
 
             val parsedOrder = if (jsonObject.has("symPageOrder")) {
@@ -4147,7 +4172,7 @@ object SettingsManager {
                 if (!legacyEmojiFirst) {
                     cyclePages.reverse()
                 }
-                cyclePages + SymPagesConfig.PAGE_EMOJI_PICKER
+                cyclePages + SymPagesConfig.PAGE_EMOJI_PICKER + SymPagesConfig.PAGE_GIF_PICKER
             }
 
             SymPagesConfig(
@@ -4155,6 +4180,7 @@ object SettingsManager {
                 symbolsEnabled = symbolsEnabled,
                 clipboardEnabled = clipboardEnabled,
                 emojiPickerEnabled = emojiPickerEnabled,
+                gifPickerEnabled = gifPickerEnabled,
                 symPageOrder = parsedOrder
             )
         } catch (e: Exception) {
@@ -4173,6 +4199,7 @@ object SettingsManager {
                 put("symbolsEnabled", config.symbolsEnabled)
                 put("clipboardEnabled", config.clipboardEnabled)
                 put("emojiPickerEnabled", config.emojiPickerEnabled)
+                put("gifPickerEnabled", config.gifPickerEnabled)
                 // Keep legacy field for backward compatibility with older builds.
                 put("emojiFirst", config.prefersEmojiLongPressLayer())
                 val orderArray = org.json.JSONArray()
