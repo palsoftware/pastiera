@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.size
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -118,6 +119,10 @@ fun TextInputSettingsScreen(
 
     var backspaceAtStartDelete by remember {
         mutableStateOf(SettingsManager.getBackspaceAtStartDelete(context))
+    }
+
+    var klipyApiKey by remember {
+        mutableStateOf(SettingsManager.getKlipyApiKey(context))
     }
     
     // Handle system back button
@@ -383,6 +388,18 @@ fun TextInputSettingsScreen(
                 }
             )
 
+            SettingsSectionHeader(text = stringResource(R.string.text_input_section_integrations))
+            SettingsTextFieldRow(
+                title = stringResource(R.string.klipy_api_key_title),
+                description = stringResource(R.string.klipy_api_key_description),
+                value = klipyApiKey,
+                placeholder = stringResource(R.string.klipy_api_key_placeholder),
+                onValueChange = { value ->
+                    klipyApiKey = value
+                    SettingsManager.setKlipyApiKey(context, value)
+                }
+            )
+
             SettingsSectionHeader(text = stringResource(R.string.text_input_section_delete))
             Surface(
                 modifier = Modifier
@@ -488,6 +505,46 @@ fun TextInputSettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun SettingsTextFieldRow(
+    title: String,
+    description: String,
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit
+) {
+    SettingsRowFrame(minHeight = 132.dp) {
+        Icon(
+            imageVector = Icons.Filled.TextFields,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                placeholder = { Text(placeholder) },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
