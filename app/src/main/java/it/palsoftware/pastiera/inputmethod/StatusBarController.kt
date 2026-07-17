@@ -78,6 +78,8 @@ class StatusBarController(
             field = value
             variationBarView?.onVariationSelectedListener = value
         }
+
+    var currentPackageName: String? = null
     
     // Listener for cursor movement (to update variations)
     var onCursorMovedListener: (() -> Unit)? = null
@@ -387,7 +389,8 @@ class StatusBarController(
             context,
             SettingsManager.KeyboardThemeTarget.HARDWARE,
             locale,
-            layout
+            layout,
+            currentPackageName
         )
     }
 
@@ -397,7 +400,8 @@ class StatusBarController(
             context,
             SettingsManager.KeyboardThemeTarget.SOFTWARE,
             locale,
-            layout
+            layout,
+            currentPackageName
         )
     }
 
@@ -494,7 +498,7 @@ class StatusBarController(
             ledInactive = ledInactive,
             ledActive = ledActive,
             ledLocked = ledLocked,
-            accent = accent,
+            accent = keyTap,
             keyTap = keyTap,
             keyPopup = keyPopup,
             keyPopupSelected = keyPopupSelected,

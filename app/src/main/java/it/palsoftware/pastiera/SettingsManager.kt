@@ -155,6 +155,10 @@ object SettingsManager {
     private const val KEY_KEYBOARD_THEME_DARK_SOFTWARE = "keyboard_theme_dark_software"
     private const val KEY_KEYBOARD_THEME_LAYOUT_OVERRIDES_HARDWARE = "keyboard_theme_layout_overrides_hardware"
     private const val KEY_KEYBOARD_THEME_LAYOUT_OVERRIDES_SOFTWARE = "keyboard_theme_layout_overrides_software"
+    private const val KEY_KEYBOARD_THEME_APP_OVERRIDES_HARDWARE = "keyboard_theme_app_overrides_hardware"
+    private const val KEY_KEYBOARD_THEME_APP_OVERRIDES_SOFTWARE = "keyboard_theme_app_overrides_software"
+    private const val KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE = "keyboard_theme_last_input_package"
+    private const val KEY_KEYBOARD_THEME_LAST_INPUT_LABEL = "keyboard_theme_last_input_label"
     const val KEYBOARD_THEME_ASSIGNMENT_MODE_FIXED = "fixed"
     const val KEYBOARD_THEME_ASSIGNMENT_MODE_FOLLOW_SYSTEM = "follow_system"
     const val KEYBOARD_THEME_PREVIEW_VIEWPORT_SCALE_MIN = 1f
@@ -451,7 +455,7 @@ object SettingsManager {
                 ledInactive = ledInactive,
                 ledActive = ledActive,
                 ledLocked = ledLocked,
-                accent = accent,
+                accent = keyTap,
                 keyTap = keyTap,
                 cursorSwipe = cursorSwipe,
                 keyPopup = keyPopup,
@@ -475,6 +479,13 @@ object SettingsManager {
         val locale: String?,
         val layout: String?,
         val theme: KeyboardThemeSettings
+    )
+
+    data class KeyboardThemeAppOverride(
+        val packageName: String,
+        val appLabel: String?,
+        val theme: KeyboardThemeSettings,
+        val themeKey: String? = null
     )
 
     /**
@@ -776,8 +787,17 @@ object SettingsManager {
             KeyboardThemeTarget.SOFTWARE -> KEY_KEYBOARD_THEME_LAYOUT_OVERRIDES_SOFTWARE
         }
 
+    private fun keyboardThemeAppOverridesKeyForTarget(target: KeyboardThemeTarget): String =
+        when (target) {
+            KeyboardThemeTarget.HARDWARE -> KEY_KEYBOARD_THEME_APP_OVERRIDES_HARDWARE
+            KeyboardThemeTarget.SOFTWARE -> KEY_KEYBOARD_THEME_APP_OVERRIDES_SOFTWARE
+        }
+
     fun isKeyboardThemePreferenceKey(key: String?): Boolean {
-        return key == KEY_KEYBOARD_THEME_HARDWARE || key == KEY_KEYBOARD_THEME_SOFTWARE
+        return key == KEY_KEYBOARD_THEME_HARDWARE ||
+            key == KEY_KEYBOARD_THEME_SOFTWARE ||
+            key == KEY_KEYBOARD_THEME_APP_OVERRIDES_HARDWARE ||
+            key == KEY_KEYBOARD_THEME_APP_OVERRIDES_SOFTWARE
     }
 
     fun isModifierIndicatorPreferenceKey(key: String?): Boolean {
@@ -904,21 +924,164 @@ object SettingsManager {
     }
 
     fun getEffectiveKeyboardTheme(context: Context, target: KeyboardThemeTarget): KeyboardThemeSettings {
-        return getEffectiveKeyboardTheme(context, target, locale = null, layout = null)
+        return getEffectiveKeyboardTheme(context, target, locale = null, layout = null, packageName = null)
     }
 
     fun getEffectiveKeyboardTheme(
         context: Context,
         target: KeyboardThemeTarget,
         locale: String?,
-        layout: String?
+        layout: String?,
+        packageName: String? = null
     ): KeyboardThemeSettings {
+        findKeyboardThemeAppOverride(context, target, packageName)?.let {
+            return resolveKeyboardThemeAppOverrideTheme(context, target, it)
+        }
         findKeyboardThemeLayoutOverride(context, target, locale, layout)?.let { return it.theme }
         return if (getKeyboardThemeAssignmentMode(context, target) == KEYBOARD_THEME_ASSIGNMENT_MODE_FOLLOW_SYSTEM) {
             getKeyboardThemeSystemSlot(context, target, dark = isSystemDarkTheme(context))
         } else {
             getKeyboardTheme(context, target)
         }
+    }
+
+    fun setLastKeyboardThemeInputApp(context: Context, packageName: String?, appLabel: String?) {
+        val normalizedPackage = packageName?.trim()?.takeIf { it.isNotBlank() }
+        val normalizedLabel = appLabel?.trim()?.takeIf { it.isNotBlank() }
+        getPreferences(context).edit().apply {
+            if (normalizedPackage == null) {
+                remove(KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE)
+                remove(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL)
+            } else {
+                putString(KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE, normalizedPackage)
+                if (normalizedLabel == null) {
+                    remove(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL)
+                } else {
+                    putString(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL, normalizedLabel)
+                }
+            }
+        }.apply()
+    }
+
+    fun getLastKeyboardThemeInputPackage(context: Context): String? =
+        getPreferences(context).getString(KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+    fun getLastKeyboardThemeInputLabel(context: Context): String? =
+        getPreferences(context).getString(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+    fun getKeyboardThemeAppOverrides(
+        context: Context,
+        target: KeyboardThemeTarget
+    ): List<KeyboardThemeAppOverride> {
+        val stored = getPreferences(context).getString(keyboardThemeAppOverridesKeyForTarget(target), null)
+            ?: return emptyList()
+        return try {
+            val array = JSONArray(stored)
+            buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.optJSONObject(index) ?: continue
+                    val packageName = item.optString("package_name", "").trim().takeIf { it.isNotBlank() }
+                        ?: continue
+                    val themeObject = item.optJSONObject("theme") ?: continue
+                    add(
+                        KeyboardThemeAppOverride(
+                            packageName = packageName,
+                            appLabel = item.optString("app_label", "").trim().takeIf { it.isNotBlank() },
+                            theme = keyboardThemeFromJson(themeObject, defaultKeyboardTheme(target)),
+                            themeKey = item.optString("theme_key", "").trim().takeIf { it.isNotBlank() }
+                        )
+                    )
+                }
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Fehler beim Laden der App-Keyboard-Themes", error)
+            emptyList()
+        }
+    }
+
+    fun setKeyboardThemeAppOverrides(
+        context: Context,
+        target: KeyboardThemeTarget,
+        overrides: List<KeyboardThemeAppOverride>
+    ) {
+        val array = JSONArray()
+        overrides
+            .mapNotNull { override ->
+                val packageName = override.packageName.trim().takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                JSONObject().apply {
+                    put("package_name", packageName)
+                    override.appLabel?.trim()?.takeIf { it.isNotBlank() }?.let { put("app_label", it) }
+                    override.themeKey?.trim()?.takeIf { it.isNotBlank() }?.let { put("theme_key", it) }
+                    put("theme", keyboardThemeToJson(override.theme))
+                }
+            }
+            .forEach { array.put(it) }
+
+        getPreferences(context).edit()
+            .putString(keyboardThemeAppOverridesKeyForTarget(target), array.toString())
+            .apply()
+    }
+
+    fun upsertKeyboardThemeAppOverride(
+        context: Context,
+        target: KeyboardThemeTarget,
+        packageName: String,
+        appLabel: String?,
+        theme: KeyboardThemeSettings,
+        themeKey: String? = null
+    ) {
+        val normalizedPackage = packageName.trim().takeIf { it.isNotBlank() } ?: return
+        val updated = getKeyboardThemeAppOverrides(context, target)
+            .filterNot { it.packageName == normalizedPackage }
+            .toMutableList()
+        updated += KeyboardThemeAppOverride(
+            packageName = normalizedPackage,
+            appLabel = appLabel?.trim()?.takeIf { it.isNotBlank() },
+            theme = theme,
+            themeKey = themeKey?.trim()?.takeIf { it.isNotBlank() }
+        )
+        setKeyboardThemeAppOverrides(context, target, updated)
+    }
+
+    fun removeKeyboardThemeAppOverride(
+        context: Context,
+        target: KeyboardThemeTarget,
+        packageName: String
+    ) {
+        val normalizedPackage = packageName.trim().takeIf { it.isNotBlank() } ?: return
+        val updated = getKeyboardThemeAppOverrides(context, target)
+            .filterNot { it.packageName == normalizedPackage }
+        setKeyboardThemeAppOverrides(context, target, updated)
+    }
+
+    private fun findKeyboardThemeAppOverride(
+        context: Context,
+        target: KeyboardThemeTarget,
+        packageName: String?
+    ): KeyboardThemeAppOverride? {
+        val normalizedPackage = packageName?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        return getKeyboardThemeAppOverrides(context, target)
+            .firstOrNull { it.packageName == normalizedPackage }
+    }
+
+    fun resolveKeyboardThemeAppOverrideTheme(
+        context: Context,
+        target: KeyboardThemeTarget,
+        override: KeyboardThemeAppOverride
+    ): KeyboardThemeSettings {
+        val key = override.themeKey ?: return override.theme
+        if (key.startsWith("saved:")) {
+            val savedName = key.removePrefix("saved:")
+            getSavedKeyboardThemes(context)
+                .firstOrNull { it.name.equals(savedName, ignoreCase = true) }
+                ?.let { return it.theme }
+        }
+        return override.theme
     }
 
     fun getKeyboardThemeLayoutOverrides(
@@ -1111,6 +1274,70 @@ object SettingsManager {
             NamedKeyboardTheme(normalizedName, theme)
         val array = JSONArray().apply {
             themes.forEach { savedTheme ->
+                put(JSONObject().apply {
+                    put("name", savedTheme.name)
+                    put("theme", keyboardThemeToJson(savedTheme.theme))
+                })
+            }
+        }
+        getPreferences(context).edit()
+            .putString(KEY_KEYBOARD_THEME_SAVED_THEMES, array.toString())
+            .apply()
+    }
+
+    fun renameKeyboardTheme(
+        context: Context,
+        oldName: String,
+        newName: String
+    ) {
+        val normalizedOldName = oldName.trim()
+        val normalizedNewName = newName.trim().ifEmpty { "Custom" }
+        if (normalizedOldName.isBlank() || normalizedOldName.equals(normalizedNewName, ignoreCase = true)) {
+            return
+        }
+        val themes = getSavedKeyboardThemes(context)
+        val themeToRename = themes.firstOrNull { it.name.equals(normalizedOldName, ignoreCase = true) } ?: return
+        val updatedThemes = themes
+            .filterNot {
+                it.name.equals(normalizedOldName, ignoreCase = true) ||
+                    it.name.equals(normalizedNewName, ignoreCase = true)
+            } +
+            NamedKeyboardTheme(normalizedNewName, themeToRename.theme)
+        val array = JSONArray().apply {
+            updatedThemes.forEach { savedTheme ->
+                put(JSONObject().apply {
+                    put("name", savedTheme.name)
+                    put("theme", keyboardThemeToJson(savedTheme.theme))
+                })
+            }
+        }
+        getPreferences(context).edit()
+            .putString(KEY_KEYBOARD_THEME_SAVED_THEMES, array.toString())
+            .apply()
+        val oldKey = "saved:$normalizedOldName"
+        val newKey = "saved:$normalizedNewName"
+        KeyboardThemeTarget.entries.forEach { target ->
+            val updatedOverrides = getKeyboardThemeAppOverrides(context, target).map { override ->
+                if (override.themeKey == oldKey) {
+                    override.copy(themeKey = newKey)
+                } else {
+                    override
+                }
+            }
+            setKeyboardThemeAppOverrides(context, target, updatedOverrides)
+        }
+    }
+
+    fun deleteKeyboardTheme(
+        context: Context,
+        name: String
+    ) {
+        val normalizedName = name.trim()
+        if (normalizedName.isBlank()) return
+        val updatedThemes = getSavedKeyboardThemes(context)
+            .filterNot { it.name.equals(normalizedName, ignoreCase = true) }
+        val array = JSONArray().apply {
+            updatedThemes.forEach { savedTheme ->
                 put(JSONObject().apply {
                     put("name", savedTheme.name)
                     put("theme", keyboardThemeToJson(savedTheme.theme))

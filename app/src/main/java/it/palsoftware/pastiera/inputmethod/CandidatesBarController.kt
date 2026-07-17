@@ -22,6 +22,13 @@ class CandidatesBarController(
     private val inputStatusBar = StatusBarController(context, StatusBarController.Mode.FULL, clipboardHistoryManager, assets, imeServiceClass)
     private val candidatesStatusBar = StatusBarController(context, StatusBarController.Mode.CANDIDATES_ONLY, clipboardHistoryManager, assets, imeServiceClass)
 
+    var currentPackageName: String? = null
+        set(value) {
+            field = value
+            inputStatusBar.currentPackageName = value
+            candidatesStatusBar.currentPackageName = value
+        }
+
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
         set(value) {
             field = value

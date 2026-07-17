@@ -984,7 +984,9 @@ class EmojiPickerView(
             }
             tabRow.addView(btn)
         }
-        if (onGifSelected != null && SettingsManager.getSymPagesConfig(context).gifPickerEnabled) {
+        // The Media tab belongs to the emoji picker; gifPickerEnabled only controls
+        // whether media appears as a separate SYM page in the SYM cycle.
+        if (onGifSelected != null) {
             val btn = TextView(context).apply {
                 text = context.getString(R.string.emoji_picker_gif_tab)
                 contentDescription = context.getString(R.string.emoji_picker_gif_tab)
@@ -1169,7 +1171,7 @@ class EmojiPickerView(
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             val color = if (theme != null) {
-                if (isSelected) colorWithAlpha(theme.accent, 100) else Color.TRANSPARENT
+                if (isSelected) colorWithAlpha(theme.keyTap, 100) else Color.TRANSPARENT
             } else if (isSelected) {
                 Color.argb(100, 255, 255, 255)
             } else {

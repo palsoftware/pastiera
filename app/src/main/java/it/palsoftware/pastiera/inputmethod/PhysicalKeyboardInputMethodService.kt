@@ -1179,7 +1179,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             context = this,
             target = SettingsManager.KeyboardThemeTarget.HARDWARE,
             locale = getLocaleFromSubtype().toLanguageTag(),
-            layout = activeKeyboardLayoutName
+            layout = activeKeyboardLayoutName,
+            packageName = currentPackageName
         ).toKeyboardThemeColors()
 
     private fun replaceSnippetWithValue(value: String, shortcut: String, trigger: Char) {
@@ -3109,6 +3110,21 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
             variationStateController.clear()
         }
     }
+
+    private fun updateCurrentKeyboardThemeApp(packageName: String?) {
+        currentPackageName = packageName
+        if (::candidatesBarController.isInitialized) {
+            candidatesBarController.currentPackageName = packageName
+        }
+        val label = packageName?.let(::resolveAppLabel)
+        SettingsManager.setLastKeyboardThemeInputApp(this, packageName, label)
+    }
+
+    private fun resolveAppLabel(packageName: String): String? =
+        runCatching {
+            val appInfo = packageManager.getApplicationInfo(packageName, 0)
+            packageManager.getApplicationLabel(appInfo).toString()
+        }.getOrNull()
     
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
@@ -3118,7 +3134,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         invalidateRenderedStatusSnapshot()
         editorHasActiveSelection = false
         
-        currentPackageName = info?.packageName
+        updateCurrentKeyboardThemeApp(info?.packageName)
         updateDebugImeContextSnapshot(info)
         
         // Reset clipboard overlay when starting new input
@@ -3196,6 +3212,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        updateCurrentKeyboardThemeApp(info?.packageName)
         updateDebugImeContextSnapshot(info)
         attachTrackpadDecorViewMotionHook("onStartInputView")
 

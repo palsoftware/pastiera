@@ -12,6 +12,7 @@
 /captures
 .release
 /release
+release-assets/
 .externalNativeBuild
 .cxx
 local.properties

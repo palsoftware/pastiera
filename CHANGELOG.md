@@ -1,5 +1,20 @@
 # Changelog
 
+## Pastiera Enhanced 4.1
+
+Builds on this branch are posted here first for faster troubleshooting and testing. These changes are intended to be split into pull requests against the main Pastiera branch once they are stable enough for upstream review.
+
+### Added
+- Per-app keyboard themes for hardware and software keyboard modes.
+- Searchable per-app theme manager with overridden apps pinned to the top.
+- Direct theme picker for each app override.
+- Saved theme clone, rename, and delete actions.
+
+### Improved
+- Key Tap color now drives accent-style keyboard highlights more consistently.
+- Per-app overrides can link to saved themes, so app themes update when the saved theme is edited.
+- Emoji picker Media tab stays available even when the separate GIF SYM page is disabled.
+
 ## Pastiera Enhanced 4.0
 
 Pastiera Enhanced 4.0 is a rewrite of the Enhanced fork on top of the newer upstream Pastiera base.
