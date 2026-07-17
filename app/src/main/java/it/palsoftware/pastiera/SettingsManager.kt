@@ -4147,7 +4147,6 @@ object SettingsManager {
             val symbolsEnabled = jsonObject.optBoolean("symbolsEnabled", true)
             val clipboardEnabled = jsonObject.optBoolean("clipboardEnabled", false)
             val emojiPickerEnabled = jsonObject.optBoolean("emojiPickerEnabled", false)
-            val gifPickerEnabled = jsonObject.optBoolean("gifPickerEnabled", false)
             val legacyEmojiFirst = jsonObject.optBoolean("emojiFirst", true)
 
             val parsedOrder = if (jsonObject.has("symPageOrder")) {
@@ -4172,7 +4171,7 @@ object SettingsManager {
                 if (!legacyEmojiFirst) {
                     cyclePages.reverse()
                 }
-                cyclePages + SymPagesConfig.PAGE_EMOJI_PICKER + SymPagesConfig.PAGE_GIF_PICKER
+                cyclePages + SymPagesConfig.PAGE_EMOJI_PICKER
             }
 
             SymPagesConfig(
@@ -4180,7 +4179,6 @@ object SettingsManager {
                 symbolsEnabled = symbolsEnabled,
                 clipboardEnabled = clipboardEnabled,
                 emojiPickerEnabled = emojiPickerEnabled,
-                gifPickerEnabled = gifPickerEnabled,
                 symPageOrder = parsedOrder
             )
         } catch (e: Exception) {
@@ -4199,7 +4197,6 @@ object SettingsManager {
                 put("symbolsEnabled", config.symbolsEnabled)
                 put("clipboardEnabled", config.clipboardEnabled)
                 put("emojiPickerEnabled", config.emojiPickerEnabled)
-                put("gifPickerEnabled", config.gifPickerEnabled)
                 // Keep legacy field for backward compatibility with older builds.
                 put("emojiFirst", config.prefersEmojiLongPressLayer())
                 val orderArray = org.json.JSONArray()

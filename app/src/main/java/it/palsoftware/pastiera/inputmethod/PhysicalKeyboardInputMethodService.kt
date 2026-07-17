@@ -2176,7 +2176,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         val ic = inputConnection ?: return false
 
         if (text == " ") {
-            return SoftwareKeyboardTextInputHandler.handleSpaceInput(
+            val handled = SoftwareKeyboardTextInputHandler.handleSpaceInput(
                 textInputController = textInputController,
                 inputConnection = ic,
                 shouldDisableDoubleSpaceToPeriod = snapshot.shouldDisableDoubleSpaceToPeriod,
