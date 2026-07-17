@@ -836,6 +836,7 @@
 🛕	tempio indù	induismo|tempio indù|tempio induista
 🛖	capanna	capanna|capanno|casa|iurta|rifugio
 🛗	ascensore	accessibilità|ascensore|montacarichi
+🛘	frana	disastro|montagna|pericolo|rocce|smottamento|terremoto|valanga
 🛜	wireless	computer|connessione|internet|rete|trasmissione|wi-fi|wifi|wireless
 🛝	scivolo	area divertimento|area giochi|giocare|giochi per bambini|parco giochi|scivolata|scivolo
 🛞	ruota	auto|cerchio|cerchione|girare|gomma|pneumatico|ruota|veicolo
@@ -1079,6 +1080,7 @@
 🧑‍🧑‍🧒‍🧒	famiglia: persone adulte, minori	famiglia: persona adulta|famiglia: persona adulta, persona adulta, minore, minore|minore|persona adulta
 🧑‍🧒	famiglia: persona adulta, minore	famiglia: persona adulta|famiglia: persona adulta, minore|minore
 🧑‍🧒‍🧒	famiglia: persona adulta, minore, minore	famiglia: persona adulta|famiglia: persona adulta, minore, minore|minore
+🧑‍🩰	persona che danza	ballerina|ballerino|balletto
 🧒	bimbo	bambina|bambino|bimba|bimbo|giovane|persona|ragazzina|ragazzino
 🧓	persona anziana	adulto anziano|anziana|anziano|persona|vecchia|vecchio
 🧔	persona con la barba	baffi|barba|barbuto|persona|persona con barba|persona con la barba
@@ -1148,6 +1150,8 @@
 🪇	maracas	agitare|ballare|maracas|musica|percussioni|ritmo|scuotere|strumento
 🪈	flauto	fiati|fiato|flautista|flauto|legno|musica|pifferaio|piffero|strumento|zufolo
 🪉	arpa	amore|arpa|cupido|musica|orchestra|strumento
+🪊	trombone	coulisse|jazz|musica|ottone|strumento|tiro
+🪎	forziere	argento|bottino|denaro|gemme|gioielli|oro|premio|ricchezza|valori
 🪏	vanga	buco|pala|scavare|spalare|vanga
 🪐	pianeta con satellite	corpo celeste|pianeta con anelli|pianeta con satellite|satellite|Saturno|spazio
 🪑	sedia	mettersi seduti|mobile|sedersi|sedia|seduti|seggiola
@@ -1204,6 +1208,8 @@
 🫄	persona incinta	gonfio|gravido|incinta|incinto|pancia|persona incinta|pieno|troppo cibo
 🫅	persona con corona	monarca|nobile|persona con corona|re|reale|regale|regina
 🫆	impronta digitale	identità|impronta digitale|indizio|riconoscimento biometrico|scienza forense|sicurezza|traccia
+🫈	creatura pelosa	bigfoot|criptide|foresta|gigante|peloso|sasquatch|scimmione|yeti
+🫍	orca	animale|cetaceo|marino|oceano
 🫎	alce	alce|animale|corna|mammifero
 🫏	asino	animale|asino|mammifero|mulo|somaro|testardo
 🫐	mirtilli	bacca|blu|cibo|frutta|frutti di bosco|mirtilli|mirtillo
@@ -1230,6 +1236,8 @@
 🫧	bolle	bolle|bollicine|perle|pulito|rutto|sapone|schiuma|sott’acqua|subacqueo
 🫨	faccina tremante	faccina|faccina che trema|faccina scossa|scombussolato|scosso|scossone|shock|terremoto|tremante|tremare|vibrazione
 🫩	faccina con borse sotto gli occhi	assonnato|borse|esausto|occhiaie|sfinito|sonno|stanchezza|stanco
+🫪	faccina stravolta	ansia|panico|scioccato|sconvolto|sorpresa|vulnerabile
+🫯	nuvoletta di zuffa	confusione|dibattito|disaccordo|discussione|lotta|rissa|zuffa
 🫰	mano con indice e pollice incrociati	amore|caro|costa|costoso|cuore|denaro|mano|mano con indice e pollice incrociati|schioccare|soldi
 🫱	mano rivolta a destra	dare la mano|destra|mano|mano rivolta a destra|verso destra
 🫲	mano rivolta a sinistra	dare la mano|mano|mano destra rivolta a sinistra|mano rivolta a sinistra|sinistra|verso sinistra

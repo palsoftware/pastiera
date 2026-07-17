@@ -836,6 +836,7 @@
 🛕	temple hindou	bouddhisme|hindou|pagode|religion|stupa|temple|temple bouddhiste
 🛖	hutte	abri|case|hutte|maison|maisonnette|yourte
 🛗	ascenseur	accessibilité|ascenseur|descente|monte-charge|monte-personnes|montée
+🛘	éboulement	avalanche|catastrophe|coulée de boue|danger|glissement de terrain|montagne|rochers|tremblement de terre
 🛜	sans fil	connexion|haut débit|hotspot|internet|ordinateur|réseau|routeur|sans fil|smartphone|Wi-Fi|wifi|wlan
 🛝	toboggan	aire de jeu|glissade|jouer|toboggan
 🛞	roue	cercle|pneu|roue|tourner|véhicule|voiture
@@ -1079,6 +1080,7 @@
 🧑‍🧑‍🧒‍🧒	famille : adulte, adulte, enfant, enfant	adulte|enfant|famille : adulte|famille : adulte, adulte, enfant, enfant
 🧑‍🧒	famille : adulte, enfant	enfant|famille : adulte|famille : adulte, enfant|famille monoparentale
 🧑‍🧒‍🧒	famille : adulte, enfant, enfant	enfant|famille : adulte|famille : adulte, enfant, enfant|famille monoparentale
+🧑‍🩰	danseuse de ballet	ballerine|ballet|danse classique|danseuse
 🧒	enfant	enfant|genre neutre|jeune|non-genré
 🧓	personne âgée	adulte|âgé|genre neutre|non-genré|personne âgée
 🧔	personne barbue	barbe|barbu|personne avec une barbe|personne barbue
@@ -1148,6 +1150,8 @@
 🪇	maracas	cha cha cha|danse|danser|fête|hochet|instrument|maracas|musique|percussion|secouer
 🪈	flûte	bois|fanfare|fifre|flûte|flûte à bec|flûtiste|instrument|musique|orchestre|piccolo
 🪉	harpe	amour|cupidon|harpe|instrument|musique|orchestre
+🪊	trombone à coulisse	instrument|musique|trombone
+🪎	coffre au trésor	argent|argenterie|bijoux|butin|objets de valeur|or|pierre précieuse|richesse
 🪏	pelle	bêche|creuser|pelle|trou
 🪐	planète à anneaux	anneaux|planète à anneaux|saturne|saturnien|saturnienne
 🪑	chaise	assis|chaise|siège
@@ -1204,6 +1208,8 @@
 🫄	personne enceinte	enceinte|grossesse|personne enceinte|trop mangé|ventre
 🫅	personne avec une couronne	monarque|noble|personne avec une couronne|royal|royauté
 🫆	empreinte digitale	dermatoglyphe|données biométriques|empreinte digitale|identité|sécurité
+🫈	créature velue	bigfoot|cryptide|forêt|géant|homme sauvage|poilu|sasquatch|yéti
+🫍	orque	baleine|marin|océan
 🫎	élan	animal|bois|cervidé|élan|mammifère|orignal|ramure
 🫏	âne	âne|animal|bourricot|mammifère|mule|têtu
 🫐	myrtilles	airelles|baies|bleu|bleuets|fruit|myrtilles|nourriture|violet
@@ -1230,6 +1236,8 @@
 🫧	bulles	bulle|bulles|propre|savon|sous l’eau
 🫨	visage secoué	choc|étourdi|fou|omg|ouah|panique|secoué|surprenant|tremblement|tremblement de terre|vibration|visage secoué
 🫩	visage avec des valises sous les yeux	ensommeilé|épuisé|fatigué|sommeil|visage avec des valises sous les yeux
+🫪	visage déformé	anxiété|bouffi|choc|gonflé|panique|surprise|vulnérabilité
+🫯	nuage de colère	bagarre|combat|désaccord|discussion|dispute|grabuge|lutte
 🫰	main avec index et pouce croisés	amour|argent|cher|claquer des doigts|cœur|main avec index et pouce croisés
 🫱	main vers la droite	droite|main vers la droite|serrer la main|tenir la main|vers la droite
 🫲	main vers la gauche	gauche|main vers la gauche|serrer la main|tenir la main|vers la gauche

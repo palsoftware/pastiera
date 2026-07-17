@@ -836,6 +836,7 @@
 🛕	hindu temple	hindu|temple
 🛖	hut	home|house|hut|roundhouse|shelter|yurt
 🛗	elevator	accessibility|elevator|hoist|lift
+🛘	landslide	avalanche|danger|disaster|earthquake|mountain|mudslide|rocks
 🛜	wireless	broadband|computer|connectivity|hotspot|internet|network|router|smartphone|wi-fi|wifi|wireless|wlan
 🛝	playground slide	amusement|park|play|playground|playing|slide|sliding|theme
 🛞	wheel	car|circle|tire|turn|vehicle|wheel
@@ -1079,6 +1080,7 @@
 🧑‍🧑‍🧒‍🧒	family: adult, adult, child, child	adult|child|family
 🧑‍🧒	family: adult, child	adult|child|family
 🧑‍🧒‍🧒	family: adult, child, child	adult|child|family
+🧑‍🩰	ballet dancer	ballet|dancer
 🧒	child	bright-eyed|child|grandchild|kid|young|younger
 🧓	older person	adult|elderly|grandparent|old|person|wise
 🧔	person: beard	beard|bearded|person|whiskers
@@ -1148,6 +1150,8 @@
 🪇	maracas	cha|dance|instrument|maracas|music|party|percussion|rattle|shake|shaker
 🪈	flute	band|fife|flautist|flute|instrument|marching|music|orchestra|piccolo|pipe|recorder|woodwind
 🪉	harp	cupid|harp|instrument|love|music|orchestra
+🪊	trombone	brass|instrument|jazz|music|sad|slide
+🪎	treasure chest	gem|gold|jewels|loot|money|prize|silver|valuables|wealth
 🪏	shovel	bury|dig|garden|hole|plant|scoop|shovel|snow|spade
 🪐	ringed planet	planet|ringed|saturn|saturnine
 🪑	chair	chair|seat|sit
@@ -1204,6 +1208,8 @@
 🫄	pregnant person	belly|bloated|full|overeat|person|pregnant|stuffed
 🫅	person with crown	crown|monarch|noble|person|regal|royal|royalty
 🫆	fingerprint	clue|crime|detective|fingerprint|forensics|identity|mystery|print|safety|trace
+🫈	hairy creature	bigfoot|cryptid|forest|giant|hairy|sasquatch|woodwose|yeti
+🫍	orca	marine|ocean|whale
 🫎	moose	alces|animal|antlers|elk|mammal|moose
 🫏	donkey	animal|ass|burro|donkey|hinny|mammal|mule|stubborn
 🫐	blueberries	berries|berry|bilberry|blue|blueberries|blueberry|food|fruit
@@ -1230,6 +1236,8 @@
 🫧	bubbles	bubble|bubbles|burp|clean|floating|pearl|soap|underwater
 🫨	shaking face	crazy|daze|earthquake|face|omg|panic|shaking|shock|surprise|vibrate|whoa|wow
 🫩	face with bags under eyes	bags|bored|exhausted|eyes|face|fatigued|late|sleepy|tired|weary
+🫪	distorted face	anxiety|bloated|panic|shocked|surprised|vulnerable
+🫯	fight cloud	argument|brawl|debate|disagreement|fight|ruckus|wrestle
 🫰	hand with index finger and thumb crossed	<3|crossed|expensive|finger|hand|heart|index|love|money|snap|thumb
 🫱	rightwards hand	hand|handshake|hold|reach|right|rightward|rightwards|shake
 🫲	leftwards hand	hand|handshake|hold|left|leftward|leftwards|reach|shake

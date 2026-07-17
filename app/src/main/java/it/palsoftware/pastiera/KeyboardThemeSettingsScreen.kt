@@ -1680,6 +1680,7 @@ private fun keyboardThemesEquivalent(
         left.showLeds == right.showLeds &&
         close(left.suggestionsHeightScale, right.suggestionsHeightScale) &&
         close(left.variationsHeightScale, right.variationsHeightScale) &&
+        close(left.frostIntensity, right.frostIntensity) &&
         close(left.modifierIndicatorStripScale, right.modifierIndicatorStripScale) &&
         left.keyPopupStyle == right.keyPopupStyle &&
         left.keyPopupAttached == right.keyPopupAttached &&
@@ -2088,6 +2089,13 @@ private fun KeyboardThemeKeysEditor(
             valueRange = 0.35f..1.4f,
             onValueChanged = { onThemeChanged(theme.copy(modifierIndicatorStripScale = it)) }
         )
+        KeyboardThemeSliderRow(
+            label = "Frost intensity",
+            value = theme.frostIntensity,
+            presetValue = preset.frostIntensity,
+            valueRange = 0f..2f,
+            onValueChanged = { onThemeChanged(theme.copy(frostIntensity = it)) }
+        )
         if (isSoftware) {
             KeyboardThemeSwitchRow(
                 label = "Show LEDs",
@@ -2448,12 +2456,19 @@ private fun KeyboardThemeColorPickerDialog(
     var hue by remember(initialColor) { mutableStateOf(hsv[0]) }
     var saturation by remember(initialColor) { mutableStateOf(hsv[1]) }
     var value by remember(initialColor) { mutableStateOf(hsv[2]) }
+    var alpha by remember(initialColor) { mutableStateOf(AndroidColor.alpha(initialColor)) }
 
-    fun updateColor(newHue: Float = hue, newSaturation: Float = saturation, newValue: Float = value) {
+    fun updateColor(
+        newHue: Float = hue,
+        newSaturation: Float = saturation,
+        newValue: Float = value,
+        newAlpha: Int = alpha
+    ) {
         hue = newHue
         saturation = newSaturation
         value = newValue
-        color = AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
+        alpha = newAlpha.coerceIn(0, 255)
+        color = AndroidColor.HSVToColor(alpha, floatArrayOf(hue, saturation, value))
         onPreviewColorChanged(color)
     }
 
@@ -2482,9 +2497,13 @@ private fun KeyboardThemeColorPickerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    color = swatch
                                     AndroidColor.colorToHSV(swatch, hsv)
-                                    updateColor(hsv[0], hsv[1], hsv[2])
+                                    updateColor(
+                                        newHue = hsv[0],
+                                        newSaturation = hsv[1],
+                                        newValue = hsv[2],
+                                        newAlpha = AndroidColor.alpha(swatch)
+                                    )
                                 }
                                 .padding(vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -2515,6 +2534,28 @@ private fun KeyboardThemeColorPickerDialog(
                             updateColor(newHue, newSaturation, newValue)
                         }
                     )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Alpha ${(alpha / 255f * 100f).toInt()}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = alpha.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Slider(
+                            value = alpha.toFloat(),
+                            onValueChange = { updateColor(newAlpha = it.toInt()) },
+                            valueRange = 0f..255f
+                        )
+                    }
                     Text(color.toHexColorLabel(), style = MaterialTheme.typography.bodyMedium)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2707,4 +2748,11 @@ private fun KeyboardThemeColorWheel(
     }
 }
 
-private fun Int.toHexColorLabel(): String = "#${toUInt().toString(16).uppercase().takeLast(6)}"
+private fun Int.toHexColorLabel(): String {
+    val unsigned = toUInt().toString(16).uppercase().padStart(8, '0')
+    return if (AndroidColor.alpha(this) == 255) {
+        "#${unsigned.takeLast(6)}"
+    } else {
+        "#$unsigned"
+    }
+}

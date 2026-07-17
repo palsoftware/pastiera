@@ -3,6 +3,7 @@ package it.palsoftware.pastiera.inputmethod.ui
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
@@ -37,6 +38,7 @@ import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.data.emoji.EmojiRepository
 import it.palsoftware.pastiera.data.emoji.RecentEmojiManager
 import it.palsoftware.pastiera.data.emoji.EmojiSearchRepository
+import it.palsoftware.pastiera.emoji.CustomEmojiFontManager
 import it.palsoftware.pastiera.gif.KlipyGifClient
 import it.palsoftware.pastiera.gif.KlipyGifResult
 import android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
@@ -108,6 +110,7 @@ class EmojiPickerView(
     private var tabCategoryIds: List<String> = emptyList()
     private var gifTabView: TextView? = null
     private var gifPickerView: GifPickerView? = null
+    private var customEmojiTypeface = CustomEmojiFontManager.getTypeface(context)
     private var isMediaMode: Boolean = false
     var themeOverride: KeyboardThemeColors? = null
         set(value) {
@@ -681,6 +684,7 @@ class EmojiPickerView(
     }
 
     private fun loadCategories() {
+        customEmojiTypeface = CustomEmojiFontManager.getTypeface(context)
         // Cancel any previous loading job to avoid race conditions
         loadingJob?.cancel()
 
@@ -1255,8 +1259,15 @@ class EmojiPickerView(
         options.forEach { emoji ->
             val textView = TextView(context).apply {
                 text = emoji
-                textSize = 24f
                 gravity = Gravity.CENTER
+                CustomEmojiFontManager.applyToTextView(
+                    context = context,
+                    textView = this,
+                    emoji = emoji,
+                    fallbackTypeface = Typeface.DEFAULT,
+                    systemTextSizeSp = 24f,
+                    customTextSizeSp = 30f
+                )
                 setPadding(itemHorizontalPadding, itemVerticalPadding, itemHorizontalPadding, itemVerticalPadding)
                 setTextColor(themeOverride?.textAndIcons ?: Color.BLACK)
             }
@@ -1267,15 +1278,24 @@ class EmojiPickerView(
             container.addView(textView)
         }
 
-        container.measure(
+        val maxPopupWidth = context.resources.displayMetrics.widthPixels - dpToPx(16f)
+        val popupContent: View = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(container)
+        }
+
+        popupContent.measure(
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
 
+        val popupWidth = minOf(popupContent.measuredWidth, maxPopupWidth)
+        val popupHeight = popupContent.measuredHeight
+
         popup = PopupWindow(
-            container,
-            WRAP_CONTENT,
-            WRAP_CONTENT,
+            popupContent,
+            popupWidth,
+            popupHeight,
             false // Don't take focus to avoid closing emoji picker
         ).apply {
             setBackgroundDrawable(ColorDrawable(themeOverride?.keyPopup ?: Color.parseColor("#EEFFFFFF")))
@@ -1288,12 +1308,11 @@ class EmojiPickerView(
         val location = IntArray(2)
         anchor.getLocationInWindow(location)
         val windowWidth = context.resources.displayMetrics.widthPixels
-        val popupWidth = container.measuredWidth
-        val popupHeight = container.measuredHeight
         val anchorX = location[0]
         val anchorY = location[1]
         val desiredX = anchorX + (anchor.width - popupWidth) / 2
-        val clampedX = desiredX.coerceIn(0, windowWidth - popupWidth)
+        val maxX = (windowWidth - popupWidth).coerceAtLeast(0)
+        val clampedX = desiredX.coerceIn(0, maxX)
         val xOffset = clampedX - anchorX
         val desiredYOffset = -(popupHeight + anchor.height)
         val minYOffset = -(anchorY + anchor.height)
@@ -1353,7 +1372,6 @@ class EmojiPickerView(
             } else {
                 val tv = TextView(parent.context).apply {
                     gravity = Gravity.CENTER
-                    textSize = 28.8f
                     minHeight = emojiSize
                     minWidth = emojiSize
                     layoutParams = RecyclerView.LayoutParams(
@@ -1372,6 +1390,14 @@ class EmojiPickerView(
                 }
                 is SectionItem.Emoji -> {
                     (holder as EmojiViewHolder).textView.text = item.entry.base
+                    CustomEmojiFontManager.applyToTextView(
+                        context = holder.textView.context,
+                        textView = holder.textView,
+                        emoji = item.entry.base,
+                        fallbackTypeface = Typeface.DEFAULT,
+                        systemTextSizeSp = 28.8f,
+                        customTextSizeSp = 34f
+                    )
                     holder.textView.setTextColor(themeOverride?.textAndIcons ?: Color.WHITE)
                     holder.textView.setOnClickListener {
                         onEmojiSelected(item.entry.base, item.categoryId)
@@ -1399,7 +1425,6 @@ class EmojiPickerView(
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchEmojiViewHolder {
             val tv = TextView(parent.context).apply {
                 gravity = Gravity.CENTER
-                textSize = 28.8f
                 minHeight = emojiSize
                 minWidth = emojiSize
                 layoutParams = RecyclerView.LayoutParams(
@@ -1413,6 +1438,14 @@ class EmojiPickerView(
         override fun onBindViewHolder(holder: SearchEmojiViewHolder, position: Int) {
             val item = getItem(position)
             holder.textView.text = item.entry.base
+            CustomEmojiFontManager.applyToTextView(
+                context = holder.textView.context,
+                textView = holder.textView,
+                emoji = item.entry.base,
+                fallbackTypeface = Typeface.DEFAULT,
+                systemTextSizeSp = 28.8f,
+                customTextSizeSp = 34f
+            )
             holder.textView.setTextColor(themeOverride?.textAndIcons ?: Color.WHITE)
             holder.textView.setOnClickListener {
                 onEmojiSelected(item.entry.base, item.categoryId)

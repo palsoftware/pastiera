@@ -931,7 +931,6 @@ class FullSuggestionsBar(
         val normalDrawable = GradientDrawable().apply {
             setColor(themeOverride?.suggestion ?: DEFAULT_SUGGESTION_COLOR)
             cornerRadius = radius
-            alpha = 255 // placeholders look identical; they stay non-clickable
             themeOverride?.let { setStroke(dpToPx(1f), it.divider) }
         }
         val pressedDrawable = GradientDrawable().apply {

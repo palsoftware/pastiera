@@ -65,7 +65,7 @@ class HamburgerMenuView(
                     borderWidthPx = dpToPx(1f)
                 )
             }
-            root?.setBackgroundColor(value?.background ?: Color.BLACK)
+            root?.setBackgroundColor(value?.background?.let(::menuBackgroundColor) ?: Color.BLACK)
             closeButton?.let { applyCloseButtonTheme(it) }
         }
 
@@ -134,7 +134,7 @@ class HamburgerMenuView(
         }
         row = rowView
         root = FrameLayout(context).apply {
-            setBackgroundColor(themeOverride?.background ?: Color.BLACK)
+            setBackgroundColor(themeOverride?.background?.let(::menuBackgroundColor) ?: Color.BLACK)
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -310,6 +310,9 @@ class HamburgerMenuView(
             borderWidthPx = if (theme != null) dpToPx(1f) else 0
         )
     }
+
+    private fun menuBackgroundColor(color: Int): Int =
+        (color and 0x00FFFFFF) or (Color.alpha(color).coerceAtLeast(235) shl 24)
 
     private fun dpToPx(dp: Float): Int {
         return (dp * context.resources.displayMetrics.density).toInt()

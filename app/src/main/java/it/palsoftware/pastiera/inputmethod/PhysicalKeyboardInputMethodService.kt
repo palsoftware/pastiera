@@ -1662,6 +1662,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
 
     override fun onCreate() {
         super.onCreate()
+        window?.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        window?.window?.decorView?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         prefs = getSharedPreferences("pastiera_prefs", Context.MODE_PRIVATE)
         clearAltOnSpaceEnabled = SettingsManager.getClearAltOnSpace(this)
         physicalKeyboardProfileOverride = SettingsManager.getPhysicalKeyboardProfileOverride(this)
@@ -3339,6 +3341,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
     
     override fun onWindowShown() {
         super.onWindowShown()
+        window?.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        window?.window?.decorView?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         updateStatusBarText()
         attachTrackpadDecorViewMotionHook("onWindowShown")
     }

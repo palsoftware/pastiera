@@ -230,7 +230,7 @@ class EmojiShortcodePopup(
         contentView.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = radius
-            setColor(theme?.background ?: Color.parseColor("#1E1E1E"))
+            setColor(theme?.background?.let(::panelBackgroundColor) ?: Color.parseColor("#1E1E1E"))
             theme?.let { setStroke(dpToPx(1f), it.divider) }
         }
         titleView.setTextColor(textColor())
@@ -253,6 +253,9 @@ class EmojiShortcodePopup(
     private fun secondaryTextColor(): Int = colorWithAlpha(textColor(), 170)
 
     private fun selectedColor(): Int = themeOverride?.keyTap ?: Color.parseColor("#0D47A1")
+
+    private fun panelBackgroundColor(color: Int): Int =
+        colorWithAlpha(color, Color.alpha(color).coerceAtLeast(224))
 
     private fun colorWithAlpha(color: Int, alpha: Int): Int =
         (color and 0x00FFFFFF) or ((alpha.coerceIn(0, 255)) shl 24)

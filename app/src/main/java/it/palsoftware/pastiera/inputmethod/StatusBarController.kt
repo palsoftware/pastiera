@@ -5,7 +5,11 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Shader
 import androidx.core.content.ContextCompat
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
@@ -421,6 +425,7 @@ class StatusBarController(
 
     private fun applyKeyboardThemeOverrides(activeColors: KeyboardThemeColors) {
         statusBarLayout?.setBackgroundColor(activeColors.background)
+        (statusBarLayout as? ImeChromeLayout)?.themeColors = activeColors
         symSurfaceStack?.setBackgroundColor(activeColors.background)
         symSurfaceContainer?.setBackgroundColor(activeColors.background)
         emojiKeyboardContainer?.setBackgroundColor(activeColors.background)
@@ -2607,10 +2612,11 @@ class StatusBarController(
 
         // Set background to opaque immediately without animation
         backgroundView?.let { bgView ->
+            val backgroundColor = activeThemeColors().background
             if (bgView.background !is ColorDrawable) {
-                bgView.background = ColorDrawable(activeThemeColors().background)
+                bgView.background = ColorDrawable(backgroundColor)
             }
-            (bgView.background as? ColorDrawable)?.alpha = 255
+            (bgView.background as? ColorDrawable)?.alpha = Color.alpha(backgroundColor)
         }
 
         val animator = ValueAnimator.ofFloat(measuredHeight.toFloat(), 0f).apply {
@@ -2726,7 +2732,7 @@ class StatusBarController(
         if (layout.background !is ColorDrawable) {
             layout.background = ColorDrawable(activeTheme.background)
         } else if (snapshot.symPage == 0) {
-            (layout.background as ColorDrawable).alpha = 255
+            (layout.background as ColorDrawable).alpha = Color.alpha(activeTheme.background)
         }
         
         modifiersContainerView.visibility = View.GONE
@@ -2808,7 +2814,7 @@ class StatusBarController(
             if (layout.background !is ColorDrawable) {
                 layout.background = ColorDrawable(activeColors.background)
             }
-            (layout.background as? ColorDrawable)?.alpha = 255
+            (layout.background as? ColorDrawable)?.alpha = Color.alpha(activeColors.background)
             variationsWrapperView?.apply {
                 visibility = View.INVISIBLE
                 isEnabled = false
@@ -2902,7 +2908,7 @@ class StatusBarController(
             if (layout.background !is ColorDrawable) {
                 layout.background = ColorDrawable(activeColors.background)
             }
-            (layout.background as? ColorDrawable)?.alpha = 255
+            (layout.background as? ColorDrawable)?.alpha = Color.alpha(activeColors.background)
             if (isSoftwareKeyboardOverlayPage) {
                 variationsWrapperView?.apply {
                     visibility = View.VISIBLE
@@ -3213,6 +3219,21 @@ class StatusBarController(
     }
 
     private class ImeChromeLayout(context: Context) : LinearLayout(context) {
+        private val frostPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val noisePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = context.resources.displayMetrics.density
+        }
+        private val noiseStepPx = (9f * context.resources.displayMetrics.density).coerceAtLeast(6f)
+
+        var themeColors: KeyboardThemeColors? = null
+            set(value) {
+                if (field == value) return
+                field = value
+                setWillNotDraw(false)
+                invalidate()
+            }
         var surfaceView: View? = null
             set(value) {
                 field = value
@@ -3227,6 +3248,51 @@ class StatusBarController(
 
         init {
             setChildrenDrawingOrderEnabled(true)
+            setWillNotDraw(false)
+        }
+
+        override fun dispatchDraw(canvas: Canvas) {
+            drawFrostedLayer(canvas)
+            super.dispatchDraw(canvas)
+        }
+
+        private fun drawFrostedLayer(canvas: Canvas) {
+            val theme = themeColors ?: return
+            val backgroundAlpha = Color.alpha(theme.background)
+            val intensity = theme.frostIntensity.coerceIn(0f, 2f)
+            if (intensity <= 0.01f || backgroundAlpha >= 245 || width <= 0 || height <= 0) return
+
+            frostPaint.shader = LinearGradient(
+                0f,
+                0f,
+                0f,
+                height.toFloat(),
+                intArrayOf(
+                    Color.argb((58f * intensity).toInt().coerceIn(0, 140), 255, 255, 255),
+                    Color.argb((18f * intensity).toInt().coerceIn(0, 72), 255, 255, 255),
+                    Color.argb((34f * intensity).toInt().coerceIn(0, 96), 0, 0, 0)
+                ),
+                floatArrayOf(0f, 0.38f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), frostPaint)
+            frostPaint.shader = null
+
+            noisePaint.color = Color.argb((22f * intensity).toInt().coerceIn(0, 72), 255, 255, 255)
+            val columns = (width / noiseStepPx).toInt() + 2
+            val rows = (height / noiseStepPx).toInt() + 2
+            for (row in 0 until rows) {
+                for (column in 0 until columns) {
+                    val seed = (row * 37 + column * 19) % 11
+                    if (seed > 3) continue
+                    val x = column * noiseStepPx + ((seed * 0.37f) % 1f) * noiseStepPx
+                    val y = row * noiseStepPx + ((seed * 0.61f) % 1f) * noiseStepPx
+                    canvas.drawCircle(x, y, (0.5f + 0.25f * intensity) * resources.displayMetrics.density, noisePaint)
+                }
+            }
+
+            strokePaint.color = Color.argb((54f * intensity).toInt().coerceIn(0, 140), 255, 255, 255)
+            canvas.drawLine(0f, 0.5f, width.toFloat(), 0.5f, strokePaint)
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

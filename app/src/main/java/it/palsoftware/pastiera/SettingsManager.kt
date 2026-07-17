@@ -96,6 +96,9 @@ object SettingsManager {
     private const val KEY_ALT_LATCH_STAYS_ON_SPACE = "alt_latch_stays_on_space"
     private const val KEY_CTRL_LATCH_STAYS_ON_SPACE = "ctrl_latch_stays_on_space"
     private const val KEY_EMOJI_PICKER_EXPANDED_HEIGHT = "emoji_picker_expanded_height"
+    private const val KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED = "emoji_picker_custom_font_enabled"
+    private const val KEY_EMOJI_PICKER_CUSTOM_FONT_PATH = "emoji_picker_custom_font_path"
+    private const val KEY_EMOJI_PICKER_CUSTOM_FONT_NAME = "emoji_picker_custom_font_name"
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Whether the first-run tutorial has been completed
     private const val KEY_LAST_SEEN_WHATS_NEW_VERSION = "last_seen_whats_new_version"
@@ -438,6 +441,7 @@ object SettingsManager {
         val showLeds: Boolean = true,
         val suggestionsHeightScale: Float = 1f,
         val variationsHeightScale: Float = 1f,
+        val frostIntensity: Float = 0f,
         val modifierIndicatorStripScale: Float = 1f,
         val keyPopupStyle: String = KEYBOARD_THEME_POPUP_STYLE_FLOATING,
         val keyPopupAttached: Boolean = true,
@@ -466,6 +470,7 @@ object SettingsManager {
                 chromeCornerRadiusRatio = chromeCornerRadiusRatio,
                 suggestionsHeightScale = suggestionsHeightScale,
                 variationsHeightScale = variationsHeightScale,
+                frostIntensity = frostIntensity,
                 modifierIndicatorStripScale = modifierIndicatorStripScale
             )
     }
@@ -854,6 +859,7 @@ object SettingsManager {
                 showLeds = json.optBoolean("show_leds", defaults.showLeds),
                 suggestionsHeightScale = json.optDouble("suggestions_height_scale", defaults.suggestionsHeightScale.toDouble()).toFloat(),
                 variationsHeightScale = json.optDouble("variations_height_scale", defaults.variationsHeightScale.toDouble()).toFloat(),
+                frostIntensity = json.optDouble("frost_intensity", defaults.frostIntensity.toDouble()).toFloat(),
                 modifierIndicatorStripScale = json.optDouble("modifier_indicator_strip_scale", defaults.modifierIndicatorStripScale.toDouble()).toFloat(),
                 keyPopupStyle = normalizeKeyboardThemePopupStyle(json.optString("key_popup_style", defaults.keyPopupStyle)),
                 keyPopupAttached = json.optBoolean("key_popup_attached", defaults.keyPopupAttached),
@@ -1380,6 +1386,7 @@ object SettingsManager {
             showLeds = json.optBoolean("show_leds", defaults.showLeds),
             suggestionsHeightScale = json.optDouble("suggestions_height_scale", defaults.suggestionsHeightScale.toDouble()).toFloat(),
             variationsHeightScale = json.optDouble("variations_height_scale", defaults.variationsHeightScale.toDouble()).toFloat(),
+            frostIntensity = json.optDouble("frost_intensity", defaults.frostIntensity.toDouble()).toFloat(),
             modifierIndicatorStripScale = json.optDouble("modifier_indicator_strip_scale", defaults.modifierIndicatorStripScale.toDouble()).toFloat(),
             keyPopupStyle = normalizeKeyboardThemePopupStyle(json.optString("key_popup_style", defaults.keyPopupStyle)),
             keyPopupAttached = json.optBoolean("key_popup_attached", defaults.keyPopupAttached),
@@ -1416,6 +1423,7 @@ object SettingsManager {
             put("show_leds", theme.showLeds)
             put("suggestions_height_scale", theme.suggestionsHeightScale.toDouble())
             put("variations_height_scale", theme.variationsHeightScale.toDouble())
+            put("frost_intensity", theme.frostIntensity.toDouble())
             put("modifier_indicator_strip_scale", theme.modifierIndicatorStripScale.toDouble())
             put("key_popup_style", normalizeKeyboardThemePopupStyle(theme.keyPopupStyle))
             put("key_popup_attached", theme.keyPopupAttached)
@@ -4600,6 +4608,32 @@ object SettingsManager {
     fun setEmojiPickerExpandedHeight(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_EMOJI_PICKER_EXPANDED_HEIGHT, enabled)
+            .apply()
+    }
+
+    fun getEmojiPickerCustomFontEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED, false)
+    }
+
+    fun setEmojiPickerCustomFontEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getEmojiPickerCustomFontPath(context: Context): String {
+        return getPreferences(context).getString(KEY_EMOJI_PICKER_CUSTOM_FONT_PATH, "") ?: ""
+    }
+
+    fun getEmojiPickerCustomFontName(context: Context): String {
+        return getPreferences(context).getString(KEY_EMOJI_PICKER_CUSTOM_FONT_NAME, "") ?: ""
+    }
+
+    fun setEmojiPickerCustomFont(context: Context, path: String, displayName: String) {
+        getPreferences(context).edit()
+            .putString(KEY_EMOJI_PICKER_CUSTOM_FONT_PATH, path)
+            .putString(KEY_EMOJI_PICKER_CUSTOM_FONT_NAME, displayName)
+            .putBoolean(KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED, true)
             .apply()
     }
 

@@ -20,5 +20,6 @@ data class KeyboardThemeColors(
     val chromeCornerRadiusRatio: Float = 0.08f,
     val suggestionsHeightScale: Float = 1f,
     val variationsHeightScale: Float = 1f,
+    val frostIntensity: Float = 0f,
     val modifierIndicatorStripScale: Float = 1f
 )

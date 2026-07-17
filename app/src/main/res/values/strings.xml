@@ -248,6 +248,12 @@
     <string name="sym_enable_emoji_picker_page_description">Show the full emoji picker when cycling.</string>
     <string name="emoji_picker_expanded_height_title">Larger emoji picker</string>
     <string name="emoji_picker_expanded_height_description">Use about 1.5x height for the emoji search page; other SYM pages keep their normal height.</string>
+    <string name="emoji_picker_custom_font_title">Custom emoji font</string>
+    <string name="emoji_picker_custom_font_description">Render the emoji picker with an imported local font. Inserted emoji still use normal Unicode text.</string>
+    <string name="emoji_picker_custom_font_selected">Using %1$s</string>
+    <string name="emoji_picker_custom_font_import">Import font</string>
+    <string name="emoji_picker_custom_font_imported">Imported %1$s</string>
+    <string name="emoji_picker_custom_font_import_failed">Unable to import emoji font</string>
     <string name="sym_swap_pages_title">Arrange SYM pages order</string>
     <string name="sym_swap_pages_description">Set the exact cycle order for all SYM pages by dragging each row.</string>
     <string name="sym_order_emoji_first">Emoji first</string>

@@ -430,7 +430,7 @@ class AospKeyboardView @JvmOverloads constructor(
     init {
         isClickable = true
         isFocusable = true
-        setBackgroundColor(Color.BLACK)
+        setBackgroundColor(Color.TRANSPARENT)
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

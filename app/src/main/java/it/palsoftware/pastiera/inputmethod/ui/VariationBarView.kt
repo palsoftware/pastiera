@@ -52,6 +52,7 @@ import it.palsoftware.pastiera.inputmethod.statusbar.StatusBarButtonId
 import it.palsoftware.pastiera.inputmethod.statusbar.StatusBarButtonPosition
 import it.palsoftware.pastiera.inputmethod.statusbar.StatusBarCallbacks
 import it.palsoftware.pastiera.inputmethod.statusbar.StatusBarButtonStyles
+import it.palsoftware.pastiera.emoji.CustomEmojiFontManager
 
 /**
  * Handles the variations row (suggestions + microphone/language) rendered above the LED strip.
@@ -1133,18 +1134,36 @@ class VariationBarView(
             )
         } ?: VariationButtonStyles.createButtonDrawable(buttonHeight)
 
+        val canUseCustomEmojiFont = CustomEmojiFontManager.canUseCustomTypeface(variation) &&
+            CustomEmojiFontManager.getTypeface(context) != null
+
         return TextView(context).apply {
             text = variation
-            textSize = 16f
-            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
-                this,
-                6,
-                16,
-                1,
-                TypedValue.COMPLEX_UNIT_SP
-            )
+            if (canUseCustomEmojiFont) {
+                TextViewCompat.setAutoSizeTextTypeWithDefaults(
+                    this,
+                    TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE
+                )
+                CustomEmojiFontManager.applyToTextView(
+                    context = context,
+                    textView = this,
+                    emoji = variation,
+                    fallbackTypeface = android.graphics.Typeface.DEFAULT_BOLD,
+                    systemTextSizeSp = 16f,
+                    customTextSizeSp = 22f
+                )
+            } else {
+                textSize = 16f
+                TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                    this,
+                    6,
+                    16,
+                    1,
+                    TypedValue.COMPLEX_UNIT_SP
+                )
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
             setTextColor(themeOverride?.textAndIcons ?: Color.WHITE)
-            setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END

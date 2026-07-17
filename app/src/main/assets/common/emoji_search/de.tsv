@@ -836,6 +836,7 @@
 🛕	Hindutempel	Gebäude|Hindu|Hindutempel|Tempel
 🛖	Hütte	Behausung|Gebäude|Haus|Hütte|Jurte|Objekt|Rundhaus|Schutz
 🛗	Fahrstuhl	Aufzug|Fahrstuhl|Haus|Lift|Symbol|Transport
+🛘	Erdrutsch	Berg|Erdbeben|Felsen|Gefahr|Katastrophe|Lawine|Murenabgang|Murgang|Schlammlawine
 🛜	WLAN	Computer|drahtlos|Hotspot|Internet|kabellos|Netzwerk|Router|Verbindung|Wi-Fi|WLAN
 🛝	Spielplatzrutsche	Rutschbahn|Rutsche|spielen|Spielplatz|Spielplatzrutsche|Vergnügungspark
 🛞	Autorad	Autorad|Autoreifen|drehen|Rad|Reifen|Reifen mit Felgen|rotieren
@@ -1079,6 +1080,7 @@
 🧑‍🧑‍🧒‍🧒	Familie: 2 Erwachsene, 2 Kinder	Erwachsene|Erwachsener|Familie|Kind
 🧑‍🧒	Familie: 1 Erwachsene(r), 1 Kind	Erwachsene|Erwachsener|Familie|Kind
 🧑‍🧒‍🧒	Familie: 1 Erwachsene(r), 2 Kinder	Erwachsene|Erwachsener|Familie|Kind
+🧑‍🩰	Balletttänzerin	Ballett|Tänzerin
 🧒	Kind	Enkelkind|jung|jünger|Kind|munter|strahlend
 🧓	ältere Person	alt|älter|erwachsen|Großeltern|Mensch|Person|weise
 🧔	Person: Bart	Bart|bärtig|Person|Schnurrbart
@@ -1148,6 +1150,8 @@
 🪇	Maracas	Cha-Cha-Cha|Instrument|Maracas|Musik|Musikinstrument|musizieren|Party|Percussion|Rassel|rasseln|Tanz|tanzen
 🪈	Flöte	Band|Blaskapelle|Flöte|Holzblasinstrument|Instrument|Musik|Musikinstrument|musizieren|Orchester|Spielmannszug
 🪉	Harfe	Amor|Cupido|Harfe|Instrument|Liebe|Musik|Orchester
+🪊	Posaune	Blasinstrument|Blechbläser|Blechblasinstrument|Instrument|Jazz|Musik|schieben|traurig|ziehen
+🪎	Schatztruhe	Beute|Edelstein|Geld|Gold|Juwelen|Preis|Reichtum|Silber|Wertgegenstände
 🪏	Schaufel	graben|Loch|Schaufel|Schippe|Spaten
 🪐	Ringplanet	Gasplanet|Himmelskörper|Planet|Ringplanet|Saturn
 🪑	Stuhl	Holzstuhl|Möbel|sitzen|Stuhl
@@ -1204,6 +1208,8 @@
 🫄	schwangere Person	aufgebläht|Bauch|dick|dicker Bauch|Person|schwanger|schwangere Person|Schwangerschaft|überfressen|zu viel gegessen
 🫅	Person mit Krone	adelig|König|Königin|königlich|königliche Hoheit|Krönung|Monarch|Monarchin|Person|Person mit Krone|Prinz|Prinzessin
 🫆	Fingerabdruck	Fingerabdruck|Forensik|Identität|Sicherheit
+🫈	haariges Wesen	Bigfoot|Fabelwesen|Gigant|haarig|Kryptid|Riese|Sasquatch|Wald|wilder Mann|Woodwose|Yeti
+🫍	Orca	Meer|Meeressäuger|Meerestier|Orka|Ozean|Wal
 🫎	Elch	Elch|Geweih|Säugetier|Tier
 🫏	Esel	austreten|Dickschädel|Dummkopf|Esel|Maultier|Säugetier|störrisch|stur|Tier
 🫐	Blaubeeren	Beere|blau|Blaubeere|Blaubeeren|Essen|Frucht|Heidelbeere|Heidelbeeren|Lebensmittel|Nahrung|Obst
@@ -1230,6 +1236,8 @@
 🫧	Blasen	Blasen|Perlen|reinigen|Schaum|schweben|Seife|Seifenblasen|unter Wasser|Wasserblasen
 🫨	zitterndes Doppelgesicht	Doppelgesicht|Erdbeben|Gesicht|OMG|Panik|Schock|Smiley|überrascht|verrückt|vibrieren|wow|zittern
 🫩	Gesicht mit Augenringen	Augenringe|erschöpft|Gesicht|müde|schläfrig|Smiley|übermüdet
+🫪	verzerrtes Gesicht	Angst|ängstlich|aufgedunsen|besorgt|Panik|panisch|schockiert|überrascht
+🫯	Kampfwolke	Handgemenge|Kampf|Krawall|Prügelei|Rauferei|Schlägerei|Streit|Wortgefecht
 🫰	Hand mit gekreuztem Zeigefinger und Daumen	Daumen|Finger|Fingerherz|gekreuzt|Geld|Hand|Handgeste|Kosten|teuer|Zeigefinger
 🫱	nach rechts weisende Hand	ausgestreckt|ausstrecken|Hand|Hände|Händeschütteln|rechts|reichen|schütteln|weisen
 🫲	nach links weisende Hand	ausgestreckt|ausstrecken|Hand|Hände|Händeschütteln|links|reichen|schütteln|weisen
