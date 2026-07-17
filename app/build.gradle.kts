@@ -9,9 +9,6 @@ import java.io.File
 import java.util.Properties
 import org.gradle.api.GradleException
 
-fun String.escapeForBuildConfig(): String =
-    replace("\\", "\\\\").replace("\"", "\\\"")
-
 // Config di firma letta da release/keystore.properties (non tracciato) o da env vars
 val keystorePropertiesFileCandidates = listOf(
     rootProject.file("release/keystore.properties"),
@@ -85,7 +82,6 @@ android {
     val nightlyVersionCode = providers.gradleProperty("PASTIERA_NIGHTLY_VERSION_CODE").orNull?.toIntOrNull()
     val nightlyVersionNameSuffix = providers.gradleProperty("PASTIERA_NIGHTLY_VERSION_SUFFIX").orNull ?: "-nightly"
     val isFdroidBuild = gradleBooleanProperty("PASTIERA_FDROID_BUILD")
-    val klipyApiKey = providers.gradleProperty("PASTIERA_KLIPY_API_KEY").orNull ?: ""
 
     defaultConfig {
         applicationId = "it.palsoftware.pastiera"
@@ -95,7 +91,6 @@ android {
         versionName = ciVersionName ?: defaultVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "KLIPY_API_KEY", "\"${klipyApiKey.escapeForBuildConfig()}\"")
     }
 
     signingConfigs {

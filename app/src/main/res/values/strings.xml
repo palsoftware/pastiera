@@ -31,11 +31,17 @@
     <string name="text_input_section_spacing_punctuation">Spacing &amp; punctuation</string>
     <string name="text_input_section_typography">Typography</string>
     <string name="text_input_section_keyboard_behavior">Keyboard behavior</string>
+    <string name="text_input_section_integrations">Integrations</string>
     <string name="text_input_section_delete">Delete</string>
 
     <!-- Auto Capitalize Section -->
     <string name="auto_capitalize_title">Capitalize at text start</string>
     <string name="auto_capitalize_description">Capitalize the first letter when starting in an empty text field.</string>
+
+    <!-- Integrations Section -->
+    <string name="klipy_api_key_title">Klipy API key</string>
+    <string name="klipy_api_key_description">Used for GIF, sticker, and meme search. Leave blank to disable online media search.</string>
+    <string name="klipy_api_key_placeholder">Enter API key</string>
 
     <!-- Auto Capitalize After Period Section -->
     <string name="auto_capitalize_after_period_title">Capitalize after sentence end</string>

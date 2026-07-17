@@ -1,7 +1,6 @@
 package it.palsoftware.pastiera.gif
 
 import android.content.Context
-import it.palsoftware.pastiera.BuildConfig
 import it.palsoftware.pastiera.SettingsManager
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -69,8 +68,7 @@ class KlipyGifClient(
     }
 
     private fun resolveApiKey(): String {
-        val settingsKey = SettingsManager.getKlipyApiKey(context)
-        return if (settingsKey.isNotBlank()) settingsKey else BuildConfig.KLIPY_API_KEY
+        return SettingsManager.getKlipyApiKey(context)
     }
 
     private fun buildSearchUrl(
