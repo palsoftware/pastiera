@@ -1256,6 +1256,37 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         }
     }
     
+    /**
+     * Forces the keyboard to the user-defined default input style (language + layout) when a new
+     * input field is opened. No-op when the feature is disabled or the default style is already active.
+     */
+    private fun enforceDefaultLanguageSubtype() {
+        val defaultStyle = SettingsManager.getDefaultInputStyle(this) ?: return
+        if (isLanguageSwitchInProgress) {
+            return
+        }
+        if (SubtypeCycler.getCurrentInputStyle(this, assets) == defaultStyle) {
+            return
+        }
+
+        isLanguageSwitchInProgress = true
+        try {
+            val switched = SubtypeCycler.switchToSubtypeByStyle(
+                context = this,
+                imeServiceClass = PhysicalKeyboardInputMethodService::class.java,
+                assets = assets,
+                targetLocale = defaultStyle.locale,
+                targetLayout = defaultStyle.layout,
+                showToast = false
+            )
+            val delayMs = if (switched) 300L else 0L
+            uiHandler.postDelayed({ isLanguageSwitchInProgress = false }, delayMs)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error enforcing default language subtype", e)
+            isLanguageSwitchInProgress = false
+        }
+    }
+
     private fun showPowerShortcutToast(message: String) {
         uiHandler.post {
             val now = System.currentTimeMillis()
@@ -2885,6 +2916,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService() {
         // This ensures dynamic languages are loaded even if service was already created
         if (!restarting) {
             registerAdditionalSubtypes()
+            // Force the user-defined default language for each new input field, overriding
+            // whatever language was last used in the previous field.
+            enforceDefaultLanguageSubtype()
         }
 
         updateInputContextState(info)

@@ -230,6 +230,89 @@ object SubtypeCycler {
     }
     
     /**
+     * Switches to the enabled subtype whose locale and keyboard layout match
+     * [targetLocale]/[targetLayout].
+     *
+     * Used to enforce a user-defined default input style when a new input field is opened.
+     * Does nothing (returns false) if no enabled subtype matches the style, if the IME
+     * is not found, or if the window token is unavailable.
+     *
+     * @return true if a switch was performed, false otherwise.
+     */
+    fun switchToSubtypeByStyle(
+        context: Context,
+        imeServiceClass: Class<*>,
+        assets: AssetManager,
+        targetLocale: String,
+        targetLayout: String,
+        showToast: Boolean = false
+    ): Boolean {
+        return try {
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+                ?: return false
+
+            // Already on the requested input style -> nothing to do
+            val current = imm.currentInputMethodSubtype
+            if (current != null &&
+                current.localeString() == targetLocale &&
+                resolveSubtypeCycleLayout(assets, context, current) == targetLayout
+            ) {
+                return false
+            }
+
+            val packageName = context.packageName
+            val serviceName = imeServiceClass.name
+            val inputMethodInfo = imm.getInputMethodList().firstOrNull { info ->
+                info.packageName == packageName && info.serviceName == serviceName
+            } ?: run {
+                Log.w(TAG, "IME not found for default-style switch: $packageName/$serviceName")
+                return false
+            }
+
+            val enabledSubtypes = imm.getEnabledInputMethodSubtypeList(inputMethodInfo, true)
+            val targetSubtype = enabledSubtypes.firstOrNull { subtype ->
+                subtype.localeString() == targetLocale &&
+                    resolveSubtypeCycleLayout(assets, context, subtype) == targetLayout
+            } ?: run {
+                Log.d(TAG, "No enabled subtype matches default style '$targetLocale:$targetLayout', skipping")
+                return false
+            }
+
+            val switched = trySwitchSubtype(imm, inputMethodInfo.id, targetSubtype, context)
+            if (switched) {
+                SettingsManager.setKeyboardLayout(context, targetLayout)
+                Log.d(TAG, "Forced default input style: $targetLocale:$targetLayout")
+                if (showToast) {
+                    showUnifiedSubtypeToast(context, targetSubtype, assets)
+                }
+            }
+            switched
+        } catch (e: Exception) {
+            Log.e(TAG, "Error switching to default input style '$targetLocale:$targetLayout'", e)
+            false
+        }
+    }
+
+    /**
+     * Gets the current IME subtype's input style (locale + resolved keyboard layout),
+     * or null if unavailable.
+     */
+    fun getCurrentInputStyle(context: Context, assets: AssetManager): SettingsManager.DefaultInputStyle? {
+        return try {
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            val subtype = imm?.currentInputMethodSubtype ?: return null
+            val locale = subtype.localeString().ifBlank { return null }
+            SettingsManager.DefaultInputStyle(
+                locale = locale,
+                layout = resolveSubtypeCycleLayout(assets, context, subtype)
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting current input style", e)
+            null
+        }
+    }
+
+    /**
      * Gets the current subtype display name.
      */
     fun getCurrentSubtypeName(context: Context): String? {

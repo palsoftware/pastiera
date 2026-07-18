@@ -100,6 +100,7 @@ object SettingsManager {
     private const val KEY_STATIC_VARIATION_BAR_MODIFIER_HOLD_RESTORATION = "static_variation_bar_modifier_hold_restoration"
     private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
     private const val KEY_ADDITIONAL_IME_SUBTYPES = "additional_ime_subtypes" // Comma-separated list of language codes for additional IME subtypes
+    private const val KEY_DEFAULT_SUBTYPE_STYLE = "default_subtype_style" // Input style "locale:layout" (e.g. "en_US:qwerty") to force on every new input field; empty = keep last used
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Whether clipboard history is enabled
     private const val KEY_CLIPBOARD_RETENTION_TIME = "clipboard_retention_time" // How long to keep clipboard entries (in minutes)
     private const val KEY_TRACKPAD_GESTURES_ENABLED = "trackpad_gestures_enabled" // Whether trackpad gesture suggestions are enabled
@@ -1225,7 +1226,46 @@ object SettingsManager {
             .putStringSet(KEY_ADDITIONAL_IME_SUBTYPES, normalized)
             .apply()
     }
-    
+
+    /**
+     * An input style (language + keyboard layout pair) used as the default subtype.
+     */
+    data class DefaultInputStyle(val locale: String, val layout: String)
+
+    /**
+     * Returns the input style (locale + layout, e.g. "en_US"/"qwerty") that should be forced
+     * when a new input field is opened, or null when the feature is disabled (the keyboard
+     * keeps the last used input style).
+     */
+    fun getDefaultInputStyle(context: Context): DefaultInputStyle? {
+        val raw = getPreferences(context)
+            .getString(KEY_DEFAULT_SUBTYPE_STYLE, "")
+            ?.trim()
+            .orEmpty()
+        if (raw.isEmpty()) return null
+        val separator = raw.indexOf(':')
+        if (separator <= 0 || separator >= raw.length - 1) return null
+        return DefaultInputStyle(
+            locale = raw.substring(0, separator),
+            layout = raw.substring(separator + 1)
+        )
+    }
+
+    /**
+     * Sets the default input style (language + layout) to force on every new input field.
+     * Pass null for either value to disable and keep the last used input style.
+     */
+    fun setDefaultInputStyle(context: Context, locale: String?, layout: String?) {
+        val value = if (locale.isNullOrBlank() || layout.isNullOrBlank()) {
+            ""
+        } else {
+            "${locale.trim()}:${layout.trim()}"
+        }
+        getPreferences(context).edit()
+            .putString(KEY_DEFAULT_SUBTYPE_STYLE, value)
+            .apply()
+    }
+
     /**
      * Returns the long-press threshold in milliseconds.
      */
