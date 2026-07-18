@@ -107,7 +107,15 @@ Pastiera Enhanced can render the emoji picker and candidate/variation emoji with
 
 ## Support
 
-Donate to the current Pastiera maintainer:
+Support Pastiera Enhanced development:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/astroboii47)
+
+Support the original Pastiera project:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C31OHWF2)
+
+Donate to the current upstream Pastiera maintainer:
 
 Account holder | Patrick Alexander Zauner |
 |---|---|
@@ -117,9 +125,6 @@ BIC | DEUTDESMP12
 Or, for everyone who sees an IBAN and quietly gives up:\
 [via PayPal](https://www.paypal.me/zaunerpa)\
 `<OpenCollective Profile coming soon>`
-
-Donate to the original developer:\
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C31OHWF2)
 
 ## Credits
 
