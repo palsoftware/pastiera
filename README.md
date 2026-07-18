@@ -12,19 +12,58 @@ This fork is kept close to the latest upstream Pastiera base while testing extra
 
 ## What's Included
 
-- Built on top of the latest Pastiera base, with the Enhanced changes reapplied cleanly.
-- GIF, sticker, and local media picker support from the emoji/media panel.
-- Media sending through Android rich-content APIs, with fallback handling for apps that do not accept direct GIF/sticker content.
-- Snippets for quick text shortcuts such as emails, usernames, links, and common phrases.
-- Emoji and symbol shortcodes while typing.
-- Improved predictive text with local next-word learning and bundled common phrase fallbacks.
+Pastiera Enhanced 4.x is a rewrite of the Enhanced fork on top of the newer Pastiera base, with the fork-specific features reapplied and cleaned up for testing and upstream review.
+
+### Text, Predictions, and Shortcuts
+
+- Emoji and symbol shortcodes while typing, including inline suggestions and shortcut completion.
+- Snippets for quick text shortcuts such as emails, usernames, links, templates, and common phrases.
+- Searchable snippet management page.
+- Improved predictive text with local next-word learning.
+- Bundled common phrase fallback data so predictions are useful before personal learning builds up.
 - Unified Mode, which can show predictions in the existing candidate/variation bar instead of stacking a second row.
+- Better prediction insertion, including replacing the current word where appropriate and advancing suggestions after accepting a prediction.
 - Long-press removal for unwanted prediction suggestions.
+- Klipy API key setting under Smart Features, without shipping a default/shared key.
+
+### Emoji, Media, and SYM Pages
+
+- GIF, sticker, and local media support from the emoji/media panel.
+- Klipy-powered GIF/sticker search with trending and search results.
+- Animated media previews in the picker.
+- Tap-to-preview before sending media.
+- Rich GIF/sticker sending when the target app supports it.
+- Link/file fallback handling for apps that do not accept direct rich content.
+- Media tab inside the emoji picker, separate from whether the standalone GIF SYM page is enabled.
 - Updated emoji data and search entries, including newer emoji support.
 - Optional custom emoji font rendering in the emoji picker and candidate/variation UI.
-- Per-app keyboard themes, with overridden apps pinned at the top of the selector.
-- Theme improvements including key tap/accent color, translucency/frosted glass controls, modifier strip thickness, theme clone/rename/delete, and better highlight coloring.
-- Improved SYM/status bar behavior, page cycling, popup layout, close controls, and candidate bar polish.
+- Improved emoji, GIF, symbols, clipboard, and SYM popup layout.
+- Close buttons and better sizing/padding for emoji and media pages.
+- Improved SYM/status bar page cycling and long-press selector behavior.
+
+### Themes and Appearance
+
+- Per-app keyboard themes for hardware and software keyboard modes.
+- Searchable per-app theme manager with overridden apps pinned first.
+- Direct theme picker for each app override.
+- Theme clone, rename, and delete actions.
+- Key tap color now drives accent-style highlights across more of the keyboard UI.
+- User-adjustable key tap/accent color.
+- User-adjustable modifier indicator strip thickness.
+- Translucency/frosted glass controls for keyboard bars and popups.
+- Better handling for popup translucency so snippet/shortcode pages remain readable.
+- Candidate, variation, status, and emoji/media UI colors follow the selected keyboard theme more consistently.
+
+### Physical Keyboard and Titan 2 Behavior
+
+- Fixed and overhauled Shift/Ctrl/Alt one-shot, held, and latch behavior.
+- More reliable double-tap latch handling for hardware modifiers.
+- Optional Keymapper modifier double-tap guard for setups where Keymapper maps Shift/Ctrl/Alt combos.
+- Configurable Shift/Alt/Ctrl + Backspace delete behavior, including normal, word, and line delete modes.
+- Configurable SYM/F12 + Backspace delete behavior where supported by the device/keymap path.
+- Better handling around Tab/F12/SYM integrations for Titan 2-style hardware mappings.
+- Improved modifier LED/status behavior so held keys are less likely to remain visually stuck after shortcuts.
+- Tuned for Unihertz Titan 2 usage, while keeping Pastiera's configurable layout system.
 
 ## Core Pastiera Features
 
