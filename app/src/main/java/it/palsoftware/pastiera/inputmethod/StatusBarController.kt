@@ -5,7 +5,11 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Shader
 import androidx.core.content.ContextCompat
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
@@ -28,6 +32,9 @@ import it.palsoftware.pastiera.SymPagesConfig
 import it.palsoftware.pastiera.data.layout.LayoutFileStore
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import it.palsoftware.pastiera.data.variation.VariationRepository
+import it.palsoftware.pastiera.gif.KlipyGifClient
+import it.palsoftware.pastiera.gif.KlipyGifResult
+import it.palsoftware.pastiera.inputmethod.ui.GifPickerView
 import kotlin.math.max
 import android.view.KeyEvent
 import android.view.inputmethod.InputMethodManager
@@ -75,6 +82,8 @@ class StatusBarController(
             field = value
             variationBarView?.onVariationSelectedListener = value
         }
+
+    var currentPackageName: String? = null
     
     // Listener for cursor movement (to update variations)
     var onCursorMovedListener: (() -> Unit)? = null
@@ -102,9 +111,17 @@ class StatusBarController(
             variationBarView?.onAddUserWordSubstitutionRequested = value
         }
 
-    var onSuggestionCommitted: (() -> Unit)? = null
+    var onSuggestionCommitted: ((String) -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onSuggestionCommitted = value
+        }
 
     var onHideSuggestion: ((String) -> Unit)? = null
+        set(value) {
+            field = value
+            variationBarView?.onHideSuggestion = value
+        }
 
     var onDeleteUserSuggestion: ((String) -> Unit)? = null
 
@@ -128,7 +145,11 @@ class StatusBarController(
             variationBarView?.onEmojiPickerRequested = value
         }
 
+    var onGifPickerRequested: (() -> Unit)? = null
+
     var onEmojiPageRequested: (() -> Unit)? = null
+
+    var onGifSelected: ((KlipyGifResult) -> Unit)? = null
     
     var onSymbolsPageRequested: (() -> Unit)? = null
         set(value) {
@@ -293,6 +314,8 @@ class StatusBarController(
     private var clipboardHistoryView: ClipboardHistoryView? = null
     private var lastClipboardCountRendered: Int = -1
     private var emojiPickerView: EmojiPickerView? = null
+    private var gifPickerView: GifPickerView? = null
+    private var openMediaTabOnNextEmojiPickerRender = false
     private var emojiKeyButtons: MutableList<View> = mutableListOf()
     private var lastSymPageRendered: Int = 0
     private var lastSymMappingsRendered: Map<Int, String>? = null
@@ -370,7 +393,8 @@ class StatusBarController(
             context,
             SettingsManager.KeyboardThemeTarget.HARDWARE,
             locale,
-            layout
+            layout,
+            currentPackageName
         )
     }
 
@@ -380,7 +404,8 @@ class StatusBarController(
             context,
             SettingsManager.KeyboardThemeTarget.SOFTWARE,
             locale,
-            layout
+            layout,
+            currentPackageName
         )
     }
 
@@ -400,6 +425,7 @@ class StatusBarController(
 
     private fun applyKeyboardThemeOverrides(activeColors: KeyboardThemeColors) {
         statusBarLayout?.setBackgroundColor(activeColors.background)
+        (statusBarLayout as? ImeChromeLayout)?.themeColors = activeColors
         symSurfaceStack?.setBackgroundColor(activeColors.background)
         symSurfaceContainer?.setBackgroundColor(activeColors.background)
         emojiKeyboardContainer?.setBackgroundColor(activeColors.background)
@@ -477,7 +503,8 @@ class StatusBarController(
             ledInactive = ledInactive,
             ledActive = ledActive,
             ledLocked = ledLocked,
-            accent = accent,
+            accent = keyTap,
+            keyTap = keyTap,
             keyPopup = keyPopup,
             keyPopupSelected = keyPopupSelected,
             keyPopupStyle = keyPopupStyle,
@@ -775,6 +802,33 @@ class StatusBarController(
         return emojiPickerView?.createSearchInputConnection()
     }
 
+    fun handleGifPickerSearchKeyDown(event: KeyEvent?): Boolean {
+        if (event == null) return false
+        return gifPickerView?.handleSearchKeyDown(event) == true ||
+            emojiPickerView?.handleMediaSearchKeyDown(event) == true
+    }
+
+    fun shouldConsumeGifPickerSearchKeyUp(event: KeyEvent?): Boolean {
+        if (event == null) return false
+        return gifPickerView?.shouldConsumeSearchKeyUp(event) == true ||
+            emojiPickerView?.shouldConsumeMediaSearchKeyUp(event) == true
+    }
+
+    fun disableGifPickerSearchInputCapture() {
+        gifPickerView?.disableSearchInputCapture()
+        emojiPickerView?.disableMediaSearchInputCapture()
+    }
+
+    fun isGifPickerSearchInputActive(): Boolean {
+        return gifPickerView?.isSearchInputActive() == true ||
+            emojiPickerView?.isMediaSearchInputActive() == true
+    }
+
+    fun requestMediaTabOnNextEmojiPickerOpen() {
+        openMediaTabOnNextEmojiPickerRender = true
+        emojiPickerView?.showMediaTab()
+    }
+
     private fun openSettings() {
         try {
             val intent = Intent(context, SettingsActivity::class.java).apply {
@@ -1044,9 +1098,11 @@ class StatusBarController(
         container.setPadding(0, 0, 0, 0)
 
         // Reuse the same view to avoid flicker caused by removeAllViews()/recreate on each status update.
-        val view = emojiPickerView ?: EmojiPickerView(context) {
-            onSymCloseRequested?.invoke()
-        }.also { emojiPickerView = it }
+        val view = emojiPickerView ?: EmojiPickerView(
+            context = context,
+            onCloseRequested = { onSymCloseRequested?.invoke() },
+            onGifSelected = { result -> onGifSelected?.invoke(result) }
+        ).also { emojiPickerView = it }
         view.themeOverride = (if (
             mode == Mode.FULL &&
                 SettingsManager.resolveEffectiveSoftwareKeyboardMode(context) == SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
@@ -1062,6 +1118,10 @@ class StatusBarController(
             onKeyboardLayoutRequested = if (softwareKeyboardHeight != null) onEmojiPickerRequested else null
         )
         view.setInputConnection(inputConnection)
+        if (openMediaTabOnNextEmojiPickerRender) {
+            view.showMediaTab()
+            openMediaTabOnNextEmojiPickerRender = false
+        }
 
         // Only scroll to top when view is just added (first open or switching pages)
         // Don't scroll if view is already in container (user is browsing)
@@ -1073,6 +1133,29 @@ class StatusBarController(
         lastSymPageRendered = 4
     }
 
+    private fun updateGifPickerView() {
+        val container = emojiKeyboardContainer ?: return
+        container.setPadding(0, 0, 0, emojiKeyboardBottomPaddingPx)
+
+        val view = gifPickerView ?: GifPickerView(
+            context = context,
+            gifClient = KlipyGifClient(context),
+            onGifSelected = { result -> onGifSelected?.invoke(result) }
+        ).also { gifPickerView = it }
+        val wasJustAdded = view.parent !== container
+        if (wasJustAdded) {
+            container.removeAllViews()
+            emojiKeyButtons.clear()
+            container.addView(view)
+        }
+        if (lastSymPageRendered != 5) {
+            view.refresh()
+        } else if (wasJustAdded) {
+            view.scrollToTop()
+        }
+        lastSymPageRendered = 5
+    }
+
     /**
      * Aggiorna la griglia emoji/caratteri con le mappature SYM.
      * @param symMappings Le mappature da visualizzare
@@ -1082,7 +1165,7 @@ class StatusBarController(
     private fun updateEmojiKeyboard(symMappings: Map<Int, String>, page: Int, inputConnection: android.view.inputmethod.InputConnection? = null) {
         val container = emojiKeyboardContainer ?: return
         // Restore default padding for emoji/symbols pages.
-        container.setPadding(emojiKeyboardHorizontalPaddingPx, 0, emojiKeyboardHorizontalPaddingPx, 0)
+        container.setPadding(emojiKeyboardHorizontalPaddingPx, dpToPx(3f), emojiKeyboardHorizontalPaddingPx, 0)
         val inputConnectionChanged = lastInputConnectionUsed != inputConnection
         val inputConnectionBecameAvailable = lastInputConnectionUsed == null && inputConnection != null
         if (lastSymPageRendered == page && lastSymMappingsRendered == symMappings && !inputConnectionChanged && !inputConnectionBecameAvailable) {
@@ -2529,10 +2612,11 @@ class StatusBarController(
 
         // Set background to opaque immediately without animation
         backgroundView?.let { bgView ->
+            val backgroundColor = activeThemeColors().background
             if (bgView.background !is ColorDrawable) {
-                bgView.background = ColorDrawable(activeThemeColors().background)
+                bgView.background = ColorDrawable(backgroundColor)
             }
-            (bgView.background as? ColorDrawable)?.alpha = 255
+            (bgView.background as? ColorDrawable)?.alpha = Color.alpha(backgroundColor)
         }
 
         val animator = ValueAnimator.ofFloat(measuredHeight.toFloat(), 0f).apply {
@@ -2603,10 +2687,14 @@ class StatusBarController(
         val activeTheme = activeThemeSettings(isFullSoftwareKeyboardMode)
         val activeColors = activeTheme.toKeyboardThemeColors()
         val softwareThemeSettings = if (isFullSoftwareKeyboardMode) activeTheme else softwareTheme()
+        val unifiedModeEnabled = SettingsManager.getUnifiedSuggestionsVariationsBar(context)
         variationBarView?.onVariationSelectedListener = onVariationSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
+        variationBarView?.onSuggestionCommitted = onSuggestionCommitted
+        variationBarView?.onHideSuggestion = onHideSuggestion
         variationBarView?.updateInputConnection(inputConnection)
-        variationBarView?.forceVariationAreaVisible = isFullSoftwareKeyboardMode
+        variationBarView?.forceVariationAreaVisible = isFullSoftwareKeyboardMode || unifiedModeEnabled
+        variationBarView?.compactVerticalPadding = unifiedModeEnabled && !isFullSoftwareKeyboardMode
         variationBarView?.setSymModeActive((snapshot.symPage > 0 && !isSoftwareKeyboardOverlayPage) || snapshot.clipboardOverlay)
         variationBarView?.updateLanguageButtonText()
         updateClipboardCount(snapshot.clipboardCount)
@@ -2644,7 +2732,7 @@ class StatusBarController(
         if (layout.background !is ColorDrawable) {
             layout.background = ColorDrawable(activeTheme.background)
         } else if (snapshot.symPage == 0) {
-            (layout.background as ColorDrawable).alpha = 255
+            (layout.background as ColorDrawable).alpha = Color.alpha(activeTheme.background)
         }
         
         modifiersContainerView.visibility = View.GONE
@@ -2678,13 +2766,18 @@ class StatusBarController(
         }
         val experimentalEnabled = SettingsManager.isExperimentalSuggestionsEnabled(context)
         val suggestionsEnabledSetting = SettingsManager.getSuggestionsEnabled(context)
+        val suppressFullBarForUnifiedMode = unifiedModeEnabled &&
+            snapshot.symPage == 0 &&
+            !snapshot.clipboardOverlay &&
+            !isFullSoftwareKeyboardMode
         // Show full suggestions bar when conditions are met (including minimal UI mode)
         val showFullBar =
             (experimentalEnabled || isFullSoftwareKeyboardMode) &&
             (suggestionsEnabledSetting || isFullSoftwareKeyboardMode) &&
             (isFullSoftwareKeyboardMode || !snapshot.shouldDisableSuggestions) &&
             (snapshot.symPage == 0 || isSoftwareKeyboardOverlayPage) &&
-            !snapshot.clipboardOverlay
+            !snapshot.clipboardOverlay &&
+            !suppressFullBarForUnifiedMode
         val suggestionsAnnouncementDelayMs = SettingsManager.getAccessibilitySuggestionsAnnouncementDelayMs(context)
         fullSuggestionsBar?.setAccessibilityAnnouncementConfig(
             liveAnnouncementsEnabled = isAccessibilityLiveAnnouncementsEnabled(),
@@ -2721,7 +2814,7 @@ class StatusBarController(
             if (layout.background !is ColorDrawable) {
                 layout.background = ColorDrawable(activeColors.background)
             }
-            (layout.background as? ColorDrawable)?.alpha = 255
+            (layout.background as? ColorDrawable)?.alpha = Color.alpha(activeColors.background)
             variationsWrapperView?.apply {
                 visibility = View.INVISIBLE
                 isEnabled = false
@@ -2801,6 +2894,9 @@ class StatusBarController(
             } else if (snapshot.symPage == 4) {
                 // Show emoji picker view
                 updateEmojiPickerView(inputConnection, softwareKeyboardHeight = lastSoftwareKeyboardHeight.takeIf { isFullSoftwareKeyboardMode && it > 0 })
+            } else if (snapshot.symPage == 5) {
+                openMediaTabOnNextEmojiPickerRender = true
+                updateEmojiPickerView(inputConnection, softwareKeyboardHeight = lastSoftwareKeyboardHeight.takeIf { isFullSoftwareKeyboardMode && it > 0 })
             } else if (isSoftwareKeyboardSymbolPage && symMappings != null) {
                 updateSoftwareSymbolKeyboard(symMappings, snapshot, inputConnection)
             } else if (symMappings != null) {
@@ -2812,7 +2908,7 @@ class StatusBarController(
             if (layout.background !is ColorDrawable) {
                 layout.background = ColorDrawable(activeColors.background)
             }
-            (layout.background as? ColorDrawable)?.alpha = 255
+            (layout.background as? ColorDrawable)?.alpha = Color.alpha(activeColors.background)
             if (isSoftwareKeyboardOverlayPage) {
                 variationsWrapperView?.apply {
                     visibility = View.VISIBLE
@@ -2882,7 +2978,7 @@ class StatusBarController(
                 isEnabled = true
                 isClickable = true
             }
-            val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
+            val snapshotForVariations = if (!unifiedModeEnabled && snapshot.suggestions.isNotEmpty()) {
                 snapshot.copy(suggestions = emptyList(), addWordCandidate = null)
             } else snapshot
             variationsBar?.showVariations(snapshotForVariations, inputConnection)
@@ -3123,6 +3219,21 @@ class StatusBarController(
     }
 
     private class ImeChromeLayout(context: Context) : LinearLayout(context) {
+        private val frostPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val noisePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = context.resources.displayMetrics.density
+        }
+        private val noiseStepPx = (9f * context.resources.displayMetrics.density).coerceAtLeast(6f)
+
+        var themeColors: KeyboardThemeColors? = null
+            set(value) {
+                if (field == value) return
+                field = value
+                setWillNotDraw(false)
+                invalidate()
+            }
         var surfaceView: View? = null
             set(value) {
                 field = value
@@ -3137,6 +3248,51 @@ class StatusBarController(
 
         init {
             setChildrenDrawingOrderEnabled(true)
+            setWillNotDraw(false)
+        }
+
+        override fun dispatchDraw(canvas: Canvas) {
+            drawFrostedLayer(canvas)
+            super.dispatchDraw(canvas)
+        }
+
+        private fun drawFrostedLayer(canvas: Canvas) {
+            val theme = themeColors ?: return
+            val backgroundAlpha = Color.alpha(theme.background)
+            val intensity = theme.frostIntensity.coerceIn(0f, 2f)
+            if (intensity <= 0.01f || backgroundAlpha >= 245 || width <= 0 || height <= 0) return
+
+            frostPaint.shader = LinearGradient(
+                0f,
+                0f,
+                0f,
+                height.toFloat(),
+                intArrayOf(
+                    Color.argb((58f * intensity).toInt().coerceIn(0, 140), 255, 255, 255),
+                    Color.argb((18f * intensity).toInt().coerceIn(0, 72), 255, 255, 255),
+                    Color.argb((34f * intensity).toInt().coerceIn(0, 96), 0, 0, 0)
+                ),
+                floatArrayOf(0f, 0.38f, 1f),
+                Shader.TileMode.CLAMP
+            )
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), frostPaint)
+            frostPaint.shader = null
+
+            noisePaint.color = Color.argb((22f * intensity).toInt().coerceIn(0, 72), 255, 255, 255)
+            val columns = (width / noiseStepPx).toInt() + 2
+            val rows = (height / noiseStepPx).toInt() + 2
+            for (row in 0 until rows) {
+                for (column in 0 until columns) {
+                    val seed = (row * 37 + column * 19) % 11
+                    if (seed > 3) continue
+                    val x = column * noiseStepPx + ((seed * 0.37f) % 1f) * noiseStepPx
+                    val y = row * noiseStepPx + ((seed * 0.61f) % 1f) * noiseStepPx
+                    canvas.drawCircle(x, y, (0.5f + 0.25f * intensity) * resources.displayMetrics.density, noisePaint)
+                }
+            }
+
+            strokePaint.color = Color.argb((54f * intensity).toInt().coerceIn(0, 140), 255, 255, 255)
+            canvas.drawLine(0f, 0.5f, width.toFloat(), 0.5f, strokePaint)
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {

@@ -65,6 +65,11 @@ object SettingsManager {
     private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
     private const val KEY_AUTO_CORRECT_ENABLED_LANGUAGES = "auto_correct_enabled_languages"
     private const val KEY_SUGGESTIONS_ENABLED = "suggestions_enabled"
+    private const val KEY_SNIPPETS_ENABLED = "snippets_enabled"
+    private const val KEY_SNIPPETS_TRIGGER = "snippets_trigger"
+    private const val KEY_SNIPPETS = "snippets"
+    private const val KEY_EMOJI_SHORTCODE_ENABLED = "emoji_shortcode_enabled"
+    private const val KEY_SYMBOL_SHORTCODE_ENABLED = "symbol_shortcode_enabled"
     private const val KEY_ACCENT_MATCHING_ENABLED = "accent_matching_enabled"
     private const val KEY_AUTO_REPLACE_ON_SPACE_ENTER = "auto_replace_on_space_enter"
     private const val KEY_MAX_AUTO_REPLACE_DISTANCE = "max_auto_replace_distance"
@@ -81,6 +86,8 @@ object SettingsManager {
     private const val KEY_RESTORE_SYM_PAGE = "restore_sym_page" // SYM page to restore when returning from settings
     private const val KEY_PENDING_RESTORE_SYM_PAGE = "pending_restore_sym_page" // Temporary SYM page state saved when opening settings
     private const val KEY_SYM_PAGES_CONFIG = "sym_pages_config" // Order/enabled pages for SYM
+    private const val KEY_KLIPY_API_KEY = "klipy_api_key" // API key used for GIF search
+    private const val KEY_LOCAL_MEDIA_FOLDER_URI = "local_media_folder_uri" // Persisted SAF tree uri for local media tab
     private const val KEY_SYM_AUTO_CLOSE = "sym_auto_close" // Auto-close SYM layout after key press
     private const val KEY_SYM_AUTO_CLOSE_ON_TOUCH = "sym_auto_close_on_touch" // Auto-close SYM layout after tapping on-screen SYM keys
     private const val KEY_SHIFT_TAP_LATCHES = "shift_tap_latches"
@@ -89,6 +96,9 @@ object SettingsManager {
     private const val KEY_ALT_LATCH_STAYS_ON_SPACE = "alt_latch_stays_on_space"
     private const val KEY_CTRL_LATCH_STAYS_ON_SPACE = "ctrl_latch_stays_on_space"
     private const val KEY_EMOJI_PICKER_EXPANDED_HEIGHT = "emoji_picker_expanded_height"
+    private const val KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED = "emoji_picker_custom_font_enabled"
+    private const val KEY_EMOJI_PICKER_CUSTOM_FONT_PATH = "emoji_picker_custom_font_path"
+    private const val KEY_EMOJI_PICKER_CUSTOM_FONT_NAME = "emoji_picker_custom_font_name"
     private const val KEY_DISMISSED_RELEASES = "dismissed_releases" // Set of release tag_names that were dismissed
     private const val KEY_TUTORIAL_COMPLETED = "tutorial_completed" // Whether the first-run tutorial has been completed
     private const val KEY_LAST_SEEN_WHATS_NEW_VERSION = "last_seen_whats_new_version"
@@ -98,6 +108,7 @@ object SettingsManager {
     private const val KEY_STATIC_VARIATION_BAR_BASE_LAYER_ENABLED = "static_variation_bar_base_layer_enabled" // Toggle top-row preset
     private const val KEY_STATIC_VARIATION_BAR_MODIFIER_HOLD_RESTORATION = "static_variation_bar_modifier_hold_restoration"
     private const val KEY_VARIATIONS_UPDATED = "variations_updated" // Trigger for reloading variations in input method service
+    const val KEY_UNIFIED_SUGGESTIONS_VARIATIONS_BAR = "unified_suggestions_variations_bar"
     private const val KEY_ADDITIONAL_IME_SUBTYPES = "additional_ime_subtypes" // Comma-separated list of language codes for additional IME subtypes
     private const val KEY_CLIPBOARD_HISTORY_ENABLED = "clipboard_history_enabled" // Whether clipboard history is enabled
     private const val KEY_CLIPBOARD_RETENTION_TIME = "clipboard_retention_time" // How long to keep clipboard entries (in minutes)
@@ -147,6 +158,10 @@ object SettingsManager {
     private const val KEY_KEYBOARD_THEME_DARK_SOFTWARE = "keyboard_theme_dark_software"
     private const val KEY_KEYBOARD_THEME_LAYOUT_OVERRIDES_HARDWARE = "keyboard_theme_layout_overrides_hardware"
     private const val KEY_KEYBOARD_THEME_LAYOUT_OVERRIDES_SOFTWARE = "keyboard_theme_layout_overrides_software"
+    private const val KEY_KEYBOARD_THEME_APP_OVERRIDES_HARDWARE = "keyboard_theme_app_overrides_hardware"
+    private const val KEY_KEYBOARD_THEME_APP_OVERRIDES_SOFTWARE = "keyboard_theme_app_overrides_software"
+    private const val KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE = "keyboard_theme_last_input_package"
+    private const val KEY_KEYBOARD_THEME_LAST_INPUT_LABEL = "keyboard_theme_last_input_label"
     const val KEYBOARD_THEME_ASSIGNMENT_MODE_FIXED = "fixed"
     const val KEYBOARD_THEME_ASSIGNMENT_MODE_FOLLOW_SYSTEM = "follow_system"
     const val KEYBOARD_THEME_PREVIEW_VIEWPORT_SCALE_MIN = 1f
@@ -279,6 +294,11 @@ object SettingsManager {
     private const val DEFAULT_LAYOUT_AWARE_CTRL_SHORTCUTS = false
     private const val DEFAULT_AUTO_CORRECT_ENABLED = true
     private const val DEFAULT_SUGGESTIONS_ENABLED = true
+    private const val DEFAULT_SNIPPETS_ENABLED = true
+    private const val DEFAULT_SNIPPETS_TRIGGER = "!"
+    private const val DEFAULT_EMOJI_SHORTCODE_ENABLED = true
+    private const val DEFAULT_SYMBOL_SHORTCODE_ENABLED = true
+    private const val DEFAULT_LOCAL_MEDIA_FOLDER_URI = ""
     private const val DEFAULT_ACCENT_MATCHING_ENABLED = true
     private const val DEFAULT_AUTO_REPLACE_ON_SPACE_ENTER = false
     private const val DEFAULT_MAX_AUTO_REPLACE_DISTANCE = 1
@@ -312,6 +332,7 @@ object SettingsManager {
     private const val DEFAULT_EMOJI_PICKER_EXPANDED_HEIGHT = true
     private val DEFAULT_SYM_PAGES_CONFIG = SymPagesConfig()
     private const val DEFAULT_STATIC_VARIATION_BAR_MODE = false
+    private const val DEFAULT_UNIFIED_SUGGESTIONS_VARIATIONS_BAR = false
     private const val DEFAULT_STATIC_VARIATION_BAR_BASE_LAYER_ENABLED = false
     private const val DEFAULT_EXPERIMENTAL_SUGGESTIONS_ENABLED = true
     private const val DEFAULT_SUGGESTION_DEBUG_LOGGING = true
@@ -403,6 +424,7 @@ object SettingsManager {
         val ledActive: Int,
         val ledLocked: Int,
         val accent: Int,
+        val keyTap: Int = defaultKeyboardThemeKeyTapColor(normalKey, accent),
         val cursorSwipe: Int = accent,
         val keyPopup: Int = specialKey,
         val keyPopupSelected: Int = accent,
@@ -419,6 +441,8 @@ object SettingsManager {
         val showLeds: Boolean = true,
         val suggestionsHeightScale: Float = 1f,
         val variationsHeightScale: Float = 1f,
+        val frostIntensity: Float = 0f,
+        val modifierIndicatorStripScale: Float = 1f,
         val keyPopupStyle: String = KEYBOARD_THEME_POPUP_STYLE_FLOATING,
         val keyPopupAttached: Boolean = true,
         val keyPopupTailEnabled: Boolean = true,
@@ -435,7 +459,8 @@ object SettingsManager {
                 ledInactive = ledInactive,
                 ledActive = ledActive,
                 ledLocked = ledLocked,
-                accent = accent,
+                accent = keyTap,
+                keyTap = keyTap,
                 cursorSwipe = cursorSwipe,
                 keyPopup = keyPopup,
                 keyPopupSelected = keyPopupSelected,
@@ -444,7 +469,9 @@ object SettingsManager {
                 keyCornerRadiusRatio = keyCornerRadiusRatio,
                 chromeCornerRadiusRatio = chromeCornerRadiusRatio,
                 suggestionsHeightScale = suggestionsHeightScale,
-                variationsHeightScale = variationsHeightScale
+                variationsHeightScale = variationsHeightScale,
+                frostIntensity = frostIntensity,
+                modifierIndicatorStripScale = modifierIndicatorStripScale
             )
     }
 
@@ -457,6 +484,13 @@ object SettingsManager {
         val locale: String?,
         val layout: String?,
         val theme: KeyboardThemeSettings
+    )
+
+    data class KeyboardThemeAppOverride(
+        val packageName: String,
+        val appLabel: String?,
+        val theme: KeyboardThemeSettings,
+        val themeKey: String? = null
     )
 
     /**
@@ -498,6 +532,19 @@ object SettingsManager {
     fun setPastierinaModeActive(context: Context, isActive: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_PASTIERINA_MODE_ACTIVE, isActive)
+            .apply()
+    }
+
+    fun getUnifiedSuggestionsVariationsBar(context: Context): Boolean {
+        return getPreferences(context).getBoolean(
+            KEY_UNIFIED_SUGGESTIONS_VARIATIONS_BAR,
+            DEFAULT_UNIFIED_SUGGESTIONS_VARIATIONS_BAR
+        )
+    }
+
+    fun setUnifiedSuggestionsVariationsBar(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_UNIFIED_SUGGESTIONS_VARIATIONS_BAR, enabled)
             .apply()
     }
 
@@ -633,6 +680,7 @@ object SettingsManager {
             ledActive = 0xFF555555.toInt(),
             ledLocked = 0xFF111111.toInt(),
             accent = 0xFF3F8C96.toInt(),
+            keyTap = defaultKeyboardThemeKeyTapColor(0xFFFAFAFA.toInt(), 0xFF3F8C96.toInt()),
             cursorSwipe = 0xFF3F8C96.toInt(),
             keyPopup = 0xFFDDDDDD.toInt(),
             keyPopupSelected = 0xFF3F8C96.toInt(),
@@ -668,6 +716,7 @@ object SettingsManager {
                 ledActive = 0xFF6496FF.toInt(),
                 ledLocked = 0xFFF76300.toInt(),
                 accent = 0xFF6496FF.toInt(),
+                keyTap = defaultKeyboardThemeKeyTapColor(0xFF15191D.toInt(), 0xFF6496FF.toInt()),
                 cursorSwipe = 0xFF6496FF.toInt(),
                 keyPopup = 0xFF2B3138.toInt(),
                 keyPopupSelected = 0xFF6496FF.toInt(),
@@ -687,6 +736,7 @@ object SettingsManager {
                 ledActive = 0xFF276EF1.toInt(),
                 ledLocked = 0xFFD65A00.toInt(),
                 accent = 0xFF276EF1.toInt(),
+                keyTap = defaultKeyboardThemeKeyTapColor(0xFFFFFFFF.toInt(), 0xFF276EF1.toInt()),
                 cursorSwipe = 0xFF276EF1.toInt(),
                 keyPopup = 0xFFE0E6EE.toInt(),
                 keyPopupSelected = 0xFF276EF1.toInt(),
@@ -742,8 +792,17 @@ object SettingsManager {
             KeyboardThemeTarget.SOFTWARE -> KEY_KEYBOARD_THEME_LAYOUT_OVERRIDES_SOFTWARE
         }
 
+    private fun keyboardThemeAppOverridesKeyForTarget(target: KeyboardThemeTarget): String =
+        when (target) {
+            KeyboardThemeTarget.HARDWARE -> KEY_KEYBOARD_THEME_APP_OVERRIDES_HARDWARE
+            KeyboardThemeTarget.SOFTWARE -> KEY_KEYBOARD_THEME_APP_OVERRIDES_SOFTWARE
+        }
+
     fun isKeyboardThemePreferenceKey(key: String?): Boolean {
-        return key == KEY_KEYBOARD_THEME_HARDWARE || key == KEY_KEYBOARD_THEME_SOFTWARE
+        return key == KEY_KEYBOARD_THEME_HARDWARE ||
+            key == KEY_KEYBOARD_THEME_SOFTWARE ||
+            key == KEY_KEYBOARD_THEME_APP_OVERRIDES_HARDWARE ||
+            key == KEY_KEYBOARD_THEME_APP_OVERRIDES_SOFTWARE
     }
 
     fun isModifierIndicatorPreferenceKey(key: String?): Boolean {
@@ -783,6 +842,7 @@ object SettingsManager {
                 ledActive = json.optInt("led_active", defaults.ledActive),
                 ledLocked = json.optInt("led_locked", defaults.ledLocked),
                 accent = json.optInt("accent", defaults.accent),
+                keyTap = json.optKeyboardThemeKeyTap(defaults),
                 cursorSwipe = json.optInt("cursor_swipe", defaults.cursorSwipe),
                 keyPopup = json.optInt("key_popup", defaults.keyPopup),
                 keyPopupSelected = json.optInt("key_popup_selected", defaults.keyPopupSelected),
@@ -799,6 +859,8 @@ object SettingsManager {
                 showLeds = json.optBoolean("show_leds", defaults.showLeds),
                 suggestionsHeightScale = json.optDouble("suggestions_height_scale", defaults.suggestionsHeightScale.toDouble()).toFloat(),
                 variationsHeightScale = json.optDouble("variations_height_scale", defaults.variationsHeightScale.toDouble()).toFloat(),
+                frostIntensity = json.optDouble("frost_intensity", defaults.frostIntensity.toDouble()).toFloat(),
+                modifierIndicatorStripScale = json.optDouble("modifier_indicator_strip_scale", defaults.modifierIndicatorStripScale.toDouble()).toFloat(),
                 keyPopupStyle = normalizeKeyboardThemePopupStyle(json.optString("key_popup_style", defaults.keyPopupStyle)),
                 keyPopupAttached = json.optBoolean("key_popup_attached", defaults.keyPopupAttached),
                 keyPopupTailEnabled = json.optBoolean("key_popup_tail_enabled", defaults.keyPopupTailEnabled),
@@ -868,21 +930,164 @@ object SettingsManager {
     }
 
     fun getEffectiveKeyboardTheme(context: Context, target: KeyboardThemeTarget): KeyboardThemeSettings {
-        return getEffectiveKeyboardTheme(context, target, locale = null, layout = null)
+        return getEffectiveKeyboardTheme(context, target, locale = null, layout = null, packageName = null)
     }
 
     fun getEffectiveKeyboardTheme(
         context: Context,
         target: KeyboardThemeTarget,
         locale: String?,
-        layout: String?
+        layout: String?,
+        packageName: String? = null
     ): KeyboardThemeSettings {
+        findKeyboardThemeAppOverride(context, target, packageName)?.let {
+            return resolveKeyboardThemeAppOverrideTheme(context, target, it)
+        }
         findKeyboardThemeLayoutOverride(context, target, locale, layout)?.let { return it.theme }
         return if (getKeyboardThemeAssignmentMode(context, target) == KEYBOARD_THEME_ASSIGNMENT_MODE_FOLLOW_SYSTEM) {
             getKeyboardThemeSystemSlot(context, target, dark = isSystemDarkTheme(context))
         } else {
             getKeyboardTheme(context, target)
         }
+    }
+
+    fun setLastKeyboardThemeInputApp(context: Context, packageName: String?, appLabel: String?) {
+        val normalizedPackage = packageName?.trim()?.takeIf { it.isNotBlank() }
+        val normalizedLabel = appLabel?.trim()?.takeIf { it.isNotBlank() }
+        getPreferences(context).edit().apply {
+            if (normalizedPackage == null) {
+                remove(KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE)
+                remove(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL)
+            } else {
+                putString(KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE, normalizedPackage)
+                if (normalizedLabel == null) {
+                    remove(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL)
+                } else {
+                    putString(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL, normalizedLabel)
+                }
+            }
+        }.apply()
+    }
+
+    fun getLastKeyboardThemeInputPackage(context: Context): String? =
+        getPreferences(context).getString(KEY_KEYBOARD_THEME_LAST_INPUT_PACKAGE, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+    fun getLastKeyboardThemeInputLabel(context: Context): String? =
+        getPreferences(context).getString(KEY_KEYBOARD_THEME_LAST_INPUT_LABEL, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+
+    fun getKeyboardThemeAppOverrides(
+        context: Context,
+        target: KeyboardThemeTarget
+    ): List<KeyboardThemeAppOverride> {
+        val stored = getPreferences(context).getString(keyboardThemeAppOverridesKeyForTarget(target), null)
+            ?: return emptyList()
+        return try {
+            val array = JSONArray(stored)
+            buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.optJSONObject(index) ?: continue
+                    val packageName = item.optString("package_name", "").trim().takeIf { it.isNotBlank() }
+                        ?: continue
+                    val themeObject = item.optJSONObject("theme") ?: continue
+                    add(
+                        KeyboardThemeAppOverride(
+                            packageName = packageName,
+                            appLabel = item.optString("app_label", "").trim().takeIf { it.isNotBlank() },
+                            theme = keyboardThemeFromJson(themeObject, defaultKeyboardTheme(target)),
+                            themeKey = item.optString("theme_key", "").trim().takeIf { it.isNotBlank() }
+                        )
+                    )
+                }
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "Fehler beim Laden der App-Keyboard-Themes", error)
+            emptyList()
+        }
+    }
+
+    fun setKeyboardThemeAppOverrides(
+        context: Context,
+        target: KeyboardThemeTarget,
+        overrides: List<KeyboardThemeAppOverride>
+    ) {
+        val array = JSONArray()
+        overrides
+            .mapNotNull { override ->
+                val packageName = override.packageName.trim().takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                JSONObject().apply {
+                    put("package_name", packageName)
+                    override.appLabel?.trim()?.takeIf { it.isNotBlank() }?.let { put("app_label", it) }
+                    override.themeKey?.trim()?.takeIf { it.isNotBlank() }?.let { put("theme_key", it) }
+                    put("theme", keyboardThemeToJson(override.theme))
+                }
+            }
+            .forEach { array.put(it) }
+
+        getPreferences(context).edit()
+            .putString(keyboardThemeAppOverridesKeyForTarget(target), array.toString())
+            .apply()
+    }
+
+    fun upsertKeyboardThemeAppOverride(
+        context: Context,
+        target: KeyboardThemeTarget,
+        packageName: String,
+        appLabel: String?,
+        theme: KeyboardThemeSettings,
+        themeKey: String? = null
+    ) {
+        val normalizedPackage = packageName.trim().takeIf { it.isNotBlank() } ?: return
+        val updated = getKeyboardThemeAppOverrides(context, target)
+            .filterNot { it.packageName == normalizedPackage }
+            .toMutableList()
+        updated += KeyboardThemeAppOverride(
+            packageName = normalizedPackage,
+            appLabel = appLabel?.trim()?.takeIf { it.isNotBlank() },
+            theme = theme,
+            themeKey = themeKey?.trim()?.takeIf { it.isNotBlank() }
+        )
+        setKeyboardThemeAppOverrides(context, target, updated)
+    }
+
+    fun removeKeyboardThemeAppOverride(
+        context: Context,
+        target: KeyboardThemeTarget,
+        packageName: String
+    ) {
+        val normalizedPackage = packageName.trim().takeIf { it.isNotBlank() } ?: return
+        val updated = getKeyboardThemeAppOverrides(context, target)
+            .filterNot { it.packageName == normalizedPackage }
+        setKeyboardThemeAppOverrides(context, target, updated)
+    }
+
+    private fun findKeyboardThemeAppOverride(
+        context: Context,
+        target: KeyboardThemeTarget,
+        packageName: String?
+    ): KeyboardThemeAppOverride? {
+        val normalizedPackage = packageName?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        return getKeyboardThemeAppOverrides(context, target)
+            .firstOrNull { it.packageName == normalizedPackage }
+    }
+
+    fun resolveKeyboardThemeAppOverrideTheme(
+        context: Context,
+        target: KeyboardThemeTarget,
+        override: KeyboardThemeAppOverride
+    ): KeyboardThemeSettings {
+        val key = override.themeKey ?: return override.theme
+        if (key.startsWith("saved:")) {
+            val savedName = key.removePrefix("saved:")
+            getSavedKeyboardThemes(context)
+                .firstOrNull { it.name.equals(savedName, ignoreCase = true) }
+                ?.let { return it.theme }
+        }
+        return override.theme
     }
 
     fun getKeyboardThemeLayoutOverrides(
@@ -1086,6 +1291,70 @@ object SettingsManager {
             .apply()
     }
 
+    fun renameKeyboardTheme(
+        context: Context,
+        oldName: String,
+        newName: String
+    ) {
+        val normalizedOldName = oldName.trim()
+        val normalizedNewName = newName.trim().ifEmpty { "Custom" }
+        if (normalizedOldName.isBlank() || normalizedOldName.equals(normalizedNewName, ignoreCase = true)) {
+            return
+        }
+        val themes = getSavedKeyboardThemes(context)
+        val themeToRename = themes.firstOrNull { it.name.equals(normalizedOldName, ignoreCase = true) } ?: return
+        val updatedThemes = themes
+            .filterNot {
+                it.name.equals(normalizedOldName, ignoreCase = true) ||
+                    it.name.equals(normalizedNewName, ignoreCase = true)
+            } +
+            NamedKeyboardTheme(normalizedNewName, themeToRename.theme)
+        val array = JSONArray().apply {
+            updatedThemes.forEach { savedTheme ->
+                put(JSONObject().apply {
+                    put("name", savedTheme.name)
+                    put("theme", keyboardThemeToJson(savedTheme.theme))
+                })
+            }
+        }
+        getPreferences(context).edit()
+            .putString(KEY_KEYBOARD_THEME_SAVED_THEMES, array.toString())
+            .apply()
+        val oldKey = "saved:$normalizedOldName"
+        val newKey = "saved:$normalizedNewName"
+        KeyboardThemeTarget.entries.forEach { target ->
+            val updatedOverrides = getKeyboardThemeAppOverrides(context, target).map { override ->
+                if (override.themeKey == oldKey) {
+                    override.copy(themeKey = newKey)
+                } else {
+                    override
+                }
+            }
+            setKeyboardThemeAppOverrides(context, target, updatedOverrides)
+        }
+    }
+
+    fun deleteKeyboardTheme(
+        context: Context,
+        name: String
+    ) {
+        val normalizedName = name.trim()
+        if (normalizedName.isBlank()) return
+        val updatedThemes = getSavedKeyboardThemes(context)
+            .filterNot { it.name.equals(normalizedName, ignoreCase = true) }
+        val array = JSONArray().apply {
+            updatedThemes.forEach { savedTheme ->
+                put(JSONObject().apply {
+                    put("name", savedTheme.name)
+                    put("theme", keyboardThemeToJson(savedTheme.theme))
+                })
+            }
+        }
+        getPreferences(context).edit()
+            .putString(KEY_KEYBOARD_THEME_SAVED_THEMES, array.toString())
+            .apply()
+    }
+
     private fun keyboardThemeFromJson(
         json: JSONObject,
         defaults: KeyboardThemeSettings
@@ -1100,6 +1369,7 @@ object SettingsManager {
             ledActive = json.optInt("led_active", defaults.ledActive),
             ledLocked = json.optInt("led_locked", defaults.ledLocked),
             accent = json.optInt("accent", defaults.accent),
+            keyTap = json.optKeyboardThemeKeyTap(defaults),
             cursorSwipe = json.optInt("cursor_swipe", defaults.cursorSwipe),
             keyPopup = json.optInt("key_popup", defaults.keyPopup),
             keyPopupSelected = json.optInt("key_popup_selected", defaults.keyPopupSelected),
@@ -1116,6 +1386,8 @@ object SettingsManager {
             showLeds = json.optBoolean("show_leds", defaults.showLeds),
             suggestionsHeightScale = json.optDouble("suggestions_height_scale", defaults.suggestionsHeightScale.toDouble()).toFloat(),
             variationsHeightScale = json.optDouble("variations_height_scale", defaults.variationsHeightScale.toDouble()).toFloat(),
+            frostIntensity = json.optDouble("frost_intensity", defaults.frostIntensity.toDouble()).toFloat(),
+            modifierIndicatorStripScale = json.optDouble("modifier_indicator_strip_scale", defaults.modifierIndicatorStripScale.toDouble()).toFloat(),
             keyPopupStyle = normalizeKeyboardThemePopupStyle(json.optString("key_popup_style", defaults.keyPopupStyle)),
             keyPopupAttached = json.optBoolean("key_popup_attached", defaults.keyPopupAttached),
             keyPopupTailEnabled = json.optBoolean("key_popup_tail_enabled", defaults.keyPopupTailEnabled),
@@ -1134,6 +1406,7 @@ object SettingsManager {
             put("led_active", theme.ledActive)
             put("led_locked", theme.ledLocked)
             put("accent", theme.accent)
+            put("key_tap", theme.keyTap)
             put("cursor_swipe", theme.cursorSwipe)
             put("key_popup", theme.keyPopup)
             put("key_popup_selected", theme.keyPopupSelected)
@@ -1150,12 +1423,21 @@ object SettingsManager {
             put("show_leds", theme.showLeds)
             put("suggestions_height_scale", theme.suggestionsHeightScale.toDouble())
             put("variations_height_scale", theme.variationsHeightScale.toDouble())
+            put("frost_intensity", theme.frostIntensity.toDouble())
+            put("modifier_indicator_strip_scale", theme.modifierIndicatorStripScale.toDouble())
             put("key_popup_style", normalizeKeyboardThemePopupStyle(theme.keyPopupStyle))
             put("key_popup_attached", theme.keyPopupAttached)
             put("key_popup_tail_enabled", theme.keyPopupTailEnabled)
             put("key_preview_after_long_press", theme.keyPreviewAfterLongPress)
             put("key_alternates_popup_enabled", theme.keyAlternatesPopupEnabled)
         }
+
+    private fun JSONObject.optKeyboardThemeKeyTap(defaults: KeyboardThemeSettings): Int {
+        if (has("key_tap")) return optInt("key_tap", defaults.keyTap)
+        val normalKey = optInt("normal_key", defaults.normalKey)
+        val accent = optInt("accent", defaults.accent)
+        return defaultKeyboardThemeKeyTapColor(normalKey, accent)
+    }
 
     private fun normalizeKeyboardThemePopupStyle(value: String): String =
         when (value) {
@@ -2528,6 +2810,77 @@ object SettingsManager {
     fun setSuggestionsEnabled(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_SUGGESTIONS_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getSnippetsEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SNIPPETS_ENABLED, DEFAULT_SNIPPETS_ENABLED)
+    }
+
+    fun setSnippetsEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SNIPPETS_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getSnippetsTrigger(context: Context): String {
+        val stored = getPreferences(context).getString(KEY_SNIPPETS_TRIGGER, DEFAULT_SNIPPETS_TRIGGER).orEmpty()
+        return stored.take(1).ifEmpty { DEFAULT_SNIPPETS_TRIGGER }
+    }
+
+    fun setSnippetsTrigger(context: Context, trigger: String) {
+        val normalized = trigger.trim().take(1).ifEmpty { DEFAULT_SNIPPETS_TRIGGER }
+        getPreferences(context).edit()
+            .putString(KEY_SNIPPETS_TRIGGER, normalized)
+            .apply()
+    }
+
+    fun getSnippets(context: Context): LinkedHashMap<String, String> {
+        val jsonString = getPreferences(context).getString(KEY_SNIPPETS, null) ?: return linkedMapOf()
+        return try {
+            val jsonObject = JSONObject(jsonString)
+            val snippets = linkedMapOf<String, String>()
+            jsonObject.keys().forEach { key ->
+                snippets[key] = jsonObject.getString(key)
+            }
+            snippets
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading snippets", e)
+            linkedMapOf()
+        }
+    }
+
+    fun saveSnippets(context: Context, snippets: Map<String, String>) {
+        try {
+            val jsonObject = JSONObject()
+            snippets.forEach { (shortcut, value) ->
+                jsonObject.put(shortcut.lowercase(), value)
+            }
+            getPreferences(context).edit()
+                .putString(KEY_SNIPPETS, jsonObject.toString())
+                .apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving snippets", e)
+        }
+    }
+
+    fun getEmojiShortcodeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_EMOJI_SHORTCODE_ENABLED, DEFAULT_EMOJI_SHORTCODE_ENABLED)
+    }
+
+    fun setEmojiShortcodeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_EMOJI_SHORTCODE_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getSymbolShortcodeEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_SYMBOL_SHORTCODE_ENABLED, DEFAULT_SYMBOL_SHORTCODE_ENABLED)
+    }
+
+    fun setSymbolShortcodeEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_SYMBOL_SHORTCODE_ENABLED, enabled)
             .apply()
     }
 
@@ -4123,6 +4476,7 @@ object SettingsManager {
             val symbolsEnabled = jsonObject.optBoolean("symbolsEnabled", true)
             val clipboardEnabled = jsonObject.optBoolean("clipboardEnabled", false)
             val emojiPickerEnabled = jsonObject.optBoolean("emojiPickerEnabled", false)
+            val gifPickerEnabled = jsonObject.optBoolean("gifPickerEnabled", false)
             val legacyEmojiFirst = jsonObject.optBoolean("emojiFirst", true)
 
             val parsedOrder = if (jsonObject.has("symPageOrder")) {
@@ -4147,7 +4501,7 @@ object SettingsManager {
                 if (!legacyEmojiFirst) {
                     cyclePages.reverse()
                 }
-                cyclePages + SymPagesConfig.PAGE_EMOJI_PICKER
+                cyclePages + SymPagesConfig.PAGE_EMOJI_PICKER + SymPagesConfig.PAGE_GIF_PICKER
             }
 
             SymPagesConfig(
@@ -4155,6 +4509,7 @@ object SettingsManager {
                 symbolsEnabled = symbolsEnabled,
                 clipboardEnabled = clipboardEnabled,
                 emojiPickerEnabled = emojiPickerEnabled,
+                gifPickerEnabled = gifPickerEnabled,
                 symPageOrder = parsedOrder
             )
         } catch (e: Exception) {
@@ -4173,6 +4528,7 @@ object SettingsManager {
                 put("symbolsEnabled", config.symbolsEnabled)
                 put("clipboardEnabled", config.clipboardEnabled)
                 put("emojiPickerEnabled", config.emojiPickerEnabled)
+                put("gifPickerEnabled", config.gifPickerEnabled)
                 // Keep legacy field for backward compatibility with older builds.
                 put("emojiFirst", config.prefersEmojiLongPressLayer())
                 val orderArray = org.json.JSONArray()
@@ -4186,6 +4542,27 @@ object SettingsManager {
         } catch (e: Exception) {
             Log.e(TAG, "Error saving SYM pages config", e)
         }
+    }
+
+    fun getKlipyApiKey(context: Context): String {
+        return getPreferences(context).getString(KEY_KLIPY_API_KEY, "") ?: ""
+    }
+
+    fun setKlipyApiKey(context: Context, apiKey: String) {
+        getPreferences(context).edit()
+            .putString(KEY_KLIPY_API_KEY, apiKey.trim())
+            .apply()
+    }
+
+    fun getLocalMediaFolderUri(context: Context): String {
+        return getPreferences(context).getString(KEY_LOCAL_MEDIA_FOLDER_URI, DEFAULT_LOCAL_MEDIA_FOLDER_URI)
+            ?: DEFAULT_LOCAL_MEDIA_FOLDER_URI
+    }
+
+    fun setLocalMediaFolderUri(context: Context, uri: String) {
+        getPreferences(context).edit()
+            .putString(KEY_LOCAL_MEDIA_FOLDER_URI, uri.trim())
+            .apply()
     }
     
     /**
@@ -4231,6 +4608,32 @@ object SettingsManager {
     fun setEmojiPickerExpandedHeight(context: Context, enabled: Boolean) {
         getPreferences(context).edit()
             .putBoolean(KEY_EMOJI_PICKER_EXPANDED_HEIGHT, enabled)
+            .apply()
+    }
+
+    fun getEmojiPickerCustomFontEnabled(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED, false)
+    }
+
+    fun setEmojiPickerCustomFontEnabled(context: Context, enabled: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED, enabled)
+            .apply()
+    }
+
+    fun getEmojiPickerCustomFontPath(context: Context): String {
+        return getPreferences(context).getString(KEY_EMOJI_PICKER_CUSTOM_FONT_PATH, "") ?: ""
+    }
+
+    fun getEmojiPickerCustomFontName(context: Context): String {
+        return getPreferences(context).getString(KEY_EMOJI_PICKER_CUSTOM_FONT_NAME, "") ?: ""
+    }
+
+    fun setEmojiPickerCustomFont(context: Context, path: String, displayName: String) {
+        getPreferences(context).edit()
+            .putString(KEY_EMOJI_PICKER_CUSTOM_FONT_PATH, path)
+            .putString(KEY_EMOJI_PICKER_CUSTOM_FONT_NAME, displayName)
+            .putBoolean(KEY_EMOJI_PICKER_CUSTOM_FONT_ENABLED, true)
             .apply()
     }
 

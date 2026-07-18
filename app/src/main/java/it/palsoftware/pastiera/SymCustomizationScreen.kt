@@ -2,6 +2,9 @@ package it.palsoftware.pastiera
 
 import android.content.Context
 import android.view.KeyEvent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.rememberScrollState
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import it.palsoftware.pastiera.R
+import it.palsoftware.pastiera.emoji.CustomEmojiFontManager
 import it.palsoftware.pastiera.inputmethod.StatusBarController
 
 /**
@@ -57,6 +61,26 @@ fun SymCustomizationScreen(
     }
     var emojiPickerExpandedHeight by remember {
         mutableStateOf(SettingsManager.getEmojiPickerExpandedHeight(context))
+    }
+    var customEmojiFontEnabled by remember {
+        mutableStateOf(SettingsManager.getEmojiPickerCustomFontEnabled(context))
+    }
+    var customEmojiFontName by remember {
+        mutableStateOf(SettingsManager.getEmojiPickerCustomFontName(context))
+    }
+    val customEmojiFontImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            CustomEmojiFontManager.importFont(context, uri)
+        }.onSuccess { displayName ->
+            customEmojiFontEnabled = true
+            customEmojiFontName = displayName
+            Toast.makeText(context, context.getString(R.string.emoji_picker_custom_font_imported, displayName), Toast.LENGTH_SHORT).show()
+        }.onFailure { error ->
+            Toast.makeText(context, error.message ?: context.getString(R.string.emoji_picker_custom_font_import_failed), Toast.LENGTH_LONG).show()
+        }
     }
 
     var titan2LayoutEnabled by remember {
@@ -86,6 +110,7 @@ fun SymCustomizationScreen(
         SymPagesConfig.PAGE_SYMBOLS -> context.getString(R.string.sym_enable_symbols_page_title)
         SymPagesConfig.PAGE_CLIPBOARD -> context.getString(R.string.sym_enable_clipboard_page_title)
         SymPagesConfig.PAGE_EMOJI_PICKER -> context.getString(R.string.sym_enable_emoji_picker_page_title)
+        SymPagesConfig.PAGE_GIF_PICKER -> context.getString(R.string.sym_enable_gif_picker_page_title)
         else -> pageId
     }
     var draggingPageId by remember { mutableStateOf<String?>(null) }
@@ -528,6 +553,73 @@ fun SymCustomizationScreen(
                 )
             }
         }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Keyboard,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.emoji_picker_custom_font_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = if (customEmojiFontName.isBlank()) {
+                                stringResource(R.string.emoji_picker_custom_font_description)
+                            } else {
+                                stringResource(R.string.emoji_picker_custom_font_selected, customEmojiFontName)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2
+                        )
+                    }
+                    Switch(
+                        checked = customEmojiFontEnabled,
+                        enabled = SettingsManager.getEmojiPickerCustomFontPath(context).isNotBlank(),
+                        onCheckedChange = { enabled ->
+                            customEmojiFontEnabled = enabled
+                            SettingsManager.setEmojiPickerCustomFontEnabled(context, enabled)
+                            CustomEmojiFontManager.clearCache()
+                        }
+                    )
+                }
+                Button(
+                    onClick = {
+                        customEmojiFontImportLauncher.launch(
+                            arrayOf(
+                                "font/ttf",
+                                "font/otf",
+                                "application/x-font-ttf",
+                                "application/x-font-otf",
+                                "application/octet-stream"
+                            )
+                        )
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(stringResource(R.string.emoji_picker_custom_font_import))
+                }
+            }
+        }
         
         // Emoji page toggle
         Surface(
@@ -692,6 +784,48 @@ fun SymCustomizationScreen(
                     checked = symPagesConfig.emojiPickerEnabled,
                     onCheckedChange = { enabled ->
                         persistSymPagesConfig(symPagesConfig.copy(emojiPickerEnabled = enabled))
+                    }
+                )
+            }
+        }
+
+        // GIF picker page toggle
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.sym_enable_gif_picker_page_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = stringResource(R.string.sym_enable_gif_picker_page_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                }
+                Switch(
+                    checked = symPagesConfig.gifPickerEnabled,
+                    onCheckedChange = { enabled ->
+                        persistSymPagesConfig(symPagesConfig.copy(gifPickerEnabled = enabled))
                     }
                 )
             }

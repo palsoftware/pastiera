@@ -31,11 +31,17 @@
     <string name="text_input_section_spacing_punctuation">Spacing &amp; punctuation</string>
     <string name="text_input_section_typography">Typography</string>
     <string name="text_input_section_keyboard_behavior">Keyboard behavior</string>
+    <string name="text_input_section_integrations">Integrations</string>
     <string name="text_input_section_delete">Delete</string>
 
     <!-- Auto Capitalize Section -->
     <string name="auto_capitalize_title">Capitalize at text start</string>
     <string name="auto_capitalize_description">Capitalize the first letter when starting in an empty text field.</string>
+
+    <!-- Integrations Section -->
+    <string name="klipy_api_key_title">Klipy API key</string>
+    <string name="klipy_api_key_description">Used for GIF, sticker, and meme search. Leave blank to disable online media search.</string>
+    <string name="klipy_api_key_placeholder">Enter API key</string>
 
     <!-- Auto Capitalize After Period Section -->
     <string name="auto_capitalize_after_period_title">Capitalize after sentence end</string>
@@ -248,6 +254,12 @@
     <string name="sym_enable_emoji_picker_page_description">Show the full emoji picker when cycling.</string>
     <string name="emoji_picker_expanded_height_title">Larger emoji picker</string>
     <string name="emoji_picker_expanded_height_description">Use about 1.5x height for the emoji search page; other SYM pages keep their normal height.</string>
+    <string name="emoji_picker_custom_font_title">Custom emoji font</string>
+    <string name="emoji_picker_custom_font_description">Render the emoji picker with an imported local font. Inserted emoji still use normal Unicode text.</string>
+    <string name="emoji_picker_custom_font_selected">Using %1$s</string>
+    <string name="emoji_picker_custom_font_import">Import font</string>
+    <string name="emoji_picker_custom_font_imported">Imported %1$s</string>
+    <string name="emoji_picker_custom_font_import_failed">Unable to import emoji font</string>
     <string name="sym_swap_pages_title">Arrange SYM pages order</string>
     <string name="sym_swap_pages_description">Set the exact cycle order for all SYM pages by dragging each row.</string>
     <string name="sym_order_emoji_first">Emoji first</string>
@@ -900,6 +912,8 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
 
     <string name="pastierina_mode_title">Pastierina Mode</string>
     <string name="pastierina_mode_description">Toggle minimal ui</string>
+    <string name="unified_mode_title">Unified Mode</string>
+    <string name="unified_mode_description">Show predictions in the variations row while typing instead of stacking two bars.</string>
     <string name="software_keyboard_mode_title">Keyboard Mode</string>
     <string name="software_keyboard_mode_description">Separate from Pastierina. Controls hardware vs virtual keyboard behaviour.</string>
     <string name="software_keyboard_mode_auto_current">Auto (current: %1$s)</string>
@@ -1126,6 +1140,51 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="status_bar_button_settings_description">Open settings</string>
     <string name="status_bar_button_symbols">Symbols</string>
     <string name="status_bar_button_symbols_description">Symbols keyboard</string>
+    <string name="sym_enable_gif_picker_page_title">GIF picker</string>
+    <string name="sym_enable_gif_picker_page_description">Search and send GIFs from the SYM page cycle.</string>
+    <string name="gif_picker_search_placeholder">Search Klipy media</string>
+    <string name="emoji_picker_emojis_tab">Emojis</string>
+    <string name="emoji_picker_gif_tab">Media</string>
+    <string name="gif_picker_powered_by">Powered by Klipy</string>
+    <string name="gif_picker_missing_api_key">Add your Klipy API key in Text Input settings to use GIF, sticker, and meme search.</string>
+    <string name="gif_picker_empty_prompt">Trending %1$s will appear here.</string>
+    <string name="gif_picker_no_results">No %1$s found for that search.</string>
+    <string name="gif_picker_error">Unable to load Klipy results right now.</string>
+    <string name="gif_picker_sent">%1$s sent</string>
+    <string name="gif_picker_link_copied">%1$s link copied</string>
+    <string name="gif_picker_fallback_link_inserted">App does not accept this %1$s from keyboards. Inserted link instead.</string>
+    <string name="gif_picker_not_supported">App does not accept this %1$s from keyboards.</string>
+    <string name="gif_picker_preview_send">Send %1$s</string>
+    <string name="gif_picker_preview_cancel">Cancel</string>
+    <string name="local_media_choose_folder">Choose folder</string>
+    <string name="local_media_no_folder">No local folder selected.</string>
+    <string name="local_media_folder_selected">Folder selected: %1$s</string>
+    <string name="local_media_choose_folder_prompt">Choose a local folder to show your own images here.</string>
+    <string name="emoji_shortcodes_title">Emoji shortcodes</string>
+    <string name="emoji_shortcodes_description">Type :smile: to insert the matching emoji while typing.</string>
+    <string name="symbol_shortcodes_title">Symbol shortcodes</string>
+    <string name="symbol_shortcodes_description">Type :tm: for ™ or :copy: for ©.</string>
+    <string name="snippets_title">Snippets</string>
+    <string name="snippets_description">Save your own quick text snippets for emails, usernames, links, or any repeated text.</string>
+    <string name="snippets_setting_description">Show snippet suggestions while typing shortcuts with %1$s.</string>
+    <string name="snippets_manage_title">Manage snippets</string>
+    <string name="snippets_manage_description">Edit your snippet list and choose the trigger character. Current trigger: %1$s</string>
+    <string name="snippets_trigger_button">Trigger</string>
+    <string name="snippets_manage_button">Manage</string>
+    <string name="snippets_trigger_dialog_title">Snippet trigger</string>
+    <string name="snippets_trigger_dialog_description">Choose a single trigger character, like ! or /.</string>
+    <string name="snippets_trigger_label">Trigger character</string>
+    <string name="snippets_add">Add snippet</string>
+    <string name="snippets_edit">Edit snippet</string>
+    <string name="snippets_save">Save</string>
+    <string name="snippets_shortcut_label">Shortcut</string>
+    <string name="snippets_value_label">Expanded text</string>
+    <string name="snippets_search">Search snippets</string>
+    <string name="snippets_search_placeholder">Search snippets</string>
+    <string name="snippets_clear_search">Clear search</string>
+    <string name="snippets_empty">No snippets yet.</string>
+    <string name="snippets_empty_search">No snippets found.</string>
+    <string name="snippets_delete">Delete snippet</string>
     <string name="status_bar_button_undo">Undo</string>
     <string name="status_bar_button_undo_description">Send Ctrl+Z</string>
     <string name="status_bar_button_redo">Redo</string>
