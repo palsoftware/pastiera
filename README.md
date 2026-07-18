@@ -1,4 +1,66 @@
-Donate to the current maintainer:
+# Pastiera Enhanced
+
+Pastiera Enhanced is a development/testing fork of [Pastiera](https://github.com/palsoftware/pastiera), an Android input method for physical keyboard devices such as the Unihertz Titan 2.
+
+This fork is kept close to the latest upstream Pastiera base while testing extra features faster before they are split out or merged upstream. The current Enhanced feature set has also been submitted back to the main project as [PR #259](https://github.com/palsoftware/pastiera/pull/259).
+
+## Download
+
+- Latest Pastiera Enhanced builds are posted on the [Releases page](https://github.com/astroboii47/pastiera/releases).
+- Install the APK, then enable it from Android Settings -> System -> Languages & input -> Virtual keyboard -> Manage keyboards.
+- In-app update checks in this fork point at the Pastiera Enhanced releases while the fork is active.
+
+## What's Included
+
+- Built on top of the latest Pastiera base, with the Enhanced changes reapplied cleanly.
+- GIF, sticker, and local media picker support from the emoji/media panel.
+- Media sending through Android rich-content APIs, with fallback handling for apps that do not accept direct GIF/sticker content.
+- Snippets for quick text shortcuts such as emails, usernames, links, and common phrases.
+- Emoji and symbol shortcodes while typing.
+- Improved predictive text with local next-word learning and bundled common phrase fallbacks.
+- Unified Mode, which can show predictions in the existing candidate/variation bar instead of stacking a second row.
+- Long-press removal for unwanted prediction suggestions.
+- Updated emoji data and search entries, including newer emoji support.
+- Optional custom emoji font rendering in the emoji picker and candidate/variation UI.
+- Per-app keyboard themes, with overridden apps pinned at the top of the selector.
+- Theme improvements including key tap/accent color, translucency/frosted glass controls, modifier strip thickness, theme clone/rename/delete, and better highlight coloring.
+- Improved SYM/status bar behavior, page cycling, popup layout, close controls, and candidate bar polish.
+
+## Core Pastiera Features
+
+- Compact status bar with LED indicators for Shift/SYM/Ctrl/Alt.
+- Variations/suggestions bar with swipe-pad cursor movement.
+- Multiple layouts including QWERTY, AZERTY, QWERTZ, Greek, Cyrillic, Arabic, translit, and Titan 2-specific Alt maps.
+- JSON import/export for layouts and editable SYM/Ctrl mappings.
+- Clipboard support with multiple entries and pinned items.
+- Dictionary-based suggestions/autocorrection, substitutions, user dictionary, and Pastiera Recipes.
+- Nav Mode and customizable physical-key shortcuts.
+- Backup/restore for settings, layouts, variations, SYM/Ctrl maps, and dictionaries.
+
+## Klipy API Setup
+
+GIF, sticker, and online media search uses Klipy. This fork does not ship a default Klipy API key, so users need to add their own key if they want online media search.
+
+1. Get a Klipy API key from Klipy.
+2. Open Pastiera Enhanced settings.
+3. Go to Smart Features.
+4. Open Klipy API key.
+5. Paste your key and save.
+
+Local media picking does not require a Klipy API key.
+
+## Custom Emoji Fonts
+
+Pastiera Enhanced can render the emoji picker and candidate/variation emoji with an optional custom emoji font. Add a compatible emoji TTF from settings and make sure you have the right to use any font you import.
+
+## Requirements
+
+- Android 10 (API 29) or higher.
+- A physical keyboard device. The fork is mainly tested on Unihertz Titan 2, but the layout system is configurable.
+
+## Support
+
+Donate to the current Pastiera maintainer:
 
 Account holder | Patrick Alexander Zauner |
 |---|---|
@@ -12,77 +74,12 @@ Or, for everyone who sees an IBAN and quietly gives up:\
 Donate to the original developer:\
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/C0C31OHWF2)
 
-# Pastiera
+## Credits
 
-Input method for physical keyboards android devices (e.g. Unihertz Titan 2), designed to make typing faster through shortcuts, gestures, and customization.
-
-## Quick overview
-- Compact status bar with LED indicators for Shift/SYM/Ctrl/Alt, variants/suggestions bar, and swipe-pad gestures to move the cursor.
-- Multiple layouts (QWERTY/AZERTY/QWERTZ, Greek, Cyrillic, Arabic, translit, etc.) fully configurable; JSON import/export directly from the app. A web frontend for editing layouts is available at https://pastierakeyedit.vercel.app/
-- SYM pages usable via touch or physical keys (emoji + symbols), reorderable/disableable, with an integrated layout editor.
-- Clipboard support with multiple entries and pinnable items.
-- Support for dictionary based suggestions/Autocorrections + swipe gestures to accept a suggestion (requires Shizuku)
-- Full backup/restore (settings, layouts, variations, dictionaries), UI translated into multiple languages, and built-in GitHub update checks.
-
-## Typing and modifiers
-- Long press on a key can input Alt+key or Shift+Key (uppercase) timing configurable.
-- Shift/Ctrl/Alt in one-shot or lock mode (double tap), option to clear Alt on space.
-- Current behavior note: `Ctrl` used as a physically held shortcut modifier (e.g. hold `Ctrl` + `A`) intentionally follows the app shortcut path and is not the same flow as Nav Mode (`Ctrl` double-tap latch outside text fields). Nav Mode remains a separate implementation/state.
-- Multi-tap support for keys with layout-defined variants (e.g. Cyrillic)
-- Standard shortcuts: Ctrl+C/X/V, Ctrl+A, Ctrl+Backspace, Ctrl+E/D/S/F or I/J/K/L for arrows, Ctrl+W/R for selection, Ctrl+T for Tab, Ctrl+Y/H for Page Up/Down, Ctrl+Q for Esc (all customizable in the Customize Nav screen).
-
-## QOL features
-- **Nav Mode**: double tap Ctrl outside text fields to use ESDF or IJKL as arrows, and many more useful mappings (everything is customizable in Customize Nav Mode settings)
-- **Variations bar as swipe pad**: drag to move the cursor, with adjustable threshold.
-- **Launcher shortcuts**: in the launcher, press a letter to open/assign an app.
-- **Power shortcuts**: press SYM (5s timeout) then a letter to use the same shortcuts anywhere, even outside the launcher.
-- Change language with a tap on language code in the status bar, longpress to enter pastiera settings
-
-## Keyboard layouts
-- Included layouts: qwerty, azerty, qwertz, greek, arabic, russian/armenian phonetic translit, plus dedicated Alt maps for Titan 2.
-- Layout switching: select from the enabled layouts list (configurable).
-- Multi-tap support and mapping for complex characters.
-- JSON import/export directly from the app, with visual preview and list management (enable/disable, delete).
-- Layout maps are stored in `files/keyboard_layouts` and can also be edited manually. A web frontend for editing layouts is available at https://pastierakeyedit.vercel.app/
-- Device/firmware behavior snapshots for physical keyboards are archived under [docs/device-archives](docs/device-archives/).
-
-## Symbols, emoji, and variations
-- Two touch-based SYM pages (emoji + symbols): reorderable/enableable, auto-close after input, customizable keycaps.
-- In-app SYM editor with emoji grid and Unicode picker.
-- Variations bar above the keyboard: shows accents/variants of the last typed letter or static sets (utility/email) when needed.
-- Dedicated variations editor to replace/add variants via JSON or Unicode picker; optional static bar.
-
-## Suggestions and autocorrection
-
-- Experimental support for dictionary based autocorrection/suggestions
-- User dictionary with search and edit abilities.
-- Per-language auto substituion editor, quick search, and a global “Pastiera Recipes” set shared across all languages.
-- Change language/keymap with a tap on the language code button or ctrl+space
-
-
-
-## Comfort and extra input
-- Double space → period + space + uppercase; 
-- Swipe left on the keyboard to delete a word (Titan 2).
-- Optional Alt+Ctrl shortcut to start Google Voice Typing; microphone always available on the variants bar.
-- Compact status bar to minimize vertical space. With on-screen keyboard disabled from the IME selector, it uses even less space (aka Pastierina mode)
-- Translated UI (it/en/de/es/fr/pl/ru/hy) and onboarding tutorial.
-
-## Backup, updates, and data
-- UI-based backup/restore in ZIP format: includes preferences, custom layouts, variations, SYM/Ctrl maps, and user dictionaries.
-- Restore merges saved variations with defaults to avoid losing newly added keys.
-- Built-in GitHub update check when opening settings (with option to ignore a release).
-- Customizable files in `files/`: `variations.json`, `ctrl_key_mappings.json`, `sym_key_mappings*.json`, `keyboard_layouts/*.json`, user dictionaries.
-- Android autobackup function 
-
-## Installation
-1. Build the APK or install an existing build.
-2. Android Settings → System → Languages & input → Virtual keyboard → Manage keyboards.
-3. Enable “Pastiera” and select it from the input selector when typing.
-
-## Requirements
-- Android 10 (API 29) or higher.
-- Device with a physical keyboard (profiled on Unihertz Titan 2, adaptable via JSON).
+- Pastiera Enhanced is based on [Pastiera](https://github.com/palsoftware/pastiera).
+- Original Pastiera work and ongoing upstream maintenance belong to the Pastiera project and its contributors.
+- Media search is powered by Klipy when the user provides their own API key.
+- Emoji metadata/search data is derived from the emoji assets bundled in this repository and updated by the included emoji asset script.
 
 ## Development / Tests
 - Run core + routing + service modifier regression tests:
