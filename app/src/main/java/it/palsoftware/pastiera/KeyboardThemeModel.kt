@@ -31,12 +31,25 @@ internal data class KeyboardThemePreset(
     val suggestionsHeightScale: Float = 1f,
     val variationsHeightScale: Float = 1f,
     val keepsSoftwareGeometry: Boolean = false,
+    val frostIntensity: Float = 0f,
     val keyPopupStyle: String = SettingsManager.KEYBOARD_THEME_POPUP_STYLE_FLOATING,
     val keyPopupAttached: Boolean = true,
     val keyPopupTailEnabled: Boolean = true,
     val keyPreviewAfterLongPress: Boolean = false,
-    val keyAlternatesPopupEnabled: Boolean = true
+    val keyAlternatesPopupEnabled: Boolean = true,
+    val modifierIndicatorStripScale: Float = 1f,
+    val keyTap: Int = defaultKeyboardThemeKeyTapColor(normalKey, accent)
 )
+
+internal fun defaultKeyboardThemeKeyTapColor(normalKey: Int, accent: Int): Int {
+    val ratio = 0.28f.coerceIn(0f, 1f)
+    val inverse = 1f - ratio
+    val alpha = ((normalKey ushr 24) * inverse + (accent ushr 24) * ratio).toInt()
+    val red = (((normalKey ushr 16) and 0xFF) * inverse + ((accent ushr 16) and 0xFF) * ratio).toInt()
+    val green = (((normalKey ushr 8) and 0xFF) * inverse + ((accent ushr 8) and 0xFF) * ratio).toInt()
+    val blue = ((normalKey and 0xFF) * inverse + (accent and 0xFF) * ratio).toInt()
+    return (alpha shl 24) or (red shl 16) or (green shl 8) or blue
+}
 
 internal data class KeyboardThemeOption(
     val key: String,
@@ -80,7 +93,8 @@ internal fun KeyboardThemePreset.toAospThemeOverride(): AospKeyboardView.ThemeOv
         ledInactive = ledInactive,
         ledActive = ledActive,
         ledLocked = ledLocked,
-        accent = accent,
+        accent = keyTap,
+        keyTap = keyTap,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
         keyCornerRadiusRatio = keyCornerRadiusRatio,
@@ -107,7 +121,8 @@ internal fun KeyboardThemePreset.toKeyboardThemeColors(): KeyboardThemeColors =
         ledInactive = ledInactive,
         ledActive = ledActive,
         ledLocked = ledLocked,
-        accent = accent,
+        accent = keyTap,
+        keyTap = keyTap,
         cursorSwipe = cursorSwipe,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
@@ -116,7 +131,9 @@ internal fun KeyboardThemePreset.toKeyboardThemeColors(): KeyboardThemeColors =
         keyCornerRadiusRatio = keyCornerRadiusRatio,
         chromeCornerRadiusRatio = chromeCornerRadiusRatio,
         suggestionsHeightScale = suggestionsHeightScale,
-        variationsHeightScale = variationsHeightScale
+        variationsHeightScale = variationsHeightScale,
+        frostIntensity = frostIntensity,
+        modifierIndicatorStripScale = modifierIndicatorStripScale
     )
 
 internal fun KeyboardThemePreset.toSettingsTheme(): SettingsManager.KeyboardThemeSettings =
@@ -129,7 +146,8 @@ internal fun KeyboardThemePreset.toSettingsTheme(): SettingsManager.KeyboardThem
         ledInactive = ledInactive,
         ledActive = ledActive,
         ledLocked = ledLocked,
-        accent = accent,
+        accent = keyTap,
+        keyTap = keyTap,
         cursorSwipe = cursorSwipe,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
@@ -146,6 +164,8 @@ internal fun KeyboardThemePreset.toSettingsTheme(): SettingsManager.KeyboardThem
         showLeds = showLeds,
         suggestionsHeightScale = suggestionsHeightScale,
         variationsHeightScale = variationsHeightScale,
+        frostIntensity = frostIntensity,
+        modifierIndicatorStripScale = modifierIndicatorStripScale,
         keyPopupStyle = keyPopupStyle,
         keyPopupAttached = keyPopupAttached,
         keyPopupTailEnabled = keyPopupTailEnabled,
@@ -165,6 +185,7 @@ internal fun SettingsManager.KeyboardThemeSettings.toKeyboardThemePreset(name: S
         ledActive = ledActive,
         ledLocked = ledLocked,
         accent = accent,
+        keyTap = keyTap,
         cursorSwipe = cursorSwipe,
         keyPopup = keyPopup,
         keyPopupSelected = keyPopupSelected,
@@ -181,6 +202,8 @@ internal fun SettingsManager.KeyboardThemeSettings.toKeyboardThemePreset(name: S
         showLeds = showLeds,
         suggestionsHeightScale = suggestionsHeightScale,
         variationsHeightScale = variationsHeightScale,
+        frostIntensity = frostIntensity,
+        modifierIndicatorStripScale = modifierIndicatorStripScale,
         keyPopupStyle = keyPopupStyle,
         keyPopupAttached = keyPopupAttached,
         keyPopupTailEnabled = keyPopupTailEnabled,
@@ -209,6 +232,7 @@ internal fun keyboardThemeSwatches(): List<Int> = keyboardThemePresets()
             preset.ledInactive,
             preset.ledActive,
             preset.ledLocked,
+            preset.keyTap,
             preset.cursorSwipe,
             preset.keyPopup,
             preset.keyPopupSelected,
@@ -221,10 +245,11 @@ internal fun keyboardThemeSwatches(): List<Int> = keyboardThemePresets()
 internal fun keyboardThemePresets(): List<KeyboardThemePreset> = listOf(
     KeyboardThemePreset("Pastiera Dark", 0xFF000000.toInt(), 0xFF2C3136.toInt(), 0xFF15191D.toInt(), 0xFF2B3138.toInt(), 0xFFEFEFEF.toInt(), 0xFF303030.toInt(), 0xFF6496FF.toInt(), 0xFFF76300.toInt(), 0xFF6496FF.toInt(), keyCornerRadiusRatio = 0.10f, chromeCornerRadiusRatio = 0.10f),
     KeyboardThemePreset("Pastiera Light", 0xFFF8FAFC.toInt(), 0xFFC7CDD4.toInt(), 0xFFFFFFFF.toInt(), 0xFFE0E6EE.toInt(), 0xFF171A1F.toInt(), 0xFFD1D5DB.toInt(), 0xFF276EF1.toInt(), 0xFFD65A00.toInt(), 0xFF276EF1.toInt(), keyCornerRadiusRatio = 0.10f, chromeCornerRadiusRatio = 0.10f),
+    KeyboardThemePreset("Frosted Glass", 0x730B1018, 0x8CFFFFFF.toInt(), 0x2EFFFFFF, 0x42FFFFFF, 0xFFFFFFFF.toInt(), 0x4DFFFFFF, 0xFF9FD0FF.toInt(), 0xFFFFB45C.toInt(), 0xFF9FD0FF.toInt(), 0xFF9FD0FF.toInt(), 0x73FFFFFF, 0xFF9FD0FF.toInt(), 0x24FFFFFF, 0x33FFFFFF, 0.24f, 0.34f, 1.2588017f, 0.971126f, 0.94148767f, 1.05f, true, false, true, 0.92f, 0.9f, true, frostIntensity = 1.15f, keyTap = 0x669FD0FF),
     KeyboardThemePreset("Cloud Tap", 0xFFE1E3E7.toInt(), 0xFFD4D7DD.toInt(), 0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt(), 0xFF050505.toInt(), 0xFFC2C6CE.toInt(), 0xFF0A84FF.toInt(), 0xFFFF9500.toInt(), 0xFF0A84FF.toInt(), 0xFF0A84FF.toInt(), 0xFFFFFFFF.toInt(), 0xFF0A84FF.toInt(), 0xFFDDE0E5.toInt(), 0xFFFFFFFF.toInt(), 0.18186983f, 0.35f, 1.2588017f, 0.971126f, 0.94148767f, 1.05f, true, true, false, 0.9f, 0.88f, true),
     KeyboardThemePreset("Moon Tap", 0xFF111111.toInt(), 0xFF303030.toInt(), 0xFF3A3A3C.toInt(), 0xFF3A3A3C.toInt(), 0xFFF8F8F8.toInt(), 0xFF303030.toInt(), 0xFF409CFF.toInt(), 0xFFFF9F0A.toInt(), 0xFF409CFF.toInt(), 0xFF409CFF.toInt(), 0xFF3A3A3C.toInt(), 0xFF409CFF.toInt(), 0xFF171717.toInt(), 0xFF1C1C1E.toInt(), 0.18186983f, 0.35f, 1.2588017f, 0.971126f, 0.94148767f, 1.05f, true, true, false, 0.9f, 0.88f, true),
-    KeyboardThemePreset("Classic Cloud", 0xFFCCD2DC.toInt(), 0xFF9EA5AF.toInt(), 0xFFFFFFFF.toInt(), 0xFFAFB6C2.toInt(), 0xFF000000.toInt(), 0xFFAEB5C0.toInt(), 0xFF007AFF.toInt(), 0xFFFF9500.toInt(), 0xFF007AFF.toInt(), 0xFF007AFF.toInt(), 0xFFFFFFFF.toInt(), 0xFF007AFF.toInt(), 0xFFCCD2DC.toInt(), 0xFFAFB6C2.toInt(), 0.118f, 0.09f, 1.2588017f, 0.971126f, 0.94148767f, 1.05f, true, false, false, 0.9f, 0.88f, true, SettingsManager.KEYBOARD_THEME_POPUP_STYLE_CLASSIC),
-    KeyboardThemePreset("Classic Midnight", 0xFF1C1C1E.toInt(), 0xFF4A4A4D.toInt(), 0xFF3A3A3C.toInt(), 0xFF2C2C2E.toInt(), 0xFFFFFFFF.toInt(), 0xFF404044.toInt(), 0xFF0A84FF.toInt(), 0xFFFF9F0A.toInt(), 0xFF0A84FF.toInt(), 0xFF0A84FF.toInt(), 0xFF3A3A3C.toInt(), 0xFF0A84FF.toInt(), 0xFF202124.toInt(), 0xFF2C2C2E.toInt(), 0.118f, 0.09f, 1.2588017f, 0.971126f, 0.94148767f, 1.05f, true, false, false, 0.9f, 0.88f, true, SettingsManager.KEYBOARD_THEME_POPUP_STYLE_CLASSIC),
+    KeyboardThemePreset("Classic Cloud", 0xFFCCD2DC.toInt(), 0xFF9EA5AF.toInt(), 0xFFFFFFFF.toInt(), 0xFFAFB6C2.toInt(), 0xFF000000.toInt(), 0xFFAEB5C0.toInt(), 0xFF007AFF.toInt(), 0xFFFF9500.toInt(), 0xFF007AFF.toInt(), 0xFF007AFF.toInt(), 0xFFFFFFFF.toInt(), 0xFF007AFF.toInt(), 0xFFCCD2DC.toInt(), 0xFFAFB6C2.toInt(), 0.118f, 0.09f, 1.2588017f, 0.971126f, 0.94148767f, 1.05f, true, false, false, 0.9f, 0.88f, true, keyPopupStyle = SettingsManager.KEYBOARD_THEME_POPUP_STYLE_CLASSIC),
+    KeyboardThemePreset("Classic Midnight", 0xFF1C1C1E.toInt(), 0xFF4A4A4D.toInt(), 0xFF3A3A3C.toInt(), 0xFF2C2C2E.toInt(), 0xFFFFFFFF.toInt(), 0xFF404044.toInt(), 0xFF0A84FF.toInt(), 0xFFFF9F0A.toInt(), 0xFF0A84FF.toInt(), 0xFF0A84FF.toInt(), 0xFF3A3A3C.toInt(), 0xFF0A84FF.toInt(), 0xFF202124.toInt(), 0xFF2C2C2E.toInt(), 0.118f, 0.09f, 1.2588017f, 0.971126f, 0.94148767f, 1.05f, true, false, false, 0.9f, 0.88f, true, keyPopupStyle = SettingsManager.KEYBOARD_THEME_POPUP_STYLE_CLASSIC),
     KeyboardThemePreset("ePaper", 0xFFF2F2F2.toInt(), 0xFFB8B8B8.toInt(), 0xFFFAFAFA.toInt(), 0xFFDDDDDD.toInt(), 0xFF111111.toInt(), 0xFFB0B0B0.toInt(), 0xFF555555.toInt(), 0xFF111111.toInt(), 0xFF3F8C96.toInt()),
     KeyboardThemePreset("High Contrast", 0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFF0D0D0D.toInt(), 0xFF000000.toInt(), 0xFFFFFFFF.toInt(), 0xFF555555.toInt(), 0xFF00E5FF.toInt(), 0xFFFFEA00.toInt(), 0xFFFFEA00.toInt()),
     KeyboardThemePreset("Warm", 0xFF241F1A.toInt(), 0xFF6F6255.toInt(), 0xFF352E27.toInt(), 0xFF5B4734.toInt(), 0xFFFFF1DD.toInt(), 0xFF665A4E.toInt(), 0xFFE0B05D.toInt(), 0xFFE06A4B.toInt(), 0xFFE0B05D.toInt()),

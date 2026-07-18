@@ -24,12 +24,12 @@ class LedStatusView(
         private val LED_COLOR_BLUE_ACTIVE = Color.rgb(100, 150, 255)
     }
 
-    private val ledHeight: Int by lazy {
+    private val baseLedHeight: Float by lazy {
         TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             5.5f,
             context.resources.displayMetrics
-        ).toInt()
+        )
     }
     private val topPadding: Int by lazy {
         TypedValue.applyDimension(
@@ -61,6 +61,10 @@ class LedStatusView(
 
     var onLongPressListener: (() -> Unit)? = null
     var themeOverride: KeyboardThemeColors? = null
+        set(value) {
+            field = value
+            updateLedLayoutHeight()
+        }
 
     fun ensureView(): LinearLayout {
         container?.let { return it }
@@ -87,12 +91,12 @@ class LedStatusView(
         altLed = createLedView(LED_COLOR_GRAY_OFF)
 
         container?.apply {
-            addView(shiftLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(symLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(unused1, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(unused2, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(ctrlLed, LinearLayout.LayoutParams(0, ledHeight, 1f).apply { marginEnd = ledGap })
-            addView(altLed, LinearLayout.LayoutParams(0, ledHeight, 1f))
+            addView(shiftLed, LinearLayout.LayoutParams(0, ledHeight(), 1f).apply { marginEnd = ledGap })
+            addView(symLed, LinearLayout.LayoutParams(0, ledHeight(), 1f).apply { marginEnd = ledGap })
+            addView(unused1, LinearLayout.LayoutParams(0, ledHeight(), 1f).apply { marginEnd = ledGap })
+            addView(unused2, LinearLayout.LayoutParams(0, ledHeight(), 1f).apply { marginEnd = ledGap })
+            addView(ctrlLed, LinearLayout.LayoutParams(0, ledHeight(), 1f).apply { marginEnd = ledGap })
+            addView(altLed, LinearLayout.LayoutParams(0, ledHeight(), 1f))
         }
 
         return container!!
@@ -118,10 +122,30 @@ class LedStatusView(
 
     private fun createLedView(initialColor: Int): View {
         return View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(0, ledHeight, 1f)
+            layoutParams = LinearLayout.LayoutParams(0, ledHeight(), 1f)
             background = createDrawable(initialColor)
             setTag(R.id.led_previous_color, initialColor)
         }
+    }
+
+    private fun ledHeight(): Int =
+        (baseLedHeight * (themeOverride?.modifierIndicatorStripScale ?: 1f).coerceIn(0.35f, 1.4f))
+            .toInt()
+            .coerceAtLeast(1)
+
+    private fun updateLedLayoutHeight() {
+        val height = ledHeight()
+        val strip = container ?: return
+        for (index in 0 until strip.childCount) {
+            val led = strip.getChildAt(index)
+            (led.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
+                if (params.height != height) {
+                    params.height = height
+                    led.layoutParams = params
+                }
+            }
+        }
+        strip.requestLayout()
     }
 
     private fun createDrawable(color: Int): GradientDrawable {

@@ -1,6 +1,7 @@
 package it.palsoftware.pastiera
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color as AndroidColor
 import android.os.Build
 import android.view.inputmethod.InputMethodManager
@@ -177,6 +178,8 @@ fun KeyboardThemeScreen(
     var exportTheme by remember { mutableStateOf<KeyboardThemePreset?>(null) }
     var showImportDialog by remember { mutableStateOf(false) }
     var showSaveAsDialog by remember { mutableStateOf(false) }
+    var themeActionRequest by remember { mutableStateOf<KeyboardThemeOption?>(null) }
+    var renameThemeRequest by remember { mutableStateOf<KeyboardThemeOption?>(null) }
     var themePickerRequest by remember { mutableStateOf<KeyboardThemePickerRequest?>(null) }
     var assignmentScreenTarget by remember { mutableStateOf<SettingsManager.KeyboardThemeTarget?>(null) }
     var overrideEditorRequest by remember { mutableStateOf<KeyboardThemeOverrideEditorRequest?>(null) }
@@ -186,6 +189,14 @@ fun KeyboardThemeScreen(
     var softwareOverrides by remember {
         mutableStateOf(SettingsManager.getKeyboardThemeLayoutOverrides(context, SettingsManager.KeyboardThemeTarget.SOFTWARE))
     }
+    var hardwareAppOverrides by remember {
+        mutableStateOf(SettingsManager.getKeyboardThemeAppOverrides(context, SettingsManager.KeyboardThemeTarget.HARDWARE))
+    }
+    var softwareAppOverrides by remember {
+        mutableStateOf(SettingsManager.getKeyboardThemeAppOverrides(context, SettingsManager.KeyboardThemeTarget.SOFTWARE))
+    }
+    val installedApps = remember { loadKeyboardThemeAppOptions(context) }
+    var showPerAppThemeManager by remember { mutableStateOf(false) }
 
     val activePreviewPage = previewPagerState.currentPage
     val activeTarget = if (activePreviewPage == 0) {
@@ -267,6 +278,55 @@ fun KeyboardThemeScreen(
             softwareSelectionKey = "saved:$normalizedName"
             softwarePreset = savedPreset
             softwareTheme = savedPreset
+        }
+    }
+
+    fun cloneActiveTheme() {
+        val existingNames = SettingsManager.getSavedKeyboardThemes(context)
+            .map { it.name }
+            .toSet()
+        val baseName = "${activeTheme.name.ifBlank { "Custom" }} Copy"
+        var cloneName = baseName
+        var index = 2
+        while (cloneName in existingNames) {
+            cloneName = "$baseName $index"
+            index += 1
+        }
+        saveActiveThemeAs(cloneName)
+    }
+
+    fun renameSavedTheme(oldName: String, newName: String) {
+        val normalizedNewName = newName.trim().ifEmpty { "Custom" }
+        SettingsManager.renameKeyboardTheme(context, oldName, normalizedNewName)
+        savedThemes = SettingsManager.getSavedKeyboardThemes(context).map { it.toKeyboardThemeOption() }
+        hardwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, SettingsManager.KeyboardThemeTarget.HARDWARE)
+        softwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, SettingsManager.KeyboardThemeTarget.SOFTWARE)
+        if (hardwareSelectionKey == "saved:$oldName") {
+            hardwareSelectionKey = "saved:$normalizedNewName"
+            hardwarePreset = hardwarePreset.copy(name = normalizedNewName)
+            hardwareTheme = hardwareTheme.copy(name = normalizedNewName)
+        }
+        if (softwareSelectionKey == "saved:$oldName") {
+            softwareSelectionKey = "saved:$normalizedNewName"
+            softwarePreset = softwarePreset.copy(name = normalizedNewName)
+            softwareTheme = softwareTheme.copy(name = normalizedNewName)
+        }
+    }
+
+    fun deleteSavedTheme(name: String) {
+        SettingsManager.deleteKeyboardTheme(context, name)
+        savedThemes = SettingsManager.getSavedKeyboardThemes(context).map { it.toKeyboardThemeOption() }
+        if (hardwareSelectionKey == "saved:$name") {
+            hardwareSelectionKey = "custom:hardware"
+            hardwarePreset = SettingsManager.getKeyboardTheme(context, SettingsManager.KeyboardThemeTarget.HARDWARE)
+                .toKeyboardThemePreset("Custom")
+            hardwareTheme = hardwarePreset
+        }
+        if (softwareSelectionKey == "saved:$name") {
+            softwareSelectionKey = "custom:software"
+            softwarePreset = SettingsManager.getKeyboardTheme(context, SettingsManager.KeyboardThemeTarget.SOFTWARE)
+                .toKeyboardThemePreset("Custom")
+            softwareTheme = softwarePreset
         }
     }
 
@@ -407,7 +467,12 @@ fun KeyboardThemeScreen(
                     KeyboardThemePresetCard(
                         preset = option.preset,
                         selected = activeSelectionKey == option.key,
-                        onClick = { applyPreset(option) }
+                        onClick = { applyPreset(option) },
+                        onLongPress = if (option.key.startsWith("saved:")) {
+                            { themeActionRequest = option }
+                        } else {
+                            null
+                        }
                     )
                 }
             }
@@ -419,6 +484,9 @@ fun KeyboardThemeScreen(
             ) {
                 Button(onClick = { showSaveAsDialog = true }) {
                     Text("Save copy as")
+                }
+                Button(onClick = ::cloneActiveTheme) {
+                    Text("Clone selected")
                 }
                 Button(onClick = { exportTheme = activeTheme }) {
                     Text("Export")
@@ -435,6 +503,13 @@ fun KeyboardThemeScreen(
                 darkThemeName = themeDisplayName(activeThemeOptions, activeDarkTheme),
                 modifier = Modifier.padding(horizontal = 16.dp),
                 onClick = { assignmentScreenTarget = activeTarget }
+            )
+
+            val activeAppOverrides = if (activePreviewPage == 0) hardwareAppOverrides else softwareAppOverrides
+            KeyboardThemePerAppSection(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                overrideCount = activeAppOverrides.size,
+                onManageAllApps = { showPerAppThemeManager = true }
             )
 
             Text(
@@ -558,6 +633,30 @@ fun KeyboardThemeScreen(
             }
         )
     }
+    renameThemeRequest?.let { option ->
+        KeyboardThemeRenameDialog(
+            initialName = option.key.removePrefix("saved:"),
+            onDismiss = { renameThemeRequest = null },
+            onRename = { newName ->
+                renameSavedTheme(option.key.removePrefix("saved:"), newName)
+                renameThemeRequest = null
+            }
+        )
+    }
+    themeActionRequest?.let { option ->
+        KeyboardThemeSavedThemeActionsDialog(
+            themeName = option.key.removePrefix("saved:"),
+            onDismiss = { themeActionRequest = null },
+            onRename = {
+                themeActionRequest = null
+                renameThemeRequest = option
+            },
+            onDelete = {
+                deleteSavedTheme(option.key.removePrefix("saved:"))
+                themeActionRequest = null
+            }
+        )
+    }
     themePickerRequest?.let { request ->
         val options = if (request.target == SettingsManager.KeyboardThemeTarget.HARDWARE) {
             hardwareThemeOptions
@@ -619,19 +718,73 @@ fun KeyboardThemeScreen(
             }
         )
     }
+    if (showPerAppThemeManager) {
+        val activeAppOverrides = if (activePreviewPage == 0) hardwareAppOverrides else softwareAppOverrides
+        KeyboardThemePerAppManagerDialog(
+            target = activeTarget,
+            apps = mergeKeyboardThemeAppOptions(installedApps, activeAppOverrides),
+            overrides = activeAppOverrides,
+            themeOptions = activeThemeOptions,
+            onDismiss = { showPerAppThemeManager = false },
+            onApplyCurrentTheme = { packageName, appLabel ->
+                SettingsManager.upsertKeyboardThemeAppOverride(
+                    context,
+                    activeTarget,
+                    packageName,
+                    appLabel,
+                    activeTheme.toSettingsTheme(),
+                    themeKey = activeSelectionKey.takeIf { it.startsWith("saved:") }
+                )
+                if (activeTarget == SettingsManager.KeyboardThemeTarget.HARDWARE) {
+                    hardwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, activeTarget)
+                } else {
+                    softwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, activeTarget)
+                }
+            },
+            onSetAppTheme = { packageName, appLabel, option ->
+                SettingsManager.upsertKeyboardThemeAppOverride(
+                    context,
+                    activeTarget,
+                    packageName,
+                    appLabel,
+                    option.preset.toSettingsTheme(),
+                    themeKey = option.key.takeIf { it.startsWith("saved:") }
+                )
+                if (activeTarget == SettingsManager.KeyboardThemeTarget.HARDWARE) {
+                    hardwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, activeTarget)
+                } else {
+                    softwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, activeTarget)
+                }
+            },
+            onRemoveOverride = { packageName ->
+                SettingsManager.removeKeyboardThemeAppOverride(context, activeTarget, packageName)
+                if (activeTarget == SettingsManager.KeyboardThemeTarget.HARDWARE) {
+                    hardwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, activeTarget)
+                } else {
+                    softwareAppOverrides = SettingsManager.getKeyboardThemeAppOverrides(context, activeTarget)
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun KeyboardThemePresetCard(
     preset: KeyboardThemePreset,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongPress: (() -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier
             .width(176.dp)
             .height(76.dp)
-            .clickable(onClick = onClick),
+            .pointerInput(onClick, onLongPress) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { onLongPress?.invoke() }
+                )
+            },
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (selected) 0.9f else 0.45f),
         border = BorderStroke(
@@ -821,6 +974,238 @@ private fun KeyboardThemeAssignmentSummaryRow(
                 )
             }
             Text("›", style = MaterialTheme.typography.titleLarge)
+        }
+    }
+}
+
+@Composable
+private fun KeyboardThemePerAppSection(
+    modifier: Modifier = Modifier,
+    overrideCount: Int,
+    onManageAllApps: () -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        tonalElevation = 1.dp,
+        shape = MaterialTheme.shapes.medium
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Per-app theme",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "$overrideCount app override${if (overrideCount == 1) "" else "s"} set for this theme target.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Choose exactly which apps should use a custom theme.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Button(onClick = onManageAllApps) {
+                Text("Manage all apps")
+            }
+        }
+    }
+}
+
+private data class KeyboardThemeAppOption(
+    val packageName: String,
+    val label: String
+)
+
+private fun loadKeyboardThemeAppOptions(context: Context): List<KeyboardThemeAppOption> {
+    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+    return context.packageManager.queryIntentActivities(intent, 0)
+        .mapNotNull { resolveInfo ->
+            val packageName = resolveInfo.activityInfo?.packageName?.trim()?.takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
+            val label = resolveInfo.loadLabel(context.packageManager)?.toString()?.trim()?.takeIf { it.isNotBlank() }
+                ?: packageName
+            KeyboardThemeAppOption(packageName, label)
+        }
+        .distinctBy { it.packageName }
+        .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+}
+
+private fun mergeKeyboardThemeAppOptions(
+    apps: List<KeyboardThemeAppOption>,
+    overrides: List<SettingsManager.KeyboardThemeAppOverride>
+): List<KeyboardThemeAppOption> {
+    val byPackage = linkedMapOf<String, KeyboardThemeAppOption>()
+    apps.forEach { byPackage[it.packageName] = it }
+    overrides.forEach { override ->
+        byPackage.putIfAbsent(
+            override.packageName,
+            KeyboardThemeAppOption(
+                packageName = override.packageName,
+                label = override.appLabel ?: override.packageName
+            )
+        )
+    }
+    return byPackage.values.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+}
+
+@Composable
+private fun KeyboardThemePerAppManagerDialog(
+    target: SettingsManager.KeyboardThemeTarget,
+    apps: List<KeyboardThemeAppOption>,
+    overrides: List<SettingsManager.KeyboardThemeAppOverride>,
+    themeOptions: List<KeyboardThemeOption>,
+    onDismiss: () -> Unit,
+    onApplyCurrentTheme: (String, String?) -> Unit,
+    onSetAppTheme: (String, String?, KeyboardThemeOption) -> Unit,
+    onRemoveOverride: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var query by remember { mutableStateOf("") }
+    var themePickerApp by remember { mutableStateOf<KeyboardThemeAppOption?>(null) }
+    val normalizedQuery = query.trim().lowercase(Locale.getDefault())
+    val overridesByPackage = overrides.associateBy { it.packageName }
+    val overridePackages = overridesByPackage.keys
+    val filteredApps = remember(apps, overrides, normalizedQuery) {
+        apps.filter { app ->
+            normalizedQuery.isBlank() ||
+                app.label.lowercase(Locale.getDefault()).contains(normalizedQuery) ||
+                app.packageName.lowercase(Locale.getDefault()).contains(normalizedQuery)
+        }.sortedWith(
+            compareByDescending<KeyboardThemeAppOption> { app -> app.packageName in overridePackages }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { app -> app.label }
+        )
+    }
+    val targetLabel = if (target == SettingsManager.KeyboardThemeTarget.SOFTWARE) {
+        "software"
+    } else {
+        "hardware"
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Per-app $targetLabel themes") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Search apps") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (filteredApps.isEmpty()) {
+                        Text(
+                            text = "No apps found.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    filteredApps.forEach { app ->
+                        val override = overridesByPackage[app.packageName]
+                        KeyboardThemePerAppRow(
+                            app = app,
+                            themeName = override?.let {
+                                themeDisplayName(
+                                    themeOptions,
+                                    SettingsManager.resolveKeyboardThemeAppOverrideTheme(context, target, it)
+                                        .toKeyboardThemePreset("Custom")
+                                )
+                            },
+                            onApplyCurrentTheme = {
+                                onApplyCurrentTheme(app.packageName, app.label)
+                            },
+                            onChooseTheme = {
+                                themePickerApp = app
+                            },
+                            onRemoveOverride = {
+                                onRemoveOverride(app.packageName)
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+
+    themePickerApp?.let { app ->
+        KeyboardThemePickerDialog(
+            title = "Theme for ${app.label}",
+            options = themeOptions,
+            onDismiss = { themePickerApp = null },
+            onThemeSelected = { option ->
+                themePickerApp = null
+                onSetAppTheme(app.packageName, app.label, option)
+            }
+        )
+    }
+}
+
+@Composable
+private fun KeyboardThemePerAppRow(
+    app: KeyboardThemeAppOption,
+    themeName: String?,
+    onApplyCurrentTheme: () -> Unit,
+    onChooseTheme: () -> Unit,
+    onRemoveOverride: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 2.dp,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = app.label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+            Text(
+                text = if (themeName != null) {
+                    "${app.packageName} · $themeName"
+                } else {
+                    app.packageName
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onChooseTheme) {
+                    Text(if (themeName == null) "Choose theme" else "Change theme")
+                }
+                Button(onClick = onApplyCurrentTheme) {
+                    Text("Use current")
+                }
+                if (themeName != null) {
+                    TextButton(onClick = onRemoveOverride) {
+                        Text("Remove")
+                    }
+                }
+            }
         }
     }
 }
@@ -1278,6 +1663,7 @@ private fun keyboardThemesEquivalent(
         left.ledActive == right.ledActive &&
         left.ledLocked == right.ledLocked &&
         left.accent == right.accent &&
+        left.keyTap == right.keyTap &&
         left.cursorSwipe == right.cursorSwipe &&
         left.keyPopup == right.keyPopup &&
         left.keyPopupSelected == right.keyPopupSelected &&
@@ -1294,6 +1680,8 @@ private fun keyboardThemesEquivalent(
         left.showLeds == right.showLeds &&
         close(left.suggestionsHeightScale, right.suggestionsHeightScale) &&
         close(left.variationsHeightScale, right.variationsHeightScale) &&
+        close(left.frostIntensity, right.frostIntensity) &&
+        close(left.modifierIndicatorStripScale, right.modifierIndicatorStripScale) &&
         left.keyPopupStyle == right.keyPopupStyle &&
         left.keyPopupAttached == right.keyPopupAttached &&
         left.keyPopupTailEnabled == right.keyPopupTailEnabled &&
@@ -1431,6 +1819,75 @@ private fun KeyboardThemeSaveAsDialog(
 }
 
 @Composable
+private fun KeyboardThemeSavedThemeActionsDialog(
+    themeName: String,
+    onDismiss: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(themeName) },
+        text = {
+            Text(
+                text = "Choose what to do with this saved theme.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onRename) {
+                Text("Rename")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onDelete) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun KeyboardThemeRenameDialog(
+    initialName: String,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit
+) {
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Rename theme") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Theme name") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.trim().isNotEmpty(),
+                onClick = { onRename(name) }
+            ) {
+                Text("Rename")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
 private fun KeyboardThemeColorsEditor(
     theme: KeyboardThemePreset,
     preset: KeyboardThemePreset,
@@ -1460,6 +1917,14 @@ private fun KeyboardThemeColorsEditor(
                 color = theme.normalKey,
                 presetColor = preset.normalKey,
                 onColorChanged = { onThemeChanged(theme.copy(normalKey = it, suggestion = it)) }
+            )
+        )
+        add(
+            KeyboardThemeColorEditorItem(
+                label = "Key tap",
+                color = theme.keyTap,
+                presetColor = preset.keyTap,
+                onColorChanged = { onThemeChanged(theme.copy(keyTap = it, accent = it)) }
             )
         )
         add(
@@ -1616,6 +2081,20 @@ private fun KeyboardThemeKeysEditor(
             presetValue = preset.variationsHeightScale,
             valueRange = 0.65f..1.6f,
             onValueChanged = { onThemeChanged(theme.copy(variationsHeightScale = it)) }
+        )
+        KeyboardThemeSliderRow(
+            label = "Modifier strip thickness",
+            value = theme.modifierIndicatorStripScale,
+            presetValue = preset.modifierIndicatorStripScale,
+            valueRange = 0.35f..1.4f,
+            onValueChanged = { onThemeChanged(theme.copy(modifierIndicatorStripScale = it)) }
+        )
+        KeyboardThemeSliderRow(
+            label = "Frost intensity",
+            value = theme.frostIntensity,
+            presetValue = preset.frostIntensity,
+            valueRange = 0f..2f,
+            onValueChanged = { onThemeChanged(theme.copy(frostIntensity = it)) }
         )
         if (isSoftware) {
             KeyboardThemeSwitchRow(
@@ -1977,12 +2456,19 @@ private fun KeyboardThemeColorPickerDialog(
     var hue by remember(initialColor) { mutableStateOf(hsv[0]) }
     var saturation by remember(initialColor) { mutableStateOf(hsv[1]) }
     var value by remember(initialColor) { mutableStateOf(hsv[2]) }
+    var alpha by remember(initialColor) { mutableStateOf(AndroidColor.alpha(initialColor)) }
 
-    fun updateColor(newHue: Float = hue, newSaturation: Float = saturation, newValue: Float = value) {
+    fun updateColor(
+        newHue: Float = hue,
+        newSaturation: Float = saturation,
+        newValue: Float = value,
+        newAlpha: Int = alpha
+    ) {
         hue = newHue
         saturation = newSaturation
         value = newValue
-        color = AndroidColor.HSVToColor(floatArrayOf(hue, saturation, value))
+        alpha = newAlpha.coerceIn(0, 255)
+        color = AndroidColor.HSVToColor(alpha, floatArrayOf(hue, saturation, value))
         onPreviewColorChanged(color)
     }
 
@@ -2011,9 +2497,13 @@ private fun KeyboardThemeColorPickerDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    color = swatch
                                     AndroidColor.colorToHSV(swatch, hsv)
-                                    updateColor(hsv[0], hsv[1], hsv[2])
+                                    updateColor(
+                                        newHue = hsv[0],
+                                        newSaturation = hsv[1],
+                                        newValue = hsv[2],
+                                        newAlpha = AndroidColor.alpha(swatch)
+                                    )
                                 }
                                 .padding(vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -2044,6 +2534,28 @@ private fun KeyboardThemeColorPickerDialog(
                             updateColor(newHue, newSaturation, newValue)
                         }
                     )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Alpha ${(alpha / 255f * 100f).toInt()}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = alpha.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Slider(
+                            value = alpha.toFloat(),
+                            onValueChange = { updateColor(newAlpha = it.toInt()) },
+                            valueRange = 0f..255f
+                        )
+                    }
                     Text(color.toHexColorLabel(), style = MaterialTheme.typography.bodyMedium)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -2236,4 +2748,11 @@ private fun KeyboardThemeColorWheel(
     }
 }
 
-private fun Int.toHexColorLabel(): String = "#${toUInt().toString(16).uppercase().takeLast(6)}"
+private fun Int.toHexColorLabel(): String {
+    val unsigned = toUInt().toString(16).uppercase().padStart(8, '0')
+    return if (AndroidColor.alpha(this) == 255) {
+        "#${unsigned.takeLast(6)}"
+    } else {
+        "#$unsigned"
+    }
+}
