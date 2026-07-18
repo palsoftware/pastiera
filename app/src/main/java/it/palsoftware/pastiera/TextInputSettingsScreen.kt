@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.size
 import androidx.compose.foundation.layout.WindowInsets
@@ -37,6 +38,22 @@ fun TextInputSettingsScreen(
     onNavModeSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+
+    var showSnippetsScreen by remember { mutableStateOf(false) }
+    var emojiShortcodeEnabled by remember {
+        mutableStateOf(SettingsManager.getEmojiShortcodeEnabled(context))
+    }
+    var symbolShortcodeEnabled by remember {
+        mutableStateOf(SettingsManager.getSymbolShortcodeEnabled(context))
+    }
+    var snippetsEnabled by remember {
+        mutableStateOf(SettingsManager.getSnippetsEnabled(context))
+    }
+    var snippetsTrigger by remember {
+        mutableStateOf(SettingsManager.getSnippetsTrigger(context))
+    }
+    var showSnippetsTriggerDialog by remember { mutableStateOf(false) }
+    var pendingSnippetsTrigger by remember { mutableStateOf(snippetsTrigger) }
     
     var autoCapitalizeFirstLetter by remember {
         mutableStateOf(SettingsManager.getAutoCapitalizeFirstLetter(context))
@@ -119,9 +136,27 @@ fun TextInputSettingsScreen(
     var backspaceAtStartDelete by remember {
         mutableStateOf(SettingsManager.getBackspaceAtStartDelete(context))
     }
+
+    var klipyApiKey by remember {
+        mutableStateOf(SettingsManager.getKlipyApiKey(context))
+    }
     
     // Handle system back button
-    BackHandler { onBack() }
+    BackHandler {
+        if (showSnippetsScreen) {
+            showSnippetsScreen = false
+        } else {
+            onBack()
+        }
+    }
+
+    if (showSnippetsScreen) {
+        SnippetsScreen(
+            modifier = modifier,
+            onBack = { showSnippetsScreen = false }
+        )
+        return
+    }
 
     if (autoSpacePunctuationDialogVisible) {
         AlertDialog(
@@ -194,6 +229,42 @@ fun TextInputSettingsScreen(
             }
         )
     }
+
+    if (showSnippetsTriggerDialog) {
+        AlertDialog(
+            onDismissRequest = { showSnippetsTriggerDialog = false },
+            title = { Text(stringResource(R.string.snippets_trigger_dialog_title)) },
+            text = {
+                OutlinedTextField(
+                    value = pendingSnippetsTrigger,
+                    onValueChange = { value ->
+                        pendingSnippetsTrigger = value.takeLast(1)
+                    },
+                    label = { Text(stringResource(R.string.snippets_trigger_label)) },
+                    supportingText = {
+                        Text(stringResource(R.string.snippets_trigger_dialog_description))
+                    },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val normalized = pendingSnippetsTrigger.trim().take(1).ifEmpty { "!" }
+                    snippetsTrigger = normalized
+                    pendingSnippetsTrigger = normalized
+                    SettingsManager.setSnippetsTrigger(context, normalized)
+                    showSnippetsTriggerDialog = false
+                }) {
+                    Text(stringResource(R.string.snippets_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSnippetsTriggerDialog = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            }
+        )
+    }
     
     Scaffold(
         topBar = {
@@ -231,6 +302,48 @@ fun TextInputSettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            SettingsSectionHeader(text = stringResource(R.string.snippets_title))
+            SettingsSwitchRow(
+                title = stringResource(R.string.emoji_shortcodes_title),
+                description = stringResource(R.string.emoji_shortcodes_description),
+                checked = emojiShortcodeEnabled,
+                onCheckedChange = { enabled ->
+                    emojiShortcodeEnabled = enabled
+                    SettingsManager.setEmojiShortcodeEnabled(context, enabled)
+                }
+            )
+            SettingsSwitchRow(
+                title = stringResource(R.string.symbol_shortcodes_title),
+                description = stringResource(R.string.symbol_shortcodes_description),
+                checked = symbolShortcodeEnabled,
+                onCheckedChange = { enabled ->
+                    symbolShortcodeEnabled = enabled
+                    SettingsManager.setSymbolShortcodeEnabled(context, enabled)
+                }
+            )
+            SettingsSwitchRow(
+                title = stringResource(R.string.snippets_title),
+                description = stringResource(R.string.snippets_setting_description, snippetsTrigger),
+                checked = snippetsEnabled,
+                onCheckedChange = { enabled ->
+                    snippetsEnabled = enabled
+                    SettingsManager.setSnippetsEnabled(context, enabled)
+                }
+            )
+            SettingsNavigationRow(
+                title = stringResource(R.string.snippets_manage_title),
+                description = stringResource(R.string.snippets_manage_description, snippetsTrigger),
+                onClick = { showSnippetsScreen = true },
+                trailingContent = {
+                    TextButton(onClick = {
+                        pendingSnippetsTrigger = snippetsTrigger
+                        showSnippetsTriggerDialog = true
+                    }) {
+                        Text(stringResource(R.string.snippets_trigger_button))
+                    }
+                }
+            )
+
             SettingsSectionHeader(text = stringResource(R.string.text_input_section_capitalization))
             SettingsSwitchRow(
                 title = stringResource(R.string.auto_capitalize_title),
@@ -383,6 +496,18 @@ fun TextInputSettingsScreen(
                 }
             )
 
+            SettingsSectionHeader(text = stringResource(R.string.text_input_section_integrations))
+            SettingsTextFieldRow(
+                title = stringResource(R.string.klipy_api_key_title),
+                description = stringResource(R.string.klipy_api_key_description),
+                value = klipyApiKey,
+                placeholder = stringResource(R.string.klipy_api_key_placeholder),
+                onValueChange = { value ->
+                    klipyApiKey = value
+                    SettingsManager.setKlipyApiKey(context, value)
+                }
+            )
+
             SettingsSectionHeader(text = stringResource(R.string.text_input_section_delete))
             Surface(
                 modifier = Modifier
@@ -493,6 +618,46 @@ fun TextInputSettingsScreen(
 }
 
 @Composable
+private fun SettingsTextFieldRow(
+    title: String,
+    description: String,
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit
+) {
+    SettingsRowFrame(minHeight = 132.dp) {
+        Icon(
+            imageVector = Icons.Filled.TextFields,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                placeholder = { Text(placeholder) },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
 private fun SettingsSectionHeader(text: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Spacer(modifier = Modifier.height(12.dp))
@@ -573,7 +738,8 @@ private fun SettingsNavigationRow(
     title: String,
     description: String,
     iconInset: androidx.compose.ui.unit.Dp = 16.dp,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    trailingContent: (@Composable RowScope.() -> Unit)? = null
 ) {
     SettingsRowFrame(
         modifier = Modifier.clickable(onClick = onClick),
@@ -600,12 +766,16 @@ private fun SettingsNavigationRow(
                 maxLines = 2
             )
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
+        if (trailingContent != null) {
+            trailingContent()
+        } else {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
