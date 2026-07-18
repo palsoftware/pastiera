@@ -44,26 +44,34 @@ Pastiera Enhanced 4.x is a rewrite of the Enhanced fork on top of the newer Past
 ### Themes and Appearance
 
 - Per-app keyboard themes for hardware and software keyboard modes.
-- Searchable per-app theme manager with overridden apps pinned first.
-- Direct theme picker for each app override.
+- Searchable per-app theme manager with overridden apps pinned first so they are easy to find again.
+- Direct theme picker for each app override, without needing to apply a theme globally first.
+- Per-app overrides link to saved themes, so editing a saved theme updates apps using that override.
 - Theme clone, rename, and delete actions.
-- Key tap color now drives accent-style highlights across more of the keyboard UI.
-- User-adjustable key tap/accent color.
+- Separate theme assignment for hardware keyboard and software keyboard modes.
+- Fixed, light/dark, and layout/input-style theme override support.
+- Expanded color editor for background, dividers, normal keys, special keys, text/icons, suggestions, status buttons, cursor swipe, LEDs, key popups, selected popup keys, and key tap/accent color.
+- Alpha slider for theme colors, making translucent/frosted glass styles possible.
+- Frost intensity control for keyboard bars and popups.
+- User-adjustable key tap/accent color that also drives accent-style highlights across more of the keyboard UI.
 - User-adjustable modifier indicator strip thickness.
-- Translucency/frosted glass controls for keyboard bars and popups.
-- Better handling for popup translucency so snippet/shortcode pages remain readable.
-- Candidate, variation, status, and emoji/media UI colors follow the selected keyboard theme more consistently.
+- User-adjustable key corner radius and keyboard chrome corner radius.
+- User-adjustable suggestions row height and variations row height.
+- Software keyboard geometry controls, including key height, number row height, key width, row gap, horizontal spacing behavior, and ortholinear layout.
+- Popup styling controls for attached/floating key popups, popup tails, key preview timing, and alternate-key popups.
+- Candidate, variation, status, shortcut popup, snippet popup, emoji/media, and software keyboard colors follow the selected keyboard theme more consistently.
+- Better handling for popup translucency so snippet/shortcode pages stay readable even with frosted themes.
 
-### Physical Keyboard and Titan 2 Behavior
+### Hardware Keyboard, Deleting, and Titan 2 Polish
 
-- Fixed and overhauled Shift/Ctrl/Alt one-shot, held, and latch behavior.
-- More reliable double-tap latch handling for hardware modifiers.
-- Optional Keymapper modifier double-tap guard for setups where Keymapper maps Shift/Ctrl/Alt combos.
 - Configurable Shift/Alt/Ctrl + Backspace delete behavior, including normal, word, and line delete modes.
 - Configurable SYM/F12 + Backspace delete behavior where supported by the device/keymap path.
-- Better handling around Tab/F12/SYM integrations for Titan 2-style hardware mappings.
-- Improved modifier LED/status behavior so held keys are less likely to remain visually stuck after shortcuts.
-- Tuned for Unihertz Titan 2 usage, while keeping Pastiera's configurable layout system.
+- Modifier indicators can be shown in the bottom strip, Android menu/status area, Pastiera statusbar, or turned off.
+- LED/status colors for active and locked modifier states follow the selected theme.
+- Larger emoji picker option for easier browsing on compact hardware-keyboard devices.
+- Improved SYM/status bar page cycling and long-press selector behavior for faster page switching.
+- Media tab remains available inside the emoji picker even when the separate GIF SYM page is disabled.
+- Tuned for Unihertz Titan 2 usage while keeping Pastiera's configurable layout/profile system.
 
 ## Core Pastiera Features
 
