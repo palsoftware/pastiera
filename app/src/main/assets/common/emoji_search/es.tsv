@@ -836,6 +836,7 @@
 🛕	templo hindú	hindú|templo
 🛖	cabaña	cabaña|casa|yurta
 🛗	ascensor	accesibilidad|ascensor|elevador|montacargas
+🛘	desprendimiento	alud|avalancha|desastre|montaña|peligro|rocas|terremoto
 🛜	wifi	conexión|inalámbrica|internet|red|wi-fi|wifi
 🛝	tobogán	jugar|parque|parque de atracciones|tobogán
 🛞	rueda	círculo|girar|neumático|rodar|rueda
@@ -1079,6 +1080,7 @@
 🧑‍🧑‍🧒‍🧒	familia: adulto, adulto, niño, niño	adulto|familia|niño
 🧑‍🧒	familia: adulto, niño	adulto|familia|niño
 🧑‍🧒‍🧒	familia: adulto, niño, niño	adulto|familia|niño
+🧑‍🩰	bailarina de ballet	bailarín|bailarina|ballet
 🧒	infante	crío|género|infante|joven|neutro
 🧓	persona mayor	adulto|género neutro|género no especificado|maduro|mayor|persona mayor
 🧔	persona con barba	barbas|barbudo|persona|persona con barba
@@ -1148,6 +1150,8 @@
 🪇	maracas	agitar|brasil|instrumento|maracas|movimiento|música|percusión
 🪈	flauta	flauta|flautín|instrumento|instrumento de viento madera|música
 🪉	arpa	amor|arpa|cupido|harpa|instrumento|música|orquesta
+🪊	trombón	instrumento|jazz|metal|música|triste|viento
+🪎	cofre de tesoro	botín|dinero|joyas|objetos de valor|oro|piedras preciosas|plata|premio|riqueza
 🪏	pala	agujero|cavar|enterrar|excavar|hoyo|huerto|nieve|pala|planta
 🪐	planeta con anillos	planeta con anillos|saturnino|saturno
 🪑	silla	asiento|sentarse|silla
@@ -1204,6 +1208,8 @@
 🫄	persona embarazada	barriga|embarazo|gestación|hinchazón|persona embarazada
 🫅	persona con corona	majestad|monarca|monarquía|noble|persona con corona|real|realeza
 🫆	huella dactilar	delito|detective|forense|huella|huella dactilar|huella digital|identidad|misterio|rastro|seguridad
+🫈	criatura peluda	bigfoot|bosque|críptido|gigante|monstruo|peludo|sasquatch|yeti
+🫍	orca	ballena|mar|marino|océano
 🫎	alce	alce|animal|asta|ciervo canadiense|cuernos|mamífero|uapití
 🫏	burro	animal|asno|borrico|burro|mamífero|mula|terco
 🫐	arándanos	arándano|arándanos|azul|baya|frutos del bosque|mirtilo
@@ -1230,6 +1236,8 @@
 🫧	burbujas	bajo el agua|burbujas|eructar|jabón|limpiar
 🫨	cara temblorosa	cara temblorosa|shock|temblar|terremoto|vibrar
 🫩	cara con ojeras	agotado|agotamiento|cansado|cansancio|cara|extenuación|extenuado|ojeras|ojos|sueño
+🫪	cara deformada	ansiedad|conmocionado|hinchado|pánico|sorprendido|vulnerable
+🫯	nube de pelea	alboroto|altercado|bronca|desacuerdo|discusión|lucha|pelea
 🫰	mano con dedo índice y pulgar cruzados	amor|caro|chasquido|corazón|dinero|mano con dedo índice y pulgar cruzados
 🫱	mano hacia la derecha	a la derecha|derecha|mano|mano hacia la derecha
 🫲	mano hacia la izquierda	a la izquierda|izquierda|mano|mano hacia la izquierda

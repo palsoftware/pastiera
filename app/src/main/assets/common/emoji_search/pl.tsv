@@ -836,6 +836,7 @@
 🛕	świątynia hinduistyczna	hinduizm|świątynia|świątynia hinduistyczna
 🛖	chata	chata|chatka|dom|domek|jurta|okrągły|przytulny|schronienie|strzecha
 🛗	winda	dostępność|dźwig osobowy|podnośnik|winda|wyciąg pionowy
+🛘	osuwisko	góra|katastrofa|lawina|lawina błotna|niebezpieczeństwo|skały|trzęsienie ziemi
 🛜	bezprzewodowy	bezprzewodowe|bezprzewodowy|hotspot|internet|komputer|łączność|router|sieć|szerokopasmowe|wi-fi|wifi|wlan
 🛝	zjeżdżalnia	park rozrywki|plac zabaw|ślizgawka|wesołe miasteczko|zabawa|zjeżdżalnia
 🛞	koło pojazdu	koło|koło pojazdu|kręcić|opona|samochód
@@ -1079,6 +1080,7 @@
 🧑‍🧑‍🧒‍🧒	rodzina: dorosły, dorosły, dziecko, dziecko	dorosły|dziecko|rodzina: dorosły, dorosły, dziecko, dziecko
 🧑‍🧒	rodzina: dorosły, dziecko	dorosły|dziecko|rodzina: dorosły, dziecko
 🧑‍🧒‍🧒	rodzina: dorosły, dziecko, dziecko	dorosły|dziecko|rodzina: dorosły, dziecko, dziecko
+🧑‍🩰	baletnica	balet|tancerka|tancerz
 🧒	dziecko	dziecko|głowa|młoda|młody|osoba
 🧓	starsza osoba	babcia|dziadek|osoba|siwa|siwy|stara|starsza|staruszek|staruszka|stary|starzec
 🧔	osoba z brodą	broda|osoba|osoba z brodą
@@ -1148,6 +1150,8 @@
 🪇	marakasy	cza cza|grzechotać|grzechotki|impreza|instrument|marakasy|muzyka|perkusja|perkusyjny|potrząsać|taniec
 🪈	flet	dęty|drewniany|flet|fujarka|grać|gwizdać|instrument|muzyka|na flecie|orkiestra|piccolo|pikolo|piszczałka|prosty
 🪉	harfa	amorek|harfa|instrument|miłość|muzyka|orkiestra
+🪊	puzon	instrument|instrument dęty blaszany|jazz|muzyka|smutek|suwak
+🪎	skrzynia skarbów	bogactwo|kamień szlachetny|klejnot|kosztowności|łup|nagroda|pieniądze|srebro|złoto
 🪏	łopata	dziura|kopać|łopata|szpadel
 🪐	planeta z pierścieniami	pierścienie|planeta|planeta z pierścieniami|saturn|saturnowy
 🪑	krzesło	krzesło|siadać|siedzenie
@@ -1204,6 +1208,8 @@
 🫄	osoba w ciąży	brzuch|ciąża|najedzona|osoba|pełny|przejedzenie|w ciąży|wzdęty
 🫅	osoba w koronie	korona|król|królewski|monarcha|osoba w koronie|szlachta
 🫆	odcisk palca	bezpieczeństwo|odcisk palca|tożsamość
+🫈	włochate stworzenie	człowiek z lasu|gigant|kryptyda|las|sasquatch|wielka stopa|włochate|yeti
+🫍	orka	morski|ocean|wieloryb
 🫎	łoś	łoś|poroże|ssak|zwierzę
 🫏	osioł	muł|osioł|osiołek|ssak|uparty|zwierzę
 🫐	borówka amerykańska	antyoksydanty|borówka|borówka amerykańska|jagoda|jedzenie|owoc|owoce leśne|rośliny
@@ -1230,6 +1236,8 @@
 🫧	bąbelki	bąbelki|mycie|mydło|piana|plusk|pod wodą
 🫨	wstrząśnięta twarz	drganie|łał|niespodzianka|omg|oszołomienie|szaleństwo|szok|trzęsienie ziemi|twarz|wibracje|wow|wstrząs|wstrząśnięta twarz
 🫩	twarz z workami pod oczami	podkrążone oczy|senność|worki pod oczami|zmęczenie
+🫪	wykrzywiona twarz	bezradność|niepokój|opuchlizna|panika|szok|zaskoczenie
+🫯	chmura walki	awantura|dyskusja|kłótnia|raban|różnica zdań|walka
 🫰	dłoń ze skrzyżowanym palcem wskazującym i kciukiem	dłoń ze skrzyżowanym palcem wskazującym i kciukiem|drogie|miłość|pieniądze|pstryknięcie palcami|serce
 🫱	dłoń skierowana w prawo	dłoń|dłoń skierowana w prawo|prawa|uścisk dłoni|w prawo|wyciągnięta dłoń
 🫲	dłoń skierowana w lewo	dłoń|dłoń skierowana w lewo|lewa|uścisk dłoni|w lewo|wyciągnięta dłoń
