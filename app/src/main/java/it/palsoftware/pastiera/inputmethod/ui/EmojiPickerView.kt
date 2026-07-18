@@ -3,6 +3,7 @@ package it.palsoftware.pastiera.inputmethod.ui
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
@@ -37,6 +38,9 @@ import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.data.emoji.EmojiRepository
 import it.palsoftware.pastiera.data.emoji.RecentEmojiManager
 import it.palsoftware.pastiera.data.emoji.EmojiSearchRepository
+import it.palsoftware.pastiera.emoji.CustomEmojiFontManager
+import it.palsoftware.pastiera.gif.KlipyGifClient
+import it.palsoftware.pastiera.gif.KlipyGifResult
 import android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -53,7 +57,8 @@ import kotlinx.coroutines.withContext
  */
 class EmojiPickerView(
     context: Context,
-    private val onCloseRequested: (() -> Unit)? = null
+    private val onCloseRequested: (() -> Unit)? = null,
+    private val onGifSelected: ((KlipyGifResult) -> Unit)? = null
 ) : FrameLayout(context) {
 
     private var currentInputConnection: InputConnection? = null
@@ -65,6 +70,7 @@ class EmojiPickerView(
     private val tabRow: LinearLayout
     private val vertical: LinearLayout
     private val keyboardSwitcherButton: ImageView
+    private val contentFrame: FrameLayout
     private val searchPanel: FrameLayout
     private val searchToggleButton: ImageView
     private val closeButton: ImageView
@@ -102,6 +108,10 @@ class EmojiPickerView(
     private var searchInputCaptureEnabled: Boolean = true
     private var pendingSearchReplacementRange: IntRange? = null
     private var tabCategoryIds: List<String> = emptyList()
+    private var gifTabView: TextView? = null
+    private var gifPickerView: GifPickerView? = null
+    private var customEmojiTypeface = CustomEmojiFontManager.getTypeface(context)
+    private var isMediaMode: Boolean = false
     var themeOverride: KeyboardThemeColors? = null
         set(value) {
             if (field == value) {
@@ -290,6 +300,7 @@ class EmojiPickerView(
                 marginEnd = spacing
             }
             setOnClickListener {
+                setMediaMode(false)
                 setSearchPanelVisible(!isSearchPanelVisible)
             }
         }
@@ -324,17 +335,16 @@ class EmojiPickerView(
             }
         }
 
-        vertical.addView(
-            FrameLayout(context).apply {
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    0,
-                    1f
-                )
-                addView(recyclerView)
-                addView(searchPanel)
-            }
-        )
+        contentFrame = FrameLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+            addView(recyclerView)
+            addView(searchPanel)
+        }
+        vertical.addView(contentFrame)
         vertical.addView(
             LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -366,6 +376,29 @@ class EmojiPickerView(
         currentInputConnection = connection
     }
 
+    fun showMediaTab() {
+        if (onGifSelected == null) return
+        setMediaMode(true)
+    }
+
+    fun isMediaTabActive(): Boolean = isMediaMode
+
+    fun handleMediaSearchKeyDown(event: KeyEvent): Boolean {
+        return isMediaMode && gifPickerView?.handleSearchKeyDown(event) == true
+    }
+
+    fun shouldConsumeMediaSearchKeyUp(event: KeyEvent): Boolean {
+        return isMediaMode && gifPickerView?.shouldConsumeSearchKeyUp(event) == true
+    }
+
+    fun disableMediaSearchInputCapture() {
+        gifPickerView?.disableSearchInputCapture()
+    }
+
+    fun isMediaSearchInputActive(): Boolean {
+        return isMediaMode && gifPickerView?.isSearchInputActive() == true
+    }
+
     fun configureSoftwareKeyboardMode(heightPx: Int?, onKeyboardLayoutRequested: (() -> Unit)?) {
         val configuredHeight = if (it.palsoftware.pastiera.SettingsManager.getEmojiPickerExpandedHeight(context)) {
             (compactHeight * 1.5f).toInt()
@@ -392,7 +425,11 @@ class EmojiPickerView(
     }
 
     fun refresh() {
-        loadCategories()
+        if (isMediaMode) {
+            gifPickerView?.refresh()
+        } else {
+            loadCategories()
+        }
     }
 
     fun isSearchInputActive(): Boolean {
@@ -647,6 +684,7 @@ class EmojiPickerView(
     }
 
     private fun loadCategories() {
+        customEmojiTypeface = CustomEmojiFontManager.getTypeface(context)
         // Cancel any previous loading job to avoid race conditions
         loadingJob?.cancel()
 
@@ -671,6 +709,17 @@ class EmojiPickerView(
 
                 buildSections(allCategories)
                 updateTabs(allCategories)
+
+                if (isMediaMode) {
+                    loadingView.visibility = View.GONE
+                    emptyView.visibility = View.GONE
+                    recyclerView.visibility = View.GONE
+                    gifPickerView?.apply {
+                        visibility = View.VISIBLE
+                        bringToFront()
+                    }
+                    return@launch
+                }
 
                 loadingView.visibility = View.GONE
                 if (allCategories.isEmpty()) {
@@ -749,6 +798,9 @@ class EmojiPickerView(
     }
 
     private fun setSearchPanelVisible(visible: Boolean) {
+        if (visible) {
+            setMediaMode(false)
+        }
         isSearchPanelVisible = visible
         searchPanel.visibility = if (visible) View.VISIBLE else View.GONE
         searchToggleButton.background = createTabBackground(visible)
@@ -756,6 +808,57 @@ class EmojiPickerView(
         if (visible) {
             searchField.requestFocus()
         }
+    }
+
+    private fun setMediaMode(enabled: Boolean) {
+        if (isMediaMode == enabled) {
+            updateTabsSelection()
+            return
+        }
+        isMediaMode = enabled
+        if (enabled) {
+            setSearchInputCaptureEnabled(false)
+            isSearchPanelVisible = false
+            searchPanel.visibility = View.GONE
+            searchToggleButton.background = createTabBackground(false)
+            recyclerView.visibility = View.GONE
+            loadingView.visibility = View.GONE
+            emptyView.visibility = View.GONE
+            val mediaView = gifPickerView ?: GifPickerView(
+                context = context,
+                gifClient = KlipyGifClient(context),
+                onGifSelected = { result -> onGifSelected?.invoke(result) },
+                fillParentHeight = true
+            ).also { gifPickerView = it }
+            if (mediaView.parent !== contentFrame) {
+                (mediaView.parent as? ViewGroup)?.removeView(mediaView)
+                contentFrame.addView(
+                    mediaView,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
+            }
+            mediaView.visibility = View.VISIBLE
+            mediaView.bringToFront()
+            mediaView.refresh()
+        } else {
+            gifPickerView?.visibility = View.GONE
+            searchPanel.visibility = if (isSearchPanelVisible) View.VISIBLE else View.GONE
+            if (isSearchMode) {
+                val hasResults = searchAdapter.itemCount > 0
+                recyclerView.visibility = if (hasResults) View.VISIBLE else View.GONE
+                emptyView.visibility = if (hasResults) View.GONE else View.VISIBLE
+            } else {
+                emptyView.visibility = View.GONE
+                loadingView.visibility = View.GONE
+                recyclerView.visibility = if (sectionAdapter.itemCount > 0) View.VISIBLE else View.GONE
+            }
+            recyclerView.bringToFront()
+            searchPanel.bringToFront()
+        }
+        updateTabsSelection()
     }
 
     private fun applySearchNow() {
@@ -866,6 +969,7 @@ class EmojiPickerView(
                 )
                 setOnClickListener {
                     if (isSearchMode) return@setOnClickListener
+                    setMediaMode(false)
                     selectedCategoryId = category.id
                     updateTabsSelection()
                     isTabClickScroll = true
@@ -884,17 +988,46 @@ class EmojiPickerView(
             }
             tabRow.addView(btn)
         }
+        // The Media tab belongs to the emoji picker; gifPickerEnabled only controls
+        // whether media appears as a separate SYM page in the SYM cycle.
+        if (onGifSelected != null) {
+            val btn = TextView(context).apply {
+                text = context.getString(R.string.emoji_picker_gif_tab)
+                contentDescription = context.getString(R.string.emoji_picker_gif_tab)
+                gravity = Gravity.CENTER
+                textSize = 12f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTextColor(themeOverride?.textAndIcons ?: Color.WHITE)
+                background = createTabBackground(false)
+                isClickable = true
+                isFocusable = true
+                layoutParams = LinearLayout.LayoutParams(0, tabHeight, 1f)
+                setOnClickListener {
+                    setMediaMode(true)
+                }
+            }
+            gifTabView = btn
+            tabRow.addView(btn)
+        } else {
+            gifTabView = null
+        }
         updateTabsSelection()
     }
 
     private fun updateTabsSelection() {
         for (i in 0 until tabRow.childCount) {
-            val view = tabRow.getChildAt(i) as? ImageView ?: continue
+            val view = tabRow.getChildAt(i)
             val categoryId = tabCategoryIds.getOrNull(i)
-            val isSelected = categoryId == selectedCategoryId
+            val isSelected = !isMediaMode && categoryId == selectedCategoryId
             // Icon always visible, only background changes
             view.background = createTabBackground(isSelected)
+            if (view is ImageView) {
+                view.setColorFilter(themeOverride?.textAndIcons ?: Color.WHITE)
+            } else if (view is TextView) {
+                view.setTextColor(themeOverride?.textAndIcons ?: Color.WHITE)
+            }
         }
+        gifTabView?.background = createTabBackground(isMediaMode)
     }
 
     private fun onEmojiSelected(emoji: String, categoryId: String) {
@@ -1042,7 +1175,7 @@ class EmojiPickerView(
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             val color = if (theme != null) {
-                if (isSelected) colorWithAlpha(theme.accent, 100) else Color.TRANSPARENT
+                if (isSelected) colorWithAlpha(theme.keyTap, 100) else Color.TRANSPARENT
             } else if (isSelected) {
                 Color.argb(100, 255, 255, 255)
             } else {
@@ -1126,8 +1259,15 @@ class EmojiPickerView(
         options.forEach { emoji ->
             val textView = TextView(context).apply {
                 text = emoji
-                textSize = 24f
                 gravity = Gravity.CENTER
+                CustomEmojiFontManager.applyToTextView(
+                    context = context,
+                    textView = this,
+                    emoji = emoji,
+                    fallbackTypeface = Typeface.DEFAULT,
+                    systemTextSizeSp = 24f,
+                    customTextSizeSp = 30f
+                )
                 setPadding(itemHorizontalPadding, itemVerticalPadding, itemHorizontalPadding, itemVerticalPadding)
                 setTextColor(themeOverride?.textAndIcons ?: Color.BLACK)
             }
@@ -1138,15 +1278,24 @@ class EmojiPickerView(
             container.addView(textView)
         }
 
-        container.measure(
+        val maxPopupWidth = context.resources.displayMetrics.widthPixels - dpToPx(16f)
+        val popupContent: View = HorizontalScrollView(context).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(container)
+        }
+
+        popupContent.measure(
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
 
+        val popupWidth = minOf(popupContent.measuredWidth, maxPopupWidth)
+        val popupHeight = popupContent.measuredHeight
+
         popup = PopupWindow(
-            container,
-            WRAP_CONTENT,
-            WRAP_CONTENT,
+            popupContent,
+            popupWidth,
+            popupHeight,
             false // Don't take focus to avoid closing emoji picker
         ).apply {
             setBackgroundDrawable(ColorDrawable(themeOverride?.keyPopup ?: Color.parseColor("#EEFFFFFF")))
@@ -1159,12 +1308,11 @@ class EmojiPickerView(
         val location = IntArray(2)
         anchor.getLocationInWindow(location)
         val windowWidth = context.resources.displayMetrics.widthPixels
-        val popupWidth = container.measuredWidth
-        val popupHeight = container.measuredHeight
         val anchorX = location[0]
         val anchorY = location[1]
         val desiredX = anchorX + (anchor.width - popupWidth) / 2
-        val clampedX = desiredX.coerceIn(0, windowWidth - popupWidth)
+        val maxX = (windowWidth - popupWidth).coerceAtLeast(0)
+        val clampedX = desiredX.coerceIn(0, maxX)
         val xOffset = clampedX - anchorX
         val desiredYOffset = -(popupHeight + anchor.height)
         val minYOffset = -(anchorY + anchor.height)
@@ -1224,7 +1372,6 @@ class EmojiPickerView(
             } else {
                 val tv = TextView(parent.context).apply {
                     gravity = Gravity.CENTER
-                    textSize = 28.8f
                     minHeight = emojiSize
                     minWidth = emojiSize
                     layoutParams = RecyclerView.LayoutParams(
@@ -1243,6 +1390,14 @@ class EmojiPickerView(
                 }
                 is SectionItem.Emoji -> {
                     (holder as EmojiViewHolder).textView.text = item.entry.base
+                    CustomEmojiFontManager.applyToTextView(
+                        context = holder.textView.context,
+                        textView = holder.textView,
+                        emoji = item.entry.base,
+                        fallbackTypeface = Typeface.DEFAULT,
+                        systemTextSizeSp = 28.8f,
+                        customTextSizeSp = 34f
+                    )
                     holder.textView.setTextColor(themeOverride?.textAndIcons ?: Color.WHITE)
                     holder.textView.setOnClickListener {
                         onEmojiSelected(item.entry.base, item.categoryId)
@@ -1270,7 +1425,6 @@ class EmojiPickerView(
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchEmojiViewHolder {
             val tv = TextView(parent.context).apply {
                 gravity = Gravity.CENTER
-                textSize = 28.8f
                 minHeight = emojiSize
                 minWidth = emojiSize
                 layoutParams = RecyclerView.LayoutParams(
@@ -1284,6 +1438,14 @@ class EmojiPickerView(
         override fun onBindViewHolder(holder: SearchEmojiViewHolder, position: Int) {
             val item = getItem(position)
             holder.textView.text = item.entry.base
+            CustomEmojiFontManager.applyToTextView(
+                context = holder.textView.context,
+                textView = holder.textView,
+                emoji = item.entry.base,
+                fallbackTypeface = Typeface.DEFAULT,
+                systemTextSizeSp = 28.8f,
+                customTextSizeSp = 34f
+            )
             holder.textView.setTextColor(themeOverride?.textAndIcons ?: Color.WHITE)
             holder.textView.setOnClickListener {
                 onEmojiSelected(item.entry.base, item.categoryId)
