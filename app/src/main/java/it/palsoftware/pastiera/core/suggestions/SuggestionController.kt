@@ -60,6 +60,7 @@ class SuggestionController(
     )
     private var autoReplaceController = createAutoReplaceController()
     private val nextWordPredictor = nextWordPredictorOverride ?: NextWordPredictor(UserNGramStore(appContext))
+    private var bundledPhrasePredictor = buildBundledPhrasePredictor(currentLocale)
     private val extraSuggestionEngines = mutableMapOf<String, SuggestionLanguageEngine>()
 
     private data class SuggestionLanguageEngine(
@@ -108,6 +109,14 @@ class SuggestionController(
             }
         )
     }
+
+    private fun buildBundledPhrasePredictor(locale: Locale): BundledPhrasePredictor {
+        return BundledPhrasePredictor(
+            context = appContext,
+            locale = locale,
+            isValidWord = { candidate -> isKnownWordInActiveDictionaries(candidate) }
+        )
+    }
     
     /**
      * Updates the locale and reloads the dictionary for the new language.
@@ -129,6 +138,7 @@ class SuggestionController(
             setKeyboardLayout(keyboardLayoutProvider())
         }
         autoReplaceController = createAutoReplaceController()
+        bundledPhrasePredictor = buildBundledPhrasePredictor(currentLocale)
         extraSuggestionEngines.clear()
         
         // Recreate tracker to use new engine (tracker captures suggestionEngine in closure)
@@ -150,6 +160,7 @@ class SuggestionController(
         
         // Reset tracker and clear suggestions
         previousCompletedWord = null
+        previousPreviousCompletedWord = null
         sentenceStartPending = true
         tracker.reset()
         suggestionsListener?.invoke(emptyList())
@@ -174,7 +185,13 @@ class SuggestionController(
     private val cursorDebounceMs = 120L
     private var pendingAddUserWord: String? = null
     private var previousCompletedWord: String? = null
+    private var previousPreviousCompletedWord: String? = null
     private var pendingInitialContextConnection: InputConnection? = null
+    private val dismissedSuggestionPrefs = appContext.getSharedPreferences("suggestion_dismissals", Context.MODE_PRIVATE)
+    private val dismissedSuggestionKeys = dismissedSuggestionPrefs
+        .getStringSet(KEY_DISMISSED_SUGGESTIONS, emptySet())
+        ?.toMutableSet()
+        ?: mutableSetOf()
     @Volatile private var pendingPrimaryRefreshAfterLoad: Boolean = false
     @Volatile private var pendingExtraRefreshAfterLoad: Boolean = false
     @Volatile private var suggestionGeneration: Int = 0
@@ -244,6 +261,7 @@ class SuggestionController(
             }
 
             val next = mergeSuggestionResults(primary, extraSuggestions, settings.maxSuggestions, localeSnapshot)
+                .filterNotDismissed(localeSnapshot)
             val pendingCandidate = addWordCandidateFor(wordSnapshot, primaryRepository)
 
             cursorHandler.post {
@@ -363,6 +381,7 @@ class SuggestionController(
         if (inputConnection == null) {
             tracker.reset()
             previousCompletedWord = null
+            previousPreviousCompletedWord = null
             sentenceStartPending = true
             suggestionsListener?.invoke(emptyList())
             return
@@ -371,6 +390,7 @@ class SuggestionController(
             if (!dictionaryRepository.isReady) {
                 tracker.reset()
                 previousCompletedWord = null
+                previousPreviousCompletedWord = null
                 suggestionsListener?.invoke(emptyList())
                 return@Runnable
             }
@@ -382,9 +402,10 @@ class SuggestionController(
                 val previous = previousCompletedWord
                 val lastChar = lastCharBeforeCursor(inputConnection)
                 if (previous != null && isSoftPredictionBoundary(lastChar)) {
-                    publishNextWordPredictions(previous)
+                    publishNextWordPredictions(previous, previousPreviousCompletedWord)
                 } else {
                     previousCompletedWord = null
+                    previousPreviousCompletedWord = null
                     sentenceStartPending = true
                     publishSentenceStartPredictionsOrStarter()
                 }
@@ -398,6 +419,7 @@ class SuggestionController(
         tracker.onContextChanged()
         pendingAddUserWord = null
         previousCompletedWord = null
+        previousPreviousCompletedWord = null
         sentenceStartPending = true
         suggestionsListener?.invoke(emptyList())
     }
@@ -406,6 +428,7 @@ class SuggestionController(
         if (!isEnabled()) return
         tracker.onContextChanged()
         previousCompletedWord = null
+        previousPreviousCompletedWord = null
         sentenceStartPending = true
     }
 
@@ -456,6 +479,40 @@ class SuggestionController(
 
     fun currentSuggestions(): List<SuggestionResult> = latestSuggestions.get()
 
+    fun onSuggestionAccepted(acceptedWord: String) {
+        if (!isEnabled()) return
+        tracker.reset()
+        pendingAddUserWord = null
+
+        val settings = settingsProvider()
+        if (!settings.suggestionsEnabled) {
+            previousCompletedWord = null
+            previousPreviousCompletedWord = null
+            latestSuggestions.set(emptyList())
+            suggestionsListener?.invoke(emptyList())
+            return
+        }
+
+        val cleanWord = acceptedWord.trim().takeIf { it.any { ch -> ch.isLetterOrDigit() } }
+        if (cleanWord == null) {
+            latestSuggestions.set(emptyList())
+            suggestionsListener?.invoke(emptyList())
+            return
+        }
+
+        val previousWord = previousCompletedWord
+        if (sentenceStartPending) {
+            nextWordPredictor.learnSentenceStart(currentLocale, cleanWord)
+        }
+        previousWord?.let { previous ->
+            nextWordPredictor.learn(currentLocale, previous, cleanWord)
+        }
+        previousPreviousCompletedWord = previousWord
+        previousCompletedWord = cleanWord
+        sentenceStartPending = false
+        publishNextWordPredictions(cleanWord, previousWord)
+    }
+
     fun userDictionarySnapshot(): List<UserDictionaryStore.UserEntry> = userDictionaryStore.getSnapshot()
 
     fun dismissSuggestion(candidate: String, hardDeleteUserWord: Boolean = false) {
@@ -464,23 +521,26 @@ class SuggestionController(
         if (trimmed.isEmpty()) return
 
         val current = latestSuggestions.get()
-        val suggestion = current.firstOrNull { it.candidate.equals(trimmed, ignoreCase = true) }
+        val dismissedKey = dismissedSuggestionKey(trimmed)
+        val suggestion = current.firstOrNull { dismissedSuggestionKey(it.candidate) == dismissedKey }
+        val target = suggestion?.candidate ?: trimmed
+        rememberDismissedSuggestion(target)
         if (suggestion?.kind == SuggestionKind.NEXT_WORD) {
-            forgetNextWordSuggestion(trimmed, hardDeleteEverywhere = hardDeleteUserWord)
+            forgetNextWordSuggestion(target, hardDeleteEverywhere = hardDeleteUserWord)
         }
         if (hardDeleteUserWord) {
-            removeUserWord(trimmed)
+            removeUserWord(target)
             activeExtraSuggestionEngines().forEach { extra ->
                 if (extra.repository.isReady) {
-                    extra.repository.removeUserEntry(trimmed)
+                    extra.repository.removeUserEntry(target)
                 }
             }
         }
 
         val next = fillWithStarterSuggestions(
-            current.filterNot { it.candidate.equals(trimmed, ignoreCase = true) },
+            current.filterNot { dismissedSuggestionKey(it.candidate) == dismissedKey },
             settingsProvider(),
-            excludedCandidates = setOf(trimmed)
+            excludedCandidates = setOf(target)
         )
         latestSuggestions.set(next)
         suggestionsListener?.invoke(next)
@@ -536,6 +596,7 @@ class SuggestionController(
     internal fun clearLearnedNextWordsForTests() {
         nextWordPredictor.clearAll()
         previousCompletedWord = null
+        previousPreviousCompletedWord = null
     }
 
     internal fun flushNextWordLearningForTests() {
@@ -553,6 +614,7 @@ class SuggestionController(
         val settings = settingsProvider()
         if (!settings.suggestionsEnabled) {
             previousCompletedWord = null
+            previousPreviousCompletedWord = null
             latestSuggestions.set(emptyList())
             suggestionsListener?.invoke(emptyList())
             return
@@ -570,14 +632,16 @@ class SuggestionController(
 
         when {
             cleanWord != null && isSoftPredictionBoundary(boundaryChar) -> {
+                val previousWord = previousCompletedWord
+                previousPreviousCompletedWord = previousWord
                 previousCompletedWord = cleanWord
                 sentenceStartPending = false
-                publishNextWordPredictions(cleanWord)
+                publishNextWordPredictions(cleanWord, previousWord)
             }
             cleanWord == null && isSoftPredictionBoundary(boundaryChar) -> {
                 val previous = previousCompletedWord
                 if (previous != null) {
-                    publishNextWordPredictions(previous)
+                    publishNextWordPredictions(previous, previousPreviousCompletedWord)
                 } else {
                     latestSuggestions.set(emptyList())
                     suggestionsListener?.invoke(emptyList())
@@ -585,6 +649,7 @@ class SuggestionController(
             }
             else -> {
                 previousCompletedWord = null
+                previousPreviousCompletedWord = null
                 sentenceStartPending = true
                 latestSuggestions.set(emptyList())
                 suggestionsListener?.invoke(emptyList())
@@ -592,7 +657,7 @@ class SuggestionController(
         }
     }
 
-    private fun publishNextWordPredictions(previousWord: String) {
+    private fun publishNextWordPredictions(previousWord: String, previousPreviousWord: String?) {
         val settings = settingsProvider()
         val primary = nextWordPredictor.predict(
             currentLocale,
@@ -602,7 +667,15 @@ class SuggestionController(
         val extras = activeExtraLocales().flatMap { locale ->
             nextWordPredictor.predict(locale, previousWord, settings.maxSuggestions)
         }
-        val predictions = mergeSuggestionResults(primary, extras, settings.maxSuggestions)
+        val learnedPredictions = mergeSuggestionResults(primary, extras, settings.maxSuggestions)
+        val bundledPredictions = bundledNextWordPredictions(
+            previousWord = previousWord,
+            previousPreviousWord = previousPreviousWord,
+            existing = learnedPredictions,
+            limit = settings.maxSuggestions
+        )
+        val predictions = mergeSuggestionResults(learnedPredictions, bundledPredictions, settings.maxSuggestions)
+            .filterNotDismissed(currentLocale)
         val suggestions = fillWithStarterSuggestions(predictions, settings)
         if (suggestions.isNotEmpty()) {
             latestSuggestions.set(suggestions)
@@ -612,6 +685,43 @@ class SuggestionController(
         }
     }
 
+    private fun bundledNextWordPredictions(
+        previousWord: String,
+        previousPreviousWord: String?,
+        existing: List<SuggestionResult>,
+        limit: Int
+    ): List<SuggestionResult> {
+        val remaining = limit - existing.size
+        if (remaining <= 0) return emptyList()
+
+        val seen = existing.mapTo(HashSet()) { it.candidate.lowercase(currentLocale) }
+        val contextual = bundledPhrasePredictor
+            .predictContextual(previousWord, previousPreviousWord, remaining * 2)
+        val candidates = if (contextual.isNotEmpty()) {
+            contextual
+        } else {
+            bundledPhrasePredictor.fallbackWords(remaining * 2)
+        }
+
+        return candidates.asSequence()
+            .filter { candidate ->
+                !candidate.equals(previousWord, ignoreCase = true) &&
+                    !isSuggestionDismissed(candidate) &&
+                    seen.add(candidate.lowercase(currentLocale))
+            }
+            .mapIndexed { index, candidate ->
+                SuggestionResult(
+                    candidate = candidate,
+                    distance = 0,
+                    score = (remaining - index).coerceAtLeast(1).toDouble(),
+                    source = SuggestionSource.MAIN,
+                    kind = SuggestionKind.NEXT_WORD
+                )
+            }
+            .take(remaining)
+            .toList()
+    }
+
     private fun publishSentenceStartPredictionsOrStarter() {
         val settings = settingsProvider()
         val primary = nextWordPredictor.predictSentenceStart(currentLocale, settings.maxSuggestions)
@@ -619,6 +729,7 @@ class SuggestionController(
             nextWordPredictor.predictSentenceStart(locale, settings.maxSuggestions)
         }
         val predictions = mergeSuggestionResults(primary, extras, settings.maxSuggestions)
+            .filterNotDismissed(currentLocale)
         val suggestions = fillWithStarterSuggestions(predictions, settings)
         if (suggestions.isNotEmpty()) {
             latestSuggestions.set(suggestions)
@@ -636,7 +747,7 @@ class SuggestionController(
             return
         }
 
-        val suggestions = starterSuggestions(settings)
+        val suggestions = starterSuggestions(settings).filterNotDismissed(currentLocale)
         latestSuggestions.set(suggestions)
         suggestionsListener?.invoke(suggestions)
     }
@@ -652,6 +763,7 @@ class SuggestionController(
             }
         }
         return mergeSuggestionResults(primary, extras, settings.maxSuggestions)
+            .filterNotDismissed(currentLocale)
     }
 
     private fun fillWithStarterSuggestions(
@@ -663,7 +775,7 @@ class SuggestionController(
         val seen = predictions
             .mapTo(HashSet()) { it.candidate.lowercase(currentLocale) }
         val fillers = starterSuggestions(settings)
-            .filter { seen.add(it.candidate.lowercase(currentLocale)) }
+            .filter { !isSuggestionDismissed(it.candidate) && seen.add(it.candidate.lowercase(currentLocale)) }
         return (predictions + fillers).take(settings.maxSuggestions)
     }
 
@@ -680,9 +792,33 @@ class SuggestionController(
         val fillers = starterSuggestions(settings)
             .filter { result ->
                 val key = result.candidate.lowercase(currentLocale)
-                key !in excluded && seen.add(key)
+                key !in excluded &&
+                    !isSuggestionDismissed(result.candidate) &&
+                    seen.add(key)
             }
         return (predictions + fillers).take(settings.maxSuggestions)
+    }
+
+    private fun List<SuggestionResult>.filterNotDismissed(locale: Locale): List<SuggestionResult> {
+        if (dismissedSuggestionKeys.isEmpty()) return this
+        return filterNot { isSuggestionDismissed(it.candidate) }
+    }
+
+    private fun rememberDismissedSuggestion(candidate: String) {
+        val key = dismissedSuggestionKey(candidate)
+        if (key.isBlank() || !dismissedSuggestionKeys.add(key)) return
+        dismissedSuggestionPrefs.edit()
+            .putStringSet(KEY_DISMISSED_SUGGESTIONS, dismissedSuggestionKeys.toSet())
+            .apply()
+    }
+
+    private fun isSuggestionDismissed(candidate: String): Boolean {
+        return dismissedSuggestionKey(candidate) in dismissedSuggestionKeys
+    }
+
+    private fun dismissedSuggestionKey(candidate: String): String {
+        return WordNormalization
+            .foldCompatibilityLetters(WordNormalization.normalizeApostrophes(candidate.trim()).lowercase(Locale.ROOT))
     }
 
     private fun starterSuggestionsFor(
@@ -934,6 +1070,7 @@ class SuggestionController(
     }
 
     companion object {
+        private const val KEY_DISMISSED_SUGGESTIONS = "dismissed_suggestions"
         private const val CURSOR_WORD_CONTEXT_CHARS = 128
         private const val PRIMARY_SUGGESTION_BOOST = 0.35
     }

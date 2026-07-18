@@ -91,7 +91,7 @@ class FullSuggestionsBar(
             buttonHost?.themeOverride = value?.let {
                 StatusBarButtonStyles.ThemeOverride(
                     normalColor = it.statusBarButton,
-                    pressedColor = it.accent,
+                    pressedColor = it.keyTap,
                     iconColor = it.textAndIcons,
                     cornerRadiusRatio = it.keyCornerRadiusRatio,
                     borderColor = it.divider,
@@ -358,7 +358,7 @@ class FullSuggestionsBar(
         addWordCandidate: String?,
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
-        onSuggestionCommitted: (() -> Unit)?,
+        onSuggestionCommitted: ((String) -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?
@@ -609,7 +609,7 @@ class FullSuggestionsBar(
         addWordCandidate: String?,
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
-        onSuggestionCommitted: (() -> Unit)?,
+        onSuggestionCommitted: ((String) -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?
@@ -698,7 +698,7 @@ class FullSuggestionsBar(
                 if (suggestion != null) {
                     if (addWordCandidate != null && suggestion.equals(addWordCandidate, ignoreCase = true)) {
                         val addDrawable = androidx.core.content.ContextCompat.getDrawable(context, android.R.drawable.ic_input_add)?.mutate()
-                        addDrawable?.setTint(Color.YELLOW)
+                        addDrawable?.setTint(themeOverride?.textAndIcons ?: Color.WHITE)
                         addDrawable?.setBounds(0, 0, dpToPx(18f), dpToPx(18f))
                         setCompoundDrawables(null, null, addDrawable, null)
                         compoundDrawablePadding = dpToPx(6f)
@@ -823,7 +823,7 @@ class FullSuggestionsBar(
         val pressed = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dpToPx(7f).toFloat()
-            setColor(themeOverride?.accent ?: PRESSED_BLUE)
+            setColor(themeOverride?.keyTap ?: PRESSED_BLUE)
         }
         return StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_pressed), pressed)
@@ -931,11 +931,10 @@ class FullSuggestionsBar(
         val normalDrawable = GradientDrawable().apply {
             setColor(themeOverride?.suggestion ?: DEFAULT_SUGGESTION_COLOR)
             cornerRadius = radius
-            alpha = 255 // placeholders look identical; they stay non-clickable
             themeOverride?.let { setStroke(dpToPx(1f), it.divider) }
         }
         val pressedDrawable = GradientDrawable().apply {
-            setColor(themeOverride?.accent ?: PRESSED_BLUE)
+            setColor(themeOverride?.keyTap ?: PRESSED_BLUE)
             cornerRadius = radius
             themeOverride?.let { setStroke(dpToPx(1f), it.divider) }
         }

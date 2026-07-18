@@ -6,6 +6,7 @@ import android.view.KeyEvent
 import android.widget.LinearLayout
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.SettingsManager
+import it.palsoftware.pastiera.gif.KlipyGifResult
 
 /**
  * Coordinates the two StatusBarController instances (full input view vs
@@ -20,6 +21,13 @@ class CandidatesBarController(
 
     private val inputStatusBar = StatusBarController(context, StatusBarController.Mode.FULL, clipboardHistoryManager, assets, imeServiceClass)
     private val candidatesStatusBar = StatusBarController(context, StatusBarController.Mode.CANDIDATES_ONLY, clipboardHistoryManager, assets, imeServiceClass)
+
+    var currentPackageName: String? = null
+        set(value) {
+            field = value
+            inputStatusBar.currentPackageName = value
+            candidatesStatusBar.currentPackageName = value
+        }
 
     var onVariationSelectedListener: VariationButtonHandler.OnVariationSelectedListener? = null
         set(value) {
@@ -56,7 +64,7 @@ class CandidatesBarController(
             candidatesStatusBar.onAddUserWordSubstitutionRequested = value
         }
 
-    var onSuggestionCommitted: (() -> Unit)? = null
+    var onSuggestionCommitted: ((String) -> Unit)? = null
         set(value) {
             field = value
             inputStatusBar.onSuggestionCommitted = value
@@ -105,11 +113,25 @@ class CandidatesBarController(
             candidatesStatusBar.onEmojiPickerRequested = value
         }
 
+    var onGifPickerRequested: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onGifPickerRequested = value
+            candidatesStatusBar.onGifPickerRequested = value
+        }
+
     var onEmojiPageRequested: (() -> Unit)? = null
         set(value) {
             field = value
             inputStatusBar.onEmojiPageRequested = value
             candidatesStatusBar.onEmojiPageRequested = value
+        }
+
+    var onGifSelected: ((KlipyGifResult) -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onGifSelected = value
+            candidatesStatusBar.onGifSelected = value
         }
     
     var onSymbolsPageRequested: (() -> Unit)? = null
@@ -251,6 +273,31 @@ class CandidatesBarController(
     fun createEmojiPickerSearchInputConnection(): InputConnection? {
         return inputStatusBar.createEmojiPickerSearchInputConnection()
             ?: candidatesStatusBar.createEmojiPickerSearchInputConnection()
+    }
+
+    fun handleGifPickerSearchKeyDown(event: KeyEvent?): Boolean {
+        return inputStatusBar.handleGifPickerSearchKeyDown(event) ||
+            candidatesStatusBar.handleGifPickerSearchKeyDown(event)
+    }
+
+    fun shouldConsumeGifPickerSearchKeyUp(event: KeyEvent?): Boolean {
+        return inputStatusBar.shouldConsumeGifPickerSearchKeyUp(event) ||
+            candidatesStatusBar.shouldConsumeGifPickerSearchKeyUp(event)
+    }
+
+    fun disableGifPickerSearchInputCapture() {
+        inputStatusBar.disableGifPickerSearchInputCapture()
+        candidatesStatusBar.disableGifPickerSearchInputCapture()
+    }
+
+    fun isGifPickerSearchInputActive(): Boolean {
+        return inputStatusBar.isGifPickerSearchInputActive() ||
+            candidatesStatusBar.isGifPickerSearchInputActive()
+    }
+
+    fun requestMediaTabOnNextEmojiPickerOpen() {
+        inputStatusBar.requestMediaTabOnNextEmojiPickerOpen()
+        candidatesStatusBar.requestMediaTabOnNextEmojiPickerOpen()
     }
 
     fun isMinimalUiActive(): Boolean = inputStatusBar.isMinimalUiActive()
