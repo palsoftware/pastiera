@@ -198,6 +198,13 @@ class CandidatesBarController(
             candidatesStatusBar.onSoftwareKeyboardTextInput = value
         }
 
+    var onSoftwareKeyboardBoundaryTextInput: ((String, InputConnection?) -> Boolean)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onSoftwareKeyboardBoundaryTextInput = value
+            candidatesStatusBar.onSoftwareKeyboardBoundaryTextInput = value
+        }
+
     var onMinimalUiToggleRequested: (() -> Unit)? = null
         set(value) {
             field = value

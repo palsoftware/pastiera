@@ -300,7 +300,8 @@ class SuggestionController(
     fun onBoundaryKey(
         keyCode: Int,
         event: KeyEvent?,
-        inputConnection: InputConnection?
+        inputConnection: InputConnection?,
+        boundaryCharOverride: Char? = null
     ): AutoReplaceController.ReplaceResult {
         if (debugLogging) {
             Log.d(
@@ -320,9 +321,15 @@ class SuggestionController(
             }
         }
 
-        val boundaryChar = boundaryCharFor(keyCode, event)
+        val boundaryChar = boundaryCharOverride ?: boundaryCharFor(keyCode, event)
         val wordBeforeBoundary = tracker.currentWord.takeIf { it.isNotBlank() }
-        val result = autoReplaceController.handleBoundary(keyCode, event, tracker, inputConnection)
+        val result = autoReplaceController.handleBoundary(
+            keyCode,
+            event,
+            tracker,
+            inputConnection,
+            boundaryCharOverride = boundaryChar
+        )
         val completedWord = result.replacement ?: wordBeforeBoundary
         if (result.replaced) {
             pendingAddUserWord = addWordCandidateFor(result.replacement)

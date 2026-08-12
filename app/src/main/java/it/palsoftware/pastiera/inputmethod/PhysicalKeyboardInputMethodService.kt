@@ -1709,6 +1709,13 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
 
         // Register listener for variation selection (both controllers)
         val variationListener = object : VariationButtonHandler.OnVariationSelectedListener {
+            override fun onBoundaryTextRequested(
+                variation: String,
+                inputConnection: InputConnection
+            ): Boolean {
+                return handleBoundaryTextBeforeCommit(variation, inputConnection)
+            }
+
             override fun onVariationSelected(variation: String) {
                 val keepLayerLatchedAfterVariation =
                     SettingsManager.isStaticVariationBarLayerStickyEnabled(this@PhysicalKeyboardInputMethodService)
@@ -1850,6 +1857,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             }
             handled
         }
+        candidatesBarController.onSoftwareKeyboardBoundaryTextInput = { text, inputConnection ->
+            handleBoundaryTextBeforeCommit(text, inputConnection)
+        }
         candidatesBarController.onMinimalUiToggleRequested = {
             keyboardVisibilityController.togglePastierinaMode()
         }
@@ -1883,6 +1893,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         )
         altSymManager.reloadSymMappings() // Load custom mappings for page 1 if present
         altSymManager.reloadSymMappings2() // Load custom mappings for page 2 if present
+        altSymManager.onBoundaryTextRequested = { text, inputConnection ->
+            handleBoundaryTextBeforeCommit(text, inputConnection)
+        }
         // Register callback to be notified when an Alt character is inserted after long press.
         // Variations are updated automatically by updateStatusBarText().
         altSymManager.onAltCharInserted = { char ->
@@ -1894,22 +1907,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             val normalizedChar = it.palsoftware.pastiera.core.Punctuation.normalizeApostrophe(char)
             if (normalizedChar == '\'') {
                 inputEventRouter.handleInWordApostrophe(ic, pendingApostrophe = false)
-            } else if (normalizedChar in punctuationSet && ic != null) {
-                val isAutoCorrectEnabled = SettingsManager.getAutoCorrectEnabled(this) && !inputContextState.shouldDisableAutoCorrect
-                autoCorrectionManager.handleBoundaryKey(
-                    keyCode = KeyEvent.KEYCODE_UNKNOWN,
-                    event = null,
-                    inputConnection = ic,
-                    isAutoCorrectEnabled = isAutoCorrectEnabled,
-                    commitBoundary = true,
-                    onStatusBarUpdate = { updateStatusBarText() },
-                    boundaryCharOverride = normalizedChar
-                )
             } else if (normalizedChar.isLetter()) {
                 // Variations-mode long-press replaces a letter: keep suggestion context in sync.
                 markSelectionUpdateSkipAfterCommit()
                 suggestionController.onCharacterCommitted(normalizedChar.toString(), ic)
-            } else {
+            } else if (normalizedChar !in punctuationSet) {
                 // Non-boundary Alt long-press (e.g., numbers/symbols) resets current word tracking
                 suggestionController.onContextReset()
             }
@@ -2354,6 +2356,18 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             )
         }
 
+        if (
+            handleBoundaryTextBeforeCommit(
+                text = text,
+                inputConnection = ic,
+                shouldDisableSuggestions = snapshot.shouldDisableSuggestions,
+                shouldDisableAutoCorrect = snapshot.shouldDisableAutoCorrect
+            )
+        ) {
+            if (::textExpansionController.isInitialized) textExpansionController.scheduleRefresh()
+            return true
+        }
+
         markSelectionUpdateSkipAfterCommit()
         if (DeferredPunctuationSpaceTracker.prepareForTextCommit(this, ic, text)) {
             suggestionController.onContextReset()
@@ -2365,6 +2379,33 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         updateStatusBarText()
         if (::textExpansionController.isInitialized) textExpansionController.scheduleRefresh()
         return true
+    }
+
+    private fun handleBoundaryTextBeforeCommit(
+        text: String,
+        inputConnection: InputConnection?,
+        shouldDisableSuggestions: Boolean = inputContextState.shouldDisableSuggestions,
+        shouldDisableAutoCorrect: Boolean = inputContextState.shouldDisableAutoCorrect
+    ): Boolean {
+        val ic = inputConnection ?: return false
+        if (text.length != 1) return false
+        val boundary = it.palsoftware.pastiera.core.Punctuation.normalizeApostrophe(text[0])
+        if (boundary == '\'' || boundary !in it.palsoftware.pastiera.core.Punctuation.BOUNDARY) {
+            return false
+        }
+        if (DeferredPunctuationSpaceTracker.prepareForTextCommit(this, ic, text)) {
+            suggestionController.onContextReset()
+        }
+        markSelectionUpdateSkipAfterCommit()
+        return inputEventRouter.handleBoundaryText(
+            context = this,
+            text = boundary.toString(),
+            inputConnection = ic,
+            shouldDisableSuggestions = shouldDisableSuggestions,
+            isAutoCorrectEnabled = SettingsManager.getAutoCorrectEnabled(this) && !shouldDisableAutoCorrect,
+            autoCorrectionManager = autoCorrectionManager,
+            updateStatusBar = { updateStatusBarText() }
+        )
     }
 
     private fun handleSoftwareKeyboardModifierKeyDown(keyCode: Int): Boolean {
@@ -4328,7 +4369,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                 shiftPressed = event.isShiftPressed || shiftOneShot || capsLockEnabled
             )
             if (!symChar.isNullOrEmpty()) {
-                currentInputConnection?.commitText(symChar, 1)
+                val inputConnection = currentInputConnection
+                if (!handleBoundaryTextBeforeCommit(symChar, inputConnection)) {
+                    inputConnection?.commitText(symChar, 1)
+                }
                 updateStatusBarText()
                 return true
             }
@@ -4737,6 +4781,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                     multiTapController.isLongPressSuppressed(code)
                 },
                 toggleMinimalUi = { keyboardVisibilityController.togglePastierinaMode() },
+                handleBoundaryText = { text, inputConnection ->
+                    handleBoundaryTextBeforeCommit(text, inputConnection)
+                },
                 onShiftOneShotToggledOff = { suppressAutoCapRenderingAtCursorIfNeeded() }
             )
         )

@@ -169,6 +169,8 @@ class StatusBarController(
 
     var onSoftwareKeyboardTextInput: ((String, android.view.inputmethod.InputConnection?, StatusSnapshot) -> Boolean)? = null
 
+    var onSoftwareKeyboardBoundaryTextInput: ((String, android.view.inputmethod.InputConnection?) -> Boolean)? = null
+
     var onHamburgerMenuRequested: (() -> Unit)? = null
         set(value) {
             field = value
@@ -2316,12 +2318,15 @@ class StatusBarController(
         inputConnection: android.view.inputmethod.InputConnection,
         content: String
     ) {
-        if (closeSymAfterTouchKeyIfNeeded()) {
-            anchor.post {
+        val commit = {
+            if (onSoftwareKeyboardBoundaryTextInput?.invoke(content, inputConnection) != true) {
                 inputConnection.commitText(content, 1)
             }
+        }
+        if (closeSymAfterTouchKeyIfNeeded()) {
+            anchor.post(commit)
         } else {
-            inputConnection.commitText(content, 1)
+            commit()
         }
     }
 

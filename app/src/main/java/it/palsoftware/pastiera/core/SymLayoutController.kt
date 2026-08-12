@@ -262,7 +262,8 @@ class SymLayoutController(
         inputConnection: InputConnection?,
         ctrlLatchActive: Boolean,
         altLatchActive: Boolean,
-        updateStatusBar: () -> Unit
+        updateStatusBar: () -> Unit,
+        handleBoundaryText: (String, InputConnection?) -> Boolean = { _, _ -> false }
     ): SymKeyResult {
         val autoCloseEnabled = SettingsManager.getSymAutoClose(context)
         val page = currentPageType()
@@ -295,9 +296,12 @@ class SymLayoutController(
 
         if (symChar != null && inputConnection != null) {
             if (
-                symChar.length != 1 ||
-                !SettingsManager.shouldApplyFrenchPunctuationSpacing(context) ||
-                !it.palsoftware.pastiera.core.Punctuation.commitFrenchSpacedPunctuation(inputConnection, symChar[0])
+                !handleBoundaryText(symChar, inputConnection) &&
+                (
+                    symChar.length != 1 ||
+                        !SettingsManager.shouldApplyFrenchPunctuationSpacing(context) ||
+                        !it.palsoftware.pastiera.core.Punctuation.commitFrenchSpacedPunctuation(inputConnection, symChar[0])
+                )
             ) {
                 inputConnection.commitText(symChar, 1)
             }

@@ -213,7 +213,8 @@ class AutoReplaceController(
         keyCode: Int,
         event: KeyEvent?,
         tracker: CurrentWordTracker,
-        inputConnection: InputConnection?
+        inputConnection: InputConnection?,
+        boundaryCharOverride: Char? = null
     ): ReplaceResult {
         fun ensureTrailingSpace(connection: InputConnection): Boolean {
             val before = connection.getTextBeforeCursor(2, 0)?.toString().orEmpty()
@@ -271,7 +272,7 @@ class AutoReplaceController(
         }
 
         val unicodeChar = event?.unicodeChar ?: 0
-        val boundaryChar = when {
+        val boundaryChar = boundaryCharOverride ?: when {
             unicodeChar != 0 -> unicodeChar.toChar()
             keyCode == KeyEvent.KEYCODE_SPACE -> ' '
             keyCode == KeyEvent.KEYCODE_ENTER -> '\n'

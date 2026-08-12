@@ -490,6 +490,31 @@ class InputEventRouterModifierE2ETest {
     }
 
     @Test
+    fun symSymbolsPage_boundaryMapping_usesBoundaryHandlerBeforeCommit() {
+        SettingsManager.saveSymMappingsPage2(context, mapOf(KeyEvent.KEYCODE_S to ";"))
+        altSymManager.reloadSymMappings2()
+        symLayoutController.openSymbolsPage()
+        val boundaryTexts = mutableListOf<String>()
+        val callbacks = TestCallbacks(
+            modifierStateController = modifierStateController,
+            boundaryTextHandler = { text, _ ->
+                boundaryTexts += text
+                true
+            }
+        )
+
+        val result = routeKeyDown(
+            keyCode = KeyEvent.KEYCODE_S,
+            event = keyDown(KeyEvent.KEYCODE_S),
+            callbacks = callbacks
+        )
+
+        assertTrue(result is InputEventRouter.EditableFieldRoutingResult.Consume)
+        assertEquals(listOf(";"), boundaryTexts)
+        assertTrue(inputConnectionRecorder.committedTexts.isEmpty())
+    }
+
+    @Test
     fun altMapping_q25Profile_usesQ25AssetAndCommitsMappedChar() {
         DeviceSpecific.setBuildFingerprintForTests(
             brand = "zinwa",
@@ -928,7 +953,8 @@ class InputEventRouterModifierE2ETest {
     private class TestCallbacks(
         private val modifierStateController: ModifierStateController,
         private val mappingProvider: (Int) -> it.palsoftware.pastiera.data.layout.LayoutMapping? = { null },
-        private val multiTapCommitHandler: (Int, it.palsoftware.pastiera.data.layout.LayoutMapping, Boolean, InputConnection?, Boolean) -> Boolean = { _, _, _, _, _ -> false }
+        private val multiTapCommitHandler: (Int, it.palsoftware.pastiera.data.layout.LayoutMapping, Boolean, InputConnection?, Boolean) -> Boolean = { _, _, _, _, _ -> false },
+        private val boundaryTextHandler: (String, InputConnection?) -> Boolean = { _, _ -> false }
     ) {
         var updateStatusBarCalls = 0
         var refreshStatusBarCalls = 0
@@ -956,7 +982,8 @@ class InputEventRouterModifierE2ETest {
                 getMapping = mappingProvider,
                 handleMultiTapCommit = multiTapCommitHandler,
                 isLongPressSuppressed = { false },
-                toggleMinimalUi = { }
+                toggleMinimalUi = { },
+                handleBoundaryText = boundaryTextHandler
             )
         }
     }

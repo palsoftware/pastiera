@@ -165,6 +165,59 @@ class AltSymManagerTest {
         assertEquals(emptyList<Pair<Int, Int>>(), recorder.deleteCalls)
     }
 
+    @Test
+    fun altMappedPunctuationIsOfferedToBoundaryHandlerBeforeDirectCommit() {
+        val recorder = RecordingInputConnection()
+        val inputConnection = recorder.asProxy()
+        inputConnection.commitText("teh", 1)
+        val requested = mutableListOf<String>()
+        val manager = AltSymManager(context.assets, prefs, context).apply {
+            onBoundaryTextRequested = { text, connection ->
+                requested += text
+                connection.commitText("?", 1)
+                true
+            }
+        }
+
+        val handled = manager.handleAltCombination(
+            keyCode = KeyEvent.KEYCODE_X,
+            inputConnection = inputConnection,
+            event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_X),
+            mappingsOverride = mapOf(KeyEvent.KEYCODE_X to "?"),
+            defaultHandler = { _, _ -> false }
+        )
+
+        assertTrue(handled)
+        assertEquals(listOf("?"), requested)
+        assertEquals("teh?", recorder.text)
+    }
+
+    @Test
+    fun altMappedApostropheRemainsAnInWordCharacter() {
+        val recorder = RecordingInputConnection()
+        val inputConnection = recorder.asProxy()
+        inputConnection.commitText("l", 1)
+        val requested = mutableListOf<String>()
+        val manager = AltSymManager(context.assets, prefs, context).apply {
+            onBoundaryTextRequested = { text, _ ->
+                requested += text
+                true
+            }
+        }
+
+        val handled = manager.handleAltCombination(
+            keyCode = KeyEvent.KEYCODE_S,
+            inputConnection = inputConnection,
+            event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_S),
+            mappingsOverride = mapOf(KeyEvent.KEYCODE_S to "'"),
+            defaultHandler = { _, _ -> false }
+        )
+
+        assertTrue(handled)
+        assertTrue(requested.isEmpty())
+        assertEquals("l'", recorder.text)
+    }
+
     private class RecordingInputConnection(
         var extractedTextAvailable: Boolean = true
     ) {

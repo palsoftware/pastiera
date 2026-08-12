@@ -484,6 +484,44 @@ class AutoReplaceControllerLogicTest {
     }
 
     @Test
+    fun boundaryCharOverrideAutoReplacesBeforeEveryRequestedPunctuation() {
+        val context = RuntimeEnvironment.getApplication()
+        val punctuation = listOf('?', '!', ':', ',', '.', ';')
+
+        punctuation.forEach { boundary ->
+            val repository = FakeDictionaryRepository().apply {
+                isReady = true
+                addTestEntry("hello", 200)
+            }
+            val controller = AutoReplaceController(
+                repository = repository,
+                suggestionEngine = SuggestionEngine(repository),
+                settingsProvider = {
+                    SuggestionSettings(
+                        autoReplaceOnSpaceEnter = true,
+                        maxAutoReplaceDistance = 1
+                    )
+                }
+            )
+            val tracker = CurrentWordTracker(onWordChanged = {}, onWordReset = {})
+            tracker.setWord("hellp")
+            val inputConnection = FakeInputConnection(context, "hellp")
+
+            val result = controller.handleBoundary(
+                keyCode = KeyEvent.KEYCODE_UNKNOWN,
+                event = null,
+                tracker = tracker,
+                inputConnection = inputConnection,
+                boundaryCharOverride = boundary
+            )
+
+            assertTrue("Expected replacement before '$boundary'", result.replaced)
+            assertEquals("hello$boundary", inputConnection.text)
+            assertEquals("hello", result.replacement)
+        }
+    }
+
+    @Test
     fun boundaryCommitAddsFrenchSpacingWhenNoReplacementHappens() {
         val context = RuntimeEnvironment.getApplication()
         val repository = FakeDictionaryRepository().apply {

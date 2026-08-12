@@ -30,6 +30,8 @@ class AltSymManager(
     var onAltCharInserted: ((Char) -> Unit)? = null
     // Callback invoked when a normal character is confirmed (short press in Alt mode)
     var onNormalCharCommitted: ((String) -> Unit)? = null
+    // Callback invoked before mapped punctuation is committed.
+    var onBoundaryTextRequested: ((String, InputConnection) -> Boolean)? = null
 
     companion object {
         private const val TAG = "AltSymManager"
@@ -38,6 +40,18 @@ class AltSymManager(
     private fun autoSpacePunctuation(): String {
         return context?.let { SettingsManager.getAutoSpacePunctuation(it) }
             ?: it.palsoftware.pastiera.core.Punctuation.DEFAULT_AUTO_SPACE
+    }
+
+    private fun handleBoundaryTextBeforeCommit(
+        text: String,
+        inputConnection: InputConnection
+    ): Boolean {
+        if (text.length != 1) return false
+        val boundary = it.palsoftware.pastiera.core.Punctuation.normalizeApostrophe(text[0])
+        if (boundary == '\'' || boundary !in it.palsoftware.pastiera.core.Punctuation.BOUNDARY) {
+            return false
+        }
+        return onBoundaryTextRequested?.invoke(boundary.toString(), inputConnection) == true
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -249,6 +263,10 @@ class AltSymManager(
         }
 
         if (normalChar.isNotEmpty()) {
+            if (handleBoundaryTextBeforeCommit(normalChar, inputConnection)) {
+                normalChar.firstOrNull()?.let { onAltCharInserted?.invoke(it) }
+                return true
+            }
             inputConnection.commitText(normalChar, 1)
             insertedNormalChars[keyCode] = normalChar
             insertedTextAnchors.remove(keyCode)
@@ -302,6 +320,10 @@ class AltSymManager(
     ): Boolean {
         val altChar = (mappingsOverride ?: altKeyMap)[keyCode]
         return if (altChar != null) {
+            if (handleBoundaryTextBeforeCommit(altChar, inputConnection)) {
+                altChar.firstOrNull()?.let { onAltCharInserted?.invoke(it) }
+                return true
+            }
             context?.let {
                 DeferredPunctuationSpaceTracker.prepareForTextCommit(it, inputConnection, altChar)
             }
@@ -455,6 +477,14 @@ class AltSymManager(
                                 inputConnection.deleteSurroundingText(1, 0)
                             }
 
+                            if (handleBoundaryTextBeforeCommit(symChar, inputConnection)) {
+                                onAltCharInserted?.invoke(symChar[0])
+                                insertedNormalChars.remove(keyCode)
+                                keyPressWasShifted.remove(keyCode)
+                                longPressRunnables.remove(keyCode)
+                                return@Runnable
+                            }
+
                             val frenchSpacedPunctuation = symChar.length == 1 &&
                                 context?.let { SettingsManager.shouldApplyFrenchPunctuationSpacing(it) } == true &&
                                 it.palsoftware.pastiera.core.Punctuation.commitFrenchSpacedPunctuation(inputConnection, symChar[0])
@@ -499,7 +529,9 @@ class AltSymManager(
                                 val upperCharString = upperChar
 
                                 inputConnection.deleteSurroundingText(1, 0)
-                                inputConnection.commitText(upperCharString, 1)
+                                if (!handleBoundaryTextBeforeCommit(upperCharString, inputConnection)) {
+                                    inputConnection.commitText(upperCharString, 1)
+                                }
 
                                 insertedNormalChars.remove(keyCode)
                                 keyPressWasShifted.remove(keyCode)
@@ -534,6 +566,14 @@ class AltSymManager(
 
                             if (insertedChar != null && insertedChar.isNotEmpty()) {
                                 inputConnection.deleteSurroundingText(1, 0)
+                            }
+
+                            if (handleBoundaryTextBeforeCommit(altChar, inputConnection)) {
+                                altChar.firstOrNull()?.let { onAltCharInserted?.invoke(it) }
+                                insertedNormalChars.remove(keyCode)
+                                keyPressWasShifted.remove(keyCode)
+                                longPressRunnables.remove(keyCode)
+                                return@Runnable
                             }
 
                             val frenchSpacedPunctuation = altChar.length == 1 &&

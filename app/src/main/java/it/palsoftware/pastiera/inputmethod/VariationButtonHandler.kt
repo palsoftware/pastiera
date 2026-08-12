@@ -23,6 +23,24 @@ object VariationButtonHandler {
          * @param variation The selected variation character
          */
         fun onVariationSelected(variation: String)
+
+        fun onBoundaryTextRequested(
+            variation: String,
+            inputConnection: InputConnection
+        ): Boolean = false
+    }
+
+    private fun handleBoundaryBeforeCommit(
+        variation: String,
+        inputConnection: InputConnection,
+        listener: OnVariationSelectedListener?
+    ): Boolean {
+        if (variation.length != 1) return false
+        val boundary = it.palsoftware.pastiera.core.Punctuation.normalizeApostrophe(variation[0])
+        if (boundary == '\'' || boundary !in it.palsoftware.pastiera.core.Punctuation.BOUNDARY) {
+            return false
+        }
+        return listener?.onBoundaryTextRequested(boundary.toString(), inputConnection) == true
     }
     
     /**
@@ -40,6 +58,10 @@ object VariationButtonHandler {
             
             if (inputConnection == null) {
                 Log.w(TAG, "No inputConnection available to insert variation")
+                return@OnClickListener
+            }
+            if (handleBoundaryBeforeCommit(variation, inputConnection, listener)) {
+                listener?.onVariationSelected(variation)
                 return@OnClickListener
             }
             DeferredPunctuationSpaceTracker.prepareForTextCommit(context, inputConnection, variation)
@@ -97,6 +119,10 @@ object VariationButtonHandler {
 
             if (inputConnection == null) {
                 Log.w(TAG, "No inputConnection available to insert static variation")
+                return@OnClickListener
+            }
+            if (handleBoundaryBeforeCommit(variation, inputConnection, listener)) {
+                listener?.onVariationSelected(variation)
                 return@OnClickListener
             }
             DeferredPunctuationSpaceTracker.prepareForTextCommit(context, inputConnection, variation)

@@ -292,6 +292,7 @@ class InputEventRouter(
         val handleMultiTapCommit: (Int, LayoutMapping, Boolean, InputConnection?, Boolean) -> Boolean,
         val isLongPressSuppressed: (Int) -> Boolean,
         val toggleMinimalUi: () -> Unit,
+        val handleBoundaryText: (String, InputConnection?) -> Boolean = { _, _ -> false },
         val onShiftOneShotToggledOff: () -> Unit = {}
     )
 
@@ -463,6 +464,7 @@ class InputEventRouter(
                 altMappingsOverride = params.altMappingsOverride,
                 cursorUpdateDelayMs = params.cursorUpdateDelayMs,
                 updateStatusBar = callbacks.updateStatusBar,
+                handleBoundaryText = callbacks.handleBoundaryText,
                 callSuper = callbacks.callSuper
             )
         ) {
@@ -1095,6 +1097,65 @@ class InputEventRouter(
         return false
     }
 
+    fun handleBoundaryText(
+        context: android.content.Context,
+        text: String,
+        inputConnection: InputConnection?,
+        shouldDisableSuggestions: Boolean,
+        isAutoCorrectEnabled: Boolean,
+        autoCorrectionManager: AutoCorrectionManager,
+        updateStatusBar: () -> Unit
+    ): Boolean {
+        val input = inputConnection ?: return false
+        if (text.length != 1) return false
+        val boundaryChar = it.palsoftware.pastiera.core.Punctuation.normalizeApostrophe(text[0])
+        if (boundaryChar == '\'' || boundaryChar !in it.palsoftware.pastiera.core.Punctuation.BOUNDARY) {
+            return false
+        }
+
+        if (
+            (shouldDisableSuggestions || suggestionController == null) &&
+            autoCorrectionManager.handleBoundaryKey(
+                keyCode = KeyEvent.KEYCODE_UNKNOWN,
+                event = null,
+                inputConnection = input,
+                isAutoCorrectEnabled = isAutoCorrectEnabled,
+                commitBoundary = true,
+                onStatusBarUpdate = updateStatusBar,
+                boundaryCharOverride = boundaryChar,
+                isKnownWord = { word ->
+                    suggestionController?.isKnownWordInActiveDictionaries(word) == true
+                }
+            )
+        ) {
+            suggestionController?.onContextReset()
+            return true
+        }
+
+        if (
+            SettingsManager.shouldApplyFrenchPunctuationSpacing(context) &&
+            it.palsoftware.pastiera.core.Punctuation.commitFrenchSpacedPunctuation(input, boundaryChar)
+        ) {
+            suggestionController?.onContextReset()
+            updateStatusBar()
+            return true
+        }
+
+        val controller = suggestionController
+        if (!shouldDisableSuggestions && controller != null) {
+            controller.onBoundaryKey(
+                keyCode = KeyEvent.KEYCODE_UNKNOWN,
+                event = null,
+                inputConnection = input,
+                boundaryCharOverride = boundaryChar
+            )
+            updateStatusBar()
+            return true
+        }
+
+        return false
+    }
+
     fun handleNumericAndSym(
         keyCode: Int,
         event: KeyEvent?,
@@ -1111,6 +1172,7 @@ class InputEventRouter(
         altMappingsOverride: Map<Int, String>? = null,
         cursorUpdateDelayMs: Long,
         updateStatusBar: () -> Unit,
+        handleBoundaryText: (String, InputConnection?) -> Boolean = { _, _ -> false },
         callSuper: () -> Boolean
     ): Boolean {
         val ic = inputConnection ?: return false
@@ -1152,7 +1214,8 @@ class InputEventRouter(
                     ic,
                     ctrlLatchActive = ctrlLatchActive,
                     altLatchActive = altLatchActive,
-                    updateStatusBar = updateStatusBar
+                    updateStatusBar = updateStatusBar,
+                    handleBoundaryText = handleBoundaryText
                 )
             ) {
                 SymKeyResult.CONSUME -> true
