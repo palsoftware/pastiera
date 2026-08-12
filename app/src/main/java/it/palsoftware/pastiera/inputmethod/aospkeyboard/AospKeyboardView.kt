@@ -16,6 +16,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.ColorFilter
@@ -23,14 +24,20 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.os.Bundle
 import android.util.AttributeSet
 import android.util.TypedValue
+import android.view.accessibility.AccessibilityEvent
 import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.widget.Button
 import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import androidx.customview.widget.ExploreByTouchHelper
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.SettingsManager
 import java.util.Locale
@@ -122,6 +129,17 @@ class AospKeyboardView @JvmOverloads constructor(
         val output: String
     )
 
+    internal data class AccessibilityKeySnapshot(
+        val virtualId: Int,
+        val resourceName: String,
+        val label: String,
+        val bounds: Rect,
+        val clickable: Boolean,
+        val enabled: Boolean,
+        val selected: Boolean,
+        val stateDescription: String?
+    )
+
     private data class MoreKeyChoice(
         val label: String,
         val output: String
@@ -158,7 +176,7 @@ class AospKeyboardView @JvmOverloads constructor(
             }
             field = normalized
             rebuildKeys(width, height)
-            invalidate()
+            invalidateKeyboard()
         }
     var layoutStyle: SoftwareLayoutStyle = SoftwareLayoutStyle.COMPACT
         set(value) {
@@ -167,7 +185,7 @@ class AospKeyboardView @JvmOverloads constructor(
             }
             field = value
             rebuildKeys(width, height)
-            invalidate()
+            invalidateKeyboard()
         }
     var includeNumberRow: Boolean = false
         set(value) {
@@ -177,7 +195,7 @@ class AospKeyboardView @JvmOverloads constructor(
             field = value
             rebuildKeys(width, height)
             requestLayout()
-            invalidate()
+            invalidateKeyboard()
         }
     var nearestKeyTouchEnabled: Boolean = true
     var shifted: Boolean = false
@@ -187,7 +205,7 @@ class AospKeyboardView @JvmOverloads constructor(
             }
             field = value
             rebuildKeys(width, height)
-            invalidate()
+            invalidateKeyboard()
         }
     var shiftLocked: Boolean = false
         set(value) {
@@ -195,7 +213,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var ctrlOneShot: Boolean = false
         set(value) {
@@ -203,7 +221,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var ctrlLocked: Boolean = false
         set(value) {
@@ -211,7 +229,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var ctrlPressed: Boolean = false
         set(value) {
@@ -219,7 +237,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var ctrlPreviewActive: Boolean = false
         set(value) {
@@ -227,7 +245,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var altOneShot: Boolean = false
         set(value) {
@@ -235,7 +253,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var altLocked: Boolean = false
         set(value) {
@@ -243,7 +261,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var altPressed: Boolean = false
         set(value) {
@@ -251,7 +269,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var altPreviewActive: Boolean = false
         set(value) {
@@ -259,7 +277,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var symPageActive: Boolean = false
         set(value) {
@@ -267,7 +285,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var symPreviewLabels: Map<Int, String> = emptyMap()
         set(value) {
@@ -275,7 +293,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var symPreviewTextLabels: Map<String, String> = emptyMap()
         set(value) {
@@ -283,7 +301,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var symPageLabels: Map<Int, String> = emptyMap()
         set(value) {
@@ -291,7 +309,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var symPageTextLabels: Map<String, String> = emptyMap()
         set(value) {
@@ -299,7 +317,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var ctrlPreviewLabels: Map<Int, String> = emptyMap()
         set(value) {
@@ -307,7 +325,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var ctrlPreviewIconRes: Map<Int, Int> = emptyMap()
         set(value) {
@@ -315,7 +333,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var altPreviewLabels: Map<Int, String> = emptyMap()
         set(value) {
@@ -323,7 +341,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var spacebarLabel: String = "space"
         set(value) {
@@ -332,7 +350,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = normalized
-            invalidate()
+            invalidateKeyboard()
         }
     var symbolsLabel: String = "SYM"
         set(value) {
@@ -341,7 +359,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = normalized
-            invalidate()
+            invalidateKeyboard()
         }
     var symbolsIconRes: Int? = null
         set(value) {
@@ -349,7 +367,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 return
             }
             field = value
-            invalidate()
+            invalidateKeyboard()
         }
     var longPressTimeoutMs: Long = 500L
         set(value) {
@@ -367,10 +385,12 @@ class AospKeyboardView @JvmOverloads constructor(
             field = value
             rebuildKeys(width, height)
             requestLayout()
-            invalidate()
+            invalidateKeyboard()
         }
 
     private val keys = mutableListOf<Key>()
+    private val accessibilityVirtualIds = linkedMapOf<String, Int>()
+    private var nextAccessibilityVirtualId = 1
     private var pressedKey: Key? = null
     private var activePointerId: Int = -1
     private var heldModifierKey: Key? = null
@@ -386,6 +406,59 @@ class AospKeyboardView @JvmOverloads constructor(
     private var spaceSwipeActive = false
     private var spaceSwipeLastX = 0f
     private var spaceLongPressArmed = false
+
+    private val accessibilityHelper = object : ExploreByTouchHelper(this) {
+        override fun getVirtualViewAt(x: Float, y: Float): Int {
+            val key = keys.firstOrNull { it.hitRect.contains(x, y) } ?: return INVALID_ID
+            return accessibilityVirtualId(key)
+        }
+
+        override fun getVisibleVirtualViews(virtualViewIds: MutableList<Int>) {
+            keys.forEach { key -> virtualViewIds += accessibilityVirtualId(key) }
+        }
+
+        override fun onPopulateNodeForVirtualView(
+            virtualViewId: Int,
+            node: AccessibilityNodeInfoCompat
+        ) {
+            val key = keyForAccessibilityVirtualId(virtualViewId)
+            if (key == null) {
+                node.contentDescription = context.getString(R.string.software_keyboard_accessibility_unknown_key)
+                node.setBoundsInParent(Rect(0, 0, 1, 1))
+                node.isEnabled = false
+                return
+            }
+
+            val resourceName = accessibilityResourceName(key)
+            node.className = Button::class.java.name
+            node.packageName = context.packageName
+            node.viewIdResourceName = "${context.packageName}:id/$resourceName"
+            node.contentDescription = accessibilityLabel(key)
+            node.setBoundsInParent(Rect().also { key.hitRect.roundOut(it) })
+            node.isClickable = isEnabled
+            node.isEnabled = isEnabled
+            node.isFocusable = true
+            node.isSelected = isAccessibilityKeySelected(key)
+            accessibilityStateDescription(key)?.let { node.stateDescription = it }
+            if (isEnabled) {
+                node.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK)
+            }
+        }
+
+        override fun onPerformActionForVirtualView(
+            virtualViewId: Int,
+            action: Int,
+            arguments: Bundle?
+        ): Boolean {
+            if (action != AccessibilityNodeInfoCompat.ACTION_CLICK || !isEnabled) {
+                return false
+            }
+            val key = keyForAccessibilityVirtualId(virtualViewId) ?: return false
+            performAccessibilityKeyClick(key)
+            sendEventForVirtualView(virtualViewId, AccessibilityEvent.TYPE_VIEW_CLICKED)
+            return true
+        }
+    }
 
     private val keyboardBackground = drawable(R.drawable.keyboard_background_lxx_dark)
     private val normalKeyBackground = drawable(R.drawable.btn_keyboard_key_normal_off_lxx_dark)
@@ -429,7 +502,18 @@ class AospKeyboardView @JvmOverloads constructor(
     init {
         isClickable = true
         isFocusable = true
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        ViewCompat.setAccessibilityDelegate(this, accessibilityHelper)
         setBackgroundColor(Color.BLACK)
+    }
+
+    override fun dispatchHoverEvent(event: MotionEvent): Boolean {
+        return accessibilityHelper.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
+    }
+
+    private fun invalidateKeyboard() {
+        invalidate()
+        accessibilityHelper.invalidateRoot()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -544,7 +628,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 spaceSwipeLastX = event.x
                 spaceLongPressArmed = false
                 longPressTriggered = false
-                invalidate()
+                invalidateKeyboard()
                 key?.let {
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     listener?.onKeyPressSound(soundKeyCodeFor(it))
@@ -552,7 +636,7 @@ class AospKeyboardView @JvmOverloads constructor(
                         heldModifierKey = it
                         heldModifierPointerId = event.getPointerId(pointerIndex)
                         listener?.onModifierKeyDown(soundKeyCodeFor(it))
-                        invalidate()
+                        invalidateKeyboard()
                     } else {
                         if (!isModifierPreviewLayerActive()) {
                             showPreviewIfImmediate(it)
@@ -590,7 +674,7 @@ class AospKeyboardView @JvmOverloads constructor(
                         showPreviewIfImmediate(key)
                         handler.postDelayed(longPressRunnable, longPressTimeoutMs)
                     }
-                    invalidate()
+                    invalidateKeyboard()
                     return true
                 }
                 handler.removeCallbacks(longPressRunnable)
@@ -603,7 +687,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 if (!isModifierPreviewLayerActive()) {
                     showPreviewIfImmediate(key)
                 }
-                invalidate()
+                invalidateKeyboard()
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -637,7 +721,7 @@ class AospKeyboardView @JvmOverloads constructor(
                     handler.removeCallbacks(longPressRunnable)
                     dismissPopup()
                     pressedKey = key
-                    invalidate()
+                    invalidateKeyboard()
                     key?.let {
                         listener?.onKeyPressSound(soundKeyCodeFor(it))
                         if (!isModifierPreviewLayerActive()) {
@@ -658,7 +742,7 @@ class AospKeyboardView @JvmOverloads constructor(
                     chordKey = null
                     chordPointerId = -1
                     pressedKey = heldModifierKey
-                    invalidate()
+                    invalidateKeyboard()
                     if (key != null && !longPressTriggered && !spaceSwipeActive) {
                         dispatchKey(key)
                     }
@@ -675,7 +759,7 @@ class AospKeyboardView @JvmOverloads constructor(
                         dismissPopup()
                         pressedKey = null
                         activePointerId = -1
-                        invalidate()
+                        invalidateKeyboard()
                         if (selected != null) {
                             listener?.onText(selected)
                         }
@@ -689,7 +773,7 @@ class AospKeyboardView @JvmOverloads constructor(
                     spaceLongPressArmed = false
                     pressedKey = null
                     activePointerId = -1
-                    invalidate()
+                    invalidateKeyboard()
                     if (key?.spec?.type == KeyType.SPACE && wasSpaceLongPress && !wasSpaceSwipe) {
                         listener?.onLanguageSwitch()
                         return true
@@ -706,7 +790,7 @@ class AospKeyboardView @JvmOverloads constructor(
                     val selected = selectedMoreKey(event.x, event.y, panel)
                     dismissPopup()
                     pressedKey = null
-                    invalidate()
+                    invalidateKeyboard()
                     if (selected != null) {
                         listener?.onText(selected)
                     }
@@ -727,7 +811,7 @@ class AospKeyboardView @JvmOverloads constructor(
                     releaseHeldModifier()
                     return true
                 }
-                invalidate()
+                invalidateKeyboard()
                 if (key?.spec?.type == KeyType.SPACE && wasSpaceLongPress && !wasSpaceSwipe) {
                     listener?.onLanguageSwitch()
                     return true
@@ -747,7 +831,7 @@ class AospKeyboardView @JvmOverloads constructor(
                 chordPointerId = -1
                 pressedKey = null
                 activePointerId = -1
-                invalidate()
+                invalidateKeyboard()
                 return true
             }
         }
@@ -1014,6 +1098,163 @@ class AospKeyboardView @JvmOverloads constructor(
         else -> spec.label
     }
 
+    private fun accessibilityVirtualId(key: Key): Int {
+        val resourceName = accessibilityResourceName(key)
+        return accessibilityVirtualIds.getOrPut(resourceName) { nextAccessibilityVirtualId++ }
+    }
+
+    private fun keyForAccessibilityVirtualId(virtualViewId: Int): Key? {
+        return keys.firstOrNull { accessibilityVirtualId(it) == virtualViewId }
+    }
+
+    internal fun accessibilityVirtualIdForResourceName(resourceName: String): Int? {
+        val key = keys.firstOrNull { accessibilityResourceName(it) == resourceName } ?: return null
+        return accessibilityVirtualId(key)
+    }
+
+    internal fun accessibilitySnapshotForResourceName(resourceName: String): AccessibilityKeySnapshot? {
+        val key = keys.firstOrNull { accessibilityResourceName(it) == resourceName } ?: return null
+        return accessibilitySnapshot(key)
+    }
+
+    internal fun visibleAccessibilitySnapshots(): List<AccessibilityKeySnapshot> {
+        return keys.map(::accessibilitySnapshot)
+    }
+
+    private fun accessibilitySnapshot(key: Key): AccessibilityKeySnapshot {
+        return AccessibilityKeySnapshot(
+            virtualId = accessibilityVirtualId(key),
+            resourceName = accessibilityResourceName(key),
+            label = accessibilityLabel(key),
+            bounds = Rect().also { key.hitRect.roundOut(it) },
+            clickable = isEnabled,
+            enabled = isEnabled,
+            selected = isAccessibilityKeySelected(key),
+            stateDescription = accessibilityStateDescription(key)
+        )
+    }
+
+    internal fun performAccessibilityClickForResourceName(resourceName: String): Boolean {
+        if (!isEnabled) return false
+        val key = keys.firstOrNull { accessibilityResourceName(it) == resourceName } ?: return false
+        performAccessibilityKeyClick(key)
+        return true
+    }
+
+    private fun accessibilityResourceName(key: Key): String {
+        val baseName = "pastiera_key_${accessibilityIdentityToken(key)}"
+        val matchingKeys = keys.filter { candidate ->
+            "pastiera_key_${accessibilityIdentityToken(candidate)}" == baseName
+        }
+        val duplicateIndex = matchingKeys.indexOf(key)
+        return when {
+            duplicateIndex <= 0 -> baseName
+            key.hitRect.centerX() > width / 2f -> "${baseName}_right"
+            else -> "${baseName}_${duplicateIndex + 1}"
+        }
+    }
+
+    private fun accessibilityIdentityToken(key: Key): String {
+        return when (key.spec.type) {
+            KeyType.CHAR -> accessibilityTextToken(key.spec.output)
+            KeyType.SHIFT -> "shift"
+            KeyType.BACKSPACE -> "backspace"
+            KeyType.SYMBOLS -> "symbols"
+            KeyType.CTRL -> "ctrl"
+            KeyType.ALT -> "alt"
+            KeyType.COMMA -> "comma"
+            KeyType.PERIOD -> "period"
+            KeyType.SPACE -> "space"
+            KeyType.ENTER -> "enter"
+            KeyType.LANGUAGE -> "language"
+        }
+    }
+
+    private fun accessibilityTextToken(text: String): String {
+        val normalized = text.lowercase(Locale.ROOT)
+        if (normalized.length == 1 && normalized[0].let { it in 'a'..'z' || it in '0'..'9' }) {
+            return normalized
+        }
+        return when (normalized) {
+            "," -> "comma"
+            "." -> "period"
+            ";" -> "semicolon"
+            ":" -> "colon"
+            "!" -> "exclamation"
+            "?" -> "question"
+            "'" -> "apostrophe"
+            "\"" -> "quote"
+            "/" -> "slash"
+            "\\" -> "backslash"
+            "+" -> "plus"
+            "-" -> "minus"
+            "=" -> "equals"
+            "[" -> "left_bracket"
+            "]" -> "right_bracket"
+            "(" -> "left_parenthesis"
+            ")" -> "right_parenthesis"
+            else -> normalized.codePoints().toArray().joinToString("_") { codePoint ->
+                "u${codePoint.toString(16).padStart(4, '0')}"
+            }
+        }
+    }
+
+    private fun accessibilityLabel(key: Key): String {
+        previewLabelFor(key)?.let { return it }
+        symPageLabelFor(key)?.let { return it }
+        return when (key.spec.type) {
+            KeyType.CHAR -> displayLabel(key.spec)
+            KeyType.SHIFT -> context.getString(R.string.software_keyboard_accessibility_shift)
+            KeyType.BACKSPACE -> context.getString(R.string.software_keyboard_accessibility_backspace)
+            KeyType.SYMBOLS -> context.getString(R.string.software_keyboard_accessibility_symbols)
+            KeyType.CTRL -> context.getString(R.string.software_keyboard_accessibility_control)
+            KeyType.ALT -> context.getString(R.string.software_keyboard_accessibility_alt)
+            KeyType.COMMA -> context.getString(R.string.software_keyboard_accessibility_comma)
+            KeyType.PERIOD -> context.getString(R.string.software_keyboard_accessibility_period)
+            KeyType.SPACE -> context.getString(R.string.software_keyboard_accessibility_space)
+            KeyType.ENTER -> context.getString(R.string.software_keyboard_accessibility_enter)
+            KeyType.LANGUAGE -> context.getString(R.string.software_keyboard_accessibility_language_switch)
+        }
+    }
+
+    private fun isAccessibilityKeySelected(key: Key): Boolean {
+        return when (key.spec.type) {
+            KeyType.SHIFT -> shifted || shiftLocked
+            KeyType.CTRL -> ctrlOneShot || ctrlLocked || ctrlPressed || ctrlPreviewActive
+            KeyType.ALT -> altOneShot || altLocked || altPressed || altPreviewActive
+            KeyType.SYMBOLS -> symPageActive
+            else -> false
+        }
+    }
+
+    private fun accessibilityStateDescription(key: Key): String? {
+        val states = buildList {
+            if (!isEnabled) {
+                add(context.getString(R.string.software_keyboard_accessibility_disabled))
+            }
+            if (isAccessibilityKeySelected(key)) {
+                add(context.getString(R.string.software_keyboard_accessibility_selected))
+            }
+            if (key == pressedKey || key == heldModifierKey) {
+                add(context.getString(R.string.software_keyboard_accessibility_pressed))
+            }
+        }
+        return states.takeIf { it.isNotEmpty() }?.joinToString(", ")
+    }
+
+    private fun performAccessibilityKeyClick(key: Key) {
+        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        val keyCode = soundKeyCodeFor(key)
+        listener?.onKeyPressSound(keyCode)
+        if (key.spec.type.isHoldModifier()) {
+            listener?.onModifierKeyDown(keyCode)
+            listener?.onModifierKeyUp(keyCode)
+        } else {
+            dispatchKey(key)
+        }
+        invalidateKeyboard()
+    }
+
     private fun displayHint(key: Key): String {
         if (symPageActive) return ""
         if (key.spec.type !in listOf(KeyType.CHAR, KeyType.COMMA, KeyType.PERIOD)) return ""
@@ -1129,7 +1370,7 @@ class AospKeyboardView @JvmOverloads constructor(
         if (pressedKey == key) {
             pressedKey = null
         }
-        invalidate()
+        invalidateKeyboard()
     }
 
     fun cancelActiveTouchState() {
@@ -1142,7 +1383,7 @@ class AospKeyboardView @JvmOverloads constructor(
         chordPointerId = -1
         pressedKey = null
         activePointerId = -1
-        invalidate()
+        invalidateKeyboard()
     }
 
     private fun showMoreKeysOrRepeat() {
@@ -1161,7 +1402,7 @@ class AospKeyboardView @JvmOverloads constructor(
             longPressTriggered = true
             spaceLongPressArmed = true
             dismissPopup()
-            invalidate()
+            invalidateKeyboard()
             return
         }
         if (symPageActive) {
@@ -1172,7 +1413,7 @@ class AospKeyboardView @JvmOverloads constructor(
             if (listener?.onSymbolLongPress(keyCode) == true) {
                 longPressTriggered = true
                 dismissPopup()
-                invalidate()
+                invalidateKeyboard()
             }
             return
         }
@@ -1262,7 +1503,7 @@ class AospKeyboardView @JvmOverloads constructor(
         )
         previewPopupState = null
         updatePopupOverlay()
-        invalidate()
+        invalidateKeyboard()
     }
 
     private fun showPreview(key: Key) {
@@ -1279,7 +1520,7 @@ class AospKeyboardView @JvmOverloads constructor(
         )
         moreKeysPanelState = null
         updatePopupOverlay()
-        invalidate()
+        invalidateKeyboard()
     }
 
     private fun showPreviewIfImmediate(key: Key) {
@@ -1301,7 +1542,7 @@ class AospKeyboardView @JvmOverloads constructor(
             panel.selectedLayerIndex = selectedLayer
             panel.selectedIndex = -1
             updatePopupOverlay()
-            invalidate()
+            invalidateKeyboard()
             return
         }
         val selected = selectedMoreKeyIndex(x, y, panel)
@@ -1312,7 +1553,7 @@ class AospKeyboardView @JvmOverloads constructor(
         panel.selectedIndex = selected
         panel.selectedLayerIndex = -1
         updatePopupOverlay()
-        invalidate()
+        invalidateKeyboard()
     }
 
     private fun selectedMoreKey(x: Float, y: Float, panel: MoreKeysPanelState): String? {

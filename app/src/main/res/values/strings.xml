@@ -134,6 +134,20 @@
     
     <!-- Main Activity -->
     <string name="keyboard_title">Pastiera Keyboard</string>
+    <string name="software_keyboard_accessibility_shift">Shift</string>
+    <string name="software_keyboard_accessibility_backspace">Backspace</string>
+    <string name="software_keyboard_accessibility_symbols">Symbols</string>
+    <string name="software_keyboard_accessibility_control">Control</string>
+    <string name="software_keyboard_accessibility_alt">Alt</string>
+    <string name="software_keyboard_accessibility_comma">Comma</string>
+    <string name="software_keyboard_accessibility_period">Period</string>
+    <string name="software_keyboard_accessibility_space">Space</string>
+    <string name="software_keyboard_accessibility_enter">Enter</string>
+    <string name="software_keyboard_accessibility_language_switch">Switch language</string>
+    <string name="software_keyboard_accessibility_unknown_key">Keyboard key</string>
+    <string name="software_keyboard_accessibility_selected">Selected</string>
+    <string name="software_keyboard_accessibility_pressed">Pressed</string>
+    <string name="software_keyboard_accessibility_disabled">Disabled</string>
     <string name="keyboard_subtitle">Physical keyboard with long press support</string>
     <string name="settings_content_description">Settings</string>
     

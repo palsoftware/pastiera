@@ -10,6 +10,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +36,8 @@ class AospKeyboardViewTest {
         val soundKeyCodes = mutableListOf<Int>()
         val symbolLongPressKeyCodes = mutableListOf<Int>()
         val symbolTexts = mutableListOf<String>()
+        val modifierDownKeyCodes = mutableListOf<Int>()
+        val modifierUpKeyCodes = mutableListOf<Int>()
 
         override fun onText(text: String) { texts += text }
         override fun onBackspace() { backspaceCount++ }
@@ -52,6 +56,123 @@ class AospKeyboardViewTest {
             symbolTexts += text
             return true
         }
+        override fun onModifierKeyDown(keyCode: Int): Boolean {
+            modifierDownKeyCodes += keyCode
+            return true
+        }
+        override fun onModifierKeyUp(keyCode: Int): Boolean {
+            modifierUpKeyCodes += keyCode
+            return true
+        }
+    }
+
+    @Test
+    fun accessibilityIdsFollowLogicalLettersAcrossQwertyQwertzAndAzerty() {
+        val view = measuredKeyboard()
+        val qwertyY = accessibilitySnapshot(view, "pastiera_key_y")
+        val qwertyYId = qwertyY.virtualId
+
+        view.layoutName = "qwertz"
+        val qwertzY = accessibilitySnapshot(view, "pastiera_key_y")
+
+        assertEquals(qwertyYId, accessibilityVirtualId(view, "pastiera_key_y"))
+        assertNotEquals(qwertyY.bounds.top, qwertzY.bounds.top)
+
+        val qwertzABounds = accessibilitySnapshot(view, "pastiera_key_a").bounds
+        view.layoutName = "azerty"
+        val azertyABounds = accessibilitySnapshot(view, "pastiera_key_a").bounds
+
+        assertNotEquals(qwertzABounds.top, azertyABounds.top)
+        assertEquals("pastiera_key_a", accessibilitySnapshot(view, "pastiera_key_a").resourceName)
+    }
+
+    @Test
+    fun everyVisibleKeyHasUniqueAccessibleIdentityLabelAndBounds() {
+        val view = measuredKeyboard().apply {
+            layoutName = "german_multitap_qwertz"
+            layoutStyle = AospKeyboardView.SoftwareLayoutStyle.FULL_ISO
+            includeNumberRow = true
+        }
+
+        val snapshots = view.visibleAccessibilitySnapshots()
+
+        assertEquals(keys(view).size, snapshots.size)
+        assertEquals(snapshots.size, snapshots.map { it.virtualId }.distinct().size)
+        assertEquals(snapshots.size, snapshots.map { it.resourceName }.distinct().size)
+        assertTrue(snapshots.all { it.label.isNotBlank() })
+        assertTrue(snapshots.all { it.bounds.width() > 0 && it.bounds.height() > 0 })
+        assertTrue(snapshots.any { it.resourceName == "pastiera_key_shift" })
+        assertTrue(snapshots.any { it.resourceName == "pastiera_key_shift_right" })
+    }
+
+    @Test
+    fun accessibilitySemanticsTrackShiftCtrlSymAndAltLayersWithoutChangingId() {
+        val view = measuredKeyboard()
+        val eId = accessibilityVirtualId(view, "pastiera_key_e")
+
+        assertEquals("e", accessibilitySnapshot(view, "pastiera_key_e").label)
+
+        view.shifted = true
+        assertEquals(eId, accessibilityVirtualId(view, "pastiera_key_e"))
+        assertEquals("E", accessibilitySnapshot(view, "pastiera_key_e").label)
+
+        view.shifted = false
+        view.ctrlPreviewActive = true
+        view.ctrlPreviewLabels = mapOf(KeyEvent.KEYCODE_E to "Move up")
+        assertEquals("Move up", accessibilitySnapshot(view, "pastiera_key_e").label)
+
+        view.ctrlPreviewActive = false
+        view.symPageActive = true
+        view.symPageTextLabels = mapOf("e" to "€")
+        assertEquals("€", accessibilitySnapshot(view, "pastiera_key_e").label)
+
+        view.symPageActive = false
+        view.altPreviewActive = true
+        view.altPreviewLabels = mapOf(KeyEvent.KEYCODE_E to "~")
+        assertEquals("~", accessibilitySnapshot(view, "pastiera_key_e").label)
+        assertEquals(eId, accessibilityVirtualId(view, "pastiera_key_e"))
+    }
+
+    @Test
+    fun accessibilityNodesExposeBoundsAndSelectedPressedDisabledStates() {
+        val view = measuredKeyboard()
+        val ctrlNode = accessibilitySnapshot(view, "pastiera_key_ctrl")
+        val ctrlBounds = ctrlNode.bounds
+
+        assertTrue(ctrlBounds.width() > 0)
+        assertTrue(ctrlBounds.height() > 0)
+        assertTrue(ctrlNode.clickable)
+        assertTrue(ctrlNode.enabled)
+        assertFalse(ctrlNode.selected)
+
+        view.ctrlOneShot = true
+        assertTrue(accessibilitySnapshot(view, "pastiera_key_ctrl").selected)
+
+        val (x, y) = centerOfLabel(view, "a")
+        view.dispatchTouchEvent(motion(MotionEvent.ACTION_DOWN, x, y, 0L))
+        assertEquals("Pressed", accessibilitySnapshot(view, "pastiera_key_a").stateDescription)
+        view.dispatchTouchEvent(motion(MotionEvent.ACTION_CANCEL, x, y, 10L))
+
+        view.isEnabled = false
+        val disabledNode = accessibilitySnapshot(view, "pastiera_key_a")
+        assertFalse(disabledNode.enabled)
+        assertFalse(disabledNode.clickable)
+        assertEquals("Disabled", disabledNode.stateDescription)
+        assertFalse(view.performAccessibilityClickForResourceName("pastiera_key_a"))
+    }
+
+    @Test
+    fun accessibilityClickDispatchesCharacterBackspaceAndModifierLikeTouch() {
+        val listener = RecordingListener()
+        val view = measuredKeyboard().apply { this.listener = listener }
+        assertTrue(view.performAccessibilityClickForResourceName("pastiera_key_e"))
+        assertTrue(view.performAccessibilityClickForResourceName("pastiera_key_backspace"))
+        assertTrue(view.performAccessibilityClickForResourceName("pastiera_key_ctrl"))
+
+        assertEquals(listOf("e"), listener.texts)
+        assertEquals(1, listener.backspaceCount)
+        assertEquals(listOf(KeyEvent.KEYCODE_CTRL_LEFT), listener.modifierDownKeyCodes)
+        assertEquals(listOf(KeyEvent.KEYCODE_CTRL_LEFT), listener.modifierUpKeyCodes)
     }
 
     @Test
@@ -348,6 +469,12 @@ class AospKeyboardViewTest {
         view.layout(0, 0, 1000, 240)
         return view
     }
+
+    private fun accessibilityVirtualId(view: AospKeyboardView, resourceName: String): Int =
+        requireNotNull(view.accessibilityVirtualIdForResourceName(resourceName))
+
+    private fun accessibilitySnapshot(view: AospKeyboardView, resourceName: String) =
+        requireNotNull(view.accessibilitySnapshotForResourceName(resourceName))
 
     private fun motion(action: Int, x: Float, y: Float, offsetMs: Long): MotionEvent =
         MotionEvent.obtain(0L, offsetMs, action, x, y, 0)
