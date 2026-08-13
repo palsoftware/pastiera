@@ -1291,6 +1291,13 @@ Jede Taste kann als Keycode, Aktion, Native Ctrl oder Keine konfiguriert werden.
     <string name="debug_recorder_status_stopped">gestoppt</string>
     <string name="debug_recorder_started_at">Gestartet um: </string>
     <string name="debug_recorder_include_suggestions">inkl. Vorschläge</string>
+    <string name="surface_diagnostics_title">Diagnose-Build für Issue #271</string>
+    <string name="surface_diagnostics_description">Tastaturfenster-Zustände werden automatisch aufgezeichnet. Der Export enthält keine Texteingaben, Keycodes, Vorschläge, Editor-Inhalte oder Namen der Ziel-App.</string>
+    <string name="surface_diagnostics_event_count">Surface-Ereignisse: %1$d / 500</string>
+    <string name="surface_diagnostics_clear">Log leeren</string>
+    <string name="surface_diagnostics_share">Log teilen</string>
+    <string name="surface_diagnostics_cleared">Surface-Diagnoselog wurde geleert</string>
+    <string name="surface_diagnostics_share_chooser">Surface-Diagnoselog teilen</string>
     <string name="debug_report_viewer_title">Debug-Berichtsanzeige</string>
     <string name="tutorial_skip_update">Überspringen</string>
     <string name="tutorial_whats_new_title">Neu in dieser Version: %1$s</string>

@@ -16,7 +16,13 @@ class FlavorBuildConfigTest {
                 assertEquals("Ver. ${BuildConfig.VERSION_NAME} - Stable", BuildInfo.getBuildInfoString())
             }
             "nightly" -> {
-                assertEquals(BuildConfig.IS_FDROID_BUILD, !BuildConfig.ENABLE_GITHUB_UPDATE_CHECKS)
+                if (BuildConfig.ENABLE_SURFACE_DIAGNOSTICS) {
+                    assertFalse(BuildConfig.ENABLE_GITHUB_UPDATE_CHECKS)
+                    assertFalse(BuildConfig.DEBUG)
+                    assertTrue(BuildConfig.VERSION_NAME.contains("diagnostic.issue271"))
+                } else {
+                    assertEquals(BuildConfig.IS_FDROID_BUILD, !BuildConfig.ENABLE_GITHUB_UPDATE_CHECKS)
+                }
                 assertTrue(BuildConfig.VERSION_NAME.contains("nightly"))
                 assertEquals("Ver. ${BuildConfig.VERSION_NAME} - Nightly", BuildInfo.getBuildInfoString())
             }

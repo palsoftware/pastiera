@@ -666,6 +666,13 @@ Ogni tasto può essere configurato come Keycode, Azione, Native Ctrl o Nessuno. 
     <string name="debug_recorder_status_stopped">fermato</string>
     <string name="debug_recorder_started_at">Avviato alle: </string>
     <string name="debug_recorder_include_suggestions">incl. suggerimenti</string>
+    <string name="surface_diagnostics_title">Build diagnostica per l’issue #271</string>
+    <string name="surface_diagnostics_description">Gli stati della finestra della tastiera vengono registrati automaticamente. L’esportazione non include testo digitato, codici dei tasti, suggerimenti, contenuti dell’editor o nomi delle app.</string>
+    <string name="surface_diagnostics_event_count">Eventi superficie: %1$d / 500</string>
+    <string name="surface_diagnostics_clear">Cancella log</string>
+    <string name="surface_diagnostics_share">Condividi log</string>
+    <string name="surface_diagnostics_cleared">Log diagnostico della superficie cancellato</string>
+    <string name="surface_diagnostics_share_chooser">Condividi log diagnostico della superficie</string>
     <string name="debug_report_viewer_title">Visualizzatore report debug</string>
     
     <!-- Nav Mode Key Labels -->

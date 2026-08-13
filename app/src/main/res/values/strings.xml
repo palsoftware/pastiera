@@ -1167,6 +1167,13 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="debug_recorder_started_at">Started at: </string>
     <string name="debug_recorder_include_suggestions">incl. suggestions</string>
     <string name="debug_recorder_include_raw_trackpad">incl. raw trackpad</string>
+    <string name="surface_diagnostics_title">Issue #271 diagnostic build</string>
+    <string name="surface_diagnostics_description">Keyboard-window states are recorded automatically. The export never includes typed text, keycodes, suggestions, editor contents, or target app names.</string>
+    <string name="surface_diagnostics_event_count">Surface events: %1$d / 500</string>
+    <string name="surface_diagnostics_clear">Clear log</string>
+    <string name="surface_diagnostics_share">Share log</string>
+    <string name="surface_diagnostics_cleared">Surface diagnostic log cleared</string>
+    <string name="surface_diagnostics_share_chooser">Share surface diagnostic log</string>
     <string name="debug_report_viewer_title">Debug Report Viewer</string>
     
     <!-- Nav Mode Key Labels -->

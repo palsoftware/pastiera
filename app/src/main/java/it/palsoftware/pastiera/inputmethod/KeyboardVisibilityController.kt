@@ -1,6 +1,7 @@
 package it.palsoftware.pastiera.inputmethod
 
 import android.content.Context
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputConnection
@@ -38,6 +39,7 @@ class KeyboardVisibilityController(
     private var evaluationGeneration = 0
     private var surfaceTransitionGeneration = 0
     private var pendingSurfaceTransition: PendingSurfaceTransition? = null
+    private var surfaceDebugSequence = 0L
 
     enum class RenderedSurface {
         HIDDEN,
@@ -74,6 +76,10 @@ class KeyboardVisibilityController(
                 SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
         refreshStatusBar()
         val generation = ++evaluationGeneration
+        logSurfaceState(
+            event = "evaluate_input_view",
+            details = "systemDecision=$shouldShowInputView resolvedDecision=$resolvedShowInputView generation=$generation"
+        )
         // Apply candidates visibility after InputMethodService has finished evaluating
         // and hiding its input frame. Showing it re-entrantly from this callback can be
         // overwritten by the framework before the candidates view is created.
@@ -82,6 +88,10 @@ class KeyboardVisibilityController(
             setCandidatesSurfaceActive(!resolvedShowInputView)
             setCandidatesViewShown(!resolvedShowInputView)
             refreshStatusBar()
+            logSurfaceState(
+                event = "apply_evaluated_surface",
+                details = "target=${if (resolvedShowInputView) RenderedSurface.FULL_INPUT_VIEW else RenderedSurface.CANDIDATES_VIEW} generation=$generation"
+            )
             if (!resolvedShowInputView) {
                 // Showing candidates can synchronously create and attach their view. Android's
                 // enclosing fullscreenArea may still retain its previous INVISIBLE state, so
@@ -96,11 +106,13 @@ class KeyboardVisibilityController(
         return resolvedShowInputView
     }
 
-    fun ensureInputViewCreated() {
+    fun ensureInputViewCreated(reason: String = "unspecified") {
         if (!isInputViewActive()) {
+            logSurfaceState("ensure_input_view_skipped", "reason=$reason cause=input_view_inactive")
             return
         }
         if (currentInputConnection() == null) {
+            logSurfaceState("ensure_input_view_skipped", "reason=$reason cause=no_input_connection")
             return
         }
 
@@ -109,15 +121,31 @@ class KeyboardVisibilityController(
 
         if (layout.parent == null) {
             attachInputView(layout)
+            logSurfaceState("input_view_attached", "reason=$reason")
         }
 
         if (!isInputViewShown() && !isNavModeLatched()) {
+            logSurfaceState("request_show_self", "reason=$reason")
             try {
                 requestShowInputView()
-            } catch (_: Exception) {
+            } catch (exception: Exception) {
+                Log.w(SURFACE_DEBUG_TAG, "requestShowSelf rejected reason=$reason", exception)
                 // Avoid crashing if the system rejects the request
             }
+        } else {
+            logSurfaceState("ensure_input_view_no_request", "reason=$reason")
         }
+    }
+
+    fun onImeWindowVisibilityChanged(shown: Boolean) {
+        logSurfaceState(if (shown) "window_shown" else "window_hidden")
+    }
+
+    fun onPhysicalKeyDown(repeatCount: Int?, hasEditableField: Boolean) {
+        logSurfaceState(
+            event = "physical_key_down",
+            details = "repeated=${(repeatCount ?: 0) > 0} editable=$hasEditableField"
+        )
     }
 
     fun togglePastierinaMode() {
@@ -207,6 +235,10 @@ class KeyboardVisibilityController(
         }
 
         transition.attemptsRemaining -= 1
+        logSurfaceState(
+            event = "show_input_window",
+            details = "target=${transition.target} generation=$generation attemptsRemaining=${transition.attemptsRemaining}"
+        )
         try {
             showInputWindow(transition.target == RenderedSurface.FULL_INPUT_VIEW)
         } catch (_: Exception) {
@@ -239,7 +271,41 @@ class KeyboardVisibilityController(
         (view.parent as? ViewGroup)?.removeView(view)
     }
 
+    private fun logSurfaceState(event: String, details: String = "") {
+        if (!SurfaceDiagnosticsStore.enabled) return
+        val sequence = ++surfaceDebugSequence
+        val effectiveMode = SettingsManager.resolveEffectiveSoftwareKeyboardMode(context)
+        val actualSurface = runCatching { renderedSurface() }.getOrDefault(RenderedSurface.HIDDEN)
+        val suffix = details.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
+        val inputShown = isInputViewShown()
+        val inputActive = isInputViewActive()
+        val hasConnection = currentInputConnection() != null
+        val navLatched = isNavModeLatched()
+        SurfaceDiagnosticsStore.record(
+            context,
+            SurfaceDiagnosticEvent(
+                timestampMs = System.currentTimeMillis(),
+                sequence = sequence,
+                event = event,
+                mode = effectiveMode.name,
+                renderedSurface = actualSurface.name,
+                inputViewShown = inputShown,
+                inputViewActive = inputActive,
+                hasInputConnection = hasConnection,
+                navModeLatched = navLatched,
+                details = details
+            )
+        )
+        Log.d(
+            SURFACE_DEBUG_TAG,
+            "seq=$sequence event=$event mode=$effectiveMode rendered=$actualSurface " +
+                "inputViewShown=$inputShown inputViewActive=$inputActive " +
+                "hasInputConnection=$hasConnection navLatched=$navLatched$suffix"
+        )
+    }
+
     private companion object {
+        const val SURFACE_DEBUG_TAG = "PastieraImeSurface"
         const val MAX_SURFACE_TRANSITION_ATTEMPTS = 6
         const val SURFACE_TRANSITION_RETRY_DELAY_MS = 250L
     }

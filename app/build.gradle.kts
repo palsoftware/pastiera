@@ -89,6 +89,7 @@ android {
         targetSdk = 36
         versionCode = ciVersionCode ?: defaultVersionCode
         versionName = ciVersionName ?: defaultVersionName
+        buildConfigField("boolean", "ENABLE_SURFACE_DIAGNOSTICS", "false")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -177,6 +178,16 @@ android {
             // Disable lint for release to avoid file lock issues
             isDebuggable = false
         }
+        create("diagnostic") {
+            isMinifyEnabled = false
+            isDebuggable = false
+            versionNameSuffix = "-diagnostic.issue271"
+            manifestPlaceholders["appLabel"] = "Pastiera Diagnostic"
+            manifestPlaceholders["imeLabel"] = "Pastiera Diagnostic"
+            buildConfigField("boolean", "ENABLE_SURFACE_DIAGNOSTICS", "true")
+            buildConfigField("boolean", "ENABLE_GITHUB_UPDATE_CHECKS", "false")
+            matchingFallbacks += listOf("release")
+        }
     }
     
     // Validate signing config only when building release
@@ -218,6 +229,22 @@ android {
                         "Missing signing config for nightly build. Define nightlyStoreFile, nightlyStorePassword, nightlyKeyAlias e nightlyKeyPassword in " +
                             "keystore.properties (non tracciato) o nelle variabili d'ambiente PASTIERA_NIGHTLY_KEYSTORE_PATH, " +
                             "PASTIERA_NIGHTLY_KEYSTORE_PASSWORD, PASTIERA_NIGHTLY_KEY_ALIAS, PASTIERA_NIGHTLY_KEY_PASSWORD."
+                    )
+                }
+            }
+        }
+        if (name.equals("preNightlyDiagnosticBuild", ignoreCase = true)) {
+            doFirst {
+                val storePath = signingProp("nightlyStoreFile", "PASTIERA_NIGHTLY_KEYSTORE_PATH")
+                val storePass = signingProp("nightlyStorePassword", "PASTIERA_NIGHTLY_KEYSTORE_PASSWORD")
+                val alias = signingProp("nightlyKeyAlias", "PASTIERA_NIGHTLY_KEY_ALIAS")
+                val keyPass = signingProp("nightlyKeyPassword", "PASTIERA_NIGHTLY_KEY_PASSWORD")
+
+                if (!hasSigningConfig(storePath, storePass, alias, keyPass)) {
+                    throw GradleException(
+                        "Missing signing config for nightly diagnostic build. Define nightlyStoreFile, nightlyStorePassword, " +
+                            "nightlyKeyAlias and nightlyKeyPassword in keystore.properties or the corresponding " +
+                            "PASTIERA_NIGHTLY_* environment variables."
                     )
                 }
             }

@@ -51,6 +51,8 @@ import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.inputmethod.DebugCaptureStore
 import it.palsoftware.pastiera.inputmethod.KeyboardEventTracker
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
+import it.palsoftware.pastiera.inputmethod.SurfaceDiagnosticEvent
+import it.palsoftware.pastiera.inputmethod.SurfaceDiagnosticsStore
 import it.palsoftware.pastiera.ui.CustomTopBar
 import it.palsoftware.pastiera.ui.theme.PastieraTheme
 import it.palsoftware.pastiera.BuildConfig
@@ -370,6 +372,15 @@ fun KeyboardSetupScreen(
     var includeRawTrackpadInExport by rememberSaveable { mutableStateOf(false) }
     var showDebugReportViewer by rememberSaveable { mutableStateOf(false) }
     var latestDebugReport by rememberSaveable { mutableStateOf("") }
+    var surfaceDiagnosticEventCount by remember {
+        mutableIntStateOf(
+            if (BuildConfig.ENABLE_SURFACE_DIAGNOSTICS) {
+                SurfaceDiagnosticsStore.snapshot(context).size
+            } else {
+                0
+            }
+        )
+    }
     val recordedEvents = remember { mutableStateListOf<RecordedKeyboardEvent>() }
     
     // State for IME status
@@ -419,6 +430,15 @@ fun KeyboardSetupScreen(
     // Connect state to the global tracker
     LaunchedEffect(Unit) {
         KeyboardEventTracker.registerState(rawLastKeyEventState)
+    }
+
+    if (BuildConfig.ENABLE_SURFACE_DIAGNOSTICS) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                surfaceDiagnosticEventCount = SurfaceDiagnosticsStore.snapshot(context).size
+                delay(1000)
+            }
+        }
     }
 
     // Recording follows the raw stream; display filtering is handled separately below.
@@ -544,6 +564,93 @@ fun KeyboardSetupScreen(
             },
             modifier = Modifier.fillMaxWidth()
         )
+
+        if (BuildConfig.ENABLE_SURFACE_DIAGNOSTICS) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.BugReport,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.surface_diagnostics_title),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.surface_diagnostics_description),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.surface_diagnostics_event_count,
+                            surfaceDiagnosticEventCount
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                SurfaceDiagnosticsStore.clear(context)
+                                surfaceDiagnosticEventCount = 0
+                                Toast.makeText(
+                                    context,
+                                    R.string.surface_diagnostics_cleared,
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.surface_diagnostics_clear))
+                        }
+                        Button(
+                            onClick = {
+                                val events = SurfaceDiagnosticsStore.snapshot(context)
+                                surfaceDiagnosticEventCount = events.size
+                                val report = buildSurfaceDiagnosticReport(context, events)
+                                val shareIntent = createTextReportFileShareIntent(
+                                    context = context,
+                                    report = report,
+                                    filePrefix = "pastiera-surface-diagnostics",
+                                    subject = "Pastiera IME Surface Diagnostics"
+                                )
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        shareIntent,
+                                        context.getString(R.string.surface_diagnostics_share_chooser)
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.surface_diagnostics_share))
+                        }
+                    }
+                }
+            }
+        }
         
         // Enable/select IME actions
         Row(
@@ -952,12 +1059,26 @@ private fun formatDebugTimestamp(timestampMs: Long): String {
 }
 
 private fun createDebugReportFileShareIntent(context: Context, report: String): Intent {
+    return createTextReportFileShareIntent(
+        context = context,
+        report = report,
+        filePrefix = "pastiera-keyboard-debug",
+        subject = "Pastiera Keyboard Debug Export"
+    )
+}
+
+private fun createTextReportFileShareIntent(
+    context: Context,
+    report: String,
+    filePrefix: String,
+    subject: String
+): Intent {
     val reportDir = File(context.cacheDir, "debug-reports").apply {
         deleteRecursively()
         mkdirs()
     }
     val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
-    val reportFile = File(reportDir, "pastiera-keyboard-debug-$timestamp.txt")
+    val reportFile = File(reportDir, "$filePrefix-$timestamp.txt")
     reportFile.writeText(report, Charsets.UTF_8)
     val uri = FileProvider.getUriForFile(
         context,
@@ -966,9 +1087,9 @@ private fun createDebugReportFileShareIntent(context: Context, report: String): 
     )
     return Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "Pastiera Keyboard Debug Export")
+        putExtra(Intent.EXTRA_SUBJECT, subject)
         putExtra(Intent.EXTRA_STREAM, uri)
-        clipData = ClipData.newUri(context.contentResolver, "Pastiera Keyboard Debug Export", uri)
+        clipData = ClipData.newUri(context.contentResolver, subject, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 }
@@ -1071,6 +1192,105 @@ private fun buildFilteredSuggestionRows(
 }
 
 private fun formatNullable(value: Boolean?): String = value?.toString() ?: "n/a"
+
+private fun buildSurfaceDiagnosticReport(
+    context: Context,
+    events: List<SurfaceDiagnosticEvent>
+): String {
+    val configuredMode = SettingsManager.getSoftwareKeyboardMode(context)
+    val effectiveMode = SettingsManager.resolveEffectiveSoftwareKeyboardMode(context)
+    val hardwareTheme = SettingsManager.getEffectiveKeyboardTheme(
+        context,
+        SettingsManager.KeyboardThemeTarget.HARDWARE
+    )
+    val showImeWithHardwareKeyboard = runCatching {
+        Settings.Secure.getInt(
+            context.contentResolver,
+            "show_ime_with_hard_keyboard",
+            -1
+        )
+    }.getOrDefault(-1)
+    val inputDevices = keyboardInputDevicesSnapshot()
+
+    return buildString {
+        appendLine("=== Pastiera IME Surface Diagnostics ===")
+        appendLine("format_version=1")
+        appendLine("exported_at=${formatDebugTimestamp(System.currentTimeMillis())}")
+        appendLine("timezone=${TimeZone.getDefault().id}")
+        appendLine("privacy=No typed text, keycodes, suggestions, editor contents, or target app names are recorded.")
+        appendLine()
+        appendLine("[build]")
+        appendLine("application_id=${BuildConfig.APPLICATION_ID}")
+        appendLine("version_name=${BuildConfig.VERSION_NAME}")
+        appendLine("version_code=${BuildConfig.VERSION_CODE}")
+        appendLine("build_type=${BuildConfig.BUILD_TYPE}")
+        appendLine("flavor=${BuildConfig.FLAVOR}")
+        appendLine("debuggable=${BuildConfig.DEBUG}")
+        appendLine()
+        appendLine("[device]")
+        appendLine("manufacturer=${diagnosticValue(Build.MANUFACTURER)}")
+        appendLine("brand=${diagnosticValue(Build.BRAND)}")
+        appendLine("model=${diagnosticValue(Build.MODEL)}")
+        appendLine("device=${diagnosticValue(Build.DEVICE)}")
+        appendLine("android_release=${diagnosticValue(Build.VERSION.RELEASE)}")
+        appendLine("sdk=${Build.VERSION.SDK_INT}")
+        appendLine()
+        appendLine("[configuration]")
+        appendLine("configured_keyboard_mode=${configuredMode.name}")
+        appendLine("effective_keyboard_mode=${effectiveMode.name}")
+        appendLine("status_bar_presentation=${SettingsManager.getStatusBarPresentationMode(context).name}")
+        appendLine("auto_show_keyboard=${SettingsManager.getAutoShowKeyboard(context)}")
+        appendLine("suggestions_enabled=${SettingsManager.getSuggestionsEnabled(context)}")
+        appendLine("experimental_suggestions_enabled=${SettingsManager.isExperimentalSuggestionsEnabled(context)}")
+        appendLine("hardware_theme_show_leds=${hardwareTheme.showLeds}")
+        appendLine("system_show_ime_with_hard_keyboard=$showImeWithHardwareKeyboard")
+        appendLine()
+        appendLine("[external_keyboards]")
+        val externalKeyboards = inputDevices.filter { it.isExternal && !it.isVirtual }
+        if (externalKeyboards.isEmpty()) {
+            appendLine("(none detected)")
+        } else {
+            externalKeyboards.forEach { device ->
+                appendLine(
+                    "name=${diagnosticKeyboardName(device.name)} vendor_id=${device.vendorId} " +
+                        "product_id=${device.productId} keyboard_type=${device.keyboardType} " +
+                        "external=${device.isExternal} virtual=${device.isVirtual}"
+                )
+            }
+        }
+        appendLine()
+        appendLine("[surface_events]")
+        appendLine("event_count=${events.size}")
+        appendLine("maximum_retained_events=500")
+        if (events.isEmpty()) {
+            appendLine("(no surface events recorded)")
+        } else {
+            events.forEach { event ->
+                val details = event.details.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
+                appendLine(
+                    "${formatDebugTimestamp(event.timestampMs)} | seq=${event.sequence} event=${event.event} " +
+                        "mode=${event.mode} rendered=${event.renderedSurface} " +
+                        "inputViewShown=${event.inputViewShown} inputViewActive=${event.inputViewActive} " +
+                        "hasInputConnection=${event.hasInputConnection} navLatched=${event.navModeLatched}$details"
+                )
+            }
+        }
+    }
+}
+
+private fun diagnosticValue(value: String?): String = value
+    .orEmpty()
+    .replace('\n', ' ')
+    .replace('\r', ' ')
+    .ifBlank { "n/a" }
+
+private fun diagnosticKeyboardName(value: String?): String {
+    val name = diagnosticValue(value)
+    return when {
+        name.startsWith("Power Keyboard", ignoreCase = true) -> "Power Keyboard"
+        else -> "external keyboard"
+    }
+}
 
 private fun buildKeyboardDebugReport(
     context: Context,

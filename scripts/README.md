@@ -62,3 +62,15 @@ Re-run the script when:
 - Original JSON files are kept as fallback
 - User dictionary entries are always loaded dynamically (not pre-processed)
 
+## Issue #271 Nightly diagnostic build
+
+Build the non-debuggable, Nightly-signed surface diagnostic variant with the same version code as its
+target Nightly release:
+
+```bash
+scripts/build-nightly-diagnostic.sh 0.86 --target-timestamp 20260811.214801
+```
+
+Use `--install` and optionally `--device <adb-serial>` for a connected-device smoke test. The script
+restores Pastiera as the selected IME after package replacement and never force-stops the active IME.
+See `docs/issue-271-diagnostic-build.md` for tester instructions and the export privacy scope.
