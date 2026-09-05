@@ -79,30 +79,41 @@ internal object VietnameseTelexProcessor {
             val parts = Parts.fromChar(chars[idx])
             val trailing = chars.subList(idx + 1, chars.size).joinToString("")
             val replacement = when (key) {
+                // For self-doubling shape keys (aa->â, ee->ê, oo->ô), only allow reaching back
+                // through a trailing consonant CODA if that coda is still "open" (i.e. we're not
+                // crossing a completed syllable boundary). We approximate this by requiring the
+                // trailing text be empty or made up entirely of vowels (e.g. "dau"+a->"dau"-with-
+                // circumflex, where trailing is the vowel "u"). A trailing consonant (e.g. "mam"+a)
+                // means an earlier syllable already closed, so the new keystroke starts a fresh one.
                 'a' -> when {
-                    trailing.isNotEmpty() && !isValidVietnameseTail(trailing) -> null
+                    trailing.isNotEmpty() && !trailing.all { Parts.fromChar(it).isVietnameseVowel() } -> null
                     parts.isBase('a') && !parts.hasShape() -> parts.withShape(CIRCUMFLEX).toChar().toString()
                     parts.isBase('a') && parts.hasShape(CIRCUMFLEX) -> "${caseOf(parts.base)}$keyChar"
                     else -> null
                 }
                 'e' -> when {
-                    trailing.isNotEmpty() && !isValidVietnameseTail(trailing) -> null
+                    trailing.isNotEmpty() && !trailing.all { Parts.fromChar(it).isVietnameseVowel() } -> null
                     parts.isBase('e') && !parts.hasShape() -> parts.withShape(CIRCUMFLEX).toChar().toString()
                     parts.isBase('e') && parts.hasShape(CIRCUMFLEX) -> "${caseOf(parts.base)}$keyChar"
                     else -> null
                 }
                 'o' -> when {
-                    trailing.isNotEmpty() && !isValidVietnameseTail(trailing) -> null
+                    trailing.isNotEmpty() && !trailing.all { Parts.fromChar(it).isVietnameseVowel() } -> null
                     parts.isBase('o') && !parts.hasShape() -> parts.withShape(CIRCUMFLEX).toChar().toString()
                     parts.isBase('o') && parts.hasShape(CIRCUMFLEX) -> "${caseOf(parts.base)}$keyChar"
                     else -> null
                 }
-                'd' -> when (chars[idx]) {
-                    'd' -> "đ"
-                    'D' -> "Đ"
-                    // For an already transformed đ/Đ, treat a new d/D as a literal append
-                    // instead of toggling back, so users can continue typing the next letter.
-                    'đ', 'Đ' -> return syllable + keyChar
+                // 'd' doubling (dd->đ) requires the two d's to be strictly adjacent: no reaching
+                // back through any other letter at all (unlike a/e/o/w, there's no legitimate
+                // Vietnamese case where a 'd' modifier applies at a distance). A third 'd' press
+                // reverts đ fully back to the literal double letter, matching how the other shape
+                // keys escape (e.g. ô + o -> oo), confirmed against real device behavior.
+                'd' -> when {
+                    trailing.isNotEmpty() -> null
+                    chars[idx] == 'd' -> "đ"
+                    chars[idx] == 'D' -> "Đ"
+                    chars[idx] == 'đ' -> "dd"
+                    chars[idx] == 'Đ' -> "DD"
                     else -> null
                 }
                 'w' -> when {
@@ -199,13 +210,17 @@ internal object VietnameseTelexProcessor {
         val prevPos = lastPos - 1
         val prev = vowelParts.getOrNull(prevPos)
 
-        // "oa"/"oe" commonly take tone on 'o'.
+        // "oa"/"oe" take tone on 'o' only in an OPEN syllable (nothing after the vowel cluster,
+        // e.g. "hoa"->"hòa"). In a CLOSED syllable with a trailing coda (e.g. "toan"->"toán",
+        // "thoat"->"thoát"), the tone moves onto the second vowel instead.
+        val hasCoda = vowelIndices[lastPos] < chars.lastIndex
         if (prev != null && prev.base.lowercaseChar() == 'o' && last.base.lowercaseChar() in setOf('a', 'e')) {
-            return vowelIndices[prevPos]
+            return if (hasCoda) vowelIndices[lastPos] else vowelIndices[prevPos]
         }
 
-        // If the final vowel is a semivowel, prefer the previous vowel.
-        if (prev != null && last.base.lowercaseChar() in setOf('i', 'y', 'u')) {
+        // If the final vowel is a semivowel-like glide (i/y/u, and o as in "ao"/"eo"), prefer
+        // the previous vowel.
+        if (prev != null && last.base.lowercaseChar() in setOf('i', 'y', 'u', 'o')) {
             // Exception: "uy" usually carries tone on y.
             if (!(prev.base.lowercaseChar() == 'u' && last.base.lowercaseChar() == 'y')) {
                 return vowelIndices[prevPos]
