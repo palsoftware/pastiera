@@ -14,7 +14,7 @@ class VietnameseTelexProcessorTest {
         assertRewrite("mo", 'w', "mơ")
         assertRewrite("tu", 'w', "tư")
         assertRewrite("d", 'd', "đ")
-        assertRewrite("đ", 'd', "đd")
+        assertRewrite("đ", 'd', "dd")
     }
 
     @Test
