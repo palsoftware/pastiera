@@ -29,29 +29,28 @@ internal object VietnameseTelexProcessor {
 
     fun isActiveForLayout(layoutName: String?): Boolean = layoutName == VIETNAMESE_TELEX_LAYOUT_ID
 
-    // The one piece of state that survives across keystrokes: once a syllable has been
-    // confirmed non-Vietnamese (via a tone-cancel or a plausibility rollback), we remember its
-    // text and stop attempting any further Vietnamese conversion on it, until a new word
-    // starts. This is the minimal version of the "raw keystroke memory" a full rollback
-    // architecture needs -- not a full keystroke log, just a bail-out marker.
-    private var bailoutSyllable: String = ""
-
     fun rewrite(textBeforeCursor: String, keyChar: Char): Rewrite? {
         if (!keyChar.isLetter()) return null
         val lowerKey = keyChar.lowercaseChar()
 
         val syllableStart = findSyllableStart(textBeforeCursor)
         if (syllableStart == textBeforeCursor.length) {
-            bailoutSyllable = ""
+            toneCancelledPrefix = ""
             return null
         }
         val syllable = textBeforeCursor.substring(syllableStart)
-
-        if (bailoutSyllable.isNotEmpty() && syllable.startsWith(bailoutSyllable)) {
-            return null // this word was already confirmed non-Vietnamese; stop converting it
+        if (toneCancelledPrefix.isNotEmpty() && !syllable.startsWith(toneCancelledPrefix)) {
+            toneCancelledPrefix = ""
         }
-        bailoutSyllable = ""
 
+        // Only attempt a Vietnamese conversion while this syllable's onset (the consonants
+        // before its first vowel) is still a plausible Vietnamese onset. This is what protects
+        // words like "wolf"/"zoo" (invalid onset "w"/"z") from ever getting converted in the
+        // first place -- and because nothing gets converted for them, there's nothing to correct
+        // or roll back later. Once a syllable already contains a REAL conversion (a diacritic
+        // actually applied), we never undo it: a keystroke that doesn't fit just becomes a
+        // literal character appended after it, so an already-correct word is never corrupted
+        // (e.g. "biết" + n -> "biếtn", not a reversion to raw letters).
         if ((lowerKey in toneKeys || lowerKey in shapeKeys) && (lowerKey == 'd' || establishedOnsetIsValid(syllable))) {
             val rewritten = when {
                 lowerKey == 'z' -> clearDiacritics(syllable)
@@ -63,21 +62,7 @@ internal object VietnameseTelexProcessor {
             }
         }
 
-        // Nothing converted this keystroke (either it's a plain consonant, or a shape/tone key
-        // that didn't find anything to convert). Check whether accepting it literally still
-        // keeps this syllable a plausible, still-forming Vietnamese syllable. If not, this
-        // syllable was never really Vietnamese (e.g. an English word) -- roll back every
-        // conversion applied so far in it back to the raw keys that produced them.
-        return checkPlausibilityRollback(syllable, keyChar)
-    }
-
-    private fun checkPlausibilityRollback(syllable: String, keyChar: Char): Rewrite? {
-        if (isPlausiblePrefix(syllable, keyChar)) return null
-        val rawSoFar = rawKeysForSyllable(syllable)
-        if (rawSoFar == syllable) return null
-        val result = rawSoFar + keyChar
-        bailoutSyllable = result
-        return Rewrite(replaceCount = syllable.length, replacement = result)
+        return null
     }
 
     private fun findSyllableStart(text: String): Int {
@@ -194,7 +179,15 @@ internal object VietnameseTelexProcessor {
         return null
     }
 
+    // Once a tone is explicitly cancelled (same tone key pressed twice in a row), this syllable
+    // is remembered as "tone-cancelled" -- the person deliberately said "not that", so no
+    // further tone key (fresh or cycling) should touch it again, even though the visible text
+    // is now plain and indistinguishable from a vowel that never had a tone attempt at all.
+    // Cleared at the next word boundary.
+    private var toneCancelledPrefix: String = ""
+
     private fun applyToneKey(syllable: String, keyChar: Char): String? {
+        if (toneCancelledPrefix.isNotEmpty() && syllable.startsWith(toneCancelledPrefix)) return null
         if (hasSeparatedVowelGroups(syllable)) return null
         val key = keyChar.lowercaseChar()
         val toneMark = toneByKey[key] ?: return null
@@ -202,23 +195,10 @@ internal object VietnameseTelexProcessor {
         val targetIndex = findToneTargetIndex(chars) ?: return null
         val parts = Parts.fromChar(chars[targetIndex])
 
-        // A DIFFERENT tone key trying to overwrite an already-applied tone, once the coda
-        // after it is already a complete, sealed Vietnamese final (t, p, m, c, ch, ng, nh), is
-        // not really re-toning this syllable -- it's a literal letter (e.g. "de"+s->"dé", then
-        // "t" completes the coda "det", then "r" should just be the letter r, not overwrite
-        // the tone). A FRESH tone application (no existing tone yet) is always still allowed,
-        // even after a sealed coda -- that's the normal, expected "tone typed last" usage
-        // (e.g. "thich"+s->"thích").
-        if (parts.tone != null && parts.tone != toneMark) {
-            val consonantTail = syllable.substring(targetIndex + 1)
-                .dropWhile { Parts.fromChar(it).isVietnameseVowel() }
-            if (consonantTail.isNotEmpty() && isSealedTerminalCoda(consonantTail)) return null
-        }
-
         return if (parts.tone == toneMark) {
             val cleared = parts.withTone(null).toChar()
             val result = syllable.substring(0, targetIndex) + cleared + syllable.substring(targetIndex + 1) + keyChar
-            bailoutSyllable = result
+            toneCancelledPrefix = result
             result
         } else {
             val toned = parts.withTone(toneMark).toChar()
@@ -338,21 +318,6 @@ internal object VietnameseTelexProcessor {
         return isValidVietnameseCoda(trailing)
     }
 
-    // Codas that cannot grow into anything longer: once one of these is complete, the
-    // syllable is "sealed" and any further keystroke starts something new instead of
-    // continuing this syllable's coda.
-    private val sealedCodas = setOf("t", "p", "m", "c", "ch", "ng", "nh")
-
-    private fun isSealedTerminalCoda(text: String): Boolean = text.lowercase() in sealedCodas
-
-    // A coda-so-far is still plausible if it's already a complete valid final, OR if it's a
-    // prefix that could still grow into one (e.g. "n" -> "ng"/"nh").
-    private fun isGrowableCodaPrefix(text: String): Boolean {
-        if (text.isEmpty()) return true
-        val t = text.lowercase()
-        return isValidVietnameseCoda(t) || setOf("c", "ch", "m", "n", "ng", "nh", "p", "t").any { it.startsWith(t) }
-    }
-
     // The (~25) legal Vietnamese syllable-initial consonant clusters. Anything else (pr, dr,
     // str, sh, bl, fr...) never legitimately starts a Vietnamese syllable.
     private val validOnsets = setOf(
@@ -364,12 +329,6 @@ internal object VietnameseTelexProcessor {
         if (text.isEmpty()) return true
         val t = text.lowercase()
         return validOnsets.any { it == t || it.startsWith(t) }
-    }
-
-    private fun codaOf(syllable: String): String {
-        val lastVowelIdx = syllable.indices.lastOrNull { Parts.fromChar(syllable[it]).isVietnameseVowel() }
-            ?: return ""
-        return syllable.substring(lastVowelIdx + 1)
     }
 
     private fun isCompleteValidOnset(text: String): Boolean {
@@ -388,52 +347,11 @@ internal object VietnameseTelexProcessor {
     // "closed" and must be a COMPLETE valid onset; otherwise it just needs to still be a
     // growable prefix of one. This runs before ANY shape/tone conversion is attempted -- an
     // invalid onset (e.g. "w", "z", "str") means this syllable was never really Vietnamese, so
-    // we skip straight to plain literal insertion / rollback instead of converting anything.
+    // every subsequent letter just inserts literally instead of being converted.
     private fun establishedOnsetIsValid(syllable: String): Boolean {
         val onset = extractOnset(syllable)
         val hasVowel = syllable.length > onset.length
         return if (hasVowel) isCompleteValidOnset(onset) else isValidOnsetPrefix(onset)
-    }
-
-    // Would accepting `extra` as the next character keep `syllable` a plausible, still-forming
-    // Vietnamese syllable? We validate the onset once it's about to close off (the first vowel
-    // arrives) and the coda as it grows -- we don't validate the vowel nucleus itself here.
-    private fun isPlausiblePrefix(syllable: String, extra: Char): Boolean {
-        val hasVowelAlready = syllable.any { Parts.fromChar(it).isVietnameseVowel() }
-        return if (Parts.fromChar(extra).isVietnameseVowel()) {
-            if (!hasVowelAlready) isCompleteValidOnset(syllable) else true
-        } else if (!hasVowelAlready) {
-            isValidOnsetPrefix(syllable + extra)
-        } else {
-            isGrowableCodaPrefix(codaOf(syllable) + extra)
-        }
-    }
-
-    private val keyForTone: Map<Char, Char> = toneByKey.entries.associate { (k, v) -> v to k }
-
-    // Reconstructs the literal keys that would have produced a single rendered character,
-    // e.g. 'ă' -> "aw", 'á' -> "as", 'đ' -> "dd". Used only when rolling back a syllable that
-    // turned out not to be Vietnamese after all.
-    private fun rawKeysForChar(ch: Char): String {
-        if (ch == 'đ') return "dd"
-        if (ch == 'Đ') return "DD"
-        val parts = Parts.fromChar(ch)
-        val matchCase: (Char) -> Char = { m -> if (parts.base.isUpperCase()) m.uppercaseChar() else m }
-        val shapeKey = when (parts.shape) {
-            CIRCUMFLEX -> matchCase(parts.base.lowercaseChar())
-            BREVE, HORN -> matchCase('w')
-            else -> null
-        }
-        val toneKeyChar = parts.tone?.let { keyForTone[it] }?.let(matchCase)
-        return buildString {
-            append(parts.base)
-            shapeKey?.let { append(it) }
-            toneKeyChar?.let { append(it) }
-        }
-    }
-
-    private fun rawKeysForSyllable(syllable: String): String = buildString {
-        for (ch in syllable) append(rawKeysForChar(ch))
     }
 
     private data class Parts(
