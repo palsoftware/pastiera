@@ -30,21 +30,39 @@ internal object VietnameseTelexProcessor {
     fun isActiveForLayout(layoutName: String?): Boolean = layoutName == VIETNAMESE_TELEX_LAYOUT_ID
 
     fun rewrite(textBeforeCursor: String, keyChar: Char): Rewrite? {
+        if (!keyChar.isLetter()) return null
         val lowerKey = keyChar.lowercaseChar()
-        if (lowerKey !in toneKeys && lowerKey !in shapeKeys) return null
 
         val syllableStart = findSyllableStart(textBeforeCursor)
-        if (syllableStart == textBeforeCursor.length) return null
-
+        if (syllableStart == textBeforeCursor.length) {
+            toneCancelledPrefix = ""
+            return null
+        }
         val syllable = textBeforeCursor.substring(syllableStart)
-        val rewritten = when {
-            lowerKey == 'z' -> clearDiacritics(syllable)
-            lowerKey in toneByKey -> applyToneKey(syllable, keyChar)
-            else -> applyShapeKey(syllable, keyChar)
-        } ?: return null
+        if (toneCancelledPrefix.isNotEmpty() && !syllable.startsWith(toneCancelledPrefix)) {
+            toneCancelledPrefix = ""
+        }
 
-        if (rewritten == syllable) return null
-        return Rewrite(replaceCount = syllable.length, replacement = rewritten)
+        // Only attempt a Vietnamese conversion while this syllable's onset (the consonants
+        // before its first vowel) is still a plausible Vietnamese onset. This is what protects
+        // words like "wolf"/"zoo" (invalid onset "w"/"z") from ever getting converted in the
+        // first place -- and because nothing gets converted for them, there's nothing to correct
+        // or roll back later. Once a syllable already contains a REAL conversion (a diacritic
+        // actually applied), we never undo it: a keystroke that doesn't fit just becomes a
+        // literal character appended after it, so an already-correct word is never corrupted
+        // (e.g. "biết" + n -> "biếtn", not a reversion to raw letters).
+        if ((lowerKey in toneKeys || lowerKey in shapeKeys) && (lowerKey == 'd' || establishedOnsetIsValid(syllable))) {
+            val rewritten = when {
+                lowerKey == 'z' -> clearDiacritics(syllable)
+                lowerKey in toneByKey -> applyToneKey(syllable, keyChar)
+                else -> applyShapeKey(syllable, keyChar)
+            }
+            if (rewritten != null && rewritten != syllable) {
+                return Rewrite(replaceCount = syllable.length, replacement = rewritten)
+            }
+        }
+
+        return null
     }
 
     private fun findSyllableStart(text: String): Int {
@@ -79,30 +97,41 @@ internal object VietnameseTelexProcessor {
             val parts = Parts.fromChar(chars[idx])
             val trailing = chars.subList(idx + 1, chars.size).joinToString("")
             val replacement = when (key) {
+                // For self-doubling shape keys (aa->â, ee->ê, oo->ô), only allow reaching back
+                // through a trailing consonant CODA if that coda is still "open" (i.e. we're not
+                // crossing a completed syllable boundary). We approximate this by requiring the
+                // trailing text be empty or made up entirely of vowels (e.g. "dau"+a->"dau"-with-
+                // circumflex, where trailing is the vowel "u"). A trailing consonant (e.g. "mam"+a)
+                // means an earlier syllable already closed, so the new keystroke starts a fresh one.
                 'a' -> when {
-                    trailing.isNotEmpty() && !isValidVietnameseTail(trailing) -> null
+                    trailing.isNotEmpty() && !trailing.all { Parts.fromChar(it).isVietnameseVowel() } -> null
                     parts.isBase('a') && !parts.hasShape() -> parts.withShape(CIRCUMFLEX).toChar().toString()
                     parts.isBase('a') && parts.hasShape(CIRCUMFLEX) -> "${caseOf(parts.base)}$keyChar"
                     else -> null
                 }
                 'e' -> when {
-                    trailing.isNotEmpty() && !isValidVietnameseTail(trailing) -> null
+                    trailing.isNotEmpty() && !trailing.all { Parts.fromChar(it).isVietnameseVowel() } -> null
                     parts.isBase('e') && !parts.hasShape() -> parts.withShape(CIRCUMFLEX).toChar().toString()
                     parts.isBase('e') && parts.hasShape(CIRCUMFLEX) -> "${caseOf(parts.base)}$keyChar"
                     else -> null
                 }
                 'o' -> when {
-                    trailing.isNotEmpty() && !isValidVietnameseTail(trailing) -> null
+                    trailing.isNotEmpty() && !trailing.all { Parts.fromChar(it).isVietnameseVowel() } -> null
                     parts.isBase('o') && !parts.hasShape() -> parts.withShape(CIRCUMFLEX).toChar().toString()
                     parts.isBase('o') && parts.hasShape(CIRCUMFLEX) -> "${caseOf(parts.base)}$keyChar"
                     else -> null
                 }
-                'd' -> when (chars[idx]) {
-                    'd' -> "đ"
-                    'D' -> "Đ"
-                    // For an already transformed đ/Đ, treat a new d/D as a literal append
-                    // instead of toggling back, so users can continue typing the next letter.
-                    'đ', 'Đ' -> return syllable + keyChar
+                // 'd' doubling (dd->đ) requires the two d's to be strictly adjacent: no reaching
+                // back through any other letter at all (unlike a/e/o/w, there's no legitimate
+                // Vietnamese case where a 'd' modifier applies at a distance). A third 'd' press
+                // reverts đ fully back to the literal double letter, matching how the other shape
+                // keys escape (e.g. ô + o -> oo), confirmed against real device behavior.
+                'd' -> when {
+                    trailing.isNotEmpty() -> null
+                    chars[idx] == 'd' -> "đ"
+                    chars[idx] == 'D' -> "Đ"
+                    chars[idx] == 'đ' -> "dd"
+                    chars[idx] == 'Đ' -> "DD"
                     else -> null
                 }
                 'w' -> when {
@@ -150,7 +179,15 @@ internal object VietnameseTelexProcessor {
         return null
     }
 
+    // Once a tone is explicitly cancelled (same tone key pressed twice in a row), this syllable
+    // is remembered as "tone-cancelled" -- the person deliberately said "not that", so no
+    // further tone key (fresh or cycling) should touch it again, even though the visible text
+    // is now plain and indistinguishable from a vowel that never had a tone attempt at all.
+    // Cleared at the next word boundary.
+    private var toneCancelledPrefix: String = ""
+
     private fun applyToneKey(syllable: String, keyChar: Char): String? {
+        if (toneCancelledPrefix.isNotEmpty() && syllable.startsWith(toneCancelledPrefix)) return null
         if (hasSeparatedVowelGroups(syllable)) return null
         val key = keyChar.lowercaseChar()
         val toneMark = toneByKey[key] ?: return null
@@ -160,7 +197,9 @@ internal object VietnameseTelexProcessor {
 
         return if (parts.tone == toneMark) {
             val cleared = parts.withTone(null).toChar()
-            syllable.substring(0, targetIndex) + cleared + syllable.substring(targetIndex + 1) + keyChar
+            val result = syllable.substring(0, targetIndex) + cleared + syllable.substring(targetIndex + 1) + keyChar
+            toneCancelledPrefix = result
+            result
         } else {
             val toned = parts.withTone(toneMark).toChar()
             syllable.substring(0, targetIndex) + toned + syllable.substring(targetIndex + 1)
@@ -199,13 +238,17 @@ internal object VietnameseTelexProcessor {
         val prevPos = lastPos - 1
         val prev = vowelParts.getOrNull(prevPos)
 
-        // "oa"/"oe" commonly take tone on 'o'.
+        // "oa"/"oe" take tone on 'o' only in an OPEN syllable (nothing after the vowel cluster,
+        // e.g. "hoa"->"hòa"). In a CLOSED syllable with a trailing coda (e.g. "toan"->"toán",
+        // "thoat"->"thoát"), the tone moves onto the second vowel instead.
+        val hasCoda = vowelIndices[lastPos] < chars.lastIndex
         if (prev != null && prev.base.lowercaseChar() == 'o' && last.base.lowercaseChar() in setOf('a', 'e')) {
-            return vowelIndices[prevPos]
+            return if (hasCoda) vowelIndices[lastPos] else vowelIndices[prevPos]
         }
 
-        // If the final vowel is a semivowel, prefer the previous vowel.
-        if (prev != null && last.base.lowercaseChar() in setOf('i', 'y', 'u')) {
+        // If the final vowel is a semivowel-like glide (i/y/u, and o as in "ao"/"eo"), prefer
+        // the previous vowel.
+        if (prev != null && last.base.lowercaseChar() in setOf('i', 'y', 'u', 'o')) {
             // Exception: "uy" usually carries tone on y.
             if (!(prev.base.lowercaseChar() == 'u' && last.base.lowercaseChar() == 'y')) {
                 return vowelIndices[prevPos]
@@ -273,6 +316,42 @@ internal object VietnameseTelexProcessor {
         if (trailing.isEmpty()) return true
         if (trailing.all { Parts.fromChar(it).isVietnameseVowel() }) return true
         return isValidVietnameseCoda(trailing)
+    }
+
+    // The (~25) legal Vietnamese syllable-initial consonant clusters. Anything else (pr, dr,
+    // str, sh, bl, fr...) never legitimately starts a Vietnamese syllable.
+    private val validOnsets = setOf(
+        "b", "c", "ch", "d", "đ", "g", "gh", "gi", "h", "k", "kh", "l", "m", "n", "ng", "ngh",
+        "nh", "p", "ph", "q", "r", "s", "t", "th", "tr", "v", "x"
+    )
+
+    private fun isValidOnsetPrefix(text: String): Boolean {
+        if (text.isEmpty()) return true
+        val t = text.lowercase()
+        return validOnsets.any { it == t || it.startsWith(t) }
+    }
+
+    private fun isCompleteValidOnset(text: String): Boolean {
+        if (text.isEmpty()) return true // onsetless syllable (e.g. "anh", "em") is valid
+        return text.lowercase() in validOnsets
+    }
+
+    private fun extractOnset(syllable: String): String {
+        val firstVowelIdx = syllable.indices.firstOrNull { Parts.fromChar(syllable[it]).isVietnameseVowel() }
+            ?: return syllable
+        return syllable.substring(0, firstVowelIdx)
+    }
+
+    // Whether the syllable's already-typed onset (the consonants before its first vowel, if
+    // any) is still a legal Vietnamese onset. If a vowel has already appeared, the onset is
+    // "closed" and must be a COMPLETE valid onset; otherwise it just needs to still be a
+    // growable prefix of one. This runs before ANY shape/tone conversion is attempted -- an
+    // invalid onset (e.g. "w", "z", "str") means this syllable was never really Vietnamese, so
+    // every subsequent letter just inserts literally instead of being converted.
+    private fun establishedOnsetIsValid(syllable: String): Boolean {
+        val onset = extractOnset(syllable)
+        val hasVowel = syllable.length > onset.length
+        return if (hasVowel) isCompleteValidOnset(onset) else isValidOnsetPrefix(onset)
     }
 
     private data class Parts(
