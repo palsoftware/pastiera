@@ -6,7 +6,7 @@ Dieses Verzeichnis sammelt Referenzmaterial zum Unihertz Titan 2 Elite. Solange 
 
 Laut Hersteller verwendet das Gerät ein 4,03-Zoll-AMOLED mit 1080 × 1200 Pixeln und 401 ppi. Die Referenzfotos zeigen stark gerundete untere Displayecken. Der sichtbare Bogen entspricht in der normalisierten 1080 × 1200-Schablone näherungsweise einem Radius von 96 px. Die [SVG-Schablone](titan2elite-display-overlay.svg) markiert diesen Bogen und die im Emulator bei 400 dpi ermittelten 16-px-Führungslinien für die untere Pastiera-Zeile.
 
-Pastiera rückt nur die untere Status-/Variationszeile ein. Die Prediction-Zeile bleibt über die volle Displaybreite sichtbar. Der horizontale Abstand beträgt ein Drittel des von Android gemeldeten unteren Eckenradius; fehlt dieser Wert, wird ein Drittel des vorläufigen 24-dp-Radius verwendet, also 8 dp. Seitliche System-Gestenbereiche zählen nicht als Displayausschnitt und vergrößern diesen Abstand nicht.
+Ein final ausgeliefertes Gerät (Titan 2 Elite_V02.00.04) meldet über `WindowInsets.getRoundedCorner` an allen vier Ecken einen Radius von 100 px. Ist die Option aktiv, rundet Pastiera die unteren Ecken der gesamten IME-Chrome per Outline-Clip mit dem gemeldeten Radius ab, sodass der Hintergrund der Statusleiste dem Displaybogen folgt. Die Zeileninhalte bleiben bewusst über die volle Displaybreite und werden nicht eingerückt. Fehlt der gemeldete Radius, wird ein am Gerät abgeleiteter 50-dp-Fallback verwendet.
 
 ## Emulator-Abnahme
 
@@ -28,6 +28,8 @@ ab. Die Bilder prüfen damit insbesondere unterschiedliche Höhen, Rundungen, Pa
 Debug-only-Pfad zum Schreiben von Einstellungen einzuführen.
 
 ## Modifier-LEDs
+
+Bei aktivierter Rundungsoption folgen die LED-Segmente konzentrischen Bögen entlang der unteren Displayecken. Die beiden Zeilen behalten ihre Farben und Zustände; ihre Segmentbreiten werden entlang der Kontur verteilt. Die LED-Fläche reserviert mindestens die Höhe des größeren Eckenradius, damit die äußeren Segmente sichtbar nach oben laufen können. Ohne Rundungsoption bleibt die bisherige flache Darstellung erhalten.
 
 Die LED-Geometrie verwendet normalisierte X-/Y-Koordinaten sowie Breite und Höhe pro Segment. Das bisherige
 einzeilige Layout bleibt das Defaultprofil. Das Titan-2-Elite-Profil bildet dagegen zwei physische Tastenzeilen ab:

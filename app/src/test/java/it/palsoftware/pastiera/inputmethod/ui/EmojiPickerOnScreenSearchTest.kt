@@ -34,6 +34,45 @@ import org.robolectric.annotation.Config
 class EmojiPickerOnScreenSearchTest {
 
     @Test
+    fun roundedEdgeControlsShareBarHeightAndRestoreOriginalSizing() {
+        var closed = false
+        val view = EmojiPickerView(RuntimeEnvironment.getApplication()) { closed = true }
+        val (left, right) = view.edgeControls
+        val originalLeftWidth = left.layoutParams.width
+        val originalRightWidth = right.layoutParams.width
+        val originalHeight = right.layoutParams.height
+        val tabs = view.privateField("tabRow").get(view) as android.widget.LinearLayout
+        val category = android.widget.ImageView(view.context).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, originalHeight, 1f)
+        }
+        tabs.addView(category)
+        view.configureRoundedControls(true, 110, 40f)
+        assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, category.layoutParams.height)
+        assertEquals(android.widget.ImageView.ScaleType.CENTER_INSIDE, category.scaleType)
+        tabs.measure(
+            View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(110, View.MeasureSpec.EXACTLY)
+        )
+        assertEquals(110, category.measuredHeight)
+        assertEquals(110, left.layoutParams.height)
+        assertEquals(110, right.layoutParams.height)
+        assertEquals(110, (right.parent as View).layoutParams.height)
+        val width = view.resources.displayMetrics.widthPixels
+        assertEquals(width - (width / 10) * 9, right.layoutParams.width)
+        assertEquals(View.INVISIBLE, right.visibility)
+        assertTrue(right.background is android.graphics.drawable.ColorDrawable)
+        right.performClick()
+        assertTrue(closed)
+        view.configureRoundedControls(false, 110, 40f)
+        assertEquals(originalHeight, category.layoutParams.height)
+        assertEquals(View.VISIBLE, right.visibility)
+        assertEquals(originalLeftWidth, left.layoutParams.width)
+        assertEquals(originalRightWidth, right.layoutParams.width)
+        assertEquals(originalHeight, right.layoutParams.height)
+        assertTrue(right.background is android.graphics.drawable.GradientDrawable)
+    }
+
+    @Test
     fun emojiCommitRunsSynchronouslyBeforeAutoClose() {
         val events = mutableListOf<String>()
         var viewRef: EmojiPickerView? = null

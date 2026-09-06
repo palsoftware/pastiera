@@ -187,6 +187,11 @@ class ClipboardHistoryView(
         currentInputConnection = connection
     }
 
+    /** The chrome owns the shared, screen-contoured close button in rounded mode. */
+    fun configureRoundedLayout(enabled: Boolean) {
+        closeButton?.visibility = if (enabled) View.GONE else View.VISIBLE
+    }
+
     fun configureSoftwareKeyboardMode(heightPx: Int?) {
         val targetHeight = heightPx?.takeIf { it > 0 } ?: dpToPx(177f)
         updateHeight(targetHeight)

@@ -2,6 +2,7 @@ package it.palsoftware.pastiera.inputmethod.ui
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
@@ -69,6 +70,9 @@ class EmojiPickerView(
     private val searchPanel: FrameLayout
     private val searchToggleButton: ImageView
     private val closeButton: ImageView
+    private var roundedControls = false
+    private var roundedIconSize = 0f
+    val edgeControls: Pair<View, View> get() = searchToggleButton to closeButton
 
     private var coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var loadingJob: Job? = null
@@ -373,6 +377,66 @@ class EmojiPickerView(
 
     fun setInputConnection(connection: InputConnection?) {
         currentInputConnection = connection
+    }
+
+    fun configureRoundedControls(enabled: Boolean, rowHeight: Int, iconSize: Float) {
+        roundedControls = enabled
+        roundedIconSize = iconSize
+        // Reserve the slot; rounded mode uses the chrome's shared SYM close control.
+        closeButton.visibility = if (enabled) View.INVISIBLE else View.VISIBLE
+        val height = if (enabled) rowHeight else dpToPx(32f)
+        val bar = closeButton.parent as LinearLayout
+        bar.layoutParams = bar.layoutParams.apply { this.height = height }
+        tabScrollView.layoutParams = tabScrollView.layoutParams.apply { this.height = height }
+        tabRow.layoutParams = tabRow.layoutParams.apply { this.height = height }
+        tabRow.setPadding(if (enabled) 0 else smallPadding / 2, 0, if (enabled) 0 else smallPadding / 2, 0)
+        for (index in 0 until tabRow.childCount) {
+            val category = tabRow.getChildAt(index)
+            category.layoutParams = category.layoutParams.apply {
+                this.height = if (enabled) ViewGroup.LayoutParams.MATCH_PARENT else dpToPx(32f)
+            }
+            (category as? ImageView)?.scaleType = ImageView.ScaleType.CENTER_INSIDE
+        }
+        fun sizeControls(width: Int) {
+            listOf(searchToggleButton, closeButton).forEach { button ->
+                button.layoutParams = (button.layoutParams as LinearLayout.LayoutParams).apply {
+                    this.width = if (enabled) {
+                        if (button === closeButton) width - (width / 10) * 9 else width / 10
+                    } else dpToPx(if (button === closeButton) 36f else 32f)
+                    this.height = height
+                    marginEnd = if (!enabled && button === searchToggleButton) spacing else 0
+                }
+            }
+            applyEdgeControlAppearance()
+        }
+        sizeControls(width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels)
+        requestLayout()
+    }
+
+    private fun applyEdgeControlAppearance() {
+        listOf(searchToggleButton, closeButton).forEach { button ->
+            if (roundedControls) {
+                button.background = ColorDrawable(themeOverride?.statusBarButton ?: Color.TRANSPARENT)
+                button.setPadding(0, 0, 0, 0)
+                button.scaleType = ImageView.ScaleType.MATRIX
+                button.drawable?.let { icon ->
+                    val scale = roundedIconSize / icon.intrinsicHeight.coerceAtLeast(1)
+                    button.imageMatrix = Matrix().apply {
+                        setScale(scale, scale)
+                        postTranslate(
+                            (button.layoutParams.width - icon.intrinsicWidth * scale) / 2f +
+                                dpToPx(4f) * if (button === searchToggleButton) 1 else -1,
+                            (button.layoutParams.height - icon.intrinsicHeight * scale) / 2f - dpToPx(2f)
+                        )
+                    }
+                }
+            } else {
+                val pad = dpToPx(4f)
+                button.setPadding(pad, pad, pad, pad)
+                button.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                button.background = if (button === closeButton) createCloseButtonBackground() else createTabBackground(isSearchPanelVisible)
+            }
+        }
     }
 
     fun configureSoftwareKeyboardMode(heightPx: Int?, onKeyboardLayoutRequested: (() -> Unit)?) {
@@ -807,6 +871,7 @@ class EmojiPickerView(
         isSearchPanelVisible = visible
         searchPanel.visibility = if (visible) View.VISIBLE else View.GONE
         searchToggleButton.background = createTabBackground(visible)
+        applyEdgeControlAppearance()
         setSearchInputCaptureEnabled(visible)
         if (visible) {
             searchField.requestFocus()
@@ -920,7 +985,7 @@ class EmojiPickerView(
                 isFocusable = true
                 layoutParams = LinearLayout.LayoutParams(
                     0, // Use weight
-                    tabHeight,
+                    if (roundedControls) ViewGroup.LayoutParams.MATCH_PARENT else tabHeight,
                     1f // Equal weight for all tabs
                 )
                 setOnClickListener {
@@ -1159,6 +1224,7 @@ class EmojiPickerView(
         searchToggleButton.background = createTabBackground(isSearchPanelVisible)
         keyboardSwitcherButton.setColorFilter(theme?.textAndIcons ?: Color.WHITE)
         keyboardSwitcherButton.background = createTabBackground(false)
+        applyEdgeControlAppearance()
         emptyView.setTextColor(colorWithAlpha(theme?.textAndIcons ?: Color.WHITE, 128))
         updateTabsSelection()
         sectionAdapter.notifyDataSetChanged()
