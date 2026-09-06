@@ -1,4 +1,4 @@
-Support this project on [OpenCollective](https://opencollective.com/pastiera) [WIP, applying for Fiscal Hosts]
+Support this project on [OpenCollective](https://opencollective.com/pastiera)
 
 <details>
 <summary>Alternative direct support options</summary>
