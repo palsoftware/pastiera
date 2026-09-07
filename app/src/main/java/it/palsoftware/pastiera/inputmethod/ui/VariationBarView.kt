@@ -36,6 +36,7 @@ import it.palsoftware.pastiera.inputmethod.TextSelectionHelper
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
 import it.palsoftware.pastiera.inputmethod.VariationButtonHandler
 import it.palsoftware.pastiera.inputmethod.SpeechRecognitionActivity
+import it.palsoftware.pastiera.inputmethod.suggestions.SuggestionButtonHandler
 import it.palsoftware.pastiera.data.variation.VariationRepository
 import android.graphics.Paint
 import android.text.TextUtils
@@ -73,6 +74,8 @@ class VariationBarView(
     var onSpeechRecognitionRequested: (() -> Unit)? = null
     var onAddUserWord: ((String) -> Unit)? = null
     var onAddUserWordSubstitutionRequested: ((String) -> Unit)? = null
+    var onSuggestionCommitted: (() -> Unit)? = null
+    var onHideSuggestion: ((String) -> Unit)? = null
     var onLanguageSwitchRequested: (() -> Unit)? = null
     var onClipboardRequested: (() -> Unit)? = null
     var onEmojiPickerRequested: (() -> Unit)? = null
@@ -407,9 +410,11 @@ class VariationBarView(
         // Legacy variations: always honor them when present, independent of suggestions.
         val hasDynamicVariations = canShowVariations && snapshot.variations.isNotEmpty()
         val hasSuggestions = canShowSuggestions && snapshot.suggestions.isNotEmpty()
+        val hasAddWordCandidate = canShowSuggestions && !snapshot.addWordCandidate.isNullOrBlank()
         val useDynamicVariations = statusBarVariationsEnabled && !staticModeEnabled && hasDynamicVariations
         val allowStaticFallback = statusBarVariationsEnabled &&
             (forceVariationAreaVisible || staticModeEnabled || snapshot.shouldDisableVariations)
+        var isSuggestionContent = false
 
         val effectiveVariations: List<String>
         val isStaticContent: Boolean
@@ -422,6 +427,12 @@ class VariationBarView(
             statusBarVariationsEnabled && hasSuggestions -> {
                 effectiveVariations = snapshot.suggestions
                 isStaticContent = false
+                isSuggestionContent = true
+            }
+            statusBarVariationsEnabled && hasAddWordCandidate -> {
+                effectiveVariations = listOfNotNull(snapshot.addWordCandidate)
+                isStaticContent = false
+                isSuggestionContent = true
             }
             allowStaticFallback -> {
                 val variations = if (snapshot.isEmailField) {
@@ -555,6 +566,7 @@ class VariationBarView(
         val variationSlotsForSizing = when {
             !reservesVariationArea -> 0
             isStaticContent -> rawDisplayedVariations.size
+            isSuggestionContent -> rawDisplayedVariations.size.coerceIn(1, 3)
             resizeDynamicVariationsToContent -> rawDisplayedVariations.size.coerceAtMost(dynamicSlotCount)
             else -> dynamicSlotCount
         }
@@ -708,6 +720,8 @@ class VariationBarView(
                 variationButtonHeight,
                 maxButtonWidth,
                 isStaticContent,
+                isSuggestionContent,
+                snapshot.shouldDisableAutoCapitalize,
                 isAddCandidate,
                 isLast,
                 spacingBetweenButtons
@@ -1098,6 +1112,8 @@ class VariationBarView(
         buttonHeight: Int,
         maxButtonWidth: Int,
         isStatic: Boolean,
+        isSuggestionContent: Boolean,
+        shouldDisableAutoCapitalize: Boolean,
         isAddCandidate: Boolean,
         isLast: Boolean,
         spacingBetweenButtons: Int
@@ -1177,6 +1193,14 @@ class VariationBarView(
                     context,
                     onVariationSelectedListener
                 )
+            } else if (isSuggestionContent) {
+                SuggestionButtonHandler.createSuggestionClickListener(
+                    variation,
+                    inputConnection,
+                    onVariationSelectedListener,
+                    shouldDisableAutoCapitalize = shouldDisableAutoCapitalize,
+                    onSuggestionCommitted = onSuggestionCommitted
+                )
             } else {
                 VariationButtonHandler.createVariationClickListener(
                     variation,
@@ -1193,6 +1217,12 @@ class VariationBarView(
                 setOnLongClickListener {
                     performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                     onAddUserWordSubstitutionRequested?.invoke(variation)
+                    true
+                }
+            } else if (isSuggestionContent) {
+                setOnLongClickListener {
+                    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                    onHideSuggestion?.invoke(variation)
                     true
                 }
             }

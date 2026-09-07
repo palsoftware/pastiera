@@ -259,6 +259,8 @@ class KeyboardVisibilityController(
         statusBarPresentationMode = when (statusBarPresentationMode) {
             SettingsManager.StatusBarPresentationMode.PASTIERINA ->
                 SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR
+            SettingsManager.StatusBarPresentationMode.UNIFIED ->
+                SettingsManager.StatusBarPresentationMode.PASTIERINA
             SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR ->
                 SettingsManager.StatusBarPresentationMode.PASTIERINA
         }

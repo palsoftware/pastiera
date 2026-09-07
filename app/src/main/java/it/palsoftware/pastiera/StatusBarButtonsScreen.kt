@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.activity.compose.BackHandler
 import it.palsoftware.pastiera.R
 
-private enum class StatusBarEditorMode { Extended, Pastierina }
+private enum class StatusBarEditorMode { Extended, Unified, Pastierina }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,13 +61,10 @@ fun StatusBarButtonsScreen(
     }
     var editorMode by remember {
         mutableStateOf(
-            if (
-                SettingsManager.getStatusBarPresentationMode(context) ==
-                    SettingsManager.StatusBarPresentationMode.PASTIERINA
-            ) {
-                StatusBarEditorMode.Pastierina
-            } else {
-                StatusBarEditorMode.Extended
+            when (SettingsManager.getStatusBarPresentationMode(context)) {
+                SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR -> StatusBarEditorMode.Extended
+                SettingsManager.StatusBarPresentationMode.UNIFIED -> StatusBarEditorMode.Unified
+                SettingsManager.StatusBarPresentationMode.PASTIERINA -> StatusBarEditorMode.Pastierina
             }
         )
     }
@@ -230,10 +227,13 @@ fun StatusBarButtonsScreen(
                         editorMode = mode
                         SettingsManager.setStatusBarPresentationMode(
                             context,
-                            if (mode == StatusBarEditorMode.Pastierina) {
-                                SettingsManager.StatusBarPresentationMode.PASTIERINA
-                            } else {
-                                SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR
+                            when (mode) {
+                                StatusBarEditorMode.Extended ->
+                                    SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR
+                                StatusBarEditorMode.Unified ->
+                                    SettingsManager.StatusBarPresentationMode.UNIFIED
+                                StatusBarEditorMode.Pastierina ->
+                                    SettingsManager.StatusBarPresentationMode.PASTIERINA
                             }
                         )
                     },
@@ -241,10 +241,10 @@ fun StatusBarButtonsScreen(
                 ) {
                     Text(
                         text = stringResource(
-                            if (mode == StatusBarEditorMode.Extended) {
-                                R.string.extended_status_bar_title
-                            } else {
-                                R.string.pastierina_status_bar_buttons_title
+                            when (mode) {
+                                StatusBarEditorMode.Extended -> R.string.extended_status_bar_option
+                                StatusBarEditorMode.Unified -> R.string.unified_status_bar_option
+                                StatusBarEditorMode.Pastierina -> R.string.pastierina_status_bar_option
                             }
                         ),
                         maxLines = 1
@@ -254,11 +254,11 @@ fun StatusBarButtonsScreen(
         }
 
         StatusBarLayoutPreview(
-            leftSlots = if (editorMode == StatusBarEditorMode.Extended) leftSlots else pastierinaLeftSlots,
-            rightSlots = if (editorMode == StatusBarEditorMode.Extended) rightSlots else pastierinaRightSlots,
+            leftSlots = if (editorMode != StatusBarEditorMode.Pastierina) leftSlots else pastierinaLeftSlots,
+            rightSlots = if (editorMode != StatusBarEditorMode.Pastierina) rightSlots else pastierinaRightSlots,
             centerText = if (editorMode == StatusBarEditorMode.Extended && variationsVisible) {
                 "· · ·"
-            } else if (editorMode == StatusBarEditorMode.Pastierina) {
+            } else if (editorMode != StatusBarEditorMode.Extended) {
                 stringResource(R.string.pastierina_preview_suggestions)
             } else null
         )

@@ -3035,10 +3035,16 @@ class StatusBarController(
         val activeTheme = activeThemeSettings(isFullSoftwareKeyboardMode)
         val activeColors = activeTheme.toKeyboardThemeColors()
         val softwareThemeSettings = if (isFullSoftwareKeyboardMode) activeTheme else softwareTheme()
+        val unifiedStatusBar =
+            SettingsManager.getStatusBarPresentationMode(context) ==
+                SettingsManager.StatusBarPresentationMode.UNIFIED &&
+                !isFullSoftwareKeyboardMode
         variationBarView?.onVariationSelectedListener = onVariationSelectedListener
         variationBarView?.onCursorMovedListener = onCursorMovedListener
+        variationBarView?.onSuggestionCommitted = onSuggestionCommitted
+        variationBarView?.onHideSuggestion = onHideSuggestion
         variationBarView?.updateInputConnection(inputConnection)
-        variationBarView?.forceVariationAreaVisible = isFullSoftwareKeyboardMode
+        variationBarView?.forceVariationAreaVisible = isFullSoftwareKeyboardMode || unifiedStatusBar
         variationBarView?.setSymModeActive((snapshot.symPage > 0 && !isSoftwareKeyboardOverlayPage) || snapshot.clipboardOverlay)
         variationBarView?.updateLanguageButtonText()
         updateClipboardCount(snapshot.clipboardCount)
@@ -3103,7 +3109,8 @@ class StatusBarController(
         if (showLedStrip) {
             ledStatusView.update(snapshot)
         }
-        val showSecondRow = !pastierinaModeActive
+        val expansionActive = expansionSuggestions.isNotEmpty()
+        val showSecondRow = !pastierinaModeActive && !(unifiedStatusBar && expansionActive)
         val variationsBar = if (showSecondRow) variationBarView else null
         val variationsWrapperView = if (showSecondRow) variationsWrapper else null
         if (!showSecondRow) {
@@ -3112,8 +3119,7 @@ class StatusBarController(
         val experimentalEnabled = SettingsManager.isExperimentalSuggestionsEnabled(context)
         val suggestionsEnabledSetting = SettingsManager.getSuggestionsEnabled(context)
         // Keep the suggestion/status row stable in both full-status-bar and Pastierina mode.
-        val expansionActive = expansionSuggestions.isNotEmpty()
-        val showFullBar = expansionActive || (
+        val showFullBar = expansionActive || (!unifiedStatusBar &&
             suggestionsEnabledSetting &&
                 (experimentalEnabled || isFullSoftwareKeyboardMode) &&
                 (isFullSoftwareKeyboardMode || !snapshot.shouldDisableSuggestions) &&
@@ -3260,7 +3266,7 @@ class StatusBarController(
                     isEnabled = true
                     isClickable = true
                 }
-                val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
+                val snapshotForVariations = if (!unifiedStatusBar && snapshot.suggestions.isNotEmpty()) {
                     snapshot.copy(suggestions = emptyList(), addWordCandidate = null)
                 } else snapshot
                 variationsBar?.showVariations(snapshotForVariations, inputConnection)
@@ -3308,7 +3314,7 @@ class StatusBarController(
                     isEnabled = true
                     isClickable = true
                 }
-                val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
+                val snapshotForVariations = if (!unifiedStatusBar && snapshot.suggestions.isNotEmpty()) {
                     snapshot.copy(suggestions = emptyList(), addWordCandidate = null)
                 } else snapshot
                 variationsBar?.showVariations(snapshotForVariations, inputConnection)
@@ -3325,7 +3331,7 @@ class StatusBarController(
                 isEnabled = true
                 isClickable = true
             }
-            val snapshotForVariations = if (snapshot.suggestions.isNotEmpty()) {
+            val snapshotForVariations = if (!unifiedStatusBar && snapshot.suggestions.isNotEmpty()) {
                 snapshot.copy(suggestions = emptyList(), addWordCandidate = null)
             } else snapshot
             variationsBar?.showVariations(snapshotForVariations, inputConnection)

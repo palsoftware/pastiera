@@ -1550,9 +1550,12 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
 
     <!-- Status Bar Buttons Configuration -->
     <string name="status_bar_buttons_title">Status Bar</string>
-    <string name="status_bar_buttons_description">Configure the Status Bar and Pastierina Mode.</string>
+    <string name="status_bar_buttons_description">Configure the status bar style and buttons.</string>
     <string name="status_bar_style_section">Status bar style</string>
     <string name="extended_status_bar_title">Extended Status Bar</string>
+    <string name="extended_status_bar_option">Extended</string>
+    <string name="unified_status_bar_option">Unified</string>
+    <string name="pastierina_status_bar_option">Pastierina</string>
     <string name="extended_status_bar_features_section">Extended features</string>
     <string name="status_bar_buttons_section">Buttons</string>
     <string name="pastierina_preview_suggestions">Suggestions</string>

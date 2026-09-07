@@ -163,7 +163,7 @@ object SettingsManager {
     private const val KEY_SHIFT_BACKSPACE_DELETE = "shift_backspace_delete" // Shift + Backspace performs forward delete
     private const val KEY_ALT_BACKSPACE_DELETE = "alt_backspace_delete" // Alt + Backspace performs forward delete
     private const val KEY_BACKSPACE_AT_START_DELETE = "backspace_at_start_delete" // Backspace at line start performs forward delete
-    private const val KEY_PASTIERINA_MODE_OVERRIDE = "pastierina_mode_override" // pastierina | full_status_bar
+    private const val KEY_PASTIERINA_MODE_OVERRIDE = "pastierina_mode_override" // pastierina | unified | full_status_bar
     private const val KEY_PASTIERINA_MODE_ACTIVE = "pastierina_mode_active" // Current effective state
     private const val KEY_SOFTWARE_KEYBOARD_MODE = "software_keyboard_mode" // auto | force_hardware | force_virtual
     const val KEY_SOFTWARE_KEYBOARD_MODE_RUNTIME_OVERRIDE = "software_keyboard_mode_runtime_override"
@@ -437,6 +437,7 @@ object SettingsManager {
 
     enum class StatusBarPresentationMode(val storageValue: String) {
         PASTIERINA("pastierina"),
+        UNIFIED("unified"),
         FULL_STATUS_BAR("full_status_bar")
     }
 
@@ -560,6 +561,7 @@ object SettingsManager {
         return when (value) {
             StatusBarPresentationMode.PASTIERINA.storageValue,
             "force_minimal" -> StatusBarPresentationMode.PASTIERINA
+            StatusBarPresentationMode.UNIFIED.storageValue -> StatusBarPresentationMode.UNIFIED
             else -> StatusBarPresentationMode.FULL_STATUS_BAR
         }
     }
