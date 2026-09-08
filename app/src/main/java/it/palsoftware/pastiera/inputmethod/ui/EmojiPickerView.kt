@@ -1021,6 +1021,8 @@ class EmojiPickerView(
         }
     }
 
+    var onBeforeTextCommit: ((String, android.view.inputmethod.InputConnection?) -> Unit)? = null
+
     private fun onEmojiSelected(emoji: String, categoryId: String, closeAfterCommit: Boolean? = null) {
         val inputConnection = currentInputConnection
         // Recents persistence must survive the SYM auto-close: closing the picker evicts this
@@ -1041,6 +1043,7 @@ class EmojiPickerView(
         }
         // Commit synchronously before closing: a post{} on a view that the close detaches
         // would only run again when the picker is re-attached (i.e. the next time it opens).
+        onBeforeTextCommit?.invoke(emoji, inputConnection)
         inputConnection?.commitText(emoji, 1)
         val shouldClose = closeAfterCommit
             ?: (

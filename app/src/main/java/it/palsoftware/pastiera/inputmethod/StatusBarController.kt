@@ -117,6 +117,7 @@ class StatusBarController(
         }
 
     var onSuggestionCommitted: (() -> Unit)? = null
+    var onBeforeSuggestionCommitted: (() -> Unit)? = null
 
     var onHideSuggestion: ((String) -> Unit)? = null
 
@@ -188,6 +189,7 @@ class StatusBarController(
     var onSoftwareKeyboardTextInput: ((String, android.view.inputmethod.InputConnection?, StatusSnapshot) -> Boolean)? = null
 
     var onSoftwareKeyboardBoundaryTextInput: ((String, android.view.inputmethod.InputConnection?) -> Boolean)? = null
+    var onSoftwareKeyboardBackspace: ((android.view.inputmethod.InputConnection?) -> Boolean)? = null
 
     var onHamburgerMenuRequested: (() -> Unit)? = null
         set(value) {
@@ -1191,6 +1193,10 @@ class StatusBarController(
         // Reuse the same view to avoid flicker caused by removeAllViews()/recreate on each status update.
         val view = emojiPickerView ?: EmojiPickerView(context) {
             onSymCloseRequested?.invoke()
+        }.apply {
+            onBeforeTextCommit = { text, connection ->
+                onSoftwareKeyboardBoundaryTextInput?.invoke(text, connection)
+            }
         }.also { emojiPickerView = it }
         view.onSearchPanelVisibilityChanged = { visible ->
             onEmojiPickerSearchPanelToggled?.invoke(visible)
@@ -1633,6 +1639,7 @@ class StatusBarController(
                 if (searchTarget != null && searchTarget.handleSearchBackspace()) {
                     return
                 }
+                if (onSoftwareKeyboardBackspace?.invoke(inputConnection) == true) return
                 inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
                 inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
             }
@@ -1644,6 +1651,7 @@ class StatusBarController(
                     searchTarget.commitTopSearchResultAndClose()
                     return
                 }
+                onSoftwareKeyboardBoundaryTextInput?.invoke("\n", inputConnection)
                 inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
                 inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
             }
@@ -1966,8 +1974,10 @@ class StatusBarController(
             }
             if (rowIndex == 2) {
                 rowLayout.addView(createSoftwareSymbolControl("", keyHeight, fixedKeyWidth, iconRes = R.drawable.backspace_24) {
-                    inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-                    inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                    if (onSoftwareKeyboardBackspace?.invoke(inputConnection) != true) {
+                        inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+                        inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+                    }
                 }, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply { marginStart = keySpacing })
             }
             container.addView(rowLayout)
@@ -1986,16 +1996,17 @@ class StatusBarController(
             sendSoftwareCtrlTap(inputConnection)
         }, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply { marginEnd = keySpacing })
         row4.addView(createSoftwareSymbolControl(",", keyHeight, fixedKeyWidth) {
-            inputConnection?.commitText(",", 1)
+            commitSoftwareSymbolText(inputConnection, ",")
         }, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply { marginEnd = keySpacing })
         row4.addView(createSoftwareSymbolSpaceControl(buildSoftwareKeyboardSpacebarLabel(snapshot), keyHeight, inputConnection), LinearLayout.LayoutParams(fixedKeyWidth * 4, keyHeight).apply { marginEnd = keySpacing })
         row4.addView(createSoftwareSymbolControl(".", keyHeight, fixedKeyWidth) {
-            inputConnection?.commitText(".", 1)
+            commitSoftwareSymbolText(inputConnection, ".")
         }, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply { marginEnd = keySpacing })
         row4.addView(createSoftwareSymbolControl("", keyHeight, fixedKeyWidth, iconRes = R.drawable.keyboard_control_key_24) {
             sendSoftwareCtrlTap(inputConnection)
         }, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight).apply { marginEnd = keySpacing })
         row4.addView(createSoftwareSymbolControl("", keyHeight, fixedKeyWidth, iconRes = R.drawable.keyboard_return_24) {
+            onSoftwareKeyboardBoundaryTextInput?.invoke("\n", inputConnection)
             inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
             inputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
         }, LinearLayout.LayoutParams(fixedKeyWidth, keyHeight))
@@ -2048,13 +2059,22 @@ class StatusBarController(
         }
     }
 
+    private fun commitSoftwareSymbolText(
+        inputConnection: android.view.inputmethod.InputConnection?,
+        text: String
+    ) {
+        if (onSoftwareKeyboardBoundaryTextInput?.invoke(text, inputConnection) != true) {
+            inputConnection?.commitText(text, 1)
+        }
+    }
+
     private fun createSoftwareSymbolSpaceControl(
         label: String,
         height: Int,
         inputConnection: android.view.inputmethod.InputConnection?
     ): TextView {
         val view = createSoftwareSymbolControl(label, height, 0, onClick = {
-            inputConnection?.commitText(" ", 1)
+            commitSoftwareSymbolText(inputConnection, " ")
         })
         var downX = 0f
         var lastX = 0f
@@ -2100,7 +2120,7 @@ class StatusBarController(
                 android.view.MotionEvent.ACTION_UP -> {
                     handler.removeCallbacks(longPressRunnable)
                     if (!moved && !longPressTriggered && kotlin.math.abs(event.x - downX) < step) {
-                        inputConnection?.commitText(" ", 1)
+                        commitSoftwareSymbolText(inputConnection, " ")
                     }
                     true
                 }
@@ -3136,6 +3156,7 @@ class StatusBarController(
             onAddUserWord,
             onAddUserWordSubstitutionRequested,
             onSuggestionCommitted,
+            onBeforeSuggestionCommitted,
             onHideSuggestion,
             onDeleteUserSuggestion,
             canDeleteUserSuggestion,
@@ -3386,9 +3407,9 @@ class StatusBarController(
                 val appInfo = context.packageManager.getApplicationInfo(context.packageName, 0)
                 subtype.getDisplayName(context, context.packageName, appInfo)?.toString()
                     ?.takeIf { it.isNotBlank() }
-                    ?: subtype.localeString().ifBlank { "Unknown" }
+                    ?: subtype.localeString().ifBlank { context.getString(R.string.status_bar_language_unknown) }
             } else {
-                "Unknown"
+                context.getString(R.string.status_bar_language_unknown)
             }
 
             val layoutName = subtype
@@ -3410,7 +3431,7 @@ class StatusBarController(
             Log.w(TAG, "Failed to update accessibility state description", e)
             context.getString(
                 R.string.status_bar_button_language_state_description,
-                "Unknown",
+                context.getString(R.string.status_bar_language_unknown),
                 "qwerty"
             )
         }

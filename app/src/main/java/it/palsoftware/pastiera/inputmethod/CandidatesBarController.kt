@@ -65,6 +65,13 @@ class CandidatesBarController(
             candidatesStatusBar.onSuggestionCommitted = value
         }
 
+    var onBeforeSuggestionCommitted: (() -> Unit)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onBeforeSuggestionCommitted = value
+            candidatesStatusBar.onBeforeSuggestionCommitted = value
+        }
+
     var onHideSuggestion: ((String) -> Unit)? = null
         set(value) {
             field = value
@@ -210,6 +217,13 @@ class CandidatesBarController(
             field = value
             inputStatusBar.onSoftwareKeyboardBoundaryTextInput = value
             candidatesStatusBar.onSoftwareKeyboardBoundaryTextInput = value
+        }
+
+    var onSoftwareKeyboardBackspace: ((InputConnection?) -> Boolean)? = null
+        set(value) {
+            field = value
+            inputStatusBar.onSoftwareKeyboardBackspace = value
+            candidatesStatusBar.onSoftwareKeyboardBackspace = value
         }
 
     var onMinimalUiToggleRequested: (() -> Unit)? = null

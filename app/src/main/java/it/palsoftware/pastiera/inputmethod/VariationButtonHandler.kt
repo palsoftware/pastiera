@@ -35,12 +35,9 @@ object VariationButtonHandler {
         inputConnection: InputConnection,
         listener: OnVariationSelectedListener?
     ): Boolean {
-        if (variation.length != 1) return false
-        val boundary = it.palsoftware.pastiera.core.Punctuation.normalizeApostrophe(variation[0])
-        if (boundary == '\'' || boundary !in it.palsoftware.pastiera.core.Punctuation.BOUNDARY) {
-            return false
-        }
-        return listener?.onBoundaryTextRequested(boundary.toString(), inputConnection) == true
+        // The service must see every external insertion, including brackets and
+        // multi-character variations, before commitText can replace its composing run.
+        return listener?.onBoundaryTextRequested(variation, inputConnection) == true
     }
     
     /**

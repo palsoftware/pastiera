@@ -23,6 +23,7 @@ object SuggestionButtonHandler {
         inputConnection: InputConnection?,
         listener: VariationButtonHandler.OnVariationSelectedListener? = null,
         shouldDisableAutoCapitalize: Boolean,
+        onBeforeSuggestionCommitted: (() -> Unit)? = null,
         onSuggestionCommitted: (() -> Unit)? = null
     ): View.OnClickListener {
         return View.OnClickListener {
@@ -40,6 +41,7 @@ object SuggestionButtonHandler {
                 shouldDisableAutoCapitalize = shouldDisableAutoCapitalize
             ) && SettingsManager.getAutoCapitalizeFirstLetter(context)
 
+            onBeforeSuggestionCommitted?.invoke()
             val committed = replaceCurrentWord(inputConnection, suggestion, forceLeadingCapital)
             if (committed) {
                 onSuggestionCommitted?.invoke()
