@@ -6,9 +6,6 @@ import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils
 
 class PastieraApplication : Application() {
     override fun onCreate() {
@@ -17,9 +14,6 @@ class PastieraApplication : Application() {
         AppPackageChangeMonitor.register(this)
         ClicksPowerKeyboardController.initialize(this)
         publishSoftwareKeyboardModeShortcut()
-        Handler(Looper.getMainLooper()).post {
-            AdditionalSubtypeUtils.registerAdditionalSubtypes(this)
-        }
     }
 
     private fun publishSoftwareKeyboardModeShortcut() {

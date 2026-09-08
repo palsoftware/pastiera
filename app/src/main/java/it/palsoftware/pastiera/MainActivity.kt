@@ -810,12 +810,12 @@ fun KeyboardSetupScreen(
                             fontFamily = FontFamily.Monospace
                         )
                         Text(
-                            text = "Origin: ${event?.origin ?: "n/a"}",
+                            text = stringResource(R.string.event_origin_label, event?.origin ?: "n/a"),
                             style = MaterialTheme.typography.bodyMedium,
                             fontFamily = FontFamily.Monospace
                         )
                         Text(
-                            text = "Layout: ${event?.resolvedLayout ?: "n/a"}",
+                            text = stringResource(R.string.event_layout_label, event?.resolvedLayout ?: "n/a"),
                             style = MaterialTheme.typography.bodyMedium,
                             fontFamily = FontFamily.Monospace
                         )

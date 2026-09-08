@@ -15,6 +15,9 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.SettingsManager
+import it.palsoftware.pastiera.core.composition.NormalizedCompositionStroke
+import it.palsoftware.pastiera.inputmethod.composition.CompositionFinishReason
+import it.palsoftware.pastiera.inputmethod.composition.ImeCompositionCoordinator
 import it.palsoftware.pastiera.inputmethod.ui.ClipboardHistoryView
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -116,6 +119,33 @@ class ClipboardHistoryPrivacyTest {
         assertEquals(1, historyManager.getHistorySize())
         assertFalse(historyManager.getHistoryEntry(0)?.isPinned == true)
         assertEquals("protected-secret", historyManager.getHistoryEntry(0)?.text)
+    }
+
+    @Test
+    fun pastePreservesCompositionWhileLockedAndFinishesItBeforeUnlockedCommit() {
+        val inputConnection = BaseInputConnection(View(context), true)
+        val coordinator = ImeCompositionCoordinator().apply {
+            startEditorSession()
+            selectLayout("korean_2set")
+        }
+        val manager = ClipboardHistoryManager(context, accessPolicy) { connection ->
+            coordinator.finish(connection, CompositionFinishReason.COMMAND)
+        }
+        "ㅎㅏㄴ".forEach {
+            assertTrue(coordinator.handleMappedStroke(inputConnection, NormalizedCompositionStroke(it)))
+        }
+        assertEquals("한", inputConnection.editable.toString())
+
+        accessPolicy.accessible = false
+        manager.pasteText("paste", inputConnection)
+        assertTrue(coordinator.isActive)
+        assertEquals("한", inputConnection.editable.toString())
+
+        accessPolicy.accessible = true
+        manager.pasteText("paste", inputConnection)
+        assertFalse(coordinator.isActive)
+        assertEquals("한paste", inputConnection.editable.toString())
+        assertEquals(-1, BaseInputConnection.getComposingSpanStart(requireNotNull(inputConnection.editable)))
     }
 
     @Test

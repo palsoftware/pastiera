@@ -359,6 +359,7 @@ class FullSuggestionsBar(
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
         onSuggestionCommitted: (() -> Unit)?,
+        onBeforeSuggestionCommitted: (() -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?,
@@ -429,6 +430,7 @@ class FullSuggestionsBar(
             onAddUserWord,
             onAddUserWordSubstitutionRequested,
             onSuggestionCommitted,
+            onBeforeSuggestionCommitted,
             onHideSuggestion,
             onDeleteUserSuggestion,
             canDeleteUserSuggestion,
@@ -455,6 +457,7 @@ class FullSuggestionsBar(
             onAddUserWord = null,
             onAddUserWordSubstitutionRequested = null,
             onSuggestionCommitted = null,
+            onBeforeSuggestionCommitted = null,
             onHideSuggestion = null,
             onDeleteUserSuggestion = null,
             canDeleteUserSuggestion = null,
@@ -631,6 +634,7 @@ class FullSuggestionsBar(
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
         onSuggestionCommitted: (() -> Unit)?,
+        onBeforeSuggestionCommitted: (() -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?,
@@ -749,6 +753,7 @@ class FullSuggestionsBar(
                             inputConnection,
                             listener,
                             shouldDisableSuggestions,
+                            onBeforeSuggestionCommitted,
                             onSuggestionCommitted
                         )
                         setOnClickListener { view ->
@@ -772,6 +777,7 @@ class FullSuggestionsBar(
                                 onAddUserWord = onAddUserWord,
                                 onAddUserWordSubstitutionRequested = onAddUserWordSubstitutionRequested,
                                 onSuggestionCommitted = onSuggestionCommitted,
+                                onBeforeSuggestionCommitted = onBeforeSuggestionCommitted,
                                 onHideSuggestion = onHideSuggestion,
                                 onDeleteUserSuggestion = onDeleteUserSuggestion,
                                 canDeleteUserSuggestion = canDeleteUserSuggestion,

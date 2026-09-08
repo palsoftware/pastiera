@@ -16,10 +16,14 @@ import it.palsoftware.pastiera.SettingsManager
  */
 class ClipboardHistoryManager internal constructor(
     private val context: Context,
-    private val accessPolicy: ClipboardHistoryAccessPolicy
+    private val accessPolicy: ClipboardHistoryAccessPolicy,
+    private val beforeTextCommit: (android.view.inputmethod.InputConnection?) -> Unit = {}
 ) : ClipboardManager.OnPrimaryClipChangedListener {
 
-    constructor(context: Context) : this(context, SystemClipboardHistoryAccessPolicy(context))
+    constructor(
+        context: Context,
+        beforeTextCommit: (android.view.inputmethod.InputConnection?) -> Unit = {}
+    ) : this(context, SystemClipboardHistoryAccessPolicy(context), beforeTextCommit)
 
     private lateinit var clipboardManager: ClipboardManager
     private var clipboardDao: ClipboardDao? = null
@@ -165,6 +169,7 @@ class ClipboardHistoryManager internal constructor(
      */
     fun pasteText(text: String, inputConnection: android.view.inputmethod.InputConnection?) {
         if (!isHistoryAccessible()) return
+        beforeTextCommit(inputConnection)
         inputConnection?.commitText(text, 1)
     }
 

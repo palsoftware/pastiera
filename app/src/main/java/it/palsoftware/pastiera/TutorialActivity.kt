@@ -1977,7 +1977,7 @@ fun TutorialCustomizationPageContent(
     val typingSoundPlayer = remember { TypingSoundPlayer(context).apply { reload() } }
 
     val languageOptions = remember {
-        listOf(null, "en", "it", "de", "es", "fr", "pl", "ru", "uk", "vi", "hy")
+        listOf(null, "en", "it", "de", "es", "fr", "pl", "ru", "uk", "ko", "vi", "hy")
     }
 
     DisposableEffect(typingSoundPlayer) {

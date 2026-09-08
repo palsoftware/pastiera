@@ -255,7 +255,7 @@ private fun LauncherShortcutAssignmentBottomSheet(
             filteredCommands
                 .groupBy { it.source }
                 .flatMap { (source, sourceCommands) ->
-                    listOf(CommandPickerEntry.Header(source.displayLabel)) +
+                    listOf(CommandPickerEntry.Header(source.localizedDisplayLabel(context))) +
                         sourceCommands.map { CommandPickerEntry.Command(it) }
                 }
         }
@@ -392,13 +392,13 @@ private fun LauncherShortcutAssignmentBottomSheet(
                     FilterChip(
                         selected = selectedSource == null,
                         onClick = { selectedSource = null },
-                        label = { Text("All") }
+                        label = { Text(stringResource(R.string.quick_launcher_all)) }
                     )
                     availableSources.forEach { source ->
                         FilterChip(
                             selected = selectedSource == source,
                             onClick = { selectedSource = source },
-                            label = { Text(source.displayLabel) }
+                            label = { Text(source.localizedDisplayLabel(context)) }
                         )
                     }
                 }

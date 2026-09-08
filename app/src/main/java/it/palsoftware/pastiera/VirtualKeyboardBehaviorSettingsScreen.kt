@@ -132,7 +132,7 @@ internal fun VirtualKeyboardBehaviorSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(82.dp)
+                    .heightIn(min = 82.dp)
                     .settingRow("on_screen.layout_style") { showSoftwareKeyboardLayoutStyleMenu = true }
             ) {
                 Row(
@@ -288,7 +288,7 @@ internal fun VirtualKeyboardBehaviorSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(74.dp)
+                    .heightIn(min = 74.dp)
                     .settingRow("on_screen.theme", onOpenKeyboardTheme)
             ) {
                 Row(
@@ -330,7 +330,7 @@ private fun SoftwareKeyboardModifierSelection(
     var expanded by remember { mutableStateOf(false) }
     Surface(
         modifier = modifier
-            .height(82.dp)
+            .heightIn(min = 82.dp)
             .settingRow(linkId) { expanded = true },
         shape = MaterialTheme.shapes.medium,
         tonalElevation = 1.dp
@@ -413,7 +413,7 @@ private fun ModifierTapLatchRow(
     Surface(
         modifier = Modifier.settingRow(linkId)
             .fillMaxWidth()
-            .height(74.dp)
+            .heightIn(min = 74.dp)
     ) {
         Row(
             modifier = Modifier

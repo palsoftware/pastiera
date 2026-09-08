@@ -519,7 +519,7 @@ fun SymCustomizationScreen(
         Surface(
             modifier = Modifier.settingRow("sym.auto_close")
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -561,7 +561,7 @@ fun SymCustomizationScreen(
         Surface(
             modifier = Modifier.settingRow("sym.auto_close_touch")
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -675,7 +675,7 @@ fun SymCustomizationScreen(
         Surface(
             modifier = Modifier.settingRow("sym.emoji_height")
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
         ) {
             Row(
                 modifier = Modifier

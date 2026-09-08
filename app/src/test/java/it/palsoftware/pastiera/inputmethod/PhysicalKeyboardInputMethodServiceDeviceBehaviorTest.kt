@@ -439,6 +439,71 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
     }
 
     @Test
+    fun switchingFromAutoCapitalizedLatinFieldToKorean_clearsStaleShift() {
+        service.onStartInput(editorInfo, false)
+        assertTrue(modifierController().shiftOneShot)
+
+        invokePrivate(service, "switchToLayout", "korean_2set", false)
+
+        assertFalse(modifierController().shiftOneShot)
+        service.onKeyDown(
+            KeyEvent.KEYCODE_R,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_R, 2_950L, 2_950L)
+        )
+        service.onKeyDown(
+            KeyEvent.KEYCODE_K,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_K, 3_000L, 3_000L)
+        )
+        assertEquals("가", recorder.composingTexts.last())
+    }
+
+    @Test
+    fun manualShiftPressedAfterSwitchingToKorean_producesTenseConsonant() {
+        invokePrivate(service, "switchToLayout", "korean_2set", false)
+        tapShift(3_050L)
+
+        service.onKeyDown(
+            KeyEvent.KEYCODE_R,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_R, 3_100L, 3_100L)
+        )
+        service.onKeyDown(
+            KeyEvent.KEYCODE_K,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_K, 3_150L, 3_150L)
+        )
+
+        assertEquals("까", recorder.composingTexts.last())
+    }
+
+    @Test
+    fun koreanComposition_doesNotSurviveRestartOfCurrentField() {
+        invokePrivate(service, "switchToLayout", "korean_2set", false)
+        service.onKeyDown(
+            KeyEvent.KEYCODE_R,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_R, 3_200L, 3_200L)
+        )
+        service.onKeyDown(
+            KeyEvent.KEYCODE_K,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_K, 3_250L, 3_250L)
+        )
+        assertEquals("가", recorder.composingTexts.last())
+
+        // Messaging apps can restart the same editor after sending and clearing its text.
+        recorder.composingTexts.clear()
+        service.onStartInput(editorInfo, true)
+
+        service.onKeyDown(
+            KeyEvent.KEYCODE_S,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_S, 3_300L, 3_300L)
+        )
+        service.onKeyDown(
+            KeyEvent.KEYCODE_K,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_K, 3_350L, 3_350L)
+        )
+
+        assertEquals("나", recorder.composingTexts.last())
+    }
+
+    @Test
     fun autoCap_manualShiftOff_survivesRestartOfCurrentField() {
         val context = RuntimeEnvironment.getApplication()
         SettingsManager.setAutoCapitalizeFirstLetter(context, true)
@@ -1086,11 +1151,28 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
         error("Field not found: $fieldName")
     }
 
+    private fun invokePrivate(target: Any, methodName: String, vararg args: Any?) {
+        var cls: Class<*>? = target.javaClass
+        while (cls != null) {
+            val method = cls.declaredMethods.firstOrNull { candidate ->
+                candidate.name == methodName && candidate.parameterCount == args.size
+            }
+            if (method != null) {
+                method.isAccessible = true
+                method.invoke(target, *args)
+                return
+            }
+            cls = cls.superclass
+        }
+        error("Method not found: $methodName")
+    }
+
     private class RecordingInputConnection {
         var textBeforeCursor: String = ""
         var sendKeyEventResult: Boolean = true
         var performEditorActionResult: Boolean = false
         val committedTexts = mutableListOf<String>()
+        val composingTexts = mutableListOf<String>()
         val sentKeyEvents = mutableListOf<KeyEvent>()
         val editorActions = mutableListOf<Int>()
         val contextMenuActions = mutableListOf<Int>()
@@ -1108,6 +1190,11 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
                             committedTexts += text
                             textBeforeCursor += text
                         }
+                        true
+                    }
+                    "setComposingText" -> {
+                        val text = args?.getOrNull(0)?.toString()
+                        if (text != null) composingTexts += text
                         true
                     }
                     "deleteSurroundingText" -> {

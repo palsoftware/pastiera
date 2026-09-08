@@ -644,7 +644,7 @@ fun KeyboardThemeScreen(
             }
             if (previewPagerState.currentPage == 1) {
                 KeyboardThemeSliderRow(
-                    label = stringResource(R.string.setting_link_theme_preview_viewport),
+                    label = stringResource(R.string.keyboard_theme_preview_max_viewport),
                     linkId = "keyboard_theme.preview_viewport",
                     value = softwarePreviewViewportScale,
                     presetValue = SettingsManager.KEYBOARD_THEME_PREVIEW_VIEWPORT_SCALE_MIN,
@@ -889,8 +889,8 @@ fun KeyboardThemeScreen(
     deleteThemeRequest?.let { name ->
         AlertDialog(
             onDismissRequest = { deleteThemeRequest = null },
-            title = { Text("Delete theme?") },
-            text = { Text("Delete ‘$name’? The currently applied colors will be kept.") },
+            title = { Text(stringResource(R.string.keyboard_theme_delete_title)) },
+            text = { Text(stringResource(R.string.keyboard_theme_delete_confirmation, name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -898,12 +898,12 @@ fun KeyboardThemeScreen(
                         deleteSavedTheme(name)
                     }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deleteThemeRequest = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -1814,7 +1814,7 @@ private fun KeyboardThemeExportDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Export theme") },
+        title = { Text(stringResource(R.string.keyboard_theme_export_title)) },
         text = {
             OutlinedTextField(
                 value = exportString,
@@ -1832,12 +1832,12 @@ private fun KeyboardThemeExportDialog(
                     onDismiss()
                 }
             ) {
-                Text("Copy")
+                Text(stringResource(R.string.debug_recorder_copy))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -2188,7 +2188,7 @@ private fun KeyboardThemeColorsEditor(
         )
         add(
             KeyboardThemeColorEditorItem(
-                label = "Suggestions",
+                label = stringResource(R.string.keyboard_theme_suggestions),
                 color = theme.suggestion,
                 presetColor = preset.suggestion,
                 onColorChanged = { onThemeChanged(theme.copy(suggestion = it)) }
@@ -2196,7 +2196,7 @@ private fun KeyboardThemeColorsEditor(
         )
         add(
             KeyboardThemeColorEditorItem(
-                label = "Status bar buttons",
+                label = stringResource(R.string.keyboard_theme_status_bar_buttons),
                 color = theme.statusBarButton,
                 presetColor = preset.statusBarButton,
                 onColorChanged = { onThemeChanged(theme.copy(statusBarButton = it)) }
@@ -2204,7 +2204,7 @@ private fun KeyboardThemeColorsEditor(
         )
         add(
             KeyboardThemeColorEditorItem(
-                label = "Cursor swipe",
+                label = stringResource(R.string.keyboard_theme_cursor_swipe),
                 color = theme.cursorSwipe,
                 presetColor = preset.cursorSwipe,
                 onColorChanged = { onThemeChanged(theme.copy(cursorSwipe = it)) }
@@ -2213,7 +2213,7 @@ private fun KeyboardThemeColorsEditor(
         if (isSoftware) {
             add(
                 KeyboardThemeColorEditorItem(
-                    label = "Key popup",
+                    label = stringResource(R.string.keyboard_theme_key_popup),
                     color = theme.keyPopup,
                     presetColor = preset.keyPopup,
                     onColorChanged = { onThemeChanged(theme.copy(keyPopup = it)) }
@@ -2221,7 +2221,7 @@ private fun KeyboardThemeColorsEditor(
             )
             add(
                 KeyboardThemeColorEditorItem(
-                    label = "Selected popup key",
+                    label = stringResource(R.string.keyboard_theme_key_popup_selected),
                     color = theme.keyPopupSelected,
                     presetColor = preset.keyPopupSelected,
                     onColorChanged = { onThemeChanged(theme.copy(keyPopupSelected = it)) }
@@ -2338,7 +2338,7 @@ private fun KeyboardThemeKeysEditor(
         )
         if (isSoftware) {
             KeyboardThemeSwitchRow(
-                label = "Show LEDs",
+                label = stringResource(R.string.keyboard_theme_show_leds),
                 checked = theme.showLeds,
                 presetChecked = preset.showLeds,
                 onCheckedChanged = { onThemeChanged(theme.copy(showLeds = it)) },
@@ -2377,42 +2377,42 @@ private fun KeyboardThemeKeysEditor(
                 onValueChanged = { onThemeChanged(theme.copy(rowGapScale = it)) }
             )
             KeyboardThemeSwitchRow(
-                label = "Distribute spacing",
+                label = stringResource(R.string.keyboard_theme_distribute_spacing),
                 checked = theme.distributeHorizontalSpacing,
                 presetChecked = preset.distributeHorizontalSpacing,
                 onCheckedChanged = { onThemeChanged(theme.copy(distributeHorizontalSpacing = it)) },
                 linkId = SettingLinkIds.KEYBOARD_THEME_TOGGLE_DISTRIBUTE_SPACING
             )
             KeyboardThemeSwitchRow(
-                label = "Ortholinear",
+                label = stringResource(R.string.keyboard_theme_ortholinear),
                 checked = theme.ortholinear,
                 presetChecked = preset.ortholinear,
                 onCheckedChanged = { onThemeChanged(theme.copy(ortholinear = it)) },
                 linkId = SettingLinkIds.KEYBOARD_THEME_TOGGLE_ORTHOLINEAR
             )
             KeyboardThemeSwitchRow(
-                label = "Attach popup to key",
+                label = stringResource(R.string.keyboard_theme_attach_popup),
                 checked = theme.keyPopupAttached,
                 presetChecked = preset.keyPopupAttached,
                 onCheckedChanged = { onThemeChanged(theme.copy(keyPopupAttached = it)) },
                 linkId = SettingLinkIds.KEYBOARD_THEME_TOGGLE_ATTACH_POPUP
             )
             KeyboardThemeSwitchRow(
-                label = "Popup tail connector",
+                label = stringResource(R.string.keyboard_theme_popup_tail),
                 checked = theme.keyPopupTailEnabled,
                 presetChecked = preset.keyPopupTailEnabled,
                 onCheckedChanged = { onThemeChanged(theme.copy(keyPopupTailEnabled = it)) },
                 linkId = SettingLinkIds.KEYBOARD_THEME_TOGGLE_POPUP_TAIL
             )
             KeyboardThemeSwitchRow(
-                label = "Show key preview only on hold",
+                label = stringResource(R.string.keyboard_theme_preview_on_hold),
                 checked = theme.keyPreviewAfterLongPress,
                 presetChecked = preset.keyPreviewAfterLongPress,
                 onCheckedChanged = { onThemeChanged(theme.copy(keyPreviewAfterLongPress = it)) },
                 linkId = SettingLinkIds.KEYBOARD_THEME_TOGGLE_PREVIEW_ON_HOLD
             )
             KeyboardThemeSwitchRow(
-                label = "Long-press character picker",
+                label = stringResource(R.string.keyboard_theme_character_picker),
                 checked = theme.keyAlternatesPopupEnabled,
                 presetChecked = preset.keyAlternatesPopupEnabled,
                 onCheckedChanged = { onThemeChanged(theme.copy(keyAlternatesPopupEnabled = it)) },
@@ -2760,7 +2760,7 @@ private fun KeyboardThemeColorPickerDialog(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "Presets",
+                        text = stringResource(R.string.keyboard_theme_presets),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -2812,7 +2812,7 @@ private fun KeyboardThemeColorPickerDialog(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("Hex color") },
+                        label = { Text(stringResource(R.string.keyboard_theme_hex_color)) },
                         isError = hexValue.isNotEmpty() && parseKeyboardThemeHexColor(hexValue) == null
                     )
                     Row(
@@ -2823,7 +2823,7 @@ private fun KeyboardThemeColorPickerDialog(
                             enabled = parseKeyboardThemeHexColor(hexValue) != null,
                             onClick = { onColorSelected(color) }
                         ) {
-                            Text("Apply")
+                            Text(stringResource(R.string.clicks_apply))
                         }
                     }
                 }

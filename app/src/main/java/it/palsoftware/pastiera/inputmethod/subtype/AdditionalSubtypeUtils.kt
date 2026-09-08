@@ -3,8 +3,6 @@ package it.palsoftware.pastiera.inputmethod.subtype
 import android.content.Context
 import android.content.res.AssetManager
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.InputMethodSubtype
@@ -212,6 +210,7 @@ object AdditionalSubtypeUtils {
                 .setSubtypeExtraValue(extraValue)
                 .setSubtypeId(stableSubtypeId(localeStr, layoutName))
                 .setIsAuxiliary(false)
+                .setIsAsciiCapable(true)
                 .setOverridesImplicitlyEnabledSubtype(false)
 
             if (supportsNameOverride) {
@@ -284,7 +283,7 @@ object AdditionalSubtypeUtils {
      * Returns 0 for custom locales - Android will auto-generate the name from the locale.
      */
     private fun getLocaleNameResId(localeStr: String): Int {
-        val langCode = localeStr.split("_")[0].lowercase()
+        val langCode = localeFromSubtypeString(localeStr).language.lowercase()
         return when (langCode) {
             "en" -> R.string.input_method_name_en
             "it" -> R.string.input_method_name_it
@@ -294,6 +293,7 @@ object AdditionalSubtypeUtils {
             "es" -> R.string.input_method_name_es
             "pt" -> R.string.input_method_name_pt
             "ru" -> R.string.input_method_name_ru
+            "ko" -> R.string.input_method_name_ko
             else -> 0 // Use 0 for custom locales - Android will auto-generate name from locale
         }
     }
@@ -433,6 +433,14 @@ object AdditionalSubtypeUtils {
      */
     fun getLayoutForLocale(assets: AssetManager, locale: String, context: Context? = null): String {
         val languageOnly = locale.substringBefore("_").substringBefore("-")
+        // Settings use underscores while modern Android subtypes expose language tags.
+        // Resolve both spellings before falling back to a language-wide mapping.
+        val localeKeys = listOf(locale, locale.replace('_', '-'), locale.replace('-', '_'), languageOnly)
+            .filter { it.isNotEmpty() }.distinct()
+
+        fun JSONObject.mappedLayout(): String? = localeKeys.firstNotNullOfOrNull { key ->
+            optString(key, "").takeIf { it.isNotEmpty() }
+        }
 
         // First, try custom file if context is provided
         if (context != null) {
@@ -441,18 +449,7 @@ object AdditionalSubtypeUtils {
                 if (customMappingFile.exists() && customMappingFile.canRead()) {
                     val jsonString = customMappingFile.readText()
                     val json = JSONObject(jsonString)
-                    if (json.has(locale)) {
-                        val layout = json.getString(locale)
-                        if (layout.isNotEmpty()) {
-                            return layout
-                        }
-                    }
-                    if (languageOnly.isNotEmpty() && json.has(languageOnly)) {
-                        val layout = json.getString(languageOnly)
-                        if (layout.isNotEmpty()) {
-                            return layout
-                        }
-                    }
+                    json.mappedLayout()?.let { return it }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Error reading custom locale-layout mapping, falling back to assets", e)
@@ -464,12 +461,7 @@ object AdditionalSubtypeUtils {
             assets.open("common/locale_layout_mapping.json").use { input ->
                 val jsonString = input.bufferedReader().use { it.readText() }
                 val json = JSONObject(jsonString)
-                val exact = json.optString(locale, "")
-                when {
-                    exact.isNotEmpty() -> exact
-                    languageOnly.isNotEmpty() -> json.optString(languageOnly, "qwerty")
-                    else -> "qwerty"
-                }
+                json.mappedLayout() ?: "qwerty"
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error loading layout for locale $locale, defaulting to qwerty", e)
@@ -478,21 +470,36 @@ object AdditionalSubtypeUtils {
     }
     
     /**
-     * Loads the set of system locales that were auto-added (no dictionary).
+     * Loads exact auto-added input-style entries.
+     *
+     * Older releases stored only locale names. Resolve those markers against the
+     * current entries once so future cleanup never removes an unrelated user style.
      */
-    private fun loadAutoAddedLocales(context: Context): Set<String> {
-        return SettingsManager.getPreferences(context)
+    private fun loadAutoAddedStyles(context: Context, currentEntries: List<String>): Set<String> {
+        val stored = SettingsManager.getPreferences(context)
             .getStringSet(PREF_AUTO_ADDED_SYSTEM_LOCALES, emptySet())
-            ?: emptySet()
+            .orEmpty()
+
+        return stored.mapNotNullTo(mutableSetOf()) { marker ->
+            if (marker.contains(":")) {
+                marker
+            } else {
+                val matchingEntries = currentEntries.filter { it.substringBefore(":") == marker }
+                when {
+                    matchingEntries.size == 1 -> matchingEntries.single()
+                    else -> matchingEntries.firstOrNull {
+                        it.substringAfter(":").substringBefore(":") ==
+                            getLayoutForLocale(context.assets, marker, context)
+                    }
+                }
+            }
+        }
     }
-    
-    /**
-     * Saves the set of system locales that were auto-added.
-     */
-    private fun saveAutoAddedLocales(context: Context, locales: Set<String>) {
+
+    private fun saveAutoAddedStyles(context: Context, styles: Set<String>) {
         SettingsManager.getPreferences(context)
             .edit()
-            .putStringSet(PREF_AUTO_ADDED_SYSTEM_LOCALES, locales)
+            .putStringSet(PREF_AUTO_ADDED_SYSTEM_LOCALES, styles)
             .apply()
     }
     
@@ -503,28 +510,22 @@ object AdditionalSubtypeUtils {
     fun removeSystemLocalesWithoutDictionary(context: Context) {
         try {
             val currentSystemLocales = getSystemEnabledLocales(context).toSet()
-            val trackedAutoAdded = loadAutoAddedLocales(context)
-            
-            // Locales that were auto-added but are no longer in system
-            val toRemove = trackedAutoAdded.filterNot { currentSystemLocales.contains(it) }.toSet()
-            if (toRemove.isEmpty()) return
-            
             val currentStyles = SettingsManager.getCustomInputStyles(context)
-            if (currentStyles.isBlank()) return
-            
             val entries = currentStyles.split(";").map { it.trim() }.filter { it.isNotEmpty() }
-            val kept = entries.filterNot { entry ->
-                val locale = entry.substringBefore(":")
-                toRemove.contains(locale)
+            val trackedAutoAdded = loadAutoAddedStyles(context, entries)
+
+            val toRemove = trackedAutoAdded.filter { entry ->
+                entry.substringBefore(":") !in currentSystemLocales
             }
-            
-            SettingsManager.setCustomInputStyles(context, kept.joinToString(";"))
-            
-            // Update tracking: keep only those still in system
-            val updatedTracked = trackedAutoAdded.intersect(currentSystemLocales)
-            saveAutoAddedLocales(context, updatedTracked)
-            
-            Log.d(TAG, "Removed ${entries.size - kept.size} auto-added system locales without dictionary (no longer in system)")
+            if (toRemove.isNotEmpty()) {
+                SettingsManager.setCustomInputStyles(
+                    context,
+                    entries.filterNot(toRemove::contains).joinToString(";")
+                )
+            }
+
+            saveAutoAddedStyles(context, trackedAutoAdded - toRemove.toSet())
+            Log.d(TAG, "Removed ${toRemove.size} auto-added system input styles no longer in system locales")
         } catch (e: Exception) {
             Log.e(TAG, "Error removing system locales without dictionary", e)
         }
@@ -581,17 +582,30 @@ object AdditionalSubtypeUtils {
             val localesWithDict = getLocalesWithDictionary(context)
             val baseSubtypesInMethodXml = BASE_SUBTYPE_LOCALES
             
-            // Get current custom input styles
             val currentStyles = SettingsManager.getCustomInputStyles(context)
-            val existingLocales = mutableSetOf<String>()
-            if (currentStyles.isNotBlank()) {
-                currentStyles.split(";").forEach { entry ->
-                    val parts = entry.split(":").map { it.trim() }
-                    if (parts.isNotEmpty()) {
-                        existingLocales.add(parts[0])
-                    }
+            val entries = currentStyles.split(";")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toMutableList()
+            val trackedAutoAdded = loadAutoAddedStyles(context, entries).toMutableSet()
+
+            // A system style's layout can be edited in Pastiera. Keep the exact
+            // auto-generated entry and its provenance marker in sync with that mapping.
+            trackedAutoAdded.groupBy { it.substringBefore(":") }.forEach { (locale, tracked) ->
+                if (locale !in systemLocales) return@forEach
+                val hasUserStyleForLocale = entries.any { entry ->
+                    entry.substringBefore(":") == locale && entry !in trackedAutoAdded
                 }
+                if (hasUserStyleForLocale) return@forEach
+
+                val desiredEntry = "$locale:${getLayoutForLocale(context.assets, locale, context)}"
+                entries.removeAll(tracked.toSet())
+                if (desiredEntry !in entries) entries.add(desiredEntry)
+                trackedAutoAdded.removeAll(tracked.toSet())
+                trackedAutoAdded.add(desiredEntry)
             }
+
+            val existingLocales = entries.mapTo(mutableSetOf()) { it.substringBefore(":") }
             
             // Find system locales that need to be added
             val localesToAdd = systemLocales.filter { locale ->
@@ -604,6 +618,11 @@ object AdditionalSubtypeUtils {
             }
             
             if (localesToAdd.isEmpty()) {
+                val updatedStyles = entries.joinToString(";")
+                if (updatedStyles != currentStyles) {
+                    SettingsManager.setCustomInputStyles(context, updatedStyles)
+                }
+                saveAutoAddedStyles(context, trackedAutoAdded)
                 Log.d(TAG, "No system locales without dictionary to add")
                 return
             }
@@ -617,18 +636,13 @@ object AdditionalSubtypeUtils {
             }
             
             // Merge with existing styles
-            val updatedStyles = if (currentStyles.isBlank()) {
-                newEntries.joinToString(";")
-            } else {
-                "$currentStyles;${newEntries.joinToString(";")}"
-            }
+            val updatedStyles = (entries + newEntries).joinToString(";")
             
             // Save updated styles
             SettingsManager.setCustomInputStyles(context, updatedStyles)
             // Track auto-added locales for future cleanup
-            val tracked = loadAutoAddedLocales(context).toMutableSet()
-            tracked.addAll(localesToAdd)
-            saveAutoAddedLocales(context, tracked)
+            trackedAutoAdded.addAll(newEntries)
+            saveAutoAddedStyles(context, trackedAutoAdded)
             Log.d(TAG, "Auto-added ${localesToAdd.size} system locales without dictionary to custom input styles")
         } catch (e: Exception) {
             Log.e(TAG, "Error auto-adding system locales without dictionary", e)
@@ -751,169 +765,144 @@ object AdditionalSubtypeUtils {
      */
     fun registerAdditionalSubtypes(context: Context) {
         try {
-            // Auto-add system locales without dictionary first
             autoAddSystemLocalesWithoutDictionary(context)
-            
+
             val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
                 ?: run {
                     Log.e(TAG, "InputMethodManager not available")
                     return
                 }
-            
-            // Get IME ID
-            val componentName = android.content.ComponentName(
-                context,
-                PhysicalKeyboardInputMethodService::class.java
-            )
-            
-            // Find the actual IME in the system list to get the correct ID format
+
             val inputMethodInfo = imm.inputMethodList.firstOrNull { info ->
-                info.packageName == context.packageName && 
-                info.serviceName == PhysicalKeyboardInputMethodService::class.java.name
+                info.packageName == context.packageName &&
+                    info.serviceName == PhysicalKeyboardInputMethodService::class.java.name
             }
-            
+
             if (inputMethodInfo == null) {
                 Log.d(TAG, "IME not found in system list, will retry when IME is enabled")
                 return
             }
-            
+
             val imeId = inputMethodInfo.id
-            Log.d(TAG, "Registering additional subtypes for IME: $imeId")
-            
-            val prefString = SettingsManager.getCustomInputStyles(context)
+            val customPrefString = SettingsManager.getCustomInputStyles(context)
+            val legacyEntries = SettingsManager.getAdditionalImeSubtypes(context).map { languageCode ->
+                val locale = legacyLocaleForLanguage(languageCode)
+                "$locale:${getLayoutForLocale(context.assets, locale, context)}"
+            }
+            val prefString = (
+                customPrefString.split(";").map { it.trim() }.filter { it.isNotEmpty() } +
+                    legacyEntries
+                ).distinct().joinToString(";")
             val subtypes = createAdditionalSubtypesArray(
                 prefString,
                 context.assets,
                 context
             )
-            
-            Log.d(TAG, "Created ${subtypes.size} additional subtypes")
-            
-            // Always call setAdditionalInputMethodSubtypes, even with empty array to remove old subtypes
-            setAdditionalInputMethodSubtypesCompat(imm, imeId, subtypes)
-            Log.d(TAG, "Successfully called setAdditionalInputMethodSubtypes with ${subtypes.size} subtypes")
-            
-            if (subtypes.isNotEmpty()) {
-                // Try to explicitly enable the additional subtypes after a delay
-                Handler(Looper.getMainLooper()).postDelayed({
-                    try {
-                        // Re-fetch InputMethodInfo to get updated subtype list
-                        val updatedInfo = imm.inputMethodList.firstOrNull { 
-                            it.packageName == context.packageName && 
-                            it.serviceName == PhysicalKeyboardInputMethodService::class.java.name
-                        }
-                        
-                        if (updatedInfo != null) {
-                            // Get all subtypes from InputMethodInfo (including the newly added ones)
-                            val allSubtypes = mutableListOf<InputMethodSubtype>()
-                            for (i in 0 until updatedInfo.subtypeCount) {
-                                allSubtypes.add(updatedInfo.getSubtypeAt(i))
-                            }
-                            
-                            // Get currently enabled subtypes (include implicit ones from method.xml)
-                            val currentlyEnabled = imm.getEnabledInputMethodSubtypeList(updatedInfo, true)
-                            val currentSystemLocales = getSystemEnabledLocales(context).toSet()
-                            val systemLanguageCodes = currentSystemLocales.map { locale ->
-                                locale.split("_").first().lowercase(Locale.ROOT)
-                            }.toSet()
-                            val enabledHashCodes = currentlyEnabled
-                                .filter { subtype ->
-                                    shouldKeepSubtype(
-                                        context,
-                                        context.assets,
-                                        subtype,
-                                        currentSystemLocales,
-                                        systemLanguageCodes
-                                    )
-                                }
-                                .map { it.hashCode() }
-                                .toMutableSet()
-                            
-                            // Add hash codes of additional subtypes to enabled set
-                            subtypes.forEach { additionalSubtype ->
-                                // Find matching subtype in allSubtypes by locale and extraValue
-                                val additionalLayout = getKeyboardLayoutFromSubtype(additionalSubtype)
-                                val matchingSubtype = allSubtypes.firstOrNull { subtype ->
-                                    additionalLayout != null &&
-                                        isAdditionalSubtype(subtype) &&
-                                        matchesLocaleAndKeyboardLayoutSet(
-                                            subtype,
-                                            additionalSubtype.localeString(),
-                                            additionalLayout
-                                        )
-                                }
-                                if (matchingSubtype != null) {
-                                    enabledHashCodes.add(matchingSubtype.hashCode())
-                                    Log.d(TAG, "Adding subtype to enabled list: locale=${matchingSubtype.localeString()}, hashCode=${matchingSubtype.hashCode()}")
-                                }
-                            }
-                            
-                            // Enable visible base subtypes plus all configured additional subtypes.
-                            if (enabledHashCodes.isNotEmpty()) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                    imm.setExplicitlyEnabledInputMethodSubtypes(
-                                        updatedInfo.id,
-                                        enabledHashCodes.toIntArray()
-                                    )
-                                    Log.d(TAG, "Explicitly enabled ${enabledHashCodes.size} subtypes (${subtypes.size} additional)")
-                                } else {
-                                    Log.d(TAG, "Skipping explicit subtype enable: requires Android 14+")
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not explicitly enable subtypes", e)
-                    }
-                }, 500) // Wait 500ms for system to process registration
-            } else {
-                Log.d(TAG, "No subtypes to register, removed all additional subtypes")
-                // When removing all subtypes, also clean up enabled subtypes list
-                Handler(Looper.getMainLooper()).postDelayed({
-                    try {
-                        val updatedInfo = imm.inputMethodList.firstOrNull { 
-                            it.packageName == context.packageName && 
-                            it.serviceName == PhysicalKeyboardInputMethodService::class.java.name
-                        }
-                        
-                        if (updatedInfo != null) {
-                            // Get currently enabled subtypes (include implicit ones from method.xml)
-                            val currentlyEnabled = imm.getEnabledInputMethodSubtypeList(updatedInfo, true)
-                            val currentSystemLocales = getSystemEnabledLocales(context).toSet()
-                            val systemLanguageCodes = currentSystemLocales.map { locale ->
-                                locale.split("_").first().lowercase(Locale.ROOT)
-                            }.toSet()
 
-                            val systemSubtypes = currentlyEnabled.filter { subtype ->
-                                !isAdditionalSubtype(subtype) &&
-                                    shouldKeepSubtype(
-                                        context,
-                                        context.assets,
-                                        subtype,
-                                        currentSystemLocales,
-                                        systemLanguageCodes
-                                    )
-                            }
-                            
-                            if (systemSubtypes.isNotEmpty()) {
-                                val systemHashCodes = systemSubtypes.map { it.hashCode() }.toIntArray()
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                    imm.setExplicitlyEnabledInputMethodSubtypes(
-                                        updatedInfo.id,
-                                        systemHashCodes
-                                    )
-                                    Log.d(TAG, "Cleaned up enabled subtypes, kept ${systemHashCodes.size} system subtypes")
-                                } else {
-                                    Log.d(TAG, "Skipping enabled subtype cleanup: requires Android 14+")
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Could not clean up enabled subtypes", e)
-                    }
-                }, 500) // Wait 500ms for system to process removal
+            setAdditionalInputMethodSubtypesCompat(imm, imeId, subtypes)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                syncExplicitlyEnabledSubtypes(
+                    context = context,
+                    imm = imm,
+                    imeId = imeId,
+                    inputMethodInfo = inputMethodInfo,
+                    configuredSubtypes = subtypes,
+                    customPrefString = customPrefString
+                )
             }
+
+            Log.d(TAG, "Registered ${subtypes.size} additional subtypes for IME: $imeId")
         } catch (e: Exception) {
             Log.e(TAG, "Error registering additional subtypes", e)
         }
+    }
+
+    private fun legacyLocaleForLanguage(languageCode: String): String = when (languageCode.lowercase()) {
+        "ru" -> "ru_RU"
+        "pt" -> "pt_PT"
+        "de" -> "de_DE"
+        "da" -> "da_DK"
+        "no" -> "no_NO"
+        "nb" -> "nb_NO"
+        "nn" -> "nn_NO"
+        "fr" -> "fr_FR"
+        "es" -> "es_ES"
+        "pl" -> "pl_PL"
+        "it" -> "it_IT"
+        "en" -> "en_US"
+        "ko" -> "ko_KR"
+        else -> languageCode
+    }
+
+    @androidx.annotation.RequiresApi(34)
+    private fun syncExplicitlyEnabledSubtypes(
+        context: Context,
+        imm: InputMethodManager,
+        imeId: String,
+        inputMethodInfo: android.view.inputmethod.InputMethodInfo,
+        configuredSubtypes: Array<InputMethodSubtype>,
+        customPrefString: String
+    ) {
+        val staticSubtypes = buildList {
+            for (index in 0 until inputMethodInfo.subtypeCount) {
+                inputMethodInfo.getSubtypeAt(index)
+                    .takeUnless(::isAdditionalSubtype)
+                    ?.let(::add)
+            }
+        }
+        val availableSubtypes = staticSubtypes + configuredSubtypes
+        val availableHashCodes = availableSubtypes.mapTo(mutableSetOf()) { it.hashCode() }
+        val entries = customPrefString.split(";").map { it.trim() }.filter { it.isNotEmpty() }
+        val autoAddedStyles = loadAutoAddedStyles(context, entries)
+        val enabledHashCodes = imm.getEnabledInputMethodSubtypeList(inputMethodInfo, true)
+            .asSequence()
+            .filter { it.hashCode() in availableHashCodes }
+            .filter { subtype ->
+                if (isAdditionalSubtype(subtype)) {
+                    isAdditionalSubtypeVisible(context, subtype, autoAddedStyles)
+                } else {
+                    val locale = subtype.localeString()
+                    val layout = getKeyboardLayoutFromSubtype(subtype)
+                        ?: getLayoutForLocale(context.assets, locale, context)
+                    !SettingsManager.isSystemInputStyleHidden(context, locale, layout)
+                }
+            }
+            .mapTo(mutableSetOf()) { it.hashCode() }
+
+        // Static styles disappear from Android's enabled list after hiding them.
+        // Rebuild requested styles from system locales and saved selections as well.
+        val requestedLocales = getSystemEnabledLocales(context) +
+            SettingsManager.getAdditionalImeSubtypes(context).map(::legacyLocaleForLanguage)
+        staticSubtypes.filter { subtype ->
+            val locale = subtype.localeString()
+            val layout = getKeyboardLayoutFromSubtype(subtype)
+                ?: getLayoutForLocale(context.assets, locale, context)
+            val requested = requestedLocales.any { localesMatch(it, locale) } || entries.any { entry ->
+                val parts = entry.split(":")
+                parts.size >= 2 && localesMatch(parts[0], locale) && parts[1] == layout
+            }
+            requested && !SettingsManager.isSystemInputStyleHidden(context, locale, layout)
+        }.mapTo(enabledHashCodes) { it.hashCode() }
+
+        configuredSubtypes
+            .filter { isAdditionalSubtypeVisible(context, it, autoAddedStyles) }
+            .mapTo(enabledHashCodes) { it.hashCode() }
+
+        imm.setExplicitlyEnabledInputMethodSubtypes(imeId, enabledHashCodes.toIntArray())
+        Log.d(TAG, "Synchronized ${enabledHashCodes.size} explicitly enabled subtypes")
+    }
+
+    private fun isAdditionalSubtypeVisible(
+        context: Context,
+        subtype: InputMethodSubtype,
+        autoAddedStyles: Set<String>
+    ): Boolean {
+        val locale = subtype.localeString()
+        val layout = getKeyboardLayoutFromSubtype(subtype) ?: return true
+        val styleKey = "$locale:$layout"
+        val normalizedStyleKey = "${locale.replace('-', '_')}:$layout"
+        val isAutoAdded = styleKey in autoAddedStyles || normalizedStyleKey in autoAddedStyles
+        return !isAutoAdded || !SettingsManager.isSystemInputStyleHidden(context, locale, layout)
     }
 }

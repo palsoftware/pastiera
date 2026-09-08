@@ -3555,8 +3555,8 @@ object SettingsManager {
             commandId = PastieraCommandSource.COMMAND_QUICK_LAUNCHER,
             source = CommandSourceId.Pastiera.storageValue,
             kind = "PastieraAction",
-            title = "Pastiera QuickLauncher",
-            subtitle = "Open Pastiera search",
+            title = context.getString(R.string.command_pastiera_quick_launcher),
+            subtitle = context.getString(R.string.command_pastiera_quick_launcher_description),
             launch = CommandLaunchSpec.InternalAction(PastieraCommandSource.ACTION_OPEN_QUICK_LAUNCHER)
         )
         getPreferences(context).edit()

@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -189,6 +190,7 @@ fun TrackpadDebugScreen(
     axisState: TrackpadDebugAxisState,
     onBackPressed: () -> Unit
 ) {
+    val context = LocalContext.current
     val listState = rememberLazyListState()
     var showYAxis by rememberSaveable { mutableStateOf(false) }
 
@@ -217,7 +219,7 @@ fun TrackpadDebugScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Trackpad Debug",
+                    text = stringResource(R.string.trackpad_debug_title),
                     style = MaterialTheme.typography.titleLarge,
                     color = androidx.compose.ui.graphics.Color.Green
                 )
@@ -241,7 +243,7 @@ fun TrackpadDebugScreen(
 
             // Event counter
             Text(
-                text = "Events captured: ${events.size}",
+                text = stringResource(R.string.trackpad_debug_events_captured, events.size),
                 modifier = Modifier.padding(bottom = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = androidx.compose.ui.graphics.Color.Green
@@ -257,7 +259,7 @@ fun TrackpadDebugScreen(
             // Events list
             if (events.isEmpty()) {
                 Text(
-                    text = "Waiting for trackpad events...\nSwipe on the trackpad to see events here.",
+                    text = stringResource(R.string.trackpad_debug_waiting),
                     style = MaterialTheme.typography.bodyMedium,
                     color = androidx.compose.ui.graphics.Color.Green
                 )
@@ -291,24 +293,35 @@ fun TrackpadDebugScreen(
 
                             if (pointerEvent != null) {
                                 val eventType = when (event.type) {
-                                    PointerEventType.Press -> "Press"
-                                    PointerEventType.Release -> "Release"
-                                    PointerEventType.Move -> "Move"
-                                    PointerEventType.Enter -> "Enter"
-                                    PointerEventType.Exit -> "Exit"
-                                    PointerEventType.Scroll -> "Scroll"
-                                    else -> "Unknown(${event.type})"
+                                    PointerEventType.Press -> context.getString(R.string.trackpad_debug_event_press)
+                                    PointerEventType.Release -> context.getString(R.string.trackpad_debug_event_release)
+                                    PointerEventType.Move -> context.getString(R.string.trackpad_debug_event_move)
+                                    PointerEventType.Enter -> context.getString(R.string.trackpad_debug_event_enter)
+                                    PointerEventType.Exit -> context.getString(R.string.trackpad_debug_event_exit)
+                                    PointerEventType.Scroll -> context.getString(R.string.trackpad_debug_event_scroll)
+                                    else -> context.getString(R.string.trackpad_debug_event_unknown, event.type)
                                 }
 
                                 val logLines = mutableListOf<String>()
                                 logLines.add("[$eventType]")
-                                logLines.add("  Position: X=${"%.2f".format(pointerEvent.position.x)} Y=${"%.2f".format(pointerEvent.position.y)}")
-                                logLines.add("  Pressed: ${pointerEvent.pressed}")
-                                logLines.add("  Pressure: ${"%.3f".format(pointerEvent.pressure)}")
-                                logLines.add("  Time: ${pointerEvent.uptimeMillis}")
+                                logLines.add(
+                                    context.getString(
+                                        R.string.trackpad_debug_position,
+                                        pointerEvent.position.x,
+                                        pointerEvent.position.y
+                                    )
+                                )
+                                logLines.add(context.getString(R.string.trackpad_debug_pressed, pointerEvent.pressed))
+                                logLines.add(context.getString(R.string.trackpad_debug_pressure, pointerEvent.pressure))
+                                logLines.add(context.getString(R.string.trackpad_debug_time, pointerEvent.uptimeMillis))
 
                                 if (event.type == PointerEventType.Scroll) {
-                                    logLines.add("  Scroll delta: ${event.changes.first().scrollDelta}")
+                                    logLines.add(
+                                        context.getString(
+                                            R.string.trackpad_debug_scroll_delta,
+                                            event.changes.first().scrollDelta
+                                        )
+                                    )
                                 }
 
                                 logLines.add("") // Empty line

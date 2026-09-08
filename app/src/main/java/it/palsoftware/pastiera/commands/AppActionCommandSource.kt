@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import it.palsoftware.pastiera.R
 
 class AppActionCommandSource : CommandSource {
     override val id = CommandSourceId.AppActions
@@ -12,7 +13,7 @@ class AppActionCommandSource : CommandSource {
         return listOf(
             context.appIntentCommand(
                 id = COMMAND_SEARCH,
-                label = "Niagara Search",
+                label = context.getString(R.string.command_app_niagara_search),
                 subtitle = "Niagara Launcher",
                 uri = "niagara://search",
                 packageName = NIAGARA_PACKAGE,
@@ -20,7 +21,7 @@ class AppActionCommandSource : CommandSource {
             ),
             context.appIntentCommand(
                 id = COMMAND_AGENDA,
-                label = "Niagara Agenda",
+                label = context.getString(R.string.command_app_niagara_agenda),
                 subtitle = "Niagara Launcher",
                 uri = "niagara://agenda",
                 packageName = NIAGARA_PACKAGE,
@@ -28,7 +29,7 @@ class AppActionCommandSource : CommandSource {
             ),
             context.appIntentCommand(
                 id = "tasker.select_task",
-                label = "Tasker Select Task",
+                label = context.getString(R.string.command_app_tasker_select_task),
                 subtitle = "Tasker",
                 action = "net.dinglisch.android.tasker.ACTION_TASK_SELECT",
                 packageName = TASKER_PACKAGE,
@@ -36,7 +37,7 @@ class AppActionCommandSource : CommandSource {
             ),
             context.appIntentCommand(
                 id = "tasker.preferences",
-                label = "Tasker Preferences",
+                label = context.getString(R.string.command_app_tasker_preferences),
                 subtitle = "Tasker",
                 action = "net.dinglisch.android.tasker.ACTION_OPEN_PREFS",
                 packageName = TASKER_PACKAGE,
@@ -44,7 +45,7 @@ class AppActionCommandSource : CommandSource {
             ),
             context.appIntentCommand(
                 id = "tasker.create_shortcut",
-                label = "Tasker Create Shortcut",
+                label = context.getString(R.string.command_app_tasker_create_shortcut),
                 subtitle = "Tasker",
                 action = Intent.ACTION_CREATE_SHORTCUT,
                 packageName = TASKER_PACKAGE,
@@ -52,7 +53,7 @@ class AppActionCommandSource : CommandSource {
             ),
             context.appIntentCommand(
                 id = "homeassistant.navigate",
-                label = "Home Assistant Navigate",
+                label = context.getString(R.string.command_app_home_assistant_navigate),
                 subtitle = "Home Assistant",
                 uri = "homeassistant://navigate",
                 packageName = HOME_ASSISTANT_PACKAGE,
@@ -60,7 +61,7 @@ class AppActionCommandSource : CommandSource {
             ),
             context.appIntentCommand(
                 id = "homeassistant.assist",
-                label = "Home Assistant Assist",
+                label = context.getString(R.string.command_app_home_assistant_assist),
                 subtitle = "Home Assistant",
                 action = Intent.ACTION_ASSIST,
                 packageName = HOME_ASSISTANT_PACKAGE,
@@ -68,7 +69,7 @@ class AppActionCommandSource : CommandSource {
             ),
             context.appIntentCommand(
                 id = "homeassistant.voice_command",
-                label = "Home Assistant Voice Command",
+                label = context.getString(R.string.command_app_home_assistant_voice_command),
                 subtitle = "Home Assistant",
                 action = Intent.ACTION_VOICE_COMMAND,
                 packageName = HOME_ASSISTANT_PACKAGE,

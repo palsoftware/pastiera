@@ -17,6 +17,10 @@ class TrackpadDebugOverlayService : Service() {
     private var debugTextView: TextView? = null
     private val events = mutableListOf<String>()
 
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(AppLocaleManager.wrapContext(base))
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -36,7 +40,8 @@ class TrackpadDebugOverlayService : Service() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
 
         debugTextView = TextView(this).apply {
-            text = "Trackpad Debug\nWaiting for events...\n\n"
+            text = getString(R.string.trackpad_debug_title) + "\n" +
+                getString(R.string.trackpad_debug_waiting) + "\n\n"
             textSize = 10f
             typeface = android.graphics.Typeface.MONOSPACE
             setTextColor(0xFF00FF00.toInt())
@@ -107,7 +112,8 @@ class TrackpadDebugOverlayService : Service() {
         }
 
         debugTextView?.post {
-            debugTextView?.text = "Trackpad Debug (${events.size} events)\n\n" + events.joinToString("")
+            debugTextView?.text = getString(R.string.trackpad_debug_overlay_events, events.size) +
+                events.joinToString("")
         }
     }
 

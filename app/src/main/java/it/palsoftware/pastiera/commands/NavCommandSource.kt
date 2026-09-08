@@ -1,54 +1,67 @@
 package it.palsoftware.pastiera.commands
 
 import android.content.Context
+import it.palsoftware.pastiera.R
 
 class NavCommandSource : CommandSource {
     override val id = CommandSourceId.NavActions
 
     override fun getCommands(context: Context): List<CommandTarget> {
-        return keycodeCommands() + actionCommands()
+        return keycodeCommands(context) + actionCommands(context)
     }
 
-    private fun keycodeCommands(): List<CommandTarget> {
+    private fun keycodeCommands(context: Context): List<CommandTarget> {
         return listOf(
-            "DPAD_UP" to "Up",
-            "DPAD_DOWN" to "Down",
-            "DPAD_LEFT" to "Left",
-            "DPAD_RIGHT" to "Right",
-            "TAB" to "Tab",
-            "MOVE_HOME" to "Home",
-            "MOVE_END" to "End",
-            "PAGE_UP" to "Page up",
-            "PAGE_DOWN" to "Page down",
-            "ESCAPE" to "Escape",
-            "DPAD_CENTER" to "Center",
-            "FORWARD_DEL" to "Forward delete"
+            "DPAD_UP" to context.getString(R.string.command_nav_keycode_up),
+            "DPAD_DOWN" to context.getString(R.string.command_nav_keycode_down),
+            "DPAD_LEFT" to context.getString(R.string.command_nav_keycode_left),
+            "DPAD_RIGHT" to context.getString(R.string.command_nav_keycode_right),
+            "TAB" to context.getString(R.string.command_nav_keycode_tab),
+            "MOVE_HOME" to context.getString(R.string.command_nav_keycode_home),
+            "MOVE_END" to context.getString(R.string.command_nav_keycode_end),
+            "PAGE_UP" to context.getString(R.string.command_nav_keycode_page_up),
+            "PAGE_DOWN" to context.getString(R.string.command_nav_keycode_page_down),
+            "ESCAPE" to context.getString(R.string.command_nav_keycode_escape),
+            "DPAD_CENTER" to context.getString(R.string.command_nav_keycode_center),
+            "FORWARD_DEL" to context.getString(R.string.command_nav_keycode_forward_delete)
         ).map { (value, label) ->
-            navTarget("nav.keycode.$value", label, "Navigation", "keycode", value)
+            navTarget(
+                "nav.keycode.$value",
+                label,
+                context.getString(R.string.command_nav_navigation),
+                "keycode",
+                value
+            )
         }
     }
 
-    private fun actionCommands(): List<CommandTarget> {
+    private fun actionCommands(context: Context): List<CommandTarget> {
         return listOf(
-            "copy" to "Copy",
-            "paste" to "Paste",
-            "cut" to "Cut",
-            "undo" to "Undo",
-            "select_all" to "Select all",
-            "expand_selection_left" to "Select left",
-            "expand_selection_right" to "Select right",
-            "move_word_left" to "Word left",
-            "move_word_right" to "Word right",
-            "expand_selection_word_left" to "Select word left",
-            "expand_selection_word_right" to "Select word right",
-            "page_start" to "Page start",
-            "page_end" to "Page end",
-            "toggle_minimal_ui" to "Pastierina",
-            "media_play_pause" to "Play/Pause",
-            "media_previous" to "Media previous",
-            "media_next" to "Media next"
+            "copy" to context.getString(R.string.command_nav_action_copy),
+            "paste" to context.getString(R.string.command_nav_action_paste),
+            "cut" to context.getString(R.string.command_nav_action_cut),
+            "undo" to context.getString(R.string.command_nav_action_undo),
+            "select_all" to context.getString(R.string.command_nav_action_select_all),
+            "expand_selection_left" to context.getString(R.string.command_nav_action_select_left),
+            "expand_selection_right" to context.getString(R.string.command_nav_action_select_right),
+            "move_word_left" to context.getString(R.string.command_nav_action_word_left),
+            "move_word_right" to context.getString(R.string.command_nav_action_word_right),
+            "expand_selection_word_left" to context.getString(R.string.command_nav_action_select_word_left),
+            "expand_selection_word_right" to context.getString(R.string.command_nav_action_select_word_right),
+            "page_start" to context.getString(R.string.command_nav_action_page_start),
+            "page_end" to context.getString(R.string.command_nav_action_page_end),
+            "toggle_minimal_ui" to context.getString(R.string.command_nav_action_pastierina),
+            "media_play_pause" to context.getString(R.string.command_nav_action_media_play_pause),
+            "media_previous" to context.getString(R.string.command_nav_action_media_previous),
+            "media_next" to context.getString(R.string.command_nav_action_media_next)
         ).map { (value, label) ->
-            navTarget("nav.action.$value", label, "Action", "action", value)
+            navTarget(
+                "nav.action.$value",
+                label,
+                context.getString(R.string.command_nav_action_group),
+                "action",
+                value
+            )
         }
     }
 

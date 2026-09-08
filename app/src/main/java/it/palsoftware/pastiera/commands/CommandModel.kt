@@ -1,6 +1,8 @@
 package it.palsoftware.pastiera.commands
 
+import android.content.Context
 import android.graphics.drawable.Drawable
+import it.palsoftware.pastiera.R
 
 data class CommandTarget(
     val id: String,
@@ -26,6 +28,18 @@ enum class CommandSourceId(val storageValue: String, val displayLabel: String) {
         fun fromStorageValue(value: String?): CommandSourceId? {
             return entries.firstOrNull { it.storageValue == value }
         }
+    }
+
+    fun localizedDisplayLabel(context: Context): String {
+        return context.getString(
+            when (this) {
+                Apps -> R.string.command_source_apps
+                Pastiera -> R.string.command_source_pastiera
+                AppActions -> R.string.command_source_app_actions
+                DeviceControl -> R.string.command_source_device_control
+                NavActions -> R.string.command_source_navigation
+            }
+        )
     }
 }
 

@@ -1,0 +1,13 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="it.palsoftware.pastiera.testing.ImeEditorTestActivity"
+            android:exported="false" android:process="it.palsoftware.pastiera.ime_editor_test" android:windowSoftInputMode="stateAlwaysHidden|adjustResize" />
+        <activity android:name="it.palsoftware.pastiera.testing.ImeLocalEditorTestActivity"
+            android:exported="false" android:windowSoftInputMode="stateAlwaysHidden|adjustResize" />
+        <provider android:name="it.palsoftware.pastiera.testing.ImeEditorTestProvider"
+            android:authorities="${applicationId}.ime-editor-test"
+            android:exported="false" android:process="it.palsoftware.pastiera.ime_editor_test" />
+        <provider android:name="it.palsoftware.pastiera.testing.ImeTestSettingsProvider"
+            android:authorities="${applicationId}.ime-test-settings" android:exported="false" />
+    </application>
+</manifest>

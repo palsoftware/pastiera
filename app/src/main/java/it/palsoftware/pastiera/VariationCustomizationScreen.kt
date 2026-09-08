@@ -317,7 +317,7 @@ fun VariationCustomizationScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth().settingRow("variations.sticky_layer")
-                    .height(64.dp)
+                    .heightIn(min = 64.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -918,7 +918,7 @@ private fun VariationRow(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "Add slot"
+                            contentDescription = stringResource(R.string.variation_add_slot)
                         )
                     }
                     IconButton(
@@ -928,7 +928,7 @@ private fun VariationRow(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.DeleteOutline,
-                            contentDescription = "Remove rightmost slot"
+                            contentDescription = stringResource(R.string.variation_remove_rightmost_slot)
                         )
                     }
                 }
