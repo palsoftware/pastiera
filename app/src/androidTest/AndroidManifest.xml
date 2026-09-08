@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Keep the runner out of the production IME process. -->
+    <instrumentation android:name="androidx.test.runner.AndroidJUnitRunner"
+        android:targetProcesses="it.palsoftware.pastiera.ime_editor_test" />
+</manifest>
