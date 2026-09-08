@@ -184,7 +184,7 @@ fun TrackpadGestureSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .heightIn(min = 64.dp)
                     .settingRow(SettingLinkIds.TRACKPAD_GESTURES_ENABLED)
             ) {
                 Row(
@@ -228,7 +228,7 @@ fun TrackpadGestureSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .heightIn(min = 64.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -266,7 +266,7 @@ fun TrackpadGestureSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .heightIn(min = 64.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -534,7 +534,7 @@ fun TrackpadGestureSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp)
+                    .heightIn(min = 72.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -576,7 +576,7 @@ fun TrackpadGestureSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp)
+                    .heightIn(min = 72.dp)
                     .settingRow(SettingLinkIds.TRACKPAD_SENSITIVITY) {
                         showSensitivitySettings = true
                     }
@@ -624,7 +624,7 @@ fun TrackpadGestureSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp)
+                    .heightIn(min = 72.dp)
                     .settingRow(SettingLinkIds.TRACKPAD_DEBUG) {
                         context.startActivity(Intent(context, TrackpadDebugActivity::class.java))
                     }
@@ -668,7 +668,7 @@ fun TrackpadGestureSettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .heightIn(min = 64.dp)
                     .clickable { showTutorialDialog = true }
             ) {
                 Row(
@@ -710,7 +710,7 @@ fun TrackpadGestureSettingsScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
+                        .heightIn(min = 64.dp)
                         .clickable {
                             val url = context.getString(R.string.trackpad_gestures_shizuku_url)
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))

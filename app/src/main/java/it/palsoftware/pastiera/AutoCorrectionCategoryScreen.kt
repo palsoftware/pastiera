@@ -169,7 +169,7 @@ fun AutoCorrectionCategoryScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(80.dp)
+                                .heightIn(min = 80.dp)
                                 .settingRow(SettingLinkIds.AUTO_CORRECTION_TEXT_REPLACEMENTS)
                         ) {
                             Row(
@@ -214,7 +214,7 @@ fun AutoCorrectionCategoryScreen(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(80.dp)
+                                    .heightIn(min = 80.dp)
                                     .settingRow(SettingLinkIds.AUTO_CORRECTION_LANGUAGES) {
                                         navigateTo(AutoCorrectionDestination.Settings)
                                     }
@@ -259,7 +259,7 @@ fun AutoCorrectionCategoryScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(80.dp)
+                                .heightIn(min = 80.dp)
                                 .settingRow(SettingLinkIds.AUTO_CORRECTION_AUTO_REPLACE)
                         ) {
                             Row(
@@ -358,7 +358,7 @@ fun AutoCorrectionCategoryScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(80.dp)
+                                .heightIn(min = 80.dp)
                                 .settingRow(SettingLinkIds.AUTO_CORRECTION_USER_DICTIONARY) {
                                     navigateTo(AutoCorrectionDestination.UserDictionary)
                                 }
@@ -402,7 +402,7 @@ fun AutoCorrectionCategoryScreen(
                         Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(80.dp)
+                                    .heightIn(min = 80.dp)
                                     .settingRow(SettingLinkIds.AUTO_CORRECTION_EXPERIMENTAL_SUGGESTIONS)
                             ) {
                                 Row(
@@ -526,13 +526,13 @@ fun AutoCorrectionCategoryScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .settingRow(SettingLinkIds.AUTO_CORRECTION_KEYBOARD_PROXIMITY)
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
@@ -570,7 +570,7 @@ fun AutoCorrectionCategoryScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .settingRow(SettingLinkIds.AUTO_CORRECTION_EDIT_TYPE_RANKING)
                         ) {
                             Row(

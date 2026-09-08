@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -37,8 +36,6 @@ fun ImeTestScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
-    
     // State for all text fields
     var textPlain by remember { mutableStateOf(TextFieldValue("")) }
     var textCapCharacters by remember { mutableStateOf(TextFieldValue("")) }
@@ -102,7 +99,7 @@ fun ImeTestScreen(
                         modifier = Modifier.padding(start = 8.dp, end = 12.dp)
                     )
                     Text(
-                        text = "IME Test Screen",
+                        text = stringResource(R.string.advanced_ime_test_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -120,14 +117,14 @@ fun ImeTestScreen(
         ) {
             // Text Input Types Section
             Text(
-                text = "Text Input Types",
+                text = stringResource(R.string.ime_test_text_input_types),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
             InputField(
-                label = "text (Plain Text)",
+                label = stringResource(R.string.ime_test_text_plain),
                 value = textPlain,
                 onValueChange = { textPlain = it },
                 keyboardType = KeyboardType.Text,
@@ -135,28 +132,28 @@ fun ImeTestScreen(
             )
             
             InputFieldWithInputType(
-                label = "textCapCharacters (All Caps)",
+                label = stringResource(R.string.ime_test_text_cap_characters),
                 value = textCapCharacters,
                 onValueChange = { textCapCharacters = it },
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
             )
             
             InputFieldWithInputType(
-                label = "textCapWords (Title Case)",
+                label = stringResource(R.string.ime_test_text_cap_words),
                 value = textCapWords,
                 onValueChange = { textCapWords = it },
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
             )
             
             InputFieldWithInputType(
-                label = "textCapSentences (Sentence Case)",
+                label = stringResource(R.string.ime_test_text_cap_sentences),
                 value = textCapSentences,
                 onValueChange = { textCapSentences = it },
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             )
             
             InputField(
-                label = "textEmailAddress",
+                label = stringResource(R.string.ime_test_text_email_address),
                 value = textEmail,
                 onValueChange = { textEmail = it },
                 keyboardType = KeyboardType.Email,
@@ -164,7 +161,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textPassword",
+                label = stringResource(R.string.ime_test_text_password),
                 value = textPassword,
                 onValueChange = { textPassword = it },
                 keyboardType = KeyboardType.Password,
@@ -173,7 +170,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textVisiblePassword",
+                label = stringResource(R.string.ime_test_text_visible_password),
                 value = textVisiblePassword,
                 onValueChange = { textVisiblePassword = it },
                 keyboardType = KeyboardType.Password,
@@ -181,7 +178,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textWebPassword",
+                label = stringResource(R.string.ime_test_text_web_password),
                 value = textWebPassword,
                 onValueChange = { textWebPassword = it },
                 keyboardType = KeyboardType.Password,
@@ -190,7 +187,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textUri",
+                label = stringResource(R.string.ime_test_text_uri),
                 value = textUri,
                 onValueChange = { textUri = it },
                 keyboardType = KeyboardType.Uri,
@@ -198,7 +195,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textPersonName",
+                label = stringResource(R.string.ime_test_text_person_name),
                 value = textPersonName,
                 onValueChange = { textPersonName = it },
                 keyboardType = KeyboardType.Text,
@@ -206,7 +203,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textPostalAddress",
+                label = stringResource(R.string.ime_test_text_postal_address),
                 value = textPostalAddress,
                 onValueChange = { textPostalAddress = it },
                 keyboardType = KeyboardType.Text,
@@ -214,7 +211,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textMultiLine",
+                label = stringResource(R.string.ime_test_text_multiline),
                 value = textMultiLine,
                 onValueChange = { textMultiLine = it },
                 keyboardType = KeyboardType.Text,
@@ -223,7 +220,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textNoSuggestions",
+                label = stringResource(R.string.ime_test_text_no_suggestions),
                 value = textNoSuggestions,
                 onValueChange = { textNoSuggestions = it },
                 keyboardType = KeyboardType.Text,
@@ -231,7 +228,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textAutoComplete",
+                label = stringResource(R.string.ime_test_text_autocomplete),
                 value = textAutoComplete,
                 onValueChange = { textAutoComplete = it },
                 keyboardType = KeyboardType.Text,
@@ -239,7 +236,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "textAutoCorrect",
+                label = stringResource(R.string.ime_test_text_autocorrect),
                 value = textAutoCorrect,
                 onValueChange = { textAutoCorrect = it },
                 keyboardType = KeyboardType.Text,
@@ -250,14 +247,14 @@ fun ImeTestScreen(
             
             // Numeric Input Types Section
             Text(
-                text = "Numeric Input Types",
+                text = stringResource(R.string.ime_test_numeric_input_types),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
             InputField(
-                label = "number",
+                label = stringResource(R.string.ime_test_number),
                 value = number,
                 onValueChange = { number = it },
                 keyboardType = KeyboardType.Number,
@@ -265,7 +262,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "numberSigned",
+                label = stringResource(R.string.ime_test_number_signed),
                 value = numberSigned,
                 onValueChange = { numberSigned = it },
                 keyboardType = KeyboardType.Number,
@@ -273,7 +270,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "numberDecimal",
+                label = stringResource(R.string.ime_test_number_decimal),
                 value = numberDecimal,
                 onValueChange = { numberDecimal = it },
                 keyboardType = KeyboardType.Decimal,
@@ -284,14 +281,14 @@ fun ImeTestScreen(
             
             // Other Input Types Section
             Text(
-                text = "Other Input Types",
+                text = stringResource(R.string.ime_test_other_input_types),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
             InputField(
-                label = "phone",
+                label = stringResource(R.string.ime_test_phone),
                 value = phone,
                 onValueChange = { phone = it },
                 keyboardType = KeyboardType.Phone,
@@ -299,7 +296,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "datetime",
+                label = stringResource(R.string.ime_test_datetime),
                 value = datetime,
                 onValueChange = { datetime = it },
                 keyboardType = KeyboardType.Text,
@@ -307,7 +304,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "date",
+                label = stringResource(R.string.ime_test_date),
                 value = date,
                 onValueChange = { date = it },
                 keyboardType = KeyboardType.Text,
@@ -315,7 +312,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "time",
+                label = stringResource(R.string.ime_test_time),
                 value = time,
                 onValueChange = { time = it },
                 keyboardType = KeyboardType.Text,
@@ -326,14 +323,14 @@ fun ImeTestScreen(
             
             // IME Actions Section
             Text(
-                text = "IME Actions",
+                text = stringResource(R.string.ime_test_actions),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
             InputField(
-                label = "actionNone",
+                label = stringResource(R.string.ime_test_action_none),
                 value = actionNone,
                 onValueChange = { actionNone = it },
                 keyboardType = KeyboardType.Text,
@@ -342,7 +339,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "actionGo",
+                label = stringResource(R.string.ime_test_action_go),
                 value = actionGo,
                 onValueChange = { actionGo = it },
                 keyboardType = KeyboardType.Text,
@@ -354,7 +351,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "actionSearch",
+                label = stringResource(R.string.ime_test_action_search),
                 value = actionSearch,
                 onValueChange = { actionSearch = it },
                 keyboardType = KeyboardType.Text,
@@ -366,7 +363,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "actionSend",
+                label = stringResource(R.string.ime_test_action_send),
                 value = actionSend,
                 onValueChange = { actionSend = it },
                 keyboardType = KeyboardType.Text,
@@ -378,7 +375,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "actionNext",
+                label = stringResource(R.string.ime_test_action_next),
                 value = actionNext,
                 onValueChange = { actionNext = it },
                 keyboardType = KeyboardType.Text,
@@ -390,7 +387,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "actionDone",
+                label = stringResource(R.string.ime_test_action_done),
                 value = actionDone,
                 onValueChange = { actionDone = it },
                 keyboardType = KeyboardType.Text,
@@ -402,7 +399,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "actionPrevious",
+                label = stringResource(R.string.ime_test_action_previous),
                 value = actionPrevious,
                 onValueChange = { actionPrevious = it },
                 keyboardType = KeyboardType.Text,
@@ -414,7 +411,7 @@ fun ImeTestScreen(
             )
             
             InputField(
-                label = "actionUnspecified (Default)",
+                label = stringResource(R.string.ime_test_action_unspecified),
                 value = actionUnspecified,
                 onValueChange = { actionUnspecified = it },
                 keyboardType = KeyboardType.Text,
@@ -549,4 +546,3 @@ private fun InputFieldWithInputType(
         }
     }
 }
-

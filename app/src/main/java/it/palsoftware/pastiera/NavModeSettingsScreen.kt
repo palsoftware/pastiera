@@ -1,6 +1,12 @@
 package it.palsoftware.pastiera
 
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.view.KeyEvent
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,9 +52,36 @@ import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.commands.CommandRegistry
 import it.palsoftware.pastiera.commands.CommandSurface
 import it.palsoftware.pastiera.commands.CommandTarget
-import it.palsoftware.pastiera.data.layout.JsonLayoutLoader
 import it.palsoftware.pastiera.data.mappings.KeyMappingLoader
 import kotlin.math.min
+
+/** One off-main-thread load per screen/configuration, shared by every cell and dialog. */
+@Composable
+private fun rememberNavCommands(context: Context): List<CommandTarget> {
+    val localeTags = LocalConfiguration.current.locales.toLanguageTags()
+    var availabilityRevision by remember { mutableIntStateOf(0) }
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) { availabilityRevision++ }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
+    }
+    return produceState(emptyList<CommandTarget>(), context, localeTags, availabilityRevision) {
+        value = withContext(Dispatchers.IO) {
+            AppListHelper.invalidateInstalledApps()
+            CommandRegistry(context).getCommands(CommandSurface.NavMode)
+        }
+    }.value
+}
 
 /**
  * Nav Mode settings screen with keyboard visualization.
@@ -60,7 +93,9 @@ fun NavModeSettingsScreen(
     initialKeyCode: Int? = null
 ) {
     val context = LocalContext.current
-    
+    val commandTargets = rememberNavCommands(context)
+    val commandsById = remember(commandTargets) { commandTargets.associateBy { it.id } }
+
     // Load nav mode enabled state
     var navModeEnabled by remember {
         mutableStateOf(SettingsManager.getNavModeEnabled(context))
@@ -86,10 +121,6 @@ fun NavModeSettingsScreen(
     val defaultMappings = remember {
         loadAllKeyMappings(context, useDefaults = true)
     }
-    val layoutHints = remember(keyMappings) {
-        loadLayoutHints(context)
-    }
-    
     // Handle system back button
     BackHandler { onBack() }
     
@@ -381,9 +412,9 @@ fun NavModeSettingsScreen(
                             keySize = keySize,
                             keyHeight = keyHeight,
                             spacing = spacing,
+                            commandsById = commandsById,
                             mappings = keyMappings,
                             defaultMappings = defaultMappings,
-                            layoutHints = layoutHints,
                             onKeyClick = { keyCode ->
                                 selectedKeyCode = keyCode
                             }
@@ -419,6 +450,8 @@ fun NavModeSettingsScreen(
     selectedKeyCode?.let { keyCode ->
         KeyMappingDialog(
             keyCode = keyCode,
+            commandTargets = commandTargets,
+            commandsById = commandsById,
             currentMapping = keyMappings[keyCode],
             defaultMapping = defaultMappings[keyCode],
             onDismiss = { selectedKeyCode = null },
@@ -440,9 +473,9 @@ private fun KeyboardRow(
     keySize: Dp,
     keyHeight: Dp,
     spacing: Dp,
+    commandsById: Map<String, CommandTarget>,
     mappings: Map<Int, KeyMappingLoader.CtrlMapping>,
     defaultMappings: Map<Int, KeyMappingLoader.CtrlMapping>,
-    layoutHints: Map<Int, String>,
     onKeyClick: (Int) -> Unit
 ) {
     Row(
@@ -456,9 +489,9 @@ private fun KeyboardRow(
             }
             KeyButton(
                 keyCode = keyCode,
+                commandsById = commandsById,
                 mapping = mappings[keyCode],
                 hasDefault = defaultMappings.containsKey(keyCode),
-                layoutHint = layoutHints[keyCode],
                 onClick = { onKeyClick(keyCode) },
                 modifier = Modifier
                     .width(keySize)
@@ -471,14 +504,14 @@ private fun KeyboardRow(
 @Composable
 private fun KeyButton(
     keyCode: Int,
+    commandsById: Map<String, CommandTarget>,
     mapping: KeyMappingLoader.CtrlMapping?,
     hasDefault: Boolean,
-    layoutHint: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val keyLabel = getKeyLabel(keyCode)
-    val mappingLabel = mapping?.let { getMappingLabelShort(it) }
+    val mappingLabel = mapping?.let { getMappingLabelShort(it, commandsById) }
     val hasMapping = mapping != null && mapping.type != "none"
     val backgroundColor = if (hasMapping) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
@@ -563,17 +596,6 @@ private fun KeyButton(
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
             )
-            if (layoutHint != null) {
-                Text(
-                    text = layoutHint,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 8.sp,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
             if (mappingIcon != null) {
                 Icon(
                     imageVector = mappingIcon,
@@ -610,6 +632,8 @@ private fun KeyButton(
 @Composable
 private fun KeyMappingDialog(
     keyCode: Int,
+    commandTargets: List<CommandTarget>,
+    commandsById: Map<String, CommandTarget>,
     currentMapping: KeyMappingLoader.CtrlMapping?,
     defaultMapping: KeyMappingLoader.CtrlMapping?,
     onDismiss: () -> Unit,
@@ -619,8 +643,7 @@ private fun KeyMappingDialog(
     val context = LocalContext.current
     var selectedType by remember { mutableStateOf<String?>(currentMapping?.type) }
     var selectedValue by remember { mutableStateOf<String?>(currentMapping?.value) }
-    val commandTargets = remember { CommandRegistry(context).getCommands(CommandSurface.NavMode) }
-    val defaultLabel = defaultMapping?.let { getMappingLabel(it) }
+    val defaultLabel = defaultMapping?.let { getMappingLabel(it, context, commandsById) }
     val dialogMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.9f
     val gridMaxHeight = dialogMaxHeight * 0.6f
     
@@ -696,7 +719,7 @@ private fun KeyMappingDialog(
                                 selectedType = "command"
                                 selectedValue = null
                             },
-                            label = { Text("Command") }
+                            label = { Text(stringResource(R.string.nav_mode_command)) }
                         )
                         FilterChip(
                             selected = selectedType == "none",
@@ -874,19 +897,22 @@ private fun getKeyLabel(keyCode: Int): String {
     }
 }
 
-private fun getMappingLabel(mapping: KeyMappingLoader.CtrlMapping): String? {
+private fun getMappingLabel(mapping: KeyMappingLoader.CtrlMapping, context: Context, commandsById: Map<String, CommandTarget>): String? {
     return when (mapping.type) {
         "keycode" -> mapping.value
         "action" -> mapping.value
-        "command" -> mapping.value
+        "command" -> commandsById[mapping.value]?.let { command ->
+            "${command.source.localizedDisplayLabel(context)}: ${command.label}"
+        } ?: mapping.value
         "native_ctrl" -> "Ctrl"
         "none" -> null // Don't show label for "none"
         else -> null
     }
 }
 
+@Composable
 private fun commandLabel(command: CommandTarget): String {
-    return "${command.source.displayLabel}: ${command.label}"
+    return "${command.source.localizedDisplayLabel(LocalContext.current)}: ${command.label}"
 }
 
 @Composable
@@ -912,7 +938,7 @@ private fun getActionLabel(action: String): String {
 }
 
 @Composable
-private fun getMappingLabelShort(mapping: KeyMappingLoader.CtrlMapping): String? {
+private fun getMappingLabelShort(mapping: KeyMappingLoader.CtrlMapping, commandsById: Map<String, CommandTarget>): String? {
     return when (mapping.type) {
         "keycode" -> when (mapping.value) {
             "DPAD_UP" -> stringResource(R.string.nav_mode_keycode_up)
@@ -949,7 +975,9 @@ private fun getMappingLabelShort(mapping: KeyMappingLoader.CtrlMapping): String?
             "media_next" -> stringResource(R.string.nav_mode_action_media_next)
             else -> mapping.value
         }
-        "command" -> mapping.value.substringAfterLast('.').replace('_', ' ')
+        "command" -> commandsById[mapping.value]?.let { command ->
+            command.label
+        } ?: mapping.value.substringAfterLast('.').replace('_', ' ')
         "native_ctrl" -> "Ctrl"
         "none" -> null // Don't show label for "none"
         else -> null
@@ -981,64 +1009,5 @@ private fun loadAllKeyMappings(context: Context, useDefaults: Boolean = false): 
     // Return all keys with their mappings (or null if no mapping)
     return allAlphabeticKeys.associateWith { keyCode ->
         loadedMappings[keyCode] ?: KeyMappingLoader.CtrlMapping("none", "")
-    }
-}
-
-private fun loadLayoutHints(context: Context): Map<Int, String> {
-    val layoutName = SettingsManager.getKeyboardLayout(context)
-    val layout = JsonLayoutLoader.loadLayout(context.assets, layoutName, context)
-        ?: return emptyMap()
-    val allAlphabeticKeys = listOf(
-        KeyEvent.KEYCODE_Q, KeyEvent.KEYCODE_W, KeyEvent.KEYCODE_E, KeyEvent.KEYCODE_R,
-        KeyEvent.KEYCODE_T, KeyEvent.KEYCODE_Y, KeyEvent.KEYCODE_U, KeyEvent.KEYCODE_I,
-        KeyEvent.KEYCODE_O, KeyEvent.KEYCODE_P, KeyEvent.KEYCODE_A, KeyEvent.KEYCODE_S,
-        KeyEvent.KEYCODE_D, KeyEvent.KEYCODE_F, KeyEvent.KEYCODE_G, KeyEvent.KEYCODE_H,
-        KeyEvent.KEYCODE_J, KeyEvent.KEYCODE_K, KeyEvent.KEYCODE_L, KeyEvent.KEYCODE_Z,
-        KeyEvent.KEYCODE_X, KeyEvent.KEYCODE_C, KeyEvent.KEYCODE_V, KeyEvent.KEYCODE_B,
-        KeyEvent.KEYCODE_N, KeyEvent.KEYCODE_M
-    )
-
-    return allAlphabeticKeys.mapNotNull { keyCode ->
-        val physicalLabel = keyCodeToLetter(keyCode) ?: return@mapNotNull null
-        val layoutChar = layout[keyCode]?.lowercase?.firstOrNull()
-            ?.uppercaseChar()
-            ?: return@mapNotNull null
-        if (layoutChar.toString() != physicalLabel) {
-            keyCode to "→ $layoutChar"
-        } else {
-            null
-        }
-    }.toMap()
-}
-
-private fun keyCodeToLetter(keyCode: Int): String? {
-    return when (keyCode) {
-        KeyEvent.KEYCODE_Q -> "Q"
-        KeyEvent.KEYCODE_W -> "W"
-        KeyEvent.KEYCODE_E -> "E"
-        KeyEvent.KEYCODE_R -> "R"
-        KeyEvent.KEYCODE_T -> "T"
-        KeyEvent.KEYCODE_Y -> "Y"
-        KeyEvent.KEYCODE_U -> "U"
-        KeyEvent.KEYCODE_I -> "I"
-        KeyEvent.KEYCODE_O -> "O"
-        KeyEvent.KEYCODE_P -> "P"
-        KeyEvent.KEYCODE_A -> "A"
-        KeyEvent.KEYCODE_S -> "S"
-        KeyEvent.KEYCODE_D -> "D"
-        KeyEvent.KEYCODE_F -> "F"
-        KeyEvent.KEYCODE_G -> "G"
-        KeyEvent.KEYCODE_H -> "H"
-        KeyEvent.KEYCODE_J -> "J"
-        KeyEvent.KEYCODE_K -> "K"
-        KeyEvent.KEYCODE_L -> "L"
-        KeyEvent.KEYCODE_Z -> "Z"
-        KeyEvent.KEYCODE_X -> "X"
-        KeyEvent.KEYCODE_C -> "C"
-        KeyEvent.KEYCODE_V -> "V"
-        KeyEvent.KEYCODE_B -> "B"
-        KeyEvent.KEYCODE_N -> "N"
-        KeyEvent.KEYCODE_M -> "M"
-        else -> null
     }
 }

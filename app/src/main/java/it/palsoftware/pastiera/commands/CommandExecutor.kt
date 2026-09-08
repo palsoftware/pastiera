@@ -41,13 +41,13 @@ class CommandExecutor(
     private fun launchPackage(packageName: String): CommandExecutionResult {
         return try {
             val intent = context.packageManager.getLaunchIntentForPackage(packageName)
-                ?: return fail("Package not available")
+                ?: return fail(context.getString(R.string.command_error_package_unavailable))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
             CommandExecutionResult.Success
         } catch (error: Exception) {
             Log.e(TAG, "Failed to launch package $packageName", error)
-            fail("Could not open app")
+            fail(context.getString(R.string.command_error_could_not_open_app))
         }
     }
 
@@ -66,16 +66,16 @@ class CommandExecutor(
                     .forEach { (key, value) -> putExtra(key, value) }
             }
             if (intent.resolveActivity(context.packageManager) == null) {
-                return fail("Command not available")
+                return fail(context.getString(R.string.command_error_not_available))
             }
             context.startActivity(intent)
             CommandExecutionResult.Success
         } catch (error: SecurityException) {
             Log.e(TAG, "Security error starting command intent", error)
-            fail("Command blocked")
+            fail(context.getString(R.string.command_error_blocked))
         } catch (error: Exception) {
             Log.e(TAG, "Failed to start command intent", error)
-            fail("Command failed")
+            fail(context.getString(R.string.command_error_failed))
         }
     }
 
@@ -88,7 +88,7 @@ class CommandExecutor(
                     CommandExecutionResult.Success
                 } catch (error: Exception) {
                     Log.e(TAG, "Failed to open QuickLauncher", error)
-                    fail("Could not open QuickLauncher")
+                    fail(context.getString(R.string.command_error_could_not_open_quick_launcher))
                 }
             }
             PastieraCommandSource.ACTION_OPEN_MAIN_ACTIVITY -> {
@@ -100,7 +100,7 @@ class CommandExecutor(
                     CommandExecutionResult.Success
                 } catch (error: Exception) {
                     Log.e(TAG, "Failed to open Pastiera", error)
-                    fail("Could not open Pastiera")
+                    fail(context.getString(R.string.command_error_could_not_open_pastiera))
                 }
             }
             PastieraCommandSource.ACTION_TOGGLE_SOFTWARE_KEYBOARD_MODE -> toggleSoftwareKeyboardMode()
@@ -113,7 +113,7 @@ class CommandExecutor(
             DeviceControlCommandSource.ACTION_VOLUME_MUTE -> adjustVolume(AudioManager.ADJUST_TOGGLE_MUTE)
             DeviceControlCommandSource.ACTION_BRIGHTNESS_UP -> sendShellKeyEvent(KeyEvent.KEYCODE_BRIGHTNESS_UP)
             DeviceControlCommandSource.ACTION_BRIGHTNESS_DOWN -> sendShellKeyEvent(KeyEvent.KEYCODE_BRIGHTNESS_DOWN)
-            else -> fail("Unknown action")
+            else -> fail(context.getString(R.string.command_error_unknown_action))
         }
     }
 
@@ -127,7 +127,7 @@ class CommandExecutor(
             CommandExecutionResult.Success
         } catch (error: Exception) {
             Log.e(TAG, "Failed to go home", error)
-            fail("Could not go home")
+            fail(context.getString(R.string.command_error_could_not_go_home))
         }
     }
 
@@ -149,7 +149,7 @@ class CommandExecutor(
 
     private fun dispatchMediaKey(keyCode: Int): CommandExecutionResult {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            ?: return fail("Audio unavailable")
+            ?: return fail(context.getString(R.string.command_error_audio_unavailable))
         val eventTime = SystemClock.uptimeMillis()
         audioManager.dispatchMediaKeyEvent(KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0))
         audioManager.dispatchMediaKeyEvent(KeyEvent(eventTime, eventTime, KeyEvent.ACTION_UP, keyCode, 0))
@@ -158,7 +158,7 @@ class CommandExecutor(
 
     private fun adjustVolume(direction: Int): CommandExecutionResult {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-            ?: return fail("Audio unavailable")
+            ?: return fail(context.getString(R.string.command_error_audio_unavailable))
         audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
         return CommandExecutionResult.Success
     }
@@ -168,7 +168,7 @@ class CommandExecutor(
             val shizukuAvailable = Shizuku.pingBinder() &&
                 Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
             if (!shizukuAvailable) {
-                return fail("Shizuku required")
+                return fail(context.getString(R.string.command_error_shizuku_required))
             }
             val newProcessMethod = Shizuku::class.java.getDeclaredMethod(
                 "newProcess",
@@ -187,21 +187,23 @@ class CommandExecutor(
             if (exitCode == 0) {
                 CommandExecutionResult.Success
             } else {
-                fail("Command failed")
+                fail(context.getString(R.string.command_error_failed))
             }
         } catch (error: Exception) {
             Log.e(TAG, "Failed to send shell keyevent $keyCode", error)
-            fail("Command failed")
+            fail(context.getString(R.string.command_error_failed))
         }
     }
 
     private fun executeNavAction(launch: CommandLaunchSpec.NavAction): CommandExecutionResult {
-        val controller = navModeController ?: return fail("Nav mode unavailable")
-        val inputConnection = inputConnectionProvider?.invoke() ?: return fail("No input context")
+        val controller = navModeController
+            ?: return fail(context.getString(R.string.command_error_nav_mode_unavailable))
+        val inputConnection = inputConnectionProvider?.invoke()
+            ?: return fail(context.getString(R.string.command_error_no_input_context))
         return if (controller.executeMapping(launch.mappingType, launch.value, null, inputConnection)) {
             CommandExecutionResult.Success
         } else {
-            fail("Nav action failed")
+            fail(context.getString(R.string.command_error_nav_action_failed))
         }
     }
 

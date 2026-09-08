@@ -89,7 +89,7 @@ fun CustomTopBar(
                         color = Color.White
                     )
                     Text(
-                        text = "La Tastiera per la tua Tastiera",
+                        text = stringResource(R.string.app_tagline),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.9f),
                         fontWeight = FontWeight.Medium

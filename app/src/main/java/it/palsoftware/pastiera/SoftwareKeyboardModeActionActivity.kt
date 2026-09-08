@@ -1,17 +1,16 @@
 package it.palsoftware.pastiera
 
-import android.app.Activity
 import android.os.Bundle
 import android.widget.Toast
 
-class SoftwareKeyboardModeActionActivity : Activity() {
+class SoftwareKeyboardModeActionActivity : LocalizedComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent()
         finish()
     }
 
-    override fun onNewIntent(intent: android.content.Intent?) {
+    override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIntent()

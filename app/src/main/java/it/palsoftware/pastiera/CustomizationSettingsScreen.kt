@@ -382,7 +382,7 @@ fun CustomizationSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .clickable { navigateTo(CustomizationDestination.Sounds) }
                         ) {
                             Row(
@@ -1013,13 +1013,6 @@ private fun QuickLauncherDisplayedEntriesSection(
 ) {
     val context = LocalContext.current
     var showCustomizeDialog by remember { mutableStateOf(false) }
-    val sourceLabels = mapOf(
-        CommandSourceId.Apps.storageValue to "Apps",
-        CommandSourceId.Pastiera.storageValue to "Pastiera actions",
-        CommandSourceId.AppActions.storageValue to "App actions",
-        CommandSourceId.DeviceControl.storageValue to "Device control",
-        CommandSourceId.NavActions.storageValue to "Navigation actions"
-    )
 
     fun update(sourceId: String, quickLauncher: Boolean) {
         onVisibilityChanged(
@@ -1055,12 +1048,12 @@ private fun QuickLauncherDisplayedEntriesSection(
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "QuickLauncher entries",
+                        text = stringResource(R.string.quick_launcher_entries_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "Choose which sources appear in Pastiera search.",
+                        text = stringResource(R.string.quick_launcher_entries_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1075,7 +1068,9 @@ private fun QuickLauncherDisplayedEntriesSection(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = sourceLabels[item.sourceId] ?: item.sourceId,
+                        text = CommandSourceId.fromStorageValue(item.sourceId)
+                            ?.localizedDisplayLabel(context)
+                            ?: item.sourceId,
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -1095,7 +1090,7 @@ private fun QuickLauncherDisplayedEntriesSection(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Customize entries")
+                Text(stringResource(R.string.quick_launcher_customize_entries))
             }
         }
     }
@@ -1125,6 +1120,7 @@ private fun QuickLauncherCommandCustomizationDialog(
     onCustomizationChanged: (SettingsManager.QuickLauncherCommandCustomization) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var editingCommandId by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
     var selectedSource by remember { mutableStateOf<CommandSourceId?>(null) }
@@ -1142,7 +1138,7 @@ private fun QuickLauncherCommandCustomizationDialog(
             sourceMatches.filter { command ->
                 command.label.contains(normalizedQuery, ignoreCase = true) ||
                     command.subtitle?.contains(normalizedQuery, ignoreCase = true) == true ||
-                    command.source.displayLabel.contains(normalizedQuery, ignoreCase = true) ||
+                    command.source.localizedDisplayLabel(context).contains(normalizedQuery, ignoreCase = true) ||
                     command.searchTokens.any { it.contains(normalizedQuery, ignoreCase = true) }
             }
         }
@@ -1160,7 +1156,7 @@ private fun QuickLauncherCommandCustomizationDialog(
             filteredCommands
                 .groupBy { it.source }
                 .flatMap { (source, sourceCommands) ->
-                    listOf(CommandCustomizationEntry.Header(source.displayLabel)) +
+                    listOf(CommandCustomizationEntry.Header(source.localizedDisplayLabel(context))) +
                         sourceCommands.map { CommandCustomizationEntry.Command(it) }
                 }
         } else {
@@ -1192,12 +1188,12 @@ private fun QuickLauncherCommandCustomizationDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Customize entries",
+                            text = stringResource(R.string.quick_launcher_customize_entries),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Favorites, hidden entries, and search aliases",
+                            text = stringResource(R.string.quick_launcher_customize_entries_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1212,7 +1208,7 @@ private fun QuickLauncherCommandCustomizationDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = MaterialTheme.shapes.extraLarge,
-                    placeholder = { Text("Search entries") },
+                    placeholder = { Text(stringResource(R.string.quick_launcher_search_entries)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Search,
@@ -1235,12 +1231,12 @@ private fun QuickLauncherCommandCustomizationDialog(
                     FilterChip(
                         selected = selectedSource == null,
                         onClick = { selectedSource = null },
-                        label = { Text("All") }
+                        label = { Text(stringResource(R.string.quick_launcher_all)) }
                     )
                     FilterChip(
                         selected = favoritesOnly,
                         onClick = { favoritesOnly = !favoritesOnly },
-                        label = { Text("Favorites") },
+                        label = { Text(stringResource(R.string.quick_launcher_favorites)) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Filled.Star,
@@ -1253,7 +1249,7 @@ private fun QuickLauncherCommandCustomizationDialog(
                         FilterChip(
                             selected = selectedSource == source,
                             onClick = { selectedSource = source },
-                            label = { Text(source.displayLabel) }
+                            label = { Text(source.localizedDisplayLabel(context)) }
                         )
                     }
                 }
@@ -1264,7 +1260,7 @@ private fun QuickLauncherCommandCustomizationDialog(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("No commands available for the selected sources.")
+                        Text(stringResource(R.string.quick_launcher_no_commands))
                     }
                 } else if (entries.isEmpty()) {
                     Box(
@@ -1273,7 +1269,7 @@ private fun QuickLauncherCommandCustomizationDialog(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("No entries match \"$query\".")
+                        Text(stringResource(R.string.quick_launcher_no_entries_match, query))
                     }
                 } else {
                     LazyVerticalGrid(
@@ -1439,7 +1435,7 @@ private fun CommandCustomizationRow(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = command.subtitle ?: command.source.displayLabel,
+                        text = command.subtitle ?: command.source.localizedDisplayLabel(LocalContext.current),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1496,7 +1492,7 @@ private fun CommandCustomizationRow(
                     onValueChange = onCustomSearchChanged,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Search alias") }
+                    label = { Text(stringResource(R.string.quick_launcher_search_alias)) }
                 )
             }
         }
@@ -1611,7 +1607,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Entry appearance",
+                text = stringResource(R.string.quick_launcher_entry_appearance),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium
             )
@@ -1624,7 +1620,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                     it == SettingsManager.QUICK_LAUNCHER_DYNAMIC_FAVORITE_COLOR
                 }
                 Text(
-                    text = "Highlight favorites in list",
+                    text = stringResource(R.string.quick_launcher_highlight_favorites),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1648,7 +1644,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Tint entries from app icon colors",
+                    text = stringResource(R.string.quick_launcher_tint_app_icon_colors),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1663,7 +1659,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Use static top-match highlight color",
+                    text = stringResource(R.string.quick_launcher_static_top_highlight),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1683,7 +1679,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Show search alias before entry name",
+                    text = stringResource(R.string.quick_launcher_show_alias_first),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -1741,7 +1737,7 @@ private fun ColorSwatchButton(
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             DynamicColorWheelSwatch()
-                            Text("Dynamic")
+                            Text(stringResource(R.string.quick_launcher_dynamic))
                         }
                     },
                     onClick = {
@@ -2042,11 +2038,12 @@ private fun SettingsRowKeyboardIcon() {
     )
 }
 
+@Composable
 private fun keyLabel(keyCode: Int): String {
     return when (keyCode) {
-        KeyEvent.KEYCODE_SPACE -> "Space"
-        KeyEvent.KEYCODE_ENTER -> "Enter"
-        KeyEvent.KEYCODE_DEL -> "Backspace"
+        KeyEvent.KEYCODE_SPACE -> stringResource(R.string.software_keyboard_accessibility_space)
+        KeyEvent.KEYCODE_ENTER -> stringResource(R.string.software_keyboard_accessibility_enter)
+        KeyEvent.KEYCODE_DEL -> stringResource(R.string.software_keyboard_accessibility_backspace)
         KeyEvent.KEYCODE_A -> "A"
         KeyEvent.KEYCODE_B -> "B"
         KeyEvent.KEYCODE_C -> "C"

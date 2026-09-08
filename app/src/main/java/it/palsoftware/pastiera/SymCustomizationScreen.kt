@@ -518,7 +518,7 @@ fun SymCustomizationScreen(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -560,7 +560,7 @@ fun SymCustomizationScreen(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -674,7 +674,7 @@ fun SymCustomizationScreen(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
         ) {
             Row(
                 modifier = Modifier

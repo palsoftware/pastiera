@@ -81,7 +81,7 @@ private fun LanguageItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .heightIn(min = 64.dp)
             .clickable { onEdit() }
     ) {
         Row(

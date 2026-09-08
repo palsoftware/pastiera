@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -437,7 +438,7 @@ fun AdvancedSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .settingRow(SettingLinkIds.ADVANCED_BACKUP) {
                                     backupLauncher.launch(defaultBackupName())
                                 }
@@ -481,7 +482,7 @@ fun AdvancedSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .settingRow(SettingLinkIds.ADVANCED_RESTORE) {
                                     restoreLauncher.launch(arrayOf("application/zip"))
                                 }
@@ -525,7 +526,7 @@ fun AdvancedSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .settingRow(SettingLinkIds.ADVANCED_SWIPE_INCREMENTAL_THRESHOLD)
                         ) {
                             Row(
@@ -617,7 +618,7 @@ fun AdvancedSettingsScreen(
                                         val filtered = text.filter { it.isDigit() }.take(5)
                                         clipboardRetentionTime = filtered
                                     },
-                                    placeholder = { Text("min") },
+                                    placeholder = { Text(stringResource(R.string.advanced_minutes_short)) },
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                     modifier = Modifier.widthIn(max = 120.dp),
                                     singleLine = true
@@ -645,7 +646,7 @@ fun AdvancedSettingsScreen(
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(64.dp)
+                                    .heightIn(min = 64.dp)
                                     .clickable { navigateTo(AdvancedDestination.ImeTest) }
                             ) {
                                 Row(
@@ -663,13 +664,13 @@ fun AdvancedSettingsScreen(
                                     )
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "IME Test Screen",
+                                            text = stringResource(R.string.advanced_ime_test_title),
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Medium,
                                             maxLines = 1
                                         )
                                         Text(
-                                            text = "Test all input field types and IME actions",
+                                            text = stringResource(R.string.advanced_ime_test_description),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1
@@ -688,7 +689,7 @@ fun AdvancedSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .settingRow(SettingLinkIds.ADVANCED_SHOW_TUTORIAL) {
                                     SettingsManager.resetTutorialCompleted(context)
                                     val intent = Intent(context, TutorialActivity::class.java)
@@ -733,7 +734,7 @@ fun AdvancedSettingsScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(64.dp)
+                                .heightIn(min = 64.dp)
                                 .settingRow(SettingLinkIds.ADVANCED_SHOW_RELEASE_NOTES_TUTORIAL) {
                                     val intent = Intent(context, TutorialActivity::class.java).apply {
                                         putExtra(TutorialActivity.EXTRA_UPDATE_TUTORIAL, true)

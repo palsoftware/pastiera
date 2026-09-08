@@ -124,7 +124,7 @@ fun AccessibilitySettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(96.dp)
+                    .heightIn(min = 96.dp)
                     .settingRow(SettingLinkIds.ACCESSIBILITY_LIVE_READ)
             ) {
                 Row(
@@ -166,7 +166,7 @@ fun AccessibilitySettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(84.dp)
+                    .heightIn(min = 84.dp)
                     .settingRow(SettingLinkIds.ACCESSIBILITY_READ_SECOND_ROW)
             ) {
                 Row(
@@ -208,7 +208,7 @@ fun AccessibilitySettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(84.dp)
+                    .heightIn(min = 84.dp)
                     .settingRow(SettingLinkIds.ACCESSIBILITY_SUGGESTIONS_DELAY)
             ) {
                 Row(
@@ -286,7 +286,7 @@ fun AccessibilitySettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(96.dp)
+                    .heightIn(min = 96.dp)
                     .settingRow(SettingLinkIds.ACCESSIBILITY_BOUNCE_KEYS)
             ) {
                 Row(
@@ -328,7 +328,7 @@ fun AccessibilitySettingsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(116.dp)
+                    .heightIn(min = 116.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -486,7 +486,7 @@ private fun BounceKeyToggleRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(76.dp)
+            .heightIn(min = 76.dp)
             .settingRow(linkId)
     ) {
         Row(

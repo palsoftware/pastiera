@@ -72,6 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -535,6 +536,7 @@ private fun QuickLauncherSheet(
     onDismiss: () -> Unit,
     onDismissAnimationFinished: () -> Unit
 ) {
+    val context = LocalContext.current
     val maxSheetHeight = LocalConfiguration.current.screenHeightDp.dp * 0.78f
     val visible = remember { MutableTransitionState(false) }
     LaunchedEffect(Unit) {
@@ -559,7 +561,7 @@ private fun QuickLauncherSheet(
                     if (commands.size <= 4) {
                         sourceCommands.map { QuickLauncherEntry.Command(it) }
                     } else {
-                        listOf(QuickLauncherEntry.Header(source.displayLabel)) +
+                        listOf(QuickLauncherEntry.Header(source.localizedDisplayLabel(context))) +
                             sourceCommands.map { QuickLauncherEntry.Command(it) }
                     }
                 }
@@ -792,6 +794,7 @@ private fun QuickLauncherCommandRow(
     onCustomizationsReloadRequested: () -> Unit,
     onMoveFavorite: (String, Int) -> Unit
 ) {
+    val context = LocalContext.current
     val customColor = customization?.color
     val isFavorite = customization?.favorite == true
     var menuExpanded by remember { mutableStateOf(false) }
@@ -857,7 +860,7 @@ private fun QuickLauncherCommandRow(
                         modifier = Modifier.basicMarquee()
                     )
                     Text(
-                        text = command.subtitle ?: command.source.displayLabel,
+                        text = command.subtitle ?: command.source.localizedDisplayLabel(context),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -933,7 +936,7 @@ private fun QuickLauncherEntryContextMenu(
                 value = aliasText,
                 onValueChange = { aliasText = it },
                 singleLine = true,
-                label = { Text("Search alias") },
+                label = { Text(stringResource(R.string.quick_launcher_search_alias)) },
                 modifier = Modifier.fillMaxWidth()
             )
             Row(
@@ -946,19 +949,27 @@ private fun QuickLauncherEntryContextMenu(
                         onCustomizationChanged(customization.copy(customSearch = ""))
                     }
                 ) {
-                    Text("Clear")
+                    Text(stringResource(R.string.clear))
                 }
                 TextButton(
                     onClick = {
                         onCustomizationChanged(customization.copy(customSearch = aliasText))
                     }
                 ) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             }
         }
         DropdownMenuItem(
-            text = { Text(if (customization.favorite) "Unfavorite" else "Favorite") },
+            text = {
+                Text(
+                    if (customization.favorite) {
+                        stringResource(R.string.quick_launcher_unfavorite)
+                    } else {
+                        stringResource(R.string.quick_launcher_favorite)
+                    }
+                )
+            },
             leadingIcon = {
                 Icon(
                     imageVector = if (customization.favorite) Icons.Filled.StarBorder else Icons.Filled.Star,
@@ -980,7 +991,7 @@ private fun QuickLauncherEntryContextMenu(
         )
         if (customization.favorite) {
             DropdownMenuItem(
-                text = { Text("Move up") },
+                text = { Text(stringResource(R.string.quick_launcher_move_up)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Filled.KeyboardArrowUp,
@@ -990,7 +1001,7 @@ private fun QuickLauncherEntryContextMenu(
                 onClick = { onMoveFavorite(-1) }
             )
             DropdownMenuItem(
-                text = { Text("Move down") },
+                text = { Text(stringResource(R.string.quick_launcher_move_down)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Filled.KeyboardArrowDown,
@@ -1001,7 +1012,7 @@ private fun QuickLauncherEntryContextMenu(
             )
         }
         DropdownMenuItem(
-            text = { Text("Hide") },
+            text = { Text(stringResource(R.string.quick_launcher_hide)) },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Filled.VisibilityOff,
@@ -1013,13 +1024,13 @@ private fun QuickLauncherEntryContextMenu(
             }
         )
         DropdownMenuItem(
-            text = { Text("Dynamic entry color") },
+            text = { Text(stringResource(R.string.quick_launcher_dynamic_entry_color)) },
             onClick = {
                 onCustomizationChanged(customization.copy(color = null))
             }
         )
         Text(
-            text = "Entry color",
+            text = stringResource(R.string.quick_launcher_entry_color),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)

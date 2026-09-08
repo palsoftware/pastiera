@@ -11,7 +11,8 @@ import it.palsoftware.pastiera.SettingsManager
  * Listens to system clipboard changes and stores them in a database.
  */
 class ClipboardHistoryManager(
-    private val context: Context
+    private val context: Context,
+    private val beforeTextCommit: (android.view.inputmethod.InputConnection?) -> Unit = {}
 ) : ClipboardManager.OnPrimaryClipChangedListener {
 
     private lateinit var clipboardManager: ClipboardManager
@@ -116,6 +117,7 @@ class ClipboardHistoryManager(
      * Paste the given text into the input connection.
      */
     fun pasteText(text: String, inputConnection: android.view.inputmethod.InputConnection?) {
+        beforeTextCommit(inputConnection)
         inputConnection?.commitText(text, 1)
     }
 

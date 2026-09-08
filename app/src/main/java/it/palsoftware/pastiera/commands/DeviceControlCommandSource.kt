@@ -5,42 +5,44 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import it.palsoftware.pastiera.R
 
 class DeviceControlCommandSource : CommandSource {
     override val id = CommandSourceId.DeviceControl
 
     override fun getCommands(context: Context): List<CommandTarget> {
         return buildList {
-            add(deviceAction("device.home", "Home screen", "System", ACTION_HOME_SCREEN))
-            add(deviceAction("device.media.play_pause", "Play / pause", "Media", ACTION_MEDIA_PLAY_PAUSE))
-            add(deviceAction("device.media.previous", "Previous track", "Media", ACTION_MEDIA_PREVIOUS))
-            add(deviceAction("device.media.next", "Next track", "Media", ACTION_MEDIA_NEXT))
-            add(deviceAction("device.volume.up", "Volume up", "Audio", ACTION_VOLUME_UP))
-            add(deviceAction("device.volume.down", "Volume down", "Audio", ACTION_VOLUME_DOWN))
-            add(deviceAction("device.volume.mute", "Mute volume", "Audio", ACTION_VOLUME_MUTE))
-            add(deviceAction("device.brightness.up", "Brightness up", "Display", ACTION_BRIGHTNESS_UP))
-            add(deviceAction("device.brightness.down", "Brightness down", "Display", ACTION_BRIGHTNESS_DOWN))
-            add(settingsCommand("settings.android.main", "Settings", Settings.ACTION_SETTINGS))
-            add(settingsCommand("settings.android.apps", "Apps", Settings.ACTION_APPLICATION_SETTINGS))
-            add(settingsCommand("settings.android.default_apps", "Default apps", Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
-            add(settingsCommand("settings.android.input_method", "Keyboard settings", Settings.ACTION_INPUT_METHOD_SETTINGS))
-            add(settingsCommand("settings.android.accessibility", "Accessibility", Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            add(settingsCommand("settings.android.language_input", "Language & input", Settings.ACTION_LOCALE_SETTINGS))
-            add(settingsCommand("settings.android.bluetooth", "Bluetooth", Settings.ACTION_BLUETOOTH_SETTINGS))
-            add(settingsCommand("settings.android.wifi", "Wi-Fi", Settings.ACTION_WIFI_SETTINGS))
+            add(deviceAction("device.home", context.getString(R.string.command_device_home_screen), context.getString(R.string.command_group_system), ACTION_HOME_SCREEN))
+            add(deviceAction("device.media.play_pause", context.getString(R.string.command_device_media_play_pause), context.getString(R.string.command_group_media), ACTION_MEDIA_PLAY_PAUSE))
+            add(deviceAction("device.media.previous", context.getString(R.string.command_device_media_previous), context.getString(R.string.command_group_media), ACTION_MEDIA_PREVIOUS))
+            add(deviceAction("device.media.next", context.getString(R.string.command_device_media_next), context.getString(R.string.command_group_media), ACTION_MEDIA_NEXT))
+            add(deviceAction("device.volume.up", context.getString(R.string.command_device_volume_up), context.getString(R.string.command_group_audio), ACTION_VOLUME_UP))
+            add(deviceAction("device.volume.down", context.getString(R.string.command_device_volume_down), context.getString(R.string.command_group_audio), ACTION_VOLUME_DOWN))
+            add(deviceAction("device.volume.mute", context.getString(R.string.command_device_volume_mute), context.getString(R.string.command_group_audio), ACTION_VOLUME_MUTE))
+            add(deviceAction("device.brightness.up", context.getString(R.string.command_device_brightness_up), context.getString(R.string.command_group_display), ACTION_BRIGHTNESS_UP))
+            add(deviceAction("device.brightness.down", context.getString(R.string.command_device_brightness_down), context.getString(R.string.command_group_display), ACTION_BRIGHTNESS_DOWN))
+            add(settingsCommand(context, "settings.android.main", context.getString(R.string.command_device_settings), Settings.ACTION_SETTINGS))
+            add(settingsCommand(context, "settings.android.apps", context.getString(R.string.command_device_apps), Settings.ACTION_APPLICATION_SETTINGS))
+            add(settingsCommand(context, "settings.android.default_apps", context.getString(R.string.command_device_default_apps), Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+            add(settingsCommand(context, "settings.android.input_method", context.getString(R.string.command_device_keyboard_settings), Settings.ACTION_INPUT_METHOD_SETTINGS))
+            add(settingsCommand(context, "settings.android.accessibility", context.getString(R.string.command_device_accessibility), Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            add(settingsCommand(context, "settings.android.language_input", context.getString(R.string.command_device_language_input), Settings.ACTION_LOCALE_SETTINGS))
+            add(settingsCommand(context, "settings.android.bluetooth", context.getString(R.string.command_device_bluetooth), Settings.ACTION_BLUETOOTH_SETTINGS))
+            add(settingsCommand(context, "settings.android.wifi", context.getString(R.string.command_device_wifi), Settings.ACTION_WIFI_SETTINGS))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                add(settingsCommand("settings.android.internet_panel", "Internet", Settings.Panel.ACTION_INTERNET_CONNECTIVITY, opensPanel = true))
+                add(settingsCommand(context, "settings.android.internet_panel", context.getString(R.string.command_device_internet), Settings.Panel.ACTION_INTERNET_CONNECTIVITY, opensPanel = true))
             }
-            add(settingsCommand("settings.android.display", "Display / brightness", Settings.ACTION_DISPLAY_SETTINGS))
-            add(settingsCommand("settings.android.sound", "Sound & vibration", Settings.ACTION_SOUND_SETTINGS))
-            add(settingsCommand("settings.android.nfc", "NFC", Settings.ACTION_NFC_SETTINGS))
-            add(settingsCommand("settings.android.battery", "Battery", Settings.ACTION_BATTERY_SAVER_SETTINGS))
-            add(settingsCommand("settings.android.notifications", "Notifications", ACTION_NOTIFICATION_SETTINGS))
+            add(settingsCommand(context, "settings.android.display", context.getString(R.string.command_device_display), Settings.ACTION_DISPLAY_SETTINGS))
+            add(settingsCommand(context, "settings.android.sound", context.getString(R.string.command_device_sound), Settings.ACTION_SOUND_SETTINGS))
+            add(settingsCommand(context, "settings.android.nfc", context.getString(R.string.command_device_nfc), Settings.ACTION_NFC_SETTINGS))
+            add(settingsCommand(context, "settings.android.battery", context.getString(R.string.command_device_battery), Settings.ACTION_BATTERY_SAVER_SETTINGS))
+            add(settingsCommand(context, "settings.android.notifications", context.getString(R.string.command_device_notifications), ACTION_NOTIFICATION_SETTINGS))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 add(
                     settingsCommand(
+                        context = context,
                         id = "settings.android.pastiera_notifications",
-                        label = "Pastiera notifications",
+                        label = context.getString(R.string.command_device_pastiera_notifications),
                         action = Settings.ACTION_APP_NOTIFICATION_SETTINGS,
                         data = null,
                         extras = mapOf(Settings.EXTRA_APP_PACKAGE to context.packageName)
@@ -71,6 +73,7 @@ class DeviceControlCommandSource : CommandSource {
     }
 
     private fun settingsCommand(
+        context: Context,
         id: String,
         label: String,
         action: String,
@@ -83,7 +86,11 @@ class DeviceControlCommandSource : CommandSource {
             source = this.id,
             kind = CommandKind.DeviceControl,
             label = label,
-            subtitle = if (opensPanel) "System panel" else "Settings",
+            subtitle = if (opensPanel) {
+                context.getString(R.string.command_group_system_panel)
+            } else {
+                context.getString(R.string.command_group_settings)
+            },
             icon = CommandIcon.Settings,
             launch = SettingsIntentSpec(action, data, extras),
             capabilities = buildSet {

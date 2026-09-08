@@ -27,7 +27,7 @@ class CommandRegistry(
                     add(command.label)
                     command.subtitle?.let(::add)
                     add(command.kind.name)
-                    add(command.source.displayLabel)
+                    add(command.source.localizedDisplayLabel(context))
                     addAll(command.searchTokens)
                 }.joinToString(" ").lowercase()
                 if (haystack.contains(normalized)) command else null
