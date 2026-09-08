@@ -38,7 +38,6 @@ import it.palsoftware.pastiera.layout.OnlineLayoutsActivity
 import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils
 import it.palsoftware.pastiera.R
 import kotlinx.coroutines.launch
-import java.util.Locale
 import android.content.res.AssetManager
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
@@ -204,7 +203,7 @@ fun KeyboardLayoutSettingsScreen(
                         )
                     }
                     Text(
-                        text = "${stringResource(R.string.keyboard_layout_title)} - ${getLocaleDisplayNameForTitle(locale)}",
+                        text = "${stringResource(R.string.keyboard_layout_title)} - ${getLocaleDisplayName(context, locale)}",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
@@ -311,7 +310,7 @@ fun KeyboardLayoutSettingsScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(72.dp)
+                        .heightIn(min = 72.dp)
                         .clickable {
                             selectedLayout = "qwerty"
                         }
@@ -612,17 +611,5 @@ private fun hasLayoutMultiTap(assets: AssetManager, context: Context, layoutName
         }
     } catch (e: Exception) {
         false
-    }
-}
-
-/**
- * Gets display name for a locale (for title display).
- */
-private fun getLocaleDisplayNameForTitle(locale: String): String {
-    return try {
-        val localeObj = Locale.forLanguageTag(locale.replace('_', '-'))
-        localeObj.getDisplayName(Locale.ENGLISH)
-    } catch (e: Exception) {
-        locale
     }
 }

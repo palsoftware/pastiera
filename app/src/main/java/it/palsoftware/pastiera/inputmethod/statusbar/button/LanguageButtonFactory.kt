@@ -203,15 +203,15 @@ class LanguageButtonFactory : StatusBarButtonFactory {
     }
 
     private fun getLanguageLabel(context: Context, subtype: InputMethodSubtype?): String {
-        if (subtype == null) return "Unknown"
+        if (subtype == null) return context.getString(R.string.status_bar_language_unknown)
         return try {
             val appInfo = context.packageManager.getApplicationInfo(context.packageName, 0)
             subtype.getDisplayName(context, context.packageName, appInfo)?.toString()
                 ?.takeIf { it.isNotBlank() }
-                ?: subtype.localeString().ifBlank { "Unknown" }
+                ?: subtype.localeString().ifBlank { context.getString(R.string.status_bar_language_unknown) }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to resolve subtype display name for accessibility", e)
-            subtype.localeString().ifBlank { "Unknown" }
+            subtype.localeString().ifBlank { context.getString(R.string.status_bar_language_unknown) }
         }
     }
 

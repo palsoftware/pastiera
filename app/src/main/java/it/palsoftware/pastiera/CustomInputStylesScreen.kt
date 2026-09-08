@@ -289,6 +289,7 @@ fun CustomInputStylesScreen(
                         layout,
                         additionalSuggestionLocales
                     )
+                    AdditionalSubtypeUtils.registerAdditionalSubtypes(context.applicationContext)
                     inputStyles = loadCustomInputStyles(context)
                     showAddDialog = false
                     editStyle = null
@@ -296,7 +297,7 @@ fun CustomInputStylesScreen(
                     lastDialogLayout = null
                     lastDialogSuggestionLocales = null
                     coroutineScope.launch {
-                        snackbarHostState.showSnackbar(context.getString(R.string.custom_input_styles_layout_mapping_updated, getLocaleDisplayName(locale), layout))
+                        snackbarHostState.showSnackbar(context.getString(R.string.custom_input_styles_layout_mapping_updated, getLocaleDisplayName(context, locale), layout))
                     }
                     null
                 } else {
@@ -325,9 +326,9 @@ fun CustomInputStylesScreen(
                         lastDialogLayout = null
                         lastDialogSuggestionLocales = null
                         val msg = if (targetOld != null) {
-                            context.getString(R.string.custom_input_styles_input_style_updated, getLocaleDisplayName(locale), layout)
+                            context.getString(R.string.custom_input_styles_input_style_updated, getLocaleDisplayName(context, locale), layout)
                         } else {
-                            context.getString(R.string.custom_input_styles_input_style_added, getLocaleDisplayName(locale), layout)
+                            context.getString(R.string.custom_input_styles_input_style_added, getLocaleDisplayName(context, locale), layout)
                         }
                         coroutineScope.launch {
                             snackbarHostState.showSnackbar(msg)
@@ -560,6 +561,7 @@ internal fun AppLanguageSelectorCard() {
             "pl",
             "ru",
             "uk",
+            "ko",
             "vi",
             "hy"
         )
@@ -768,9 +770,13 @@ private fun AddCustomInputStyleDialog(
         }
     }
     
-    // Get available locales based on dictionary availability (no filtering of system locales)
-    val availableLocales = remember {
-        getLocalesWithDictionary(context).sorted()
+    val dictionaryLocales = remember(context) { getLocalesWithDictionary(context).sorted() }
+    val availableLocales = remember(dictionaryLocales) {
+        getAvailableInputLocales(dictionaryLocales)
+    }
+    val availableSuggestionLocales = selectedSuggestionLocales.filter { selected ->
+        dictionaryLocales.any { Locale.forLanguageTag(it.replace('_', '-')).language ==
+            Locale.forLanguageTag(selected.replace('_', '-')).language }
     }
     
     AlertDialog(
@@ -850,7 +856,7 @@ private fun AddCustomInputStyleDialog(
                         ) {
                             availableLocales.forEach { locale ->
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.custom_input_styles_locale_display, locale, getLocaleDisplayName(locale))) },
+                                    text = { Text(stringResource(R.string.custom_input_styles_locale_display, locale, getLocaleDisplayName(context, locale))) },
                                     onClick = {
                                         selectedLocale = locale
                                         expandedLocale = false
@@ -962,8 +968,8 @@ private fun AddCustomInputStyleDialog(
 
                     SuggestionDictionariesSelector(
                         primaryLocale = selectedLocale!!,
-                        availableLocales = availableLocales,
-                        selectedLocales = selectedSuggestionLocales,
+                        availableLocales = dictionaryLocales,
+                        selectedLocales = availableSuggestionLocales,
                         onSelectedLocalesChanged = { selectedSuggestionLocales = it }
                     )
                 }
@@ -976,7 +982,7 @@ private fun AddCustomInputStyleDialog(
                     val locale = selectedLocale
                     val layout = selectedLayout
                     if (locale != null && layout != null) {
-                        saveError = onSave(locale, layout, selectedSuggestionLocales)
+                        saveError = onSave(locale, layout, availableSuggestionLocales)
                     }
                 },
                 enabled = selectedLocale != null && selectedLayout != null
@@ -1073,6 +1079,7 @@ private fun SuggestionDictionariesSelector(
     selectedLocales: List<String>,
     onSelectedLocalesChanged: (List<String>) -> Unit
 ) {
+    val context = LocalContext.current
     val primaryLanguage = normalizeLocaleTag(primaryLocale).substringBefore('-')
     val candidates = availableLocales
         .map { normalizeLocaleTag(it) }
@@ -1091,7 +1098,7 @@ private fun SuggestionDictionariesSelector(
         Text(
             text = stringResource(
                 R.string.custom_input_styles_primary_suggestion_dictionary,
-                getLocaleDisplayName(primaryLocale)
+                getLocaleDisplayName(context, primaryLocale)
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1118,7 +1125,7 @@ private fun SuggestionDictionariesSelector(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = getLocaleDisplayName(locale),
+                        text = getLocaleDisplayName(context, locale),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
@@ -1195,7 +1202,7 @@ private fun loadCustomInputStyles(context: Context): List<CustomInputStyle> {
     systemLocales.forEach { locale ->
         val layout = AdditionalSubtypeUtils.getLayoutForLocale(context.assets, locale, context)
         val isHidden = SettingsManager.isSystemInputStyleHidden(context, locale, layout)
-        val displayName = "${getLocaleDisplayName(locale)} - $layout"
+        val displayName = "${getLocaleDisplayName(context, locale)} - $layout"
         styles.add(
             CustomInputStyle(
                 locale,
@@ -1218,7 +1225,7 @@ private fun loadCustomInputStyles(context: Context): List<CustomInputStyle> {
             if (parts.size >= 2) {
                 val locale = parts[0]
                 val layout = parts[1]
-                val displayName = "${getLocaleDisplayName(locale)} - $layout"
+                val displayName = "${getLocaleDisplayName(context, locale)} - $layout"
                 styles.add(
                     CustomInputStyle(
                         locale,
@@ -1445,10 +1452,10 @@ private fun removeCustomInputStyle(context: Context, locale: String, layout: Str
 /**
  * Gets display name for a locale.
  */
-private fun getLocaleDisplayName(locale: String): String {
+internal fun getLocaleDisplayName(context: Context, locale: String): String {
     return try {
         val localeObj = Locale.forLanguageTag(locale.replace('_', '-'))
-        localeObj.getDisplayName(Locale.getDefault())
+        localeObj.getDisplayName(context.resources.configuration.locales[0])
     } catch (e: Exception) {
         locale
     }
@@ -1458,9 +1465,17 @@ private fun normalizeLocaleTag(locale: String): String {
     return locale.trim().replace('_', '-')
 }
 
+// Match dictionary-backed picker entries: language codes, without country variants.
+// Saved and system locales retain their country to preserve settings and subtype IDs.
+private val BUILTIN_LOCALES_WITHOUT_DICTIONARY = setOf("ko")
+
+internal fun getAvailableInputLocales(dictionaryLocales: List<String>): List<String> =
+    (dictionaryLocales + BUILTIN_LOCALES_WITHOUT_DICTIONARY).distinct().sorted()
+
 /**
  * Gets list of locales that have dictionary files available.
- * Uses serialized (.dict) from assets and custom/imported folder.
+ * Uses serialized (.dict) from assets and the custom/imported folder only.
+ * Input languages without dictionaries are added separately by the style selector.
  */
 private fun getLocalesWithDictionary(context: Context): List<String> {
     val localesWithDict = mutableSetOf<String>()
@@ -1533,7 +1548,7 @@ private fun isValidLocaleCode(localeCode: String): Boolean {
 private fun hasDictionaryForLocale(context: Context, locale: String): Boolean {
     try {
         val assets = context.assets
-        val langCode = locale.split("_")[0].lowercase()
+        val langCode = Locale.forLanguageTag(normalizeLocaleTag(locale)).language
         
         // Check serialized dictionaries from assets
         try {
@@ -1610,7 +1625,10 @@ private fun updateLocaleLayoutMapping(context: Context, locale: String, layout: 
             val currentSubtype = imm?.currentInputMethodSubtype
             val currentLocale = currentSubtype?.localeString()
             
-            if (currentLocale == locale && SettingsManager.isKeyboardLayoutAutoByLocale(context)) {
+            if (currentLocale != null &&
+                normalizeLocaleTag(currentLocale).equals(normalizeLocaleTag(locale), ignoreCase = true) &&
+                SettingsManager.isKeyboardLayoutAutoByLocale(context)
+            ) {
                 // The locale being updated is currently active, immediately apply the layout change
                 android.util.Log.d("CustomInputStyles", "Locale $locale is currently active, applying layout change immediately")
                 SettingsManager.notifyKeyboardLayoutAutoMappingUpdated(context)

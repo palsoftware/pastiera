@@ -1,0 +1,19 @@
+{
+  "name": "한국어 두벌식 / Korean 2-set",
+  "description": "표준 두벌식 자판 배열입니다. 입력한 자모는 한글 음절로 조합됩니다. / Standard Korean 2-set keyboard layout. Jamo are composed into Hangul syllables as you type.",
+  "mappings": {
+    "KEYCODE_Q": { "lowercase": "ㅂ", "uppercase": "ㅃ" }, "KEYCODE_W": { "lowercase": "ㅈ", "uppercase": "ㅉ" },
+    "KEYCODE_E": { "lowercase": "ㄷ", "uppercase": "ㄸ" }, "KEYCODE_R": { "lowercase": "ㄱ", "uppercase": "ㄲ" },
+    "KEYCODE_T": { "lowercase": "ㅅ", "uppercase": "ㅆ" }, "KEYCODE_Y": { "lowercase": "ㅛ", "uppercase": "ㅛ" },
+    "KEYCODE_U": { "lowercase": "ㅕ", "uppercase": "ㅕ" }, "KEYCODE_I": { "lowercase": "ㅑ", "uppercase": "ㅑ" },
+    "KEYCODE_O": { "lowercase": "ㅐ", "uppercase": "ㅒ" }, "KEYCODE_P": { "lowercase": "ㅔ", "uppercase": "ㅖ" },
+    "KEYCODE_A": { "lowercase": "ㅁ", "uppercase": "ㅁ" }, "KEYCODE_S": { "lowercase": "ㄴ", "uppercase": "ㄴ" },
+    "KEYCODE_D": { "lowercase": "ㅇ", "uppercase": "ㅇ" }, "KEYCODE_F": { "lowercase": "ㄹ", "uppercase": "ㄹ" },
+    "KEYCODE_G": { "lowercase": "ㅎ", "uppercase": "ㅎ" }, "KEYCODE_H": { "lowercase": "ㅗ", "uppercase": "ㅗ" },
+    "KEYCODE_J": { "lowercase": "ㅓ", "uppercase": "ㅓ" }, "KEYCODE_K": { "lowercase": "ㅏ", "uppercase": "ㅏ" },
+    "KEYCODE_L": { "lowercase": "ㅣ", "uppercase": "ㅣ" }, "KEYCODE_Z": { "lowercase": "ㅋ", "uppercase": "ㅋ" },
+    "KEYCODE_X": { "lowercase": "ㅌ", "uppercase": "ㅌ" }, "KEYCODE_C": { "lowercase": "ㅊ", "uppercase": "ㅊ" },
+    "KEYCODE_V": { "lowercase": "ㅍ", "uppercase": "ㅍ" }, "KEYCODE_B": { "lowercase": "ㅠ", "uppercase": "ㅠ" },
+    "KEYCODE_N": { "lowercase": "ㅜ", "uppercase": "ㅜ" }, "KEYCODE_M": { "lowercase": "ㅡ", "uppercase": "ㅡ" }
+  }
+}

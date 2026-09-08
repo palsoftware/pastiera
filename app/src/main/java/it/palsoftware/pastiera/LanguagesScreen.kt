@@ -106,7 +106,7 @@ fun LanguagesScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .heightIn(min = 56.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -127,7 +127,7 @@ fun LanguagesScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
+                        .heightIn(min = 64.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -175,7 +175,7 @@ private fun LanguageSubtypeItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .heightIn(min = 64.dp)
     ) {
         Row(
             modifier = Modifier
@@ -414,7 +414,8 @@ private fun getLocaleTagForLanguage(languageCode: String): String {
         "es" to "es_ES",
         "pl" to "pl_PL",
         "it" to "it_IT",
-        "en" to "en_US"
+        "en" to "en_US",
+        "ko" to "ko_KR"
     )
     return localeMap[languageCode.lowercase()] ?: languageCode
 }

@@ -24,5 +24,7 @@
   "vi_VN": "vietnamese_telex_qwerty",
   "ru_RU": "russian_translit",
   "sr_RS": "serbian_cyrillic",
-  "uk_UA": "ukrainian"
+  "uk_UA": "ukrainian",
+  "ko": "korean_2set",
+  "ko_KR": "korean_2set"
 }

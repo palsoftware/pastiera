@@ -1,8 +1,11 @@
 package it.palsoftware.pastiera.inputmethod.subtype
 
+import android.os.LocaleList
 import android.view.KeyEvent
+import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.data.layout.JsonLayoutLoader
 import it.palsoftware.pastiera.data.layout.LayoutFileStore
+import it.palsoftware.pastiera.inputmethod.subtype.AdditionalSubtypeUtils.localeString
 import java.util.Locale
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -21,7 +24,12 @@ class AdditionalSubtypeUtilsLayoutTest {
 
     @After
     fun tearDown() {
-        LayoutFileStore.getLayoutsDirectory(RuntimeEnvironment.getApplication()).deleteRecursively()
+        val context = RuntimeEnvironment.getApplication()
+        LayoutFileStore.getLayoutsDirectory(context).deleteRecursively()
+        SettingsManager.getPreferences(context).edit().clear().commit()
+        val configuration = context.resources.configuration
+        configuration.setLocales(LocaleList(Locale.US))
+        context.resources.updateConfiguration(configuration, context.resources.displayMetrics)
         ShadowLog.clear()
     }
 
@@ -59,6 +67,95 @@ class AdditionalSubtypeUtilsLayoutTest {
 
         assertEquals(1, subtypes.size)
         assertEquals("vietnamese_telex_qwerty", AdditionalSubtypeUtils.getKeyboardLayoutFromSubtype(subtypes[0]))
+    }
+
+    @Test
+    fun regionalMapping_acceptsBothSeparatorsBeforeLanguageFallback() {
+        val context = RuntimeEnvironment.getApplication()
+        val mapping = java.io.File(context.filesDir, "locale_layout_mapping.json")
+        try {
+            for (key in listOf("ko_KR", "ko-KR")) {
+                mapping.writeText("""{"$key":"qwerty","ko":"korean_2set"}""")
+                for (locale in listOf("ko_KR", "ko-KR")) {
+                    assertEquals("qwerty", AdditionalSubtypeUtils.getLayoutForLocale(context.assets, locale, context))
+                }
+                assertEquals("korean_2set", AdditionalSubtypeUtils.getLayoutForLocale(context.assets, "ko", context))
+            }
+        } finally {
+            mapping.delete()
+        }
+        assertEquals("azerty", AdditionalSubtypeUtils.getLayoutForLocale(context.assets, "fr-FR", context))
+    }
+
+    @Test
+    fun koreanPickerAndSavedRegionalLocales_resolveAndRegisterWithoutDictionary() {
+        val context = RuntimeEnvironment.getApplication()
+        for ((locale, languageTag) in listOf("ko" to "ko", "ko_KR" to "ko-KR", "ko-KR" to "ko-KR")) {
+            assertEquals("korean_2set", AdditionalSubtypeUtils.getLayoutForLocale(context.assets, locale, context))
+            val subtype = AdditionalSubtypeUtils.createAdditionalSubtypesArray(
+                "$locale:korean_2set", context.assets, context
+            ).single()
+            assertEquals(languageTag, subtype.localeString())
+            assertEquals("korean_2set", AdditionalSubtypeUtils.getKeyboardLayoutFromSubtype(subtype))
+            assertTrue(AdditionalSubtypeUtils.matchesLocaleAndKeyboardLayoutSet(subtype, locale, "korean_2set"))
+        }
+    }
+
+    @Test
+    fun koreanSystemLocale_withoutDictionary_isAutoAddedAsDynamicSubtype() {
+        val context = RuntimeEnvironment.getApplication()
+        val configuration = context.resources.configuration
+        configuration.setLocales(LocaleList(Locale.KOREA))
+        context.resources.updateConfiguration(configuration, context.resources.displayMetrics)
+        SettingsManager.setCustomInputStyles(context, "en:qwerty")
+
+        AdditionalSubtypeUtils.autoAddSystemLocalesWithoutDictionary(context)
+
+        assertEquals("en:qwerty;ko_KR:korean_2set", SettingsManager.getCustomInputStyles(context))
+        val subtypes = AdditionalSubtypeUtils.createAdditionalSubtypesArray(
+            SettingsManager.getCustomInputStyles(context),
+            context.assets,
+            context
+        )
+        assertTrue(subtypes.any { subtype ->
+            subtype.localeString() == "ko-KR" &&
+                AdditionalSubtypeUtils.getKeyboardLayoutFromSubtype(subtype) == "korean_2set" &&
+                subtype.isAsciiCapable
+        })
+    }
+
+    @Test
+    fun turkishSystemLocale_withoutDictionary_usesSameDynamicSubtypeConvention() {
+        val context = RuntimeEnvironment.getApplication()
+        val configuration = context.resources.configuration
+        configuration.setLocales(LocaleList(Locale.forLanguageTag("tr-TR")))
+        context.resources.updateConfiguration(configuration, context.resources.displayMetrics)
+        SettingsManager.setCustomInputStyles(context, "")
+
+        AdditionalSubtypeUtils.autoAddSystemLocalesWithoutDictionary(context)
+
+        assertEquals("tr_TR:turkish_multitap", SettingsManager.getCustomInputStyles(context))
+    }
+
+    @Test
+    fun removingAutoAddedSystemLocale_preservesUserStyleForSameLocale() {
+        val context = RuntimeEnvironment.getApplication()
+        val configuration = context.resources.configuration
+        configuration.setLocales(LocaleList(Locale.KOREA))
+        context.resources.updateConfiguration(configuration, context.resources.displayMetrics)
+        SettingsManager.setCustomInputStyles(context, "")
+
+        AdditionalSubtypeUtils.autoAddSystemLocalesWithoutDictionary(context)
+        SettingsManager.setCustomInputStyles(
+            context,
+            "${SettingsManager.getCustomInputStyles(context)};ko_KR:qwerty"
+        )
+
+        configuration.setLocales(LocaleList(Locale.US))
+        context.resources.updateConfiguration(configuration, context.resources.displayMetrics)
+        AdditionalSubtypeUtils.removeSystemLocalesWithoutDictionary(context)
+
+        assertEquals("ko_KR:qwerty", SettingsManager.getCustomInputStyles(context))
     }
 
     @Test
