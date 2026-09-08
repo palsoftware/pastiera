@@ -81,7 +81,7 @@ fun TypingSoundSettingsRow() {
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
-            .clickable { showTypingSoundMenu = true }
+            .settingRow("sounds.typing_mode") { showTypingSoundMenu = true }
     ) {
         Row(
             modifier = Modifier
@@ -169,7 +169,7 @@ fun TypingSoundSettingsRow() {
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 88.dp)
-            .clickable { showOutputMenu = true }
+            .settingRow("sounds.output") { showOutputMenu = true }
     ) {
         Row(
             modifier = Modifier
@@ -247,7 +247,7 @@ fun TypingSoundSettingsRow() {
 
     Surface(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWidth().settingRow("sounds.system_haptics")
             .heightIn(min = 72.dp)
     ) {
         Row(
@@ -290,7 +290,7 @@ fun TypingSoundSettingsRow() {
     if (!tapHapticUseSystem) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth().settingRow("sounds.haptic_duration")
                 .heightIn(min = 104.dp)
         ) {
             Column(

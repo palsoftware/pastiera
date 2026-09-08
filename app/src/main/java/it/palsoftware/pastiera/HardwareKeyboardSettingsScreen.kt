@@ -1,6 +1,5 @@
 package it.palsoftware.pastiera
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -67,6 +66,11 @@ fun HardwareKeyboardSettingsScreen(
 ) {
     var destination by rememberSaveable { mutableStateOf(HardwareKeyboardDestination.Main) }
 
+    val settingHighlight = LocalSettingHighlightId.current
+    androidx.compose.runtime.LaunchedEffect(settingHighlight) {
+        if (settingHighlight != null) destination = HardwareKeyboardDestination.Main
+    }
+
     when (destination) {
         HardwareKeyboardDestination.Main -> HardwareKeyboardListScreen(
             modifier = modifier,
@@ -115,7 +119,6 @@ private fun HardwareKeyboardListScreen(
         }
     val detectedProfile = detectedProfileLabels.joinToString(", ")
 
-    BackHandler { onBack() }
 
     Scaffold(
         topBar = {
@@ -184,7 +187,7 @@ private fun HardwareKeyboardListScreen(
             ExposedDropdownMenuBox(
                 expanded = profileMenuExpanded,
                 onExpandedChange = { profileMenuExpanded = it },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                modifier = Modifier.settingRow("hardware.profile").padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
                 OutlinedTextField(
                     value = selectedProfileLabel,
@@ -235,6 +238,7 @@ private fun HardwareKeyboardListScreen(
             )
             HardwareKeyboardNavigationRow(
                 title = stringResource(R.string.alt_key_editor_title),
+                linkId = "hardware.alt_editor",
                 description = stringResource(R.string.alt_key_editor_summary),
                 icon = Icons.Filled.Edit,
                 status = FeatureStatus.Construction,
@@ -245,6 +249,7 @@ private fun HardwareKeyboardListScreen(
 
             HardwareKeyboardSwitchRow(
                 title = stringResource(R.string.titan2_layout_title),
+                linkId = "hardware.titan2_layout",
                 description = stringResource(R.string.titan2_layout_description),
                 checked = titan2LayoutEnabled,
                 onCheckedChange = { enabled ->
@@ -263,7 +268,7 @@ private fun HardwareKeyboardListScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .settingRow("hardware.currency").padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 SettingsManager.physicalKeyboardCurrencySymbols().forEach { symbol ->
@@ -339,6 +344,7 @@ private fun HardwareKeyboardSectionDivider(text: String) {
 @Composable
 private fun HardwareKeyboardNavigationRow(
     title: String,
+    linkId: String? = null,
     description: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     status: FeatureStatus? = null,
@@ -347,7 +353,7 @@ private fun HardwareKeyboardNavigationRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .settingRow(linkId, onClick)
     ) {
         Row(
             modifier = Modifier
@@ -387,11 +393,12 @@ private fun HardwareKeyboardNavigationRow(
 @Composable
 private fun HardwareKeyboardSwitchRow(
     title: String,
+    linkId: String? = null,
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Surface(modifier = Modifier.fillMaxWidth()) {
+    Surface(modifier = Modifier.settingRow(linkId).fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

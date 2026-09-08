@@ -358,6 +358,7 @@
     <string name="clipboard_history_title">Historique du presse-papiers</string>
     <string name="clipboard_clear_all">Tout effacer</string>
     <string name="clipboard_empty_state">Aucun historique du presse-papiers</string>
+    <string name="clipboard_locked_state">L’historique du presse-papiers n’est pas disponible lorsque l’appareil est verrouillé.</string>
     <string name="clipboard_pin">Épingler</string>
     <string name="clipboard_unpin">Retirer l\'épingle</string>
     <string name="clipboard_delete">Supprimer</string>
@@ -365,11 +366,10 @@
     <string name="clipboard_retention_time_title">Durée de rétention du presse-papiers</string>
     <string name="clipboard_retention_time_description">0 = ne jamais supprimer</string>
     <string name="clipboard_retention_time_minutes">%1$d minutes</string>
-    <string name="update_dialog_title">Nouvelle mise à jour disponible</string>
-    <string name="update_dialog_message">La version %1$s est disponible sur GitHub.</string>
-    <string name="update_dialog_open_github">Ouvrir GitHub</string>
-    <string name="update_dialog_later">Plus tard</string>
-    <string name="update_dialog_download_apk">Télécharger l\'APK</string>
+    <string name="successor_dialog_title">Pastiera a un successeur</string>
+    <string name="successor_dialog_message">Plektra succède à Pastiera. %1$s est disponible sur GitHub.</string>
+    <string name="successor_dialog_open_release">Voir la version de Plektra</string>
+    <string name="successor_dialog_later">Plus tard</string>
     <string name="custom_input_styles_title">Langues de saisie</string>
     <string name="custom_input_styles_description">Ajouter des langues supplémentaires et des dispositions de clavier qui ne sont pas liées à la locale système</string>
     <string name="custom_input_styles_language_label">Langue</string>
@@ -470,15 +470,15 @@
     <string name="languages_title">Langues</string>
     <string name="languages_description">Ajoutez des langues au sélecteur de méthode de saisie Android. Seules les langues avec dictionnaire qui ne sont pas des langues système sont affichées.</string>
     <string name="languages_no_available">Toutes les langues disponibles sont déjà ajoutées ou sont des langues système.</string>
-    <string name="settings_update_section_title">Mises à jour</string>
-    <string name="settings_update_section_description">Vérifier la dernière version sur GitHub.</string>
-    <string name="settings_update_checking">Vérification des mises à jour…</string>
-    <string name="settings_update_up_to_date">L’application est à jour.</string>
+    <string name="settings_update_section_title">Plektra</string>
+    <string name="settings_update_section_description">Rechercher une nouvelle version du successeur Plektra.</string>
+    <string name="settings_update_checking">Recherche des versions de Plektra…</string>
+    <string name="settings_update_up_to_date">Aucune version de Plektra trouvée.</string>
     <string name="settings_update_check_failed">Impossible de joindre GitHub.</string>
     <string name="notification_update_channel_name">Mises à jour Pastiera</string>
     <string name="notification_update_channel_description">Notifications des nouvelles versions de Pastiera</string>
-    <string name="notification_update_available_title">Pastiera - Nouvelle mise à jour disponible</string>
-    <string name="notification_update_available_text">Une nouvelle version de Pastiera est disponible (%1$s)</string>
+    <string name="notification_successor_release_title">Version de Plektra disponible</string>
+    <string name="notification_successor_release_text">%1$s est disponible comme successeur de Pastiera.</string>
     <string name="speech_recognition_error_no_match">Aucun texte reconnu. Réessayez.</string>
     <string name="speech_recognition_error_timeout">Aucune entrée vocale détectée.</string>
     <string name="speech_recognition_error_permission">Autorisation du microphone refusée.</string>

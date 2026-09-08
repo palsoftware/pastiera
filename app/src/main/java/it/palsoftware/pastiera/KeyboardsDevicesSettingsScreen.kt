@@ -3,7 +3,6 @@ package it.palsoftware.pastiera
 import android.hardware.input.InputManager
 import android.view.InputDevice
 import android.view.KeyEvent
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -153,7 +152,6 @@ private fun KeyboardsDevicesMainScreen(
     }
     val shortcut = shortcutKeyCode?.let { "Ctrl+${KeyEvent.keyCodeToString(it).removePrefix("KEYCODE_")}" }
 
-    BackHandler(onBack = onBack)
     Scaffold(topBar = { SettingsSubscreenHeader(stringResource(R.string.keyboards_devices_title), onBack) }) { paddingValues ->
         Column(
             modifier = modifier

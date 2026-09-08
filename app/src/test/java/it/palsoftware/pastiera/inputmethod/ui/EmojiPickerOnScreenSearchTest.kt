@@ -60,7 +60,7 @@ class EmojiPickerOnScreenSearchTest {
         val width = view.resources.displayMetrics.widthPixels
         assertEquals(width - (width / 10) * 9, right.layoutParams.width)
         assertEquals(View.INVISIBLE, right.visibility)
-        assertTrue(right.background is android.graphics.drawable.ColorDrawable)
+        assertTrue(right.background is android.graphics.drawable.InsetDrawable)
         right.performClick()
         assertTrue(closed)
         view.configureRoundedControls(false, 110, 40f)

@@ -1,0 +1,4 @@
+<resources>
+    <string name="corner_calibration_title">Display corner calibration</string>
+    <string name="corner_calibration_description">Advanced calibration of the Titan 2 Elite display contour.</string>
+</resources>

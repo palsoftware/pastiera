@@ -9,6 +9,7 @@ class FlavorBuildConfigTest {
 
     @Test
     fun releaseChannelBuildConfigMatchesFlavor() {
+        assertTrue(BuildConfig.SUCCESSOR_GITHUB_REPOSITORY.matches(Regex("[^/]+/[^/]+")))
         when (BuildConfig.RELEASE_CHANNEL) {
             "stable" -> {
                 assertEquals(BuildConfig.IS_FDROID_BUILD, !BuildConfig.ENABLE_GITHUB_UPDATE_CHECKS)

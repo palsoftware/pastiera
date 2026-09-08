@@ -389,7 +389,7 @@ class EmojiPickerView(
         bar.layoutParams = bar.layoutParams.apply { this.height = height }
         tabScrollView.layoutParams = tabScrollView.layoutParams.apply { this.height = height }
         tabRow.layoutParams = tabRow.layoutParams.apply { this.height = height }
-        tabRow.setPadding(if (enabled) 0 else smallPadding / 2, 0, if (enabled) 0 else smallPadding / 2, 0)
+        tabRow.setPadding(smallPadding / 2, 0, smallPadding / 2, 0)
         for (index in 0 until tabRow.childCount) {
             val category = tabRow.getChildAt(index)
             category.layoutParams = category.layoutParams.apply {
@@ -404,7 +404,7 @@ class EmojiPickerView(
                         if (button === closeButton) width - (width / 10) * 9 else width / 10
                     } else dpToPx(if (button === closeButton) 36f else 32f)
                     this.height = height
-                    marginEnd = if (!enabled && button === searchToggleButton) spacing else 0
+                    marginEnd = if (button === searchToggleButton) spacing else 0
                 }
             }
             applyEdgeControlAppearance()
@@ -416,7 +416,14 @@ class EmojiPickerView(
     private fun applyEdgeControlAppearance() {
         listOf(searchToggleButton, closeButton).forEach { button ->
             if (roundedControls) {
-                button.background = ColorDrawable(themeOverride?.statusBarButton ?: Color.TRANSPARENT)
+                button.background = if (button === closeButton) createCloseButtonBackground() else createTabBackground(isSearchPanelVisible)
+                if (roundedControls) button.background = android.graphics.drawable.InsetDrawable(
+                    button.background,
+                    if (button === searchToggleButton) dpToPx(3f) else 0,
+                    0,
+                    if (button === closeButton) dpToPx(3f) else 0,
+                    dpToPx(3f)
+                )
                 button.setPadding(0, 0, 0, 0)
                 button.scaleType = ImageView.ScaleType.MATRIX
                 button.drawable?.let { icon ->
@@ -425,7 +432,7 @@ class EmojiPickerView(
                         setScale(scale, scale)
                         postTranslate(
                             (button.layoutParams.width - icon.intrinsicWidth * scale) / 2f +
-                                dpToPx(4f) * if (button === searchToggleButton) 1 else -1,
+                                dpToPx(8f) * if (button === searchToggleButton) 1 else -1,
                             (button.layoutParams.height - icon.intrinsicHeight * scale) / 2f - dpToPx(2f)
                         )
                     }
@@ -435,6 +442,13 @@ class EmojiPickerView(
                 button.setPadding(pad, pad, pad, pad)
                 button.scaleType = ImageView.ScaleType.CENTER_INSIDE
                 button.background = if (button === closeButton) createCloseButtonBackground() else createTabBackground(isSearchPanelVisible)
+                if (roundedControls) button.background = android.graphics.drawable.InsetDrawable(
+                    button.background,
+                    if (button === searchToggleButton) dpToPx(3f) else 0,
+                    0,
+                    if (button === closeButton) dpToPx(3f) else 0,
+                    dpToPx(3f)
+                )
             }
         }
     }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -43,10 +44,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
@@ -158,29 +156,8 @@ fun CustomizationSettingsScreen(
             }
         )
     }
-    var navigationDirection by remember { mutableStateOf(CustomizationNavigationDirection.Push) }
-    val navigationStack = rememberSaveable(saver = customizationNavigationStackSaver) {
-        mutableStateListOf<CustomizationDestination>().apply {
-            val deepLinkedDestination = when (initialDestination) {
-                SettingsActivity.CUSTOMIZATION_DESTINATION_VARIATIONS ->
-                    CustomizationDestination.Variations
-                SettingsActivity.CUSTOMIZATION_DESTINATION_LAUNCHER_SHORTCUTS ->
-                    CustomizationDestination.LauncherShortcuts
-                SettingsActivity.CUSTOMIZATION_DESTINATION_APP_ENTER_BEHAVIOR ->
-                    CustomizationDestination.AppEnterBehavior
-                SettingsActivity.CUSTOMIZATION_DESTINATION_STATUS_BAR_BUTTONS ->
-                    CustomizationDestination.StatusBarButtons
-                SettingsActivity.CUSTOMIZATION_DESTINATION_KEYBOARD_THEME ->
-                    CustomizationDestination.KeyboardTheme
-                else -> null
-            }
-            add(deepLinkedDestination ?: CustomizationDestination.Main)
-        }
-    }
-    val currentDestination by remember {
-        derivedStateOf { navigationStack.last() }
-    }
-
+    val currentDestination = CustomizationDestination.entries.firstOrNull { it.name == settingsChild(context, "customization") } ?: customizationDestination(initialDestination)
+    val settingHighlightId = LocalSettingHighlightId.current
     DisposableEffect(prefs) {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             when (key) {
@@ -261,49 +238,14 @@ fun CustomizationSettingsScreen(
         prefs.registerOnSharedPreferenceChangeListener(listener)
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }
-    
+
     fun navigateTo(destination: CustomizationDestination) {
-        navigationDirection = CustomizationNavigationDirection.Push
-        navigationStack.add(destination)
+        openSettingsChild(context, "customization", destination.name)
     }
-    
-    fun navigateBack() {
-        if (navigationStack.size > 1) {
-            navigationDirection = CustomizationNavigationDirection.Pop
-            navigationStack.removeAt(navigationStack.lastIndex)
-        } else {
-            onBack()
-        }
-    }
-    
-    BackHandler { navigateBack() }
-    
-    AnimatedContent(
-        targetState = currentDestination,
-        transitionSpec = {
-            if (navigationDirection == CustomizationNavigationDirection.Push) {
-                // Forward navigation: new screen enters from right, old screen exits to left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                )
-            } else {
-                // Back navigation: current screen exits to right, previous screen enters from left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                )
-            }
-        },
-        label = "customization_navigation",
-        contentKey = { it }
-    ) { destination ->
+    fun navigateBack() { context.settingsActivity().finish() }
+
+
+    val destination = currentDestination
         when (destination) {
             CustomizationDestination.Main -> {
                 Scaffold(
@@ -347,7 +289,7 @@ fun CustomizationSettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
-                                .clickable { navigateTo(CustomizationDestination.Variations) }
+                                .settingRow("customization.variations") { navigateTo(CustomizationDestination.Variations) }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -377,13 +319,13 @@ fun CustomizationSettingsScreen(
                                 )
                             }
                         }
-                    
+
                         // Sound Settings
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 64.dp)
-                                .clickable { navigateTo(CustomizationDestination.Sounds) }
+                                .settingRow("customization.sounds") { navigateTo(CustomizationDestination.Sounds) }
                         ) {
                             Row(
                                 modifier = Modifier
@@ -423,7 +365,7 @@ fun CustomizationSettingsScreen(
                     }
                 }
             }
-            
+
             CustomizationDestination.Variations -> {
                 VariationCustomizationScreen(
                     modifier = modifier,
@@ -440,7 +382,7 @@ fun CustomizationSettingsScreen(
                     }
                 )
             }
-            
+
             CustomizationDestination.LauncherShortcuts -> {
                 StarterLauncherShortcutsSettingsScreen(
                     modifier = modifier,
@@ -573,7 +515,7 @@ fun CustomizationSettingsScreen(
                     onBack = { navigateBack() }
                 )
             }
-            
+
             CustomizationDestination.StatusBarButtons -> {
                 StatusBarButtonsScreen(
                     modifier = modifier,
@@ -600,6 +542,7 @@ fun CustomizationSettingsScreen(
                             SettingsManager.KeyboardThemeTarget.HARDWARE
                         else -> null
                     },
+                    initialAssignment = initialDestination == "keyboard_theme_assignment",
                     initialTab = KeyboardThemeEditorTab.values().firstOrNull { tab ->
                         tab.name.equals(initialKeyboardThemeTab, ignoreCase = true)
                     }
@@ -613,7 +556,6 @@ fun CustomizationSettingsScreen(
                 )
             }
         }
-    }
 }
 
 @Composable
@@ -704,6 +646,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 },
+                linkId = "quick_launcher.enabled",
                 title = stringResource(R.string.launcher_shortcuts_title),
                 description = stringResource(R.string.launcher_shortcuts_description),
                 checked = launcherShortcutsEnabled,
@@ -719,6 +662,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 },
+                linkId = "quick_launcher.sym_shortcuts",
                 title = stringResource(R.string.power_shortcuts_title),
                 description = stringResource(R.string.power_shortcuts_description),
                 checked = powerShortcutsEnabled,
@@ -728,6 +672,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                 LauncherShortcutTriggerRow(
                     icon = {},
                     title = stringResource(R.string.key_shortcuts_allow_in_text_fields_title),
+                    linkId = "quick_launcher.sym_in_text_fields",
                     description = stringResource(R.string.sym_shortcuts_in_text_fields_description),
                     checked = symShortcutsInTextFields,
                     onCheckedChange = onSymShortcutsInTextFieldsChanged,
@@ -744,6 +689,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 },
+                linkId = "quick_launcher.alt_shortcuts",
                 title = stringResource(R.string.alt_key_shortcuts_title),
                 description = stringResource(R.string.alt_key_shortcuts_description),
                 checked = altKeyShortcutsEnabled,
@@ -753,6 +699,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                 LauncherShortcutTriggerRow(
                     icon = {},
                     title = stringResource(R.string.key_shortcuts_allow_in_text_fields_title),
+                    linkId = "quick_launcher.alt_in_text_fields",
                     description = stringResource(R.string.alt_shortcuts_in_text_fields_description),
                     checked = altShortcutsInTextFields,
                     onCheckedChange = onAltShortcutsInTextFieldsChanged,
@@ -769,6 +716,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 },
+                linkId = "quick_launcher.behavior",
                 title = stringResource(R.string.quick_launcher_behaviour_title),
                 description = stringResource(R.string.quick_launcher_behaviour_description),
                 onClick = onOpenBehavior
@@ -783,6 +731,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 },
+                linkId = "quick_launcher.appearance",
                 title = stringResource(R.string.quick_launcher_cosmetic_title),
                 description = stringResource(R.string.quick_launcher_cosmetic_description),
                 onClick = onOpenCosmetic
@@ -797,6 +746,7 @@ private fun StarterLauncherShortcutsSettingsScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 },
+                linkId = "quick_launcher.assignments",
                 title = stringResource(R.string.launcher_shortcuts_configure),
                 description = if (quickLauncherShortcutKey != null) {
                     stringResource(
@@ -839,11 +789,12 @@ private fun StarterLauncherBehaviorScreen(
 
     StarterLauncherSubScreen(
         modifier = modifier,
+        linkId = "quick_launcher.behavior",
         title = stringResource(R.string.quick_launcher_behaviour_title),
         onBack = onBack
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.provider"),
             tonalElevation = 1.dp,
             shape = MaterialTheme.shapes.medium
         ) {
@@ -897,6 +848,7 @@ private fun StarterLauncherBehaviorScreen(
         }
         LauncherShortcutTriggerRow(
             icon = { SettingsRowKeyboardIcon() },
+            linkId = "quick_launcher.auto_start_single",
             title = stringResource(R.string.quick_launcher_auto_start_single_title),
             description = stringResource(R.string.quick_launcher_auto_start_single_description),
             checked = quickLauncherAutoStartSingle,
@@ -904,6 +856,7 @@ private fun StarterLauncherBehaviorScreen(
         )
         LauncherShortcutTriggerRow(
             icon = { SettingsRowKeyboardIcon() },
+            linkId = "quick_launcher.limit_results",
             title = stringResource(R.string.quick_launcher_limit_results_title),
             description = stringResource(R.string.quick_launcher_limit_results_description),
             checked = quickLauncherLimitResults,
@@ -911,6 +864,7 @@ private fun StarterLauncherBehaviorScreen(
         )
         LauncherShortcutTriggerRow(
             icon = { SettingsRowKeyboardIcon() },
+            linkId = "quick_launcher.respect_keyboard_layout",
             title = stringResource(R.string.quick_launcher_respect_keyboard_layout_title),
             description = stringResource(R.string.quick_launcher_respect_keyboard_layout_description),
             checked = quickLauncherRespectKeyboardLayout,
@@ -918,6 +872,7 @@ private fun StarterLauncherBehaviorScreen(
         )
         LauncherShortcutTriggerRow(
             icon = { SettingsRowKeyboardIcon() },
+            linkId = "quick_launcher.typo_tolerant_ranking",
             title = stringResource(R.string.quick_launcher_typo_tolerant_ranking_title),
             description = stringResource(R.string.quick_launcher_typo_tolerant_ranking_description),
             checked = quickLauncherTypoTolerantRanking,
@@ -936,7 +891,7 @@ private fun StarterLauncherBehaviorScreen(
             Text(stringResource(R.string.quick_launcher_ranking_info_button))
         }
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.animation_duration"),
             tonalElevation = 1.dp,
             shape = MaterialTheme.shapes.medium
         ) {
@@ -1027,7 +982,7 @@ private fun QuickLauncherDisplayedEntriesSection(
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.entries"),
         tonalElevation = 1.dp,
         shape = MaterialTheme.shapes.medium
     ) {
@@ -1063,7 +1018,15 @@ private fun QuickLauncherDisplayedEntriesSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 2.dp),
+                        .padding(vertical = 2.dp)
+                        .settingRow(when (item.sourceId) {
+                            CommandSourceId.Apps.storageValue -> "quick_launcher.source.apps"
+                            CommandSourceId.Pastiera.storageValue -> "quick_launcher.source.pastiera"
+                            CommandSourceId.AppActions.storageValue -> "quick_launcher.source.app_actions"
+                            CommandSourceId.DeviceControl.storageValue -> "quick_launcher.source.device_control"
+                            CommandSourceId.NavActions.storageValue -> "quick_launcher.source.nav_actions"
+                            else -> null
+                        }),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -1082,7 +1045,7 @@ private fun QuickLauncherDisplayedEntriesSection(
             }
             Button(
                 onClick = { showCustomizeDialog = true },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.customize_entries")
             ) {
                 Icon(
                     imageVector = Icons.Filled.Edit,
@@ -1524,11 +1487,12 @@ private fun StarterLauncherCosmeticScreen(
 ) {
     StarterLauncherSubScreen(
         modifier = modifier,
+        linkId = "quick_launcher.appearance",
         title = stringResource(R.string.quick_launcher_cosmetic_title),
         onBack = onBack
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.width"),
             tonalElevation = 1.dp,
             shape = MaterialTheme.shapes.medium
         ) {
@@ -1556,6 +1520,7 @@ private fun StarterLauncherCosmeticScreen(
         }
         LauncherShortcutTriggerRow(
             icon = { SettingsRowKeyboardIcon() },
+            linkId = "quick_launcher.pill_mode",
             title = stringResource(R.string.quick_launcher_pill_mode_title),
             description = stringResource(R.string.quick_launcher_pill_mode_description),
             checked = quickLauncherPillMode,
@@ -1612,7 +1577,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                 fontWeight = FontWeight.Medium
             )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.highlight_favorites"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -1625,6 +1590,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 ColorSwatchButton(
+                    linkId = "quick_launcher.favorite_color",
                     color = favoriteHighlightColor,
                     showDynamic = true,
                     onColorChanged = {
@@ -1639,7 +1605,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                 )
             }
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.icon_colors"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -1654,7 +1620,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                 )
             }
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.static_top_highlight"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -1664,6 +1630,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 ColorSwatchButton(
+                    linkId = "quick_launcher.top_match_color",
                     color = staticTopHighlightColor,
                     showDynamic = false,
                     onColorChanged = { it?.let(onStaticTopHighlightColorChanged) }
@@ -1674,7 +1641,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
                 )
             }
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().settingRow("quick_launcher.alias_first"),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -1694,6 +1661,7 @@ private fun QuickLauncherFavoriteAppearanceSection(
 
 @Composable
 private fun ColorSwatchButton(
+    linkId: String? = null,
     color: Int?,
     dynamicColor: Int? = null,
     showDynamic: Boolean = false,
@@ -1723,7 +1691,7 @@ private fun ColorSwatchButton(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                     shape = shape
                 )
-                .clickable { expanded = true }
+                .settingRow(linkId) { expanded = true }
         )
         DropdownMenu(
             expanded = expanded,
@@ -1887,6 +1855,7 @@ private fun Drawable.toPickerSmallBitmap(): Bitmap? {
 private fun StarterLauncherSubScreen(
     modifier: Modifier = Modifier,
     title: String,
+    linkId: String? = null,
     onBack: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -1914,7 +1883,7 @@ private fun StarterLauncherSubScreen(
                         text = title,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = 8.dp).settingRow(linkId)
                     )
                 }
             }
@@ -1939,10 +1908,11 @@ private fun LauncherShortcutTriggerRow(
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    indent: Boolean = false
+    indent: Boolean = false,
+    linkId: String? = null
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().settingRow(linkId),
         tonalElevation = 1.dp,
         shape = MaterialTheme.shapes.medium
     ) {
@@ -1985,6 +1955,7 @@ private fun LauncherShortcutTriggerRow(
 
 @Composable
 private fun StarterLauncherNavigationRow(
+    linkId: String? = null,
     icon: @Composable () -> Unit,
     title: String,
     description: String,
@@ -1993,7 +1964,7 @@ private fun StarterLauncherNavigationRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .settingRow(linkId, onClick),
         tonalElevation = 1.dp,
         shape = MaterialTheme.shapes.medium
     ) {
@@ -2103,7 +2074,7 @@ private fun SoundSettingsScreen(
                         text = stringResource(R.string.settings_category_sounds),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier.padding(start = 8.dp).settingRow("customization.sounds")
                     )
                 }
             }
@@ -2133,17 +2104,17 @@ private enum class CustomizationDestination {
     Sounds
 }
 
-private val customizationNavigationStackSaver =
-    listSaver<SnapshotStateList<CustomizationDestination>, String>(
-        save = { stack -> stack.map(CustomizationDestination::name) },
-        restore = { routes ->
-            mutableStateListOf<CustomizationDestination>().apply {
-                addAll(routes.map(CustomizationDestination::valueOf))
-            }
-        }
-    )
 
-private enum class CustomizationNavigationDirection {
-    Push,
-    Pop
+
+private fun customizationDestination(destination: String?): CustomizationDestination = when (destination) {
+    SettingsActivity.CUSTOMIZATION_DESTINATION_VARIATIONS -> CustomizationDestination.Variations
+    SettingsActivity.CUSTOMIZATION_DESTINATION_LAUNCHER_SHORTCUTS -> CustomizationDestination.LauncherShortcuts
+    SettingsActivity.CUSTOMIZATION_DESTINATION_APP_ENTER_BEHAVIOR -> CustomizationDestination.AppEnterBehavior
+    SettingsActivity.CUSTOMIZATION_DESTINATION_STATUS_BAR_BUTTONS -> CustomizationDestination.StatusBarButtons
+    SettingsActivity.CUSTOMIZATION_DESTINATION_KEYBOARD_THEME, "keyboard_theme_assignment" -> CustomizationDestination.KeyboardTheme
+    "launcher_shortcut_behavior" -> CustomizationDestination.LauncherShortcutBehavior
+    "launcher_shortcut_cosmetic" -> CustomizationDestination.LauncherShortcutCosmetic
+    "launcher_shortcut_assignments" -> CustomizationDestination.LauncherShortcutAssignments
+    "sounds" -> CustomizationDestination.Sounds
+    else -> CustomizationDestination.Main
 }

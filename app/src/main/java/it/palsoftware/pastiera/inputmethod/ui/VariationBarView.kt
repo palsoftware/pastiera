@@ -163,7 +163,7 @@ class VariationBarView(
                     pressedColor = it.accent,
                     iconColor = it.textAndIcons,
                     cornerRadiusRatio = it.keyCornerRadiusRatio,
-                    borderColor = it.divider,
+                    borderColor = it.statusButtonBorder,
                     borderWidthPx = dpToPx(1f)
                 )
             }
@@ -267,7 +267,7 @@ class VariationBarView(
         ).toInt()
 
     private fun verticalPaddingPx(): Int =
-        if (SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) 0 else TypedValue.applyDimension(
+        TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             BASE_VERTICAL_PADDING_DP * min(
                 (themeOverride?.variationsHeightScale ?: 1f).coerceIn(0.65f, 1.6f),
@@ -450,10 +450,7 @@ class VariationBarView(
                     }
                     staticVariationsAlt
                 } else {
-                    val staticPreset = SettingsManager.getStaticVariationBarPreset(context)
-                    if (staticPreset != SettingsManager.STATIC_VARIATION_PRESET_SYMBOLS) {
-                        staticVariations = SettingsManager.getStaticVariationBasePreset(context)
-                    } else if (staticVariations.isEmpty()) {
+                    if (staticVariations.isEmpty()) {
                         val loaded = VariationRepository.loadStaticVariations(context.assets, context)
                         staticVariations = loaded.ifEmpty {
                             SettingsManager.getStaticVariationBasePreset(context)
@@ -489,8 +486,7 @@ class VariationBarView(
         val themeSignature = themeOverride.signature()
         val themeChanged = lastThemeSignature != themeSignature
         val roundedCorners = SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)
-        val fallbackWidth = context.resources.displayMetrics.widthPixels -
-            if (roundedCorners) 2 * dpToPx(6.5f) else 0
+        val fallbackWidth = context.resources.displayMetrics.widthPixels
         val availableWidth = ((containerView.width.takeIf { it > 0 } ?: fallbackWidth) -
             containerView.paddingLeft - containerView.paddingRight).coerceAtLeast(1)
         val geometrySignature = listOf(
@@ -530,7 +526,7 @@ class VariationBarView(
         }
         currentVariationsRow = null
 
-        val spacingBetweenButtons = if (roundedCorners) 0 else TypedValue.applyDimension(
+        val spacingBetweenButtons = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             3f,
             context.resources.displayMetrics
@@ -560,14 +556,16 @@ class VariationBarView(
         }
         val variationSlots = if (reservesVariationArea) variationSlotsForSizing else 0
         val totalElements = (totalButtonCount + variationSlots).coerceAtLeast(1)
-        val rawFixedButtonSize = max(1, (availableWidth - spacingBetweenButtons * (totalElements - 1)) / totalElements)
+        val outerButtonExtra = if (roundedCorners) dpToPx(8f) else 0
+        val outerButtonsExtra = outerButtonExtra * ((if (hasLeftButtons) 1 else 0) + (if (hasRightButtons) 1 else 0))
+        val rawFixedButtonSize = max(1, (availableWidth - (if (reservesVariationArea) 0 else outerButtonsExtra) - spacingBetweenButtons * (totalElements - 1)) / totalElements)
         val fixedButtonWidth = if (reservesVariationArea) {
             min(rawFixedButtonSize, maxButtonHeight)
         } else {
             rawFixedButtonSize
         }
         val fixedButtonHeight = maxButtonHeight
-        val fixedButtonsTotalWidth = fixedButtonWidth * totalButtonCount
+        val fixedButtonsTotalWidth = fixedButtonWidth * totalButtonCount + outerButtonsExtra
         // Space only between buttons within each group (no trailing margin).
         val fixedButtonsSpacing = spacingBetweenButtons * (
             (leftButtonCount - 1).coerceAtLeast(0) + (rightButtonCount - 1).coerceAtLeast(0)
@@ -656,17 +654,20 @@ class VariationBarView(
         fun createAndAddButton(
             buttonId: StatusBarButtonId,
             container: LinearLayout,
-            isLastInGroup: Boolean
+            isLastInGroup: Boolean,
+            outerEdge: StatusBarButtonPosition?
         ) {
             val host = buttonHost ?: return
+            val actualButtonWidth = fixedButtonWidth + if (outerEdge != null) outerButtonExtra else 0
             val hosted = host.getOrCreateButton(
                 buttonId,
                 fixedButtonHeight,
                 statusBarCallbacks,
-                fixedButtonWidth,
+                actualButtonWidth,
                 fixedButtonHeight
             ) ?: return
-            val params = LinearLayout.LayoutParams(fixedButtonWidth, fixedButtonHeight).apply {
+            host.setOuterEdge(buttonId, outerEdge)
+            val params = LinearLayout.LayoutParams(actualButtonWidth, fixedButtonHeight).apply {
                 marginEnd = if (isLastInGroup) 0 else spacingBetweenButtons
             }
             hosted.container.visibility = View.VISIBLE
@@ -686,7 +687,7 @@ class VariationBarView(
         val leftButtons = enabledButtons.filter { it.position == StatusBarButtonPosition.LEFT }
         leftButtons.forEachIndexed { index, config ->
             val isLast = index == leftButtons.lastIndex
-            leftButtonsContainer?.let { createAndAddButton(config.id, it, isLast) }
+            leftButtonsContainer?.let { createAndAddButton(config.id, it, isLast, if (index == 0) StatusBarButtonPosition.LEFT else null) }
         }
 
         val addCandidate = snapshot.addWordCandidate
@@ -725,7 +726,7 @@ class VariationBarView(
             .sortedBy { it.order }
         rightButtons.forEachIndexed { index, config ->
             val isLast = index == rightButtons.lastIndex
-            createAndAddButton(config.id, buttonsContainerView, isLast)
+            createAndAddButton(config.id, buttonsContainerView, isLast, if (isLast) StatusBarButtonPosition.RIGHT else null)
         }
 
         if (variationAreaVisible) {
@@ -1129,13 +1130,13 @@ class VariationBarView(
                 heightPx = buttonHeight,
                 normalColor = it.normalKey,
                 pressedColor = it.accent,
-                cornerRadiusRatio = if (SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) 0f else it.chromeCornerRadiusRatio,
+                cornerRadiusRatio = it.chromeCornerRadiusRatio,
                 borderColor = it.divider,
-                borderWidthPx = if (SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) 0 else dpToPx(1f)
+                borderWidthPx = dpToPx(1f)
             )
         } ?: VariationButtonStyles.createButtonDrawable(
             buttonHeight,
-            cornerRadiusRatio = if (SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) 0f else VariationButtonStyles.BUTTON_CORNER_RADIUS_RATIO
+            cornerRadiusRatio = VariationButtonStyles.BUTTON_CORNER_RADIUS_RATIO
         )
 
         return TextView(context).apply {
@@ -1200,14 +1201,14 @@ class VariationBarView(
     }
 
     private fun createPlaceholderButton(buttonWidth: Int, buttonHeight: Int): View {
-        val dp3 = if (SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) 0 else TypedValue.applyDimension(
+        val dp3 = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             3f,
             context.resources.displayMetrics
         ).toInt()
         val drawable = GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            cornerRadius = if (SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) 0f else VariationButtonStyles.cornerRadiusForSize(
+            cornerRadius = VariationButtonStyles.cornerRadiusForSize(
                 buttonHeight,
                 themeOverride?.chromeCornerRadiusRatio
             )

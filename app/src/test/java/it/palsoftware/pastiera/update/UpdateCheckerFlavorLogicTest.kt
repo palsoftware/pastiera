@@ -12,7 +12,7 @@ class UpdateCheckerFlavorLogicTest {
 
         requireNotNull(release)
         assertEquals("v0.85", release.tagName)
-        assertEquals("https://example.com/stable.apk", release.downloadUrl)
+        assertEquals("Plektra 0.85", release.displayName)
         assertEquals("https://example.com/releases/v0.85", release.releasePageUrl)
     }
 
@@ -22,7 +22,7 @@ class UpdateCheckerFlavorLogicTest {
 
         requireNotNull(release)
         assertEquals("nightly/v0.85-nightly.20260306.214144", release.tagName)
-        assertEquals("https://example.com/nightly.apk", release.downloadUrl)
+        assertEquals("Plektra Nightly 0.85", release.displayName)
         assertEquals("https://example.com/releases/nightly-v0.85-nightly.20260306.214144", release.releasePageUrl)
     }
 
@@ -31,10 +31,10 @@ class UpdateCheckerFlavorLogicTest {
         val releases = listOf(
             GitHubRelease(
                 tagName = "beta/v0.85-beta1",
+                name = "Plektra Beta",
                 prerelease = true,
                 draft = false,
-                htmlUrl = "https://example.com/releases/beta",
-                assets = emptyList()
+                htmlUrl = "https://example.com/releases/beta"
             )
         )
 
@@ -45,41 +45,34 @@ class UpdateCheckerFlavorLogicTest {
     fun normalizeReleaseVersionStripsKnownPrefixes() {
         assertEquals("0.85", normalizeReleaseVersion("v0.85"))
         assertEquals("0.85", normalizeReleaseVersion("V0.85"))
-        assertEquals("0.85-nightly.20260306.214144", normalizeReleaseVersion("nightly/v0.85-nightly.20260306.214144"))
+        assertEquals(
+            "0.85-nightly.20260306.214144",
+            normalizeReleaseVersion("nightly/v0.85-nightly.20260306.214144")
+        )
     }
 
     private fun sampleReleases(): List<GitHubRelease> =
         listOf(
             GitHubRelease(
                 tagName = "nightly/v0.85-nightly.20260306.214144",
+                name = "Plektra Nightly 0.85",
                 prerelease = true,
                 draft = false,
-                htmlUrl = "https://example.com/releases/nightly-v0.85-nightly.20260306.214144",
-                assets = listOf(
-                    ReleaseAsset(
-                        name = "pastiera-nightly.apk",
-                        browserDownloadUrl = "https://example.com/nightly.apk"
-                    )
-                )
+                htmlUrl = "https://example.com/releases/nightly-v0.85-nightly.20260306.214144"
             ),
             GitHubRelease(
                 tagName = "v0.85",
+                name = "Plektra 0.85",
                 prerelease = false,
                 draft = false,
-                htmlUrl = "https://example.com/releases/v0.85",
-                assets = listOf(
-                    ReleaseAsset(
-                        name = "pastiera-stable.apk",
-                        browserDownloadUrl = "https://example.com/stable.apk"
-                    )
-                )
+                htmlUrl = "https://example.com/releases/v0.85"
             ),
             GitHubRelease(
                 tagName = "v0.84",
+                name = null,
                 prerelease = false,
                 draft = false,
-                htmlUrl = "https://example.com/releases/v0.84",
-                assets = emptyList()
+                htmlUrl = "https://example.com/releases/v0.84"
             )
         )
 }

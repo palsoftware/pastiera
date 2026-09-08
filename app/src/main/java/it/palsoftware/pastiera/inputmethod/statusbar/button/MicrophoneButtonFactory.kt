@@ -69,10 +69,16 @@ class MicrophoneButtonFactory : StatusBarButtonFactory {
         }
     }
     
+    internal fun setBackgroundRenderer(view: View, renderer: (Int?) -> Unit) {
+        val holder = view.getTag(R.id.tag_microphone_state) as? MicrophoneStateHolder ?: return
+        holder.backgroundRenderer = renderer
+    }
+
     override fun cleanup(view: View) {
         val stateHolder = view.getTag(R.id.tag_microphone_state) as? MicrophoneStateHolder
         stateHolder?.pulseAnimator?.cancel()
         stateHolder?.currentDrawable = null
+        stateHolder?.backgroundRenderer = null
     }
     
     /**
@@ -118,6 +124,12 @@ class MicrophoneButtonFactory : StatusBarButtonFactory {
         stateHolder.pulseAnimator?.cancel()
         stateHolder.pulseAnimator = null
         
+        stateHolder.backgroundRenderer?.let { render ->
+            render(StatusBarButtonStyles.RECOGNITION_RED)
+            button.alpha = 1f
+            return
+        }
+
         // Create base drawable with initial red color (medium intensity)
         val radius = StatusBarButtonStyles.cornerRadiusForSize(resolveHeightPx(button, stateHolder))
         val redDrawable = GradientDrawable().apply {
@@ -153,12 +165,17 @@ class MicrophoneButtonFactory : StatusBarButtonFactory {
         // Clear reference to drawable
         stateHolder.currentDrawable = null
         
+        stateHolder.backgroundRenderer?.let { render ->
+            render(null)
+            return
+        }
         // Restore normal state
         button.background = StatusBarButtonStyles.createButtonDrawable(resolveHeightPx(button, stateHolder))
     }
     
     private fun updateAudioLevel(button: ImageView, stateHolder: MicrophoneStateHolder, rmsdB: Float) {
-        val drawable = stateHolder.currentDrawable ?: return
+        val drawable = stateHolder.currentDrawable
+        if (drawable == null && stateHolder.backgroundRenderer == null) return
         
         // Map RMS value (-10 to 0) to a normalized value (0.0 to 1.0)
         val normalizedLevel = ((rmsdB - MIN_RMS_DB) / (MAX_RMS_DB - MIN_RMS_DB)).coerceIn(0f, 1f)
@@ -175,7 +192,7 @@ class MicrophoneButtonFactory : StatusBarButtonFactory {
         val color = Color.rgb(r, g, b)
         
         // Update the drawable color
-        drawable.setColor(color)
+        stateHolder.backgroundRenderer?.invoke(color) ?: drawable?.setColor(color)
         button.background?.invalidateSelf()
     }
     
@@ -186,6 +203,7 @@ class MicrophoneButtonFactory : StatusBarButtonFactory {
     private class MicrophoneStateHolder(
         val baseHeightPx: Int
     ) {
+        var backgroundRenderer: ((Int?) -> Unit)? = null
         var isActive: Boolean = false
         var currentDrawable: GradientDrawable? = null
         var pulseAnimator: ValueAnimator? = null

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setting_link_quick_launcher_highlight_favorites">Favoriten in der Liste hervorheben</string>
+    <string name="setting_link_quick_launcher_icon_colors">Einträge mit Farben der App-Symbole einfärben</string>
+    <string name="setting_link_quick_launcher_static_top_highlight">Feste Farbe für den besten Treffer verwenden</string>
+    <string name="setting_link_quick_launcher_alias_first">Suchalias vor dem Namen anzeigen</string>
+    <string name="setting_link_quick_launcher_entries">QuickLauncher-Einträge</string>
+    <string name="setting_link_quick_launcher_customize_entries">QuickLauncher-Einträge anpassen</string>
+    <string name="setting_link_quick_launcher_source_apps">Apps</string>
+    <string name="setting_link_quick_launcher_source_pastiera">Pastiera-Aktionen</string>
+    <string name="setting_link_quick_launcher_source_appactions">App-Aktionen</string>
+    <string name="setting_link_quick_launcher_source_devicecontrol">Gerätesteuerung</string>
+    <string name="setting_link_quick_launcher_source_navactions">Navigationsaktionen</string>
+    <string name="setting_link_haptic_duration">Dauer der Vibration beim Tippen</string>
+    <string name="setting_link_variation_mappings">Variantenbelegung</string>
+    <string name="setting_link_max_icon_shrink">Maximale Verkleinerung der Symbole</string>
+    <string name="setting_link_theme_preview_viewport">Maximale Größe der Vorschau</string>
+    <string name="setting_link_theme_assignment">Designzuordnung</string>
+    <string name="setting_link_status_extended_left">Erweiterte Statusleiste: linke Schaltflächen</string>
+    <string name="setting_link_status_extended_right">Erweiterte Statusleiste: rechte Schaltflächen</string>
+    <string name="setting_link_status_pastierina_left">Pastierina: linke Schaltflächen</string>
+    <string name="setting_link_status_pastierina_right">Pastierina: rechte Schaltflächen</string>
+    <string name="setting_link_theme_hardware_chrome_rounding">Hardwaretastatur: Rundung von Vorschlägen und Varianten</string>
+    <string name="setting_link_theme_hardware_suggestions_height">Hardwaretastatur: Höhe der Vorschläge</string>
+    <string name="setting_link_theme_hardware_variations_height">Hardwaretastatur: Höhe der Varianten</string>
+    <string name="setting_link_theme_hardware_led_colors">Hardwaretastatur: LED-Farben</string>
+    <string name="setting_link_theme_hardware_assignment">Hardwaretastatur: Designzuordnung</string>
+    <string name="setting_link_theme_hardware_light_theme">Hardwaretastatur: Design im hellen Modus</string>
+    <string name="setting_link_theme_hardware_dark_theme">Hardwaretastatur: Design im dunklen Modus</string>
+    <string name="setting_link_theme_hardware_layout_overrides">Hardwaretastatur: Design je Layout</string>
+    <string name="setting_link_theme_software_key_rounding">Bildschirmtastatur: Tastenrundung</string>
+    <string name="setting_link_theme_software_chrome_rounding">Bildschirmtastatur: Rundung von Vorschlägen und Varianten</string>
+    <string name="setting_link_theme_software_suggestions_height">Bildschirmtastatur: Höhe der Vorschläge</string>
+    <string name="setting_link_theme_software_variations_height">Bildschirmtastatur: Höhe der Varianten</string>
+    <string name="setting_link_theme_software_key_height">Bildschirmtastatur: Tastenhöhe</string>
+    <string name="setting_link_theme_software_number_row_height">Bildschirmtastatur: Höhe der Zahlenreihe</string>
+    <string name="setting_link_theme_software_key_width">Bildschirmtastatur: Tastenbreite</string>
+    <string name="setting_link_theme_software_row_spacing">Bildschirmtastatur: Zeilenabstand</string>
+    <string name="setting_link_theme_software_led_colors">Bildschirmtastatur: LED-Farben</string>
+    <string name="setting_link_theme_software_assignment">Bildschirmtastatur: Designzuordnung</string>
+    <string name="setting_link_theme_software_light_theme">Bildschirmtastatur: Design im hellen Modus</string>
+    <string name="setting_link_theme_software_dark_theme">Bildschirmtastatur: Design im dunklen Modus</string>
+    <string name="setting_link_theme_software_layout_overrides">Bildschirmtastatur: Design je Layout</string>
+    <string name="setting_link_quick_launcher_favorite_color">QuickLauncher: Farbe für Favoriten</string>
+    <string name="setting_link_quick_launcher_top_match_color">QuickLauncher: Farbe für den besten Treffer</string>
+</resources>

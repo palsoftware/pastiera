@@ -94,7 +94,7 @@ class FullSuggestionsBar(
                     pressedColor = it.accent,
                     iconColor = it.textAndIcons,
                     cornerRadiusRatio = it.keyCornerRadiusRatio,
-                    borderColor = it.divider,
+                    borderColor = it.statusButtonBorder,
                     borderWidthPx = dpToPx(1f)
                 )
             }
@@ -477,10 +477,10 @@ class FullSuggestionsBar(
         }
     }
 
-    private fun gaplessChrome(): Boolean =
-        it.palsoftware.pastiera.SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)
+    private fun chromeSpacingPx(): Int = dpToPx(3f)
 
-    private fun chromeSpacingPx(): Int = if (gaplessChrome()) 0 else dpToPx(3f)
+    private fun outerButtonExtraPx(): Int =
+        if (it.palsoftware.pastiera.SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) dpToPx(8f) else 0
 
     private fun minimalButtonWidthPx(): Int {
         val size = (targetHeightPx - dpToPx(4f)).coerceAtLeast(dpToPx(24f))
@@ -513,15 +513,17 @@ class FullSuggestionsBar(
         val callbacks = (callbacksProvider?.invoke() ?: StatusBarCallbacks())
             .copy(onHamburgerMenuRequested = { toggleHamburgerMenu() })
 
-        fun addButton(buttonId: StatusBarButtonId, target: LinearLayout, isLast: Boolean) {
+        fun addButton(buttonId: StatusBarButtonId, target: LinearLayout, isLast: Boolean, outerEdge: StatusBarButtonPosition?) {
+            val actualButtonWidth = buttonWidth + if (outerEdge != null) outerButtonExtraPx() else 0
             val hosted = host.getOrCreateButton(
                 id = buttonId,
                 size = buttonSize,
                 callbacks = callbacks,
-                width = buttonWidth,
+                width = actualButtonWidth,
                 height = buttonHeight
             ) ?: return
-            hosted.container.layoutParams = LinearLayout.LayoutParams(buttonWidth, buttonHeight).apply {
+            host.setOuterEdge(buttonId, outerEdge)
+            hosted.container.layoutParams = LinearLayout.LayoutParams(actualButtonWidth, buttonHeight).apply {
                 marginEnd = if (isLast) 0 else spacing
             }
             target.addView(hosted.container)
@@ -536,10 +538,10 @@ class FullSuggestionsBar(
             .sortedBy { it.order }
 
         leftButtons.forEachIndexed { index, config ->
-            addButton(config.id, leftContainer, index == leftButtons.lastIndex)
+            addButton(config.id, leftContainer, index == leftButtons.lastIndex, if (index == 0) StatusBarButtonPosition.LEFT else null)
         }
         rightButtons.forEachIndexed { index, config ->
-            addButton(config.id, rightContainer, index == rightButtons.lastIndex)
+            addButton(config.id, rightContainer, index == rightButtons.lastIndex, if (index == rightButtons.lastIndex) StatusBarButtonPosition.RIGHT else null)
         }
 
         leftContainer.visibility = if (leftButtons.isEmpty()) View.GONE else View.VISIBLE
@@ -557,7 +559,7 @@ class FullSuggestionsBar(
         } ?: 0
         val minimalLeftInset = if (showMinimalUiButtons) {
             minimalLeftButtonsContainer?.takeIf { it.visibility == View.VISIBLE }?.let {
-                it.childCount * minimalButtonWidthPx() +
+                it.childCount * minimalButtonWidthPx() + (if (it.childCount > 0) outerButtonExtraPx() else 0) +
                     (it.childCount - 1).coerceAtLeast(0) * spacing +
                     spacing
             } ?: 0
@@ -577,7 +579,7 @@ class FullSuggestionsBar(
         val leftInset = indicatorInset + minimalLeftInset
         val rightInset = if (showMinimalUiButtons) {
             minimalRightButtonsContainer?.takeIf { it.visibility == View.VISIBLE }?.let {
-                it.childCount * minimalButtonWidthPx() +
+                it.childCount * minimalButtonWidthPx() + (if (it.childCount > 0) outerButtonExtraPx() else 0) +
                     (it.childCount - 1).coerceAtLeast(0) * spacing +
                     spacing
             } ?: 0
@@ -815,7 +817,7 @@ class FullSuggestionsBar(
             gravity = Gravity.CENTER
             layoutParams = weightLayoutParams
             background = buildSuggestionBackground()
-            val padding = if (gaplessChrome()) 0 else dpToPx(4f)
+            val padding = dpToPx(4f)
             setPadding(padding, padding, padding, padding)
 
         actions.forEachIndexed { index, action ->
@@ -852,12 +854,12 @@ class FullSuggestionsBar(
     private fun buildActionBackground(color: Int): StateListDrawable {
         val normal = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = if (gaplessChrome()) 0f else dpToPx(7f).toFloat()
+            cornerRadius = dpToPx(7f).toFloat()
             setColor(color)
         }
         val pressed = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = if (gaplessChrome()) 0f else dpToPx(7f).toFloat()
+            cornerRadius = dpToPx(7f).toFloat()
             setColor(themeOverride?.accent ?: PRESSED_BLUE)
         }
         return StateListDrawable().apply {
@@ -961,18 +963,18 @@ class FullSuggestionsBar(
     }
 
     private fun buildSuggestionBackground(): StateListDrawable {
-        val radiusRatio = if (gaplessChrome()) 0f else themeOverride?.chromeCornerRadiusRatio ?: 0f
+        val radiusRatio = themeOverride?.chromeCornerRadiusRatio ?: 0f
         val radius = (targetHeightPx * radiusRatio).coerceAtLeast(0f)
         val normalDrawable = GradientDrawable().apply {
             setColor(themeOverride?.suggestion ?: DEFAULT_SUGGESTION_COLOR)
             cornerRadius = radius
             alpha = 255 // placeholders look identical; they stay non-clickable
-            if (!gaplessChrome()) themeOverride?.let { setStroke(dpToPx(1f), it.divider) }
+            themeOverride?.let { setStroke(dpToPx(1f), it.divider) }
         }
         val pressedDrawable = GradientDrawable().apply {
             setColor(themeOverride?.accent ?: PRESSED_BLUE)
             cornerRadius = radius
-            if (!gaplessChrome()) themeOverride?.let { setStroke(dpToPx(1f), it.divider) }
+            themeOverride?.let { setStroke(dpToPx(1f), it.divider) }
         }
         return StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_pressed), pressedDrawable)

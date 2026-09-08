@@ -364,8 +364,8 @@
     <!-- Update Notifications -->
     <string name="notification_update_channel_name">Aggiornamenti Pastiera</string>
     <string name="notification_update_channel_description">Notifiche sui nuovi aggiornamenti di Pastiera</string>
-    <string name="notification_update_available_title">Pastiera - nuovo aggiornamento disponibile</string>
-    <string name="notification_update_available_text">Una nuova versione di Pastiera è disponibile (%1$s)</string>
+    <string name="notification_successor_release_title">Release di Plektra disponibile</string>
+    <string name="notification_successor_release_text">%1$s è disponibile come successore di Pastiera.</string>
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Parla ora...</string>
@@ -567,10 +567,10 @@ Ogni tasto può essere configurato come Keycode, Azione, Native Ctrl o Nessuno. 
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Supporta su Ko-fi</string>
     <string name="settings_nav_mode_configure">Configura le mappature dei tasti della modalità navigazione</string>
-    <string name="settings_update_section_title">Aggiornamenti</string>
-    <string name="settings_update_section_description">Controlla l\'ultima release su GitHub.</string>
-    <string name="settings_update_checking">Controllo aggiornamenti…</string>
-    <string name="settings_update_up_to_date">L\'app è aggiornata.</string>
+    <string name="settings_update_section_title">Plektra</string>
+    <string name="settings_update_section_description">Cerca una nuova release del successore Plektra.</string>
+    <string name="settings_update_checking">Controllo delle release di Plektra…</string>
+    <string name="settings_update_up_to_date">Nessuna release di Plektra trovata.</string>
     <string name="settings_update_check_failed">Impossibile raggiungere GitHub.</string>
     
     <!-- Auto Correct Settings -->
@@ -796,6 +796,7 @@ Ogni tasto può essere configurato come Keycode, Azione, Native Ctrl o Nessuno. 
     <string name="clipboard_history_title">Cronologia appunti</string>
     <string name="clipboard_clear_all">Cancella tutto</string>
     <string name="clipboard_empty_state">Nessuna cronologia degli appunti</string>
+    <string name="clipboard_locked_state">La cronologia degli appunti non è disponibile mentre il dispositivo è bloccato.</string>
     <string name="clipboard_pin">Fissa</string>
     <string name="clipboard_unpin">Rimuovi pin</string>
     <string name="clipboard_delete">Elimina</string>
@@ -803,11 +804,10 @@ Ogni tasto può essere configurato come Keycode, Azione, Native Ctrl o Nessuno. 
     <string name="clipboard_retention_time_title">Tempo di ritenzione appunti</string>
     <string name="clipboard_retention_time_description">0 = non cancellare mai appunti</string>
     <string name="clipboard_retention_time_minutes">%1$d minuti</string>
-    <string name="update_dialog_title">Nuovo aggiornamento disponibile</string>
-    <string name="update_dialog_message">La versione %1$s è disponibile su GitHub.</string>
-    <string name="update_dialog_open_github">Apri GitHub</string>
-    <string name="update_dialog_later">Più tardi</string>
-    <string name="update_dialog_download_apk">Scarica APK</string>
+    <string name="successor_dialog_title">Pastiera ha un successore</string>
+    <string name="successor_dialog_message">Plektra succede a Pastiera. %1$s è disponibile su GitHub.</string>
+    <string name="successor_dialog_open_release">Vedi la release di Plektra</string>
+    <string name="successor_dialog_later">Più tardi</string>
     
     <!-- Custom Input Styles -->
     <string name="custom_input_styles_title">Lingue di input</string>

@@ -1,6 +1,7 @@
 package it.palsoftware.pastiera
 
-import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,12 +57,14 @@ import java.util.Locale
 @Composable
 fun TextExpansionSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    var manageSnippets by remember { mutableStateOf(false) }
-    BackHandler {
-        if (manageSnippets) manageSnippets = false else onBack()
+    var manageSnippets by remember { mutableStateOf(settingsChild(context, "snippets") == "manage") }
+    val settingHighlight = LocalSettingHighlightId.current
+    androidx.compose.runtime.LaunchedEffect(settingHighlight) {
+        if (settingHighlight?.startsWith("text_expansion.") == true) manageSnippets = false
     }
+
     if (manageSnippets) {
-        SnippetsScreen(onBack = { manageSnippets = false })
+        SnippetsScreen(onBack = { context.settingsActivity().finish() })
         return
     }
 
@@ -79,253 +82,233 @@ fun TextExpansionSettingsScreen(onBack: () -> Unit) {
     var emojiPresentationExpanded by remember { mutableStateOf(false) }
 
     SettingsScaffold(title = stringResource(R.string.text_expansion_title), onBack = onBack) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            item { SectionTitle(stringResource(R.string.snippets_title)) }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.snippets_enable_title),
-                    description = stringResource(R.string.snippets_enable_description),
-                    checked = enabled,
-                    onCheckedChange = {
-                        enabled = it
-                        SettingsManager.setSnippetsEnabled(context, it)
-                    }
-                )
-            }
-            item {
-                Surface(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = prefix,
-                        onValueChange = { candidate ->
-                            val selected = candidate.takeLast(1)
-                            prefix = selected
-                            prefixError = selected.isNotEmpty() && !TextExpansionEngine.isValidSnippetPrefix(selected)
-                            if (!prefixError && selected.isNotEmpty()) SettingsManager.setSnippetsPrefix(context, selected)
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        label = { Text(stringResource(R.string.snippets_prefix_title)) },
-                        supportingText = {
-                            Text(
-                                if (prefixError) stringResource(R.string.snippets_prefix_error)
-                                else stringResource(R.string.snippets_prefix_description)
-                            )
-                        },
-                        isError = prefixError,
-                        singleLine = true
-                    )
+            SectionTitle(stringResource(R.string.snippets_title))
+            SwitchSettingRow(
+                title = stringResource(R.string.snippets_enable_title),
+                linkId = "text_expansion.snippets.enabled",
+                description = stringResource(R.string.snippets_enable_description),
+                checked = enabled,
+                onCheckedChange = {
+                    enabled = it
+                    SettingsManager.setSnippetsEnabled(context, it)
                 }
-            }
-            item {
-                Surface(modifier = Modifier.fillMaxWidth()) {
-                    ExposedDropdownMenuBox(
-                        expanded = presentationExpanded,
-                        onExpandedChange = { presentationExpanded = it },
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = presentationLabel(presentation),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.expansion_presentation_title)) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(presentationExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
+            )
+            Surface(modifier = Modifier.fillMaxWidth().settingRow("text_expansion.snippets.prefix")) {
+                OutlinedTextField(
+                    value = prefix,
+                    onValueChange = { candidate ->
+                        val selected = candidate.takeLast(1)
+                        prefix = selected
+                        prefixError = selected.isNotEmpty() && !TextExpansionEngine.isValidSnippetPrefix(selected)
+                        if (!prefixError && selected.isNotEmpty()) SettingsManager.setSnippetsPrefix(context, selected)
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    label = { Text(stringResource(R.string.snippets_prefix_title)) },
+                    supportingText = {
+                        Text(
+                            if (prefixError) stringResource(R.string.snippets_prefix_error)
+                            else stringResource(R.string.snippets_prefix_description)
                         )
-                        ExposedDropdownMenu(
-                            expanded = presentationExpanded,
-                            onDismissRequest = { presentationExpanded = false }
-                        ) {
-                            ExpansionPresentation.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(presentationLabel(option)) },
-                                    onClick = {
-                                        presentation = option
-                                        SettingsManager.setSnippetsPresentation(context, option)
-                                        presentationExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_tab_title),
-                    description = stringResource(R.string.expansion_tab_description),
-                    checked = policy.acceptWithTab,
-                    onCheckedChange = {
-                        policy = policy.copy(acceptWithTab = it)
-                        SettingsManager.setSnippetsActivationPolicy(context, policy)
-                    }
+                    },
+                    isError = prefixError,
+                    singleLine = true
                 )
             }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_enter_title),
-                    description = stringResource(R.string.expansion_enter_description),
-                    checked = policy.acceptWithEnter,
-                    onCheckedChange = {
-                        policy = policy.copy(acceptWithEnter = it)
-                        SettingsManager.setSnippetsActivationPolicy(context, policy)
-                    }
-                )
-            }
-            item {
-                Surface(
-                    modifier = Modifier.fillMaxWidth().clickable { manageSnippets = true }
+            Surface(modifier = Modifier.fillMaxWidth().settingRow("text_expansion.snippets.presentation")) {
+                ExposedDropdownMenuBox(
+                    expanded = presentationExpanded,
+                    onExpandedChange = { presentationExpanded = it },
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    OutlinedTextField(
+                        value = presentationLabel(presentation),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.expansion_presentation_title)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(presentationExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = presentationExpanded,
+                        onDismissRequest = { presentationExpanded = false }
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.snippets_manage_title), fontWeight = FontWeight.Medium)
-                            Text(
-                                stringResource(R.string.snippets_manage_description),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        ExpansionPresentation.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(presentationLabel(option)) },
+                                onClick = {
+                                    presentation = option
+                                    SettingsManager.setSnippetsPresentation(context, option)
+                                    presentationExpanded = false
+                                }
                             )
                         }
-                        Text("›", style = MaterialTheme.typography.headlineSmall)
                     }
                 }
             }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_space_title),
-                    description = stringResource(R.string.expansion_space_description),
-                    checked = policy.exactOnSpace,
-                    onCheckedChange = {
-                        policy = policy.copy(exactOnSpace = it)
-                        SettingsManager.setSnippetsActivationPolicy(context, policy)
-                    }
-                )
-            }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_prefix_space_title),
-                    description = stringResource(R.string.expansion_prefix_space_description),
-                    checked = policy.acceptPrefixWithSpace,
-                    onCheckedChange = {
-                        policy = policy.copy(acceptPrefixWithSpace = it)
-                        SettingsManager.setSnippetsActivationPolicy(context, policy)
-                    }
-                )
-            }
-            item { SectionTitle(stringResource(R.string.emoji_symbols_title)) }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.emoji_shortcodes_enable_title),
-                    description = stringResource(R.string.emoji_shortcodes_enable_description),
-                    checked = emojiEnabled,
-                    onCheckedChange = {
-                        emojiEnabled = it
-                        SettingsManager.setEmojiShortcodesEnabled(context, it)
-                    }
-                )
-            }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.symbol_shortcodes_enable_title),
-                    description = stringResource(R.string.symbol_shortcodes_enable_description),
-                    checked = symbolsEnabled,
-                    onCheckedChange = {
-                        symbolsEnabled = it
-                        SettingsManager.setSymbolShortcodesEnabled(context, it)
-                    }
-                )
-            }
-            item {
-                Surface(modifier = Modifier.fillMaxWidth()) {
-                    ExposedDropdownMenuBox(
-                        expanded = emojiPresentationExpanded,
-                        onExpandedChange = { emojiPresentationExpanded = it },
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = presentationLabel(emojiPresentation),
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text(stringResource(R.string.expansion_presentation_title)) },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(emojiPresentationExpanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_tab_title),
+                linkId = "text_expansion.snippets.tab",
+                description = stringResource(R.string.expansion_tab_description),
+                checked = policy.acceptWithTab,
+                onCheckedChange = {
+                    policy = policy.copy(acceptWithTab = it)
+                    SettingsManager.setSnippetsActivationPolicy(context, policy)
+                }
+            )
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_enter_title),
+                linkId = "text_expansion.snippets.enter",
+                description = stringResource(R.string.expansion_enter_description),
+                checked = policy.acceptWithEnter,
+                onCheckedChange = {
+                    policy = policy.copy(acceptWithEnter = it)
+                    SettingsManager.setSnippetsActivationPolicy(context, policy)
+                }
+            )
+            Surface(
+                modifier = Modifier.fillMaxWidth().settingRow("text_expansion.snippets.manage") { openSettingsChild(context, "snippets", "manage") }
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.snippets_manage_title), fontWeight = FontWeight.Medium)
+                        Text(
+                            stringResource(R.string.snippets_manage_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        ExposedDropdownMenu(
-                            expanded = emojiPresentationExpanded,
-                            onDismissRequest = { emojiPresentationExpanded = false }
-                        ) {
-                            ExpansionPresentation.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(presentationLabel(option)) },
-                                    onClick = {
-                                        emojiPresentation = option
-                                        SettingsManager.setEmojiSymbolsPresentation(context, option)
-                                        emojiPresentationExpanded = false
-                                    }
-                                )
-                            }
+                    }
+                    Text("›", style = MaterialTheme.typography.headlineSmall)
+                }
+            }
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_space_title),
+                linkId = "text_expansion.snippets.space",
+                description = stringResource(R.string.expansion_space_description),
+                checked = policy.exactOnSpace,
+                onCheckedChange = {
+                    policy = policy.copy(exactOnSpace = it)
+                    SettingsManager.setSnippetsActivationPolicy(context, policy)
+                }
+            )
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_prefix_space_title),
+                linkId = "text_expansion.snippets.prefix_space",
+                description = stringResource(R.string.expansion_prefix_space_description),
+                checked = policy.acceptPrefixWithSpace,
+                onCheckedChange = {
+                    policy = policy.copy(acceptPrefixWithSpace = it)
+                    SettingsManager.setSnippetsActivationPolicy(context, policy)
+                }
+            )
+            SectionTitle(stringResource(R.string.emoji_symbols_title))
+            SwitchSettingRow(
+                title = stringResource(R.string.emoji_shortcodes_enable_title),
+                linkId = "text_expansion.emoji.enabled",
+                description = stringResource(R.string.emoji_shortcodes_enable_description),
+                checked = emojiEnabled,
+                onCheckedChange = {
+                    emojiEnabled = it
+                    SettingsManager.setEmojiShortcodesEnabled(context, it)
+                }
+            )
+            SwitchSettingRow(
+                title = stringResource(R.string.symbol_shortcodes_enable_title),
+                linkId = "text_expansion.symbols.enabled",
+                description = stringResource(R.string.symbol_shortcodes_enable_description),
+                checked = symbolsEnabled,
+                onCheckedChange = {
+                    symbolsEnabled = it
+                    SettingsManager.setSymbolShortcodesEnabled(context, it)
+                }
+            )
+            Surface(modifier = Modifier.fillMaxWidth().settingRow("text_expansion.emoji_symbols.presentation")) {
+                ExposedDropdownMenuBox(
+                    expanded = emojiPresentationExpanded,
+                    onExpandedChange = { emojiPresentationExpanded = it },
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = presentationLabel(emojiPresentation),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.expansion_presentation_title)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(emojiPresentationExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = emojiPresentationExpanded,
+                        onDismissRequest = { emojiPresentationExpanded = false }
+                    ) {
+                        ExpansionPresentation.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(presentationLabel(option)) },
+                                onClick = {
+                                    emojiPresentation = option
+                                    SettingsManager.setEmojiSymbolsPresentation(context, option)
+                                    emojiPresentationExpanded = false
+                                }
+                            )
                         }
                     }
                 }
             }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_tab_title),
-                    description = stringResource(R.string.expansion_tab_description),
-                    checked = emojiPolicy.acceptWithTab,
-                    onCheckedChange = {
-                        emojiPolicy = emojiPolicy.copy(acceptWithTab = it)
-                        SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
-                    }
-                )
-            }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_enter_title),
-                    description = stringResource(R.string.expansion_enter_description),
-                    checked = emojiPolicy.acceptWithEnter,
-                    onCheckedChange = {
-                        emojiPolicy = emojiPolicy.copy(acceptWithEnter = it)
-                        SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
-                    }
-                )
-            }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.emoji_symbols_close_title),
-                    description = stringResource(R.string.emoji_symbols_close_description),
-                    checked = exactOnClose,
-                    onCheckedChange = {
-                        exactOnClose = it
-                        SettingsManager.setEmojiSymbolsExactOnClose(context, it)
-                    }
-                )
-            }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_space_title),
-                    description = stringResource(R.string.expansion_space_description),
-                    checked = emojiPolicy.exactOnSpace,
-                    onCheckedChange = {
-                        emojiPolicy = emojiPolicy.copy(exactOnSpace = it)
-                        SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
-                    }
-                )
-            }
-            item {
-                SwitchSettingRow(
-                    title = stringResource(R.string.expansion_prefix_space_title),
-                    description = stringResource(R.string.expansion_prefix_space_description),
-                    checked = emojiPolicy.acceptPrefixWithSpace,
-                    onCheckedChange = {
-                        emojiPolicy = emojiPolicy.copy(acceptPrefixWithSpace = it)
-                        SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
-                    }
-                )
-            }
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_tab_title),
+                linkId = "text_expansion.emoji_symbols.tab",
+                description = stringResource(R.string.expansion_tab_description),
+                checked = emojiPolicy.acceptWithTab,
+                onCheckedChange = {
+                    emojiPolicy = emojiPolicy.copy(acceptWithTab = it)
+                    SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
+                }
+            )
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_enter_title),
+                linkId = "text_expansion.emoji_symbols.enter",
+                description = stringResource(R.string.expansion_enter_description),
+                checked = emojiPolicy.acceptWithEnter,
+                onCheckedChange = {
+                    emojiPolicy = emojiPolicy.copy(acceptWithEnter = it)
+                    SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
+                }
+            )
+            SwitchSettingRow(
+                title = stringResource(R.string.emoji_symbols_close_title),
+                linkId = "text_expansion.emoji_symbols.exact_close",
+                description = stringResource(R.string.emoji_symbols_close_description),
+                checked = exactOnClose,
+                onCheckedChange = {
+                    exactOnClose = it
+                    SettingsManager.setEmojiSymbolsExactOnClose(context, it)
+                }
+            )
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_space_title),
+                linkId = "text_expansion.emoji_symbols.space",
+                description = stringResource(R.string.expansion_space_description),
+                checked = emojiPolicy.exactOnSpace,
+                onCheckedChange = {
+                    emojiPolicy = emojiPolicy.copy(exactOnSpace = it)
+                    SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
+                }
+            )
+            SwitchSettingRow(
+                title = stringResource(R.string.expansion_prefix_space_title),
+                linkId = "text_expansion.emoji_symbols.prefix_space",
+                description = stringResource(R.string.expansion_prefix_space_description),
+                checked = emojiPolicy.acceptPrefixWithSpace,
+                onCheckedChange = {
+                    emojiPolicy = emojiPolicy.copy(acceptPrefixWithSpace = it)
+                    SettingsManager.setEmojiSymbolsActivationPolicy(context, emojiPolicy)
+                }
+            )
         }
     }
 }
@@ -481,13 +464,14 @@ private fun SectionTitle(title: String) {
 @Composable
 private fun SwitchSettingRow(
     title: String,
+    linkId: String? = null,
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Surface(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }.padding(16.dp),
+            modifier = Modifier.fillMaxWidth().settingRow(linkId) { onCheckedChange(!checked) }.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {

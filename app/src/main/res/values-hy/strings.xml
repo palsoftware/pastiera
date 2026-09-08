@@ -194,8 +194,8 @@
     <string name="notification_nav_mode_activated_text">Նավիգացիայի ռեժիմը միացված է</string>
     <string name="notification_update_channel_name">Pastiera թարմացումներ</string>
     <string name="notification_update_channel_description">Ծանուցումներ Pastiera-ի նոր տարբերակների մասին</string>
-    <string name="notification_update_available_title">Pastiera - Նոր թարմացում հասանելի է</string>
-    <string name="notification_update_available_text">Pastiera-ի նոր տարբերակ հասանելի է (%1$s)</string>
+    <string name="notification_successor_release_title">Plektra-ի թողարկումը հասանելի է</string>
+    <string name="notification_successor_release_text">%1$s-ը հասանելի է որպես Pastiera-ի հաջորդ։</string>
     <string name="speech_recognition_prompt">Խոսեք…</string>
     <string name="auto_correct_search_placeholder">Փնտրել ուղղումները...</string>
     <string name="auto_correct_search_description">Փնտրել</string>
@@ -252,10 +252,10 @@
     <string name="app_picker_search_placeholder">Փնտրել ծրագրեր...</string>
     <string name="settings_support_ko_fi">Աջակցել Ko-fi-ում</string>
     <string name="settings_nav_mode_configure">Կարգավորել նավիգացիայի ռեժիմի դասավորությունը</string>
-    <string name="settings_update_section_title">Թարմացումներ</string>
-    <string name="settings_update_section_description">Ստուգել GitHub-ի վերջին թողարկումը։</string>
-    <string name="settings_update_checking">Ստուգվում են թարմացումները…</string>
-    <string name="settings_update_up_to_date">Հավելվածը արդիական է։</string>
+    <string name="settings_update_section_title">Plektra</string>
+    <string name="settings_update_section_description">Ստուգել Plektra հաջորդի նոր թողարկումը։</string>
+    <string name="settings_update_checking">Ստուգվում են Plektra-ի թողարկումները…</string>
+    <string name="settings_update_up_to_date">Plektra-ի թողարկում չի գտնվել։</string>
     <string name="settings_update_check_failed">Չհաջողվեց կապ հաստատել GitHub-ի հետ։</string>
     <string name="settings_category_text_input">Խելացի հնարավորություններ</string>
     <string name="settings_category_accessibility">Հասանելիություն</string>
@@ -315,6 +315,7 @@
     <string name="clipboard_history_title">Պահոցի պատմություն</string>
     <string name="clipboard_clear_all">Մաքրել բոլորը</string>
     <string name="clipboard_empty_state">Պահոցի պատմություն չկա</string>
+    <string name="clipboard_locked_state">Պահոցի պատմությունը հասանելի չէ, քանի դեռ սարքը կողպված է։</string>
     <string name="clipboard_pin">Ամրացնել</string>
     <string name="clipboard_unpin">Ապամրացնել</string>
     <string name="clipboard_delete">Ջնջել</string>
@@ -322,11 +323,10 @@
     <string name="clipboard_retention_time_title">Պահոցի պահպանման ժամանակ</string>
     <string name="clipboard_retention_time_description">0 = երբեք չջնջել</string>
     <string name="clipboard_retention_time_minutes">%1$d րոպե</string>
-    <string name="update_dialog_title">Նոր թարմացում հասանելի է</string>
-    <string name="update_dialog_message">Տարբերակ %1$s-ը հասանելի է GitHub-ում։</string>
-    <string name="update_dialog_open_github">Բացել GitHub-ը</string>
-    <string name="update_dialog_later">Հետո</string>
-    <string name="update_dialog_download_apk">Ներբեռնել APK</string>
+    <string name="successor_dialog_title">Pastiera-ն ունի հաջորդ</string>
+    <string name="successor_dialog_message">Plektra-ն հաջորդում է Pastiera-ին։ %1$s-ը հասանելի է GitHub-ում։</string>
+    <string name="successor_dialog_open_release">Դիտել Plektra-ի թողարկումը</string>
+    <string name="successor_dialog_later">Հետո</string>
     <string name="custom_input_styles_title">Մուտքագրման լեզուներ</string>
     <string name="custom_input_styles_description">Ավելացնել լրացուցիչ լեզուներ և ստեղնաշարի դասավորություններ, որոնք չեն կապված համակարգի տեղակայման հետ</string>
     <string name="custom_input_styles_language_label">Լեզու</string>

@@ -58,9 +58,9 @@ fun SymCustomizationScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val screenScrollState = rememberScrollState()
-    
+
     // Load saved auto-close SYM value
-    var symAutoClose by remember { 
+    var symAutoClose by remember {
         mutableStateOf(SettingsManager.getSymAutoClose(context))
     }
     var symAutoCloseOnTouch by remember {
@@ -129,15 +129,20 @@ fun SymCustomizationScreen(
         dropTargetIndex = null
         dragOffsetY = 0f
     }
-    
+
     // Selected tab (0 = Emoji, 1 = Characters)
     var selectedTab by remember {
         mutableStateOf(if (initialPage == 2) 1 else 0)
     }
     var editingLayerPage by remember {
-        mutableStateOf(initialPage.takeIf { it == 1 || it == 2 })
+        mutableStateOf(settingsChild(context, "sym_editor")?.toIntOrNull() ?: initialPage.takeIf { it == 1 || it == 2 })
     }
-    
+    val settingHighlight = LocalSettingHighlightId.current
+    LaunchedEffect(settingHighlight) {
+        if (settingHighlight?.startsWith("sym.") == true) editingLayerPage = null
+    }
+
+
     // Helper to load mappings from JSON
     fun loadMappingsFromJson(filePath: String): Map<Int, String> {
         return try {
@@ -175,17 +180,17 @@ fun SymCustomizationScreen(
             emptyMap<Int, String>()
         }
     }
-    
+
     // Load default mappings for page 1 (emoji)
     val defaultMappingsPage1 = remember {
         loadMappingsFromJson("common/sym/sym_key_mappings.json")
     }
-    
+
     // Load default mappings for page 2 (characters)
     val defaultMappingsPage2 = remember {
         loadMappingsFromJson("common/sym/sym_key_mappings_page2.json")
     }
-    
+
     // Load custom mappings or fallback to defaults for page 1
     var symMappingsPage1 by remember {
         mutableStateOf(
@@ -193,7 +198,7 @@ fun SymCustomizationScreen(
                 ?: defaultMappingsPage1
         )
     }
-    
+
     // Load custom mappings or fallback to defaults for page 2
     var symMappingsPage2 by remember {
         mutableStateOf(
@@ -201,21 +206,21 @@ fun SymCustomizationScreen(
                 ?: defaultMappingsPage2
         )
     }
-    
+
     // State for picker dialogs
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showCharacterPicker by remember { mutableStateOf(false) }
     var selectedKeyCode by remember { mutableStateOf<Int?>(null) }
     var initialPickerHandled by remember { mutableStateOf(false) }
     var initialPickerActive by remember { mutableStateOf(false) }
-    
+
     // State for reset confirmation dialog
     var showResetConfirmDialog by remember { mutableStateOf(false) }
     var resetPage by remember { mutableStateOf<Int?>(null) } // 1 for page1, 2 for page2
-    
+
     // Note: System back button is handled by Activity.onBackPressedDispatcher
     // to follow Android history. This BackHandler is removed to allow default behavior.
-    
+
     // Helper function to convert keycode to letter
     fun getLetterFromKeyCode(keyCode: Int): String {
         return when (keyCode) {
@@ -267,10 +272,6 @@ fun SymCustomizationScreen(
         }
     }
 
-    BackHandler(enabled = editingLayerPage != null) {
-        editingLayerPage = null
-    }
-    
     Scaffold(
         topBar = {
             Surface(
@@ -286,7 +287,7 @@ fun SymCustomizationScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = {
-                        if (editingLayerPage != null) editingLayerPage = null else onBack()
+                        onBack()
                     }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -316,7 +317,7 @@ fun SymCustomizationScreen(
         ) {
         if (editingLayerPage == null) {
         Surface(
-            modifier = Modifier
+            modifier = Modifier.settingRow("sym.pages")
                 .fillMaxWidth()
         ) {
             Column(
@@ -439,12 +440,12 @@ fun SymCustomizationScreen(
                                         )
                                         SymPagesConfig.PAGE_EMOJI -> {
                                             selectedTab = 0
-                                            editingLayerPage = 1
+                                            openSettingsChild(context, "sym_editor", "1")
                                             coroutineScope.launch { screenScrollState.animateScrollTo(0) }
                                         }
                                         SymPagesConfig.PAGE_SYMBOLS -> {
                                             selectedTab = 1
-                                            editingLayerPage = 2
+                                            openSettingsChild(context, "sym_editor", "2")
                                             coroutineScope.launch { screenScrollState.animateScrollTo(0) }
                                         }
                                     }
@@ -476,7 +477,7 @@ fun SymCustomizationScreen(
                 }
             }
         }
-        
+
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -516,7 +517,7 @@ fun SymCustomizationScreen(
 
         // Auto-Close SYM Layout option (in alto)
         Surface(
-            modifier = Modifier
+            modifier = Modifier.settingRow("sym.auto_close")
                 .fillMaxWidth()
                 .heightIn(min = 64.dp)
         ) {
@@ -558,7 +559,7 @@ fun SymCustomizationScreen(
         }
 
         Surface(
-            modifier = Modifier
+            modifier = Modifier.settingRow("sym.auto_close_touch")
                 .fillMaxWidth()
                 .heightIn(min = 64.dp)
         ) {
@@ -600,13 +601,13 @@ fun SymCustomizationScreen(
         }
 
         HorizontalDivider()
-        
+
         }
 
         if (editingLayerPage != null) {
         // Customizable keyboard grid - uses the same layout as the real keyboard
         val statusBarController = remember { StatusBarController(context) }
-        
+
         // Show the grid based on the selected tab
         when (editingLayerPage) {
             1 -> {
@@ -644,9 +645,9 @@ fun SymCustomizationScreen(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         // Reset button (ripristina predefiniti)
         Button(
             onClick = {
@@ -661,18 +662,18 @@ fun SymCustomizationScreen(
             )
         ) {
             Text(
-                stringResource(R.string.sym_reset_to_default), 
+                stringResource(R.string.sym_reset_to_default),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onError
             )
         }
-        
+
         }
 
         if (editingLayerPage == null) {
 
         Surface(
-            modifier = Modifier
+            modifier = Modifier.settingRow("sym.emoji_height")
                 .fillMaxWidth()
                 .heightIn(min = 64.dp)
         ) {
@@ -712,7 +713,7 @@ fun SymCustomizationScreen(
                 )
             }
         }
-        
+
         HorizontalDivider()
 
         }
@@ -744,7 +745,7 @@ fun SymCustomizationScreen(
                 }
             )
         }
-        
+
         // Unicode character picker dialog
         if (showCharacterPicker && selectedKeyCode != null) {
             val selectedLetter = getLetterFromKeyCode(selectedKeyCode!!)
@@ -782,11 +783,11 @@ fun SymCustomizationScreen(
                 }
             )
         }
-        
+
         // Reset confirmation dialog
         if (showResetConfirmDialog) {
             AlertDialog(
-                onDismissRequest = { 
+                onDismissRequest = {
                     showResetConfirmDialog = false
                     resetPage = null
                 },

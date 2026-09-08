@@ -361,6 +361,7 @@
     <string name="clipboard_history_title">Historial del portapapeles</string>
     <string name="clipboard_clear_all">Borrar todo</string>
     <string name="clipboard_empty_state">No hay historial del portapapeles</string>
+    <string name="clipboard_locked_state">El historial del portapapeles no está disponible mientras el dispositivo está bloqueado.</string>
     <string name="clipboard_pin">Fijar</string>
     <string name="clipboard_unpin">Desfijar</string>
     <string name="clipboard_delete">Eliminar</string>
@@ -368,11 +369,10 @@
     <string name="clipboard_retention_time_title">Tiempo de retención del portapapeles</string>
     <string name="clipboard_retention_time_description">0 = no borrar nunca</string>
     <string name="clipboard_retention_time_minutes">%1$d minutos</string>
-    <string name="update_dialog_title">Nueva actualización disponible</string>
-    <string name="update_dialog_message">La versión %1$s está disponible en GitHub.</string>
-    <string name="update_dialog_open_github">Abrir GitHub</string>
-    <string name="update_dialog_later">Más tarde</string>
-    <string name="update_dialog_download_apk">Descargar APK</string>
+    <string name="successor_dialog_title">Pastiera tiene un sucesor</string>
+    <string name="successor_dialog_message">Plektra sucede a Pastiera. %1$s está disponible en GitHub.</string>
+    <string name="successor_dialog_open_release">Ver la versión de Plektra</string>
+    <string name="successor_dialog_later">Más tarde</string>
     <string name="custom_input_styles_title">Idiomas de entrada</string>
     <string name="custom_input_styles_description">Agregar idiomas adicionales y diseños de teclado que no están vinculados a la configuración regional del sistema</string>
     <string name="custom_input_styles_language_label">Idioma</string>
@@ -549,8 +549,8 @@
     <string name="power_shortcuts_press_key">Pulsa una tecla de atajo para abrir</string>
     <string name="notification_update_channel_name">Actualizaciones de Pastiera</string>
     <string name="notification_update_channel_description">Notificaciones sobre nuevas versiones de Pastiera</string>
-    <string name="notification_update_available_title">Pastiera - Nueva actualización disponible</string>
-    <string name="notification_update_available_text">Hay una nueva versión de Pastiera disponible (%1$s)</string>
+    <string name="notification_successor_release_title">Versión de Plektra disponible</string>
+    <string name="notification_successor_release_text">%1$s está disponible como sucesor de Pastiera.</string>
     <string name="speech_recognition_error_no_match">No se reconoció ningún texto. Inténtalo de nuevo.</string>
     <string name="speech_recognition_error_timeout">No se detectó entrada de voz.</string>
     <string name="speech_recognition_error_permission">Permiso de micrófono denegado.</string>
@@ -565,10 +565,10 @@
     <string name="variation_global_layout_override_title">Global Variation Mapping</string>
     <string name="variation_global_layout_override_description">Force variation ordering from one layout across all layouts. Default is current IME layout (%1$s).</string>
     <string name="variation_global_layout_override_none">None (use current layout)</string>
-    <string name="settings_update_section_title">Actualizaciones</string>
-    <string name="settings_update_section_description">Comprueba la versión más reciente en GitHub.</string>
-    <string name="settings_update_checking">Buscando actualizaciones…</string>
-    <string name="settings_update_up_to_date">La app está actualizada.</string>
+    <string name="settings_update_section_title">Plektra</string>
+    <string name="settings_update_section_description">Buscar una nueva versión del sucesor Plektra.</string>
+    <string name="settings_update_checking">Buscando versiones de Plektra…</string>
+    <string name="settings_update_up_to_date">No se encontró ninguna versión de Plektra.</string>
     <string name="settings_update_check_failed">No se pudo acceder a GitHub.</string>
     <string name="languages_title">Idiomas</string>
     <string name="languages_description">Añade idiomas al selector de métodos de entrada de Android. Solo se muestran idiomas con diccionario que no son idiomas del sistema.</string>

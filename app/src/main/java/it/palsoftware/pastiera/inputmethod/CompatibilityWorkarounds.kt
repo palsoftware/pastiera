@@ -11,9 +11,6 @@ internal object CompatibilityWorkarounds {
     const val TELEGRAM_PACKAGE_NAME = "org.telegram.messenger"
     const val CLICKS_POWER_PROFILE_ID = "clicks_power"
 
-    fun requiresCandidatesSurfaceRecovery(packageName: String?): Boolean =
-        packageName == TELEGRAM_PACKAGE_NAME
-
     /**
      * Clicks Power emits some SYM chords as a synthetic Shift+key macro in one input frame.
      * That synthetic Shift must modify the character without acting as a logical Shift tap.
@@ -33,44 +30,6 @@ internal object CompatibilityWorkarounds {
             return false
         }
         return activeShiftDownTimes.any { it == event.eventTime }
-    }
-}
-
-/** Delayed legacy show request needed when Telegram drops the candidates-only surface. */
-internal class CandidatesSurfaceRecoveryWorkaround(
-    private val isRequired: () -> Boolean,
-    private val canRecover: () -> Boolean,
-    private val requestRecovery: () -> Unit,
-    private val postDelayed: (delayMs: Long, action: () -> Unit) -> Unit
-) {
-    private var generation = 0
-    private var pendingGeneration: Int? = null
-
-    fun scheduleIfNeeded() {
-        if (!isRequired() || pendingGeneration != null) return
-
-        val scheduledGeneration = ++generation
-        pendingGeneration = scheduledGeneration
-        postDelayed(RECOVERY_DELAY_MS) {
-            if (pendingGeneration != scheduledGeneration) return@postDelayed
-            pendingGeneration = null
-            if (!isRequired() || !canRecover()) return@postDelayed
-
-            try {
-                requestRecovery()
-            } catch (_: Exception) {
-                // The editor may disappear while the delayed compatibility request is pending.
-            }
-        }
-    }
-
-    fun cancel() {
-        generation += 1
-        pendingGeneration = null
-    }
-
-    private companion object {
-        const val RECOVERY_DELAY_MS = 250L
     }
 }
 

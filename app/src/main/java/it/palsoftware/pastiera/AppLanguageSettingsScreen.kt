@@ -1,7 +1,6 @@
 package it.palsoftware.pastiera
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,7 +30,6 @@ fun AppLanguageSettingsScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit
 ) {
-    BackHandler(onBack = onBack)
     Scaffold(
         topBar = {
             Surface(

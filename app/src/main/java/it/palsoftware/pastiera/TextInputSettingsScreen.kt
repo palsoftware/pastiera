@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.activity.compose.BackHandler
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.core.Punctuation
 
@@ -38,8 +37,14 @@ fun TextInputSettingsScreen(
     onNavModeSettingsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    var showTextExpansion by remember { mutableStateOf(false) }
-    
+    var showTextExpansion by remember { mutableStateOf(settingsChild(context, "text") == "expansion") }
+    val linkedSetting = LocalSettingHighlightId.current
+    LaunchedEffect(linkedSetting) {
+        if (linkedSetting != null) {
+            showTextExpansion = linkedSetting.startsWith("text_expansion.")
+        }
+    }
+
     var autoCapitalizeFirstLetter by remember {
         mutableStateOf(SettingsManager.getAutoCapitalizeFirstLetter(context))
     }
@@ -109,11 +114,11 @@ fun TextInputSettingsScreen(
     var clearAltOnSpace by remember {
         mutableStateOf(SettingsManager.getClearAltOnSpace(context))
     }
-    
+
     var autoShowKeyboard by remember {
         mutableStateOf(SettingsManager.getAutoShowKeyboard(context))
     }
-    
+
     var altCtrlSpeechShortcut by remember {
         mutableStateOf(SettingsManager.getAltCtrlSpeechShortcutEnabled(context))
     }
@@ -129,14 +134,12 @@ fun TextInputSettingsScreen(
     var backspaceAtStartDelete by remember {
         mutableStateOf(SettingsManager.getBackspaceAtStartDelete(context))
     }
-    
+
     // Handle system back button
-    BackHandler {
-        if (showTextExpansion) showTextExpansion = false else onBack()
-    }
+
 
     if (showTextExpansion) {
-        TextExpansionSettingsScreen(onBack = { showTextExpansion = false })
+        TextExpansionSettingsScreen(onBack = { context.settingsActivity().finish() })
         return
     }
 
@@ -268,7 +271,7 @@ fun TextInputSettingsScreen(
             }
         )
     }
-    
+
     Scaffold(
         topBar = {
             Surface(
@@ -310,7 +313,7 @@ fun TextInputSettingsScreen(
                 title = stringResource(R.string.text_expansion_title),
                 description = stringResource(R.string.text_expansion_description),
                 linkId = SettingLinkIds.TEXT_INPUT_TEXT_EXPANSION,
-                onClick = { showTextExpansion = true }
+                onClick = { openSettingsChild(context, "text", "expansion") }
             )
 
             SettingsSectionHeader(text = stringResource(R.string.text_input_section_capitalization))

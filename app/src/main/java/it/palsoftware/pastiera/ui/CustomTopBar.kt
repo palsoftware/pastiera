@@ -14,6 +14,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asComposePath
+import it.palsoftware.pastiera.T2eCornerCalibration
+import it.palsoftware.pastiera.T2eCornerGeometry
+import it.palsoftware.pastiera.SettingsManager
+import it.palsoftware.pastiera.inputmethod.DeviceSpecific
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,14 +64,51 @@ fun CustomTopBar(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val context = LocalContext.current
+    val view = LocalView.current
+    val density = LocalDensity.current
+    var calibration by remember { mutableStateOf(T2eCornerCalibration.read(context)) }
+    DisposableEffect(context) {
+        val prefs = SettingsManager.getPreferences(context)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == T2eCornerCalibration.KEY) calibration = T2eCornerCalibration.read(context)
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    val headerShape: Shape = if (DeviceSpecific.isTitan2EliteDevice()) {
+        val fallback = with(density) { 50.dp.toPx() }
+        fun radius(position: Int) = if (android.os.Build.VERSION.SDK_INT >= 31) {
+            view.rootWindowInsets?.getRoundedCorner(position)?.radius?.takeIf { it > 0 }?.toFloat() ?: fallback
+        } else fallback
+        val left = radius(android.view.RoundedCorner.POSITION_BOTTOM_LEFT)
+        val right = radius(android.view.RoundedCorner.POSITION_BOTTOM_RIGHT)
+        remember(calibration, left, right) {
+            object : Shape {
+                override fun createOutline(size: Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+                    density: androidx.compose.ui.unit.Density): Outline {
+                    // Reuse only the calibrated corner shape; this header stays flush to its bounds.
+                    val shapeCalibration = calibration.copy(offsetPx = 0f, shiftXPx = 0f, shiftYPx = 0f)
+                    val path = T2eCornerGeometry.path(size.width, size.height, left, right, shapeCalibration)
+                    // Limit the outline to this header; the shared contour extends upward for short IME bars.
+                    val bounds = android.graphics.Path().apply {
+                        addRect(0f, 0f, size.width, size.height, android.graphics.Path.Direction.CW)
+                    }
+                    path.op(bounds, android.graphics.Path.Op.INTERSECT)
+                    return Outline.Generic(path.asComposePath())
+                }
+            }
+        }
+    } else RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
                 elevation = 4.dp,
-                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                shape = headerShape
             ),
-        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+        shape = headerShape,
         color = Color.Transparent
     ) {
         Box(
@@ -79,7 +129,9 @@ fun CustomTopBar(
             ) {
                 // Centered title and subtitle
                 Column(
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset(y = statusBarInset / 2),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
@@ -101,8 +153,9 @@ fun CustomTopBar(
                     onClick = onSettingsClick,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
+                        .offset(y = statusBarInset / 2)
                         .size(64.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(24.dp))
                         .background(
                             color = PastieraBeige.copy(alpha = 0.9f)
                         )

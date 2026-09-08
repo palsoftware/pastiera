@@ -48,6 +48,12 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
         SettingsManager.setAutoCapitalizeRestrictedFields(context, false)
         SettingsManager.setPhysicalKeyboardProfileOverride(context, "auto")
         SettingsManager.setAltModifierBinding(context, AltModifierBinding.DeviceSym)
+        SettingsManager.setAppEnterBehaviorEnabled(context, true)
+        SettingsManager.setAppEnterBehaviorPreset(
+            context,
+            SettingsManager.ENTER_BEHAVIOR_PRESET_ENTER_SEND_SHIFT_NEWLINE
+        )
+        SettingsManager.setAppEnterBehaviorOverrides(context, emptyList())
 
         service = Robolectric.buildService(PhysicalKeyboardInputMethodService::class.java)
             .create()
@@ -272,6 +278,105 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
         )
         assertTrue("commits=${recorder.committedTexts}", recorder.committedTexts.contains("a"))
         assertFalse("commits=${recorder.committedTexts}", recorder.committedTexts.contains("A"))
+    }
+
+    @Test
+    fun appEnter_knownFacebookMessengerWithoutOverride_usesEditorAction() {
+        focusNewField(
+            newRecorder = RecordingInputConnection(),
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE,
+            packageName = "com.facebook.orca"
+        )
+        recorder.performEditorActionResult = true
+
+        val handled = service.onKeyDown(
+            KeyEvent.KEYCODE_ENTER,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 2_750L, 2_750L)
+        )
+
+        assertTrue(handled)
+        assertEquals(listOf(EditorInfo.IME_ACTION_SEND), recorder.editorActions)
+        assertTrue(recorder.sentKeyEvents.isEmpty())
+        assertFalse(recorder.committedTexts.contains("\n"))
+    }
+
+    @Test
+    fun appEnter_facebookMessengerManualEditorStrategy_usesEditorAction() {
+        configureAppEnterOverride(
+            packageName = "com.facebook.orca",
+            strategy = SettingsManager.ENTER_SEND_STRATEGY_EDITOR_ACTION
+        )
+        recorder.performEditorActionResult = true
+
+        val handled = service.onKeyDown(
+            KeyEvent.KEYCODE_ENTER,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 2_755L, 2_755L)
+        )
+
+        assertTrue(handled)
+        assertEquals(listOf(EditorInfo.IME_ACTION_SEND), recorder.editorActions)
+        assertTrue(recorder.sentKeyEvents.isEmpty())
+        assertFalse(recorder.committedTexts.contains("\n"))
+    }
+
+    @Test
+    fun appEnter_manualPlainEnter_sendsExactKeyPair_forUnlistedApp() {
+        configureAppEnterOverride(
+            packageName = "com.example.unlisted.chat",
+            strategy = SettingsManager.ENTER_SEND_STRATEGY_PLAIN_ENTER
+        )
+        recorder.sendKeyEventResult = false
+
+        val handled = service.onKeyDown(
+            KeyEvent.KEYCODE_ENTER,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 2_760L, 2_760L)
+        )
+
+        assertTrue(handled)
+        assertEquals(2, recorder.sentKeyEvents.size)
+        assertTrue(recorder.sentKeyEvents.all { it.keyCode == KeyEvent.KEYCODE_ENTER })
+        assertFalse(recorder.sentKeyEvents.any { it.isCtrlPressed })
+        assertTrue(recorder.editorActions.isEmpty())
+        assertFalse(recorder.committedTexts.contains("\n"))
+    }
+
+    @Test
+    fun appEnter_manualCtrlEnter_sendsExactModifiedKeyPair_forUnlistedApp() {
+        configureAppEnterOverride(
+            packageName = "com.example.unlisted.chat",
+            strategy = SettingsManager.ENTER_SEND_STRATEGY_CTRL_ENTER
+        )
+
+        val handled = service.onKeyDown(
+            KeyEvent.KEYCODE_ENTER,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 2_770L, 2_770L)
+        )
+
+        assertTrue(handled)
+        assertEquals(2, recorder.sentKeyEvents.size)
+        assertTrue(recorder.sentKeyEvents.all { it.keyCode == KeyEvent.KEYCODE_ENTER })
+        assertTrue(recorder.sentKeyEvents.all { it.isCtrlPressed })
+        assertTrue(recorder.editorActions.isEmpty())
+        assertFalse(recorder.committedTexts.contains("\n"))
+    }
+
+    @Test
+    fun appEnter_manualEditorAction_doesNotFallBackToNewline_whenRejected() {
+        configureAppEnterOverride(
+            packageName = "com.example.unlisted.chat",
+            strategy = SettingsManager.ENTER_SEND_STRATEGY_EDITOR_ACTION
+        )
+        recorder.performEditorActionResult = false
+
+        val handled = service.onKeyDown(
+            KeyEvent.KEYCODE_ENTER,
+            keyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 2_780L, 2_780L)
+        )
+
+        assertTrue(handled)
+        assertEquals(listOf(EditorInfo.IME_ACTION_SEND), recorder.editorActions)
+        assertTrue(recorder.sentKeyEvents.isEmpty())
+        assertFalse(recorder.committedTexts.contains("\n"))
     }
 
     @Test
@@ -966,18 +1071,39 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
 
     private fun focusNewField(
         newRecorder: RecordingInputConnection,
-        inputType: Int = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        inputType: Int = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
+        packageName: String = "it.palsoftware.pastiera.test"
     ) {
         recorder = newRecorder
         inputConnection = recorder.asProxy()
         editorInfo = EditorInfo().apply {
             this.inputType = inputType
-            packageName = "it.palsoftware.pastiera.test"
+            this.packageName = packageName
         }
         setField(service, "mInputConnection", inputConnection)
         setField(service, "mStartedInputConnection", inputConnection)
         setField(service, "mInputEditorInfo", editorInfo)
         service.onStartInput(editorInfo, false)
+    }
+
+    private fun configureAppEnterOverride(packageName: String, strategy: String) {
+        val context = RuntimeEnvironment.getApplication()
+        SettingsManager.setAppEnterBehaviorEnabled(context, true)
+        SettingsManager.setAppEnterBehaviorOverrides(
+            context,
+            listOf(
+                SettingsManager.AppEnterBehaviorOverride(
+                    packageName = packageName,
+                    behavior = SettingsManager.ENTER_BEHAVIOR_ENTER_SEND_SHIFT_NEWLINE,
+                    sendStrategy = strategy
+                )
+            )
+        )
+        focusNewField(
+            newRecorder = RecordingInputConnection(),
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE,
+            packageName = packageName
+        )
     }
 
     private fun keyEvent(
@@ -1043,9 +1169,12 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
 
     private class RecordingInputConnection {
         var textBeforeCursor: String = ""
+        var sendKeyEventResult: Boolean = true
+        var performEditorActionResult: Boolean = false
         val committedTexts = mutableListOf<String>()
         val composingTexts = mutableListOf<String>()
         val sentKeyEvents = mutableListOf<KeyEvent>()
+        val editorActions = mutableListOf<Int>()
         val contextMenuActions = mutableListOf<Int>()
         val deleteSurroundingTextCalls = mutableListOf<Pair<Int, Int>>()
 
@@ -1081,7 +1210,12 @@ class PhysicalKeyboardInputMethodServiceDeviceBehaviorTest {
                     "sendKeyEvent" -> {
                         val event = args?.getOrNull(0) as? KeyEvent
                         if (event != null) sentKeyEvents += event
-                        true
+                        sendKeyEventResult
+                    }
+                    "performEditorAction" -> {
+                        val action = args?.getOrNull(0) as? Int
+                        if (action != null) editorActions += action
+                        performEditorActionResult
                     }
                     "performContextMenuAction" -> {
                         val id = args?.getOrNull(0) as? Int

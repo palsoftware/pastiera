@@ -7,10 +7,7 @@ import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.core.SymLayoutController
 
-/**
- * Handles creation/show/hide of the IME status UI for both the full input view
- * and the candidate-only view exposed when the system hides the soft keyboard.
- */
+/** Owns explicit show requests; framework callbacks alone never prove that a child was drawn. */
 class KeyboardVisibilityController(
     private val context: Context,
     private val candidatesBarController: CandidatesBarController,
@@ -21,442 +18,256 @@ class KeyboardVisibilityController(
     private val currentInputConnection: () -> InputConnection?,
     private val isInputViewShown: () -> Boolean,
     private val renderedSurface: () -> RenderedSurface,
-    private val requiresCandidatesSurfaceRecovery: () -> Boolean,
     private val setRequestedInputViewShown: (Boolean) -> Unit,
     private val attachInputView: (View) -> Unit,
+    private val attachCandidatesView: (View) -> Unit,
     private val setCandidatesSurfaceActive: (Boolean) -> Unit,
     private val setCandidatesViewShown: (Boolean) -> Unit,
     private val synchronizeCandidatesContainerVisibility: () -> Unit,
     private val postToUi: (() -> Unit) -> Unit,
-    private val postToUiDelayed: (delayMs: Long, action: () -> Unit) -> Unit,
-    private val showInputWindow: (showInput: Boolean) -> Unit,
+    private val postToUiDelayed: (Long, () -> Unit) -> Unit,
+    private val showInputWindow: (Boolean) -> Unit,
+    private val hideInputWindow: () -> Unit,
     private val requestHideInputView: () -> Unit,
     private val requestShowInputView: () -> Unit,
-    private val refreshStatusBar: () -> Unit
+    private val refreshStatusBar: () -> Unit,
+    private val trace: (String) -> Unit = {}
 ) {
+    enum class RenderedSurface { HIDDEN, FULL_INPUT_VIEW, CANDIDATES_VIEW }
 
-    private var statusBarPresentationMode: SettingsManager.StatusBarPresentationMode =
-        SettingsManager.getStatusBarPresentationMode(context)
-    private var surfaceTransitionGeneration = 0
-    private var pendingSurfaceTransition: PendingSurfaceTransition? = null
-    private var candidatesSurfaceRequested = false
-    private var candidatesDismissalGeneration = 0
-    private var candidatesSurfaceExplicitlyDismissed = false
-    private val candidatesSurfaceRecoveryWorkaround = CandidatesSurfaceRecoveryWorkaround(
-        isRequired = requiresCandidatesSurfaceRecovery,
-        canRecover = {
-            isInputViewActive() &&
-                currentInputConnection() != null &&
-                !isNavModeLatched() &&
-                SettingsManager.resolveEffectiveSoftwareKeyboardMode(context) !=
-                SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
-        },
-        requestRecovery = requestShowInputView,
-        postDelayed = postToUiDelayed
-    )
+    private var generation = 0
+    private var pending = false
+    private var changingSurface = false
+    private var dismissed = false
+    private var candidatesStarted = false
+    private var windowShown = false
+    private var waitingForBackendHide = false
 
-    enum class RenderedSurface {
-        HIDDEN,
-        FULL_INPUT_VIEW,
-        CANDIDATES_VIEW
+    fun usesCandidatesView(): Boolean =
+        SettingsManager.getExperimentalCandidatesViewEnabled(context) &&
+            SettingsManager.resolveEffectiveSoftwareKeyboardMode(context) !=
+            SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
+
+    private fun expectedSurface() = if (usesCandidatesView()) {
+        RenderedSurface.CANDIDATES_VIEW
+    } else {
+        RenderedSurface.FULL_INPUT_VIEW
     }
 
-    private data class PendingSurfaceTransition(
-        val generation: Int,
-        val target: RenderedSurface,
-        val requireActiveTextField: Boolean,
-        var attemptsRemaining: Int = MAX_SURFACE_TRANSITION_ATTEMPTS,
-        var retryScheduled: Boolean = false
-    )
-
-    fun onCreateInputView(): View {
-        val layout = candidatesBarController.getInputView(symLayoutController.emojiMapTextForLayout())
-        detachFromParent(layout)
-        refreshStatusBar()
-        return layout
-    }
+    fun onCreateInputView(): View =
+        candidatesBarController.getInputView(symLayoutController.emojiMapTextForLayout()).also {
+            detachFromParent(it)
+            refreshStatusBar()
+        }
 
     fun onCreateCandidatesView(): View {
-        val layout = candidatesBarController.getCandidatesView(symLayoutController.emojiMapTextForLayout())
-        detachFromParent(layout)
-        refreshStatusBar()
-        return layout
+        setCandidatesSurfaceActive(usesCandidatesView())
+        return candidatesBarController.getCandidatesView(symLayoutController.emojiMapTextForLayout()).also {
+            detachFromParent(it)
+            refreshStatusBar()
+        }
     }
 
     fun onEvaluateInputViewShown(shouldShowInputView: Boolean): Boolean {
         SoftwareKeyboardAutoDetector.updateSystemInputViewDecision(shouldShowInputView)
-        val resolvedShowInputView =
-            SettingsManager.resolveEffectiveSoftwareKeyboardMode(context) ==
-                SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
-        refreshStatusBar()
-        return resolvedShowInputView
+        // The stable backend deliberately uses an input view even for the compact hardware row.
+        // Keep evaluation pure: a show from here re-enters Android's unfinished show operation.
+        return !usesCandidatesView()
     }
 
+    private fun canShow() = isInputViewActive() && currentInputConnection() != null && !isNavModeLatched()
+
     fun ensureImeSurfaceVisible() {
-        if (!isInputViewActive()) {
-            return
-        }
-        if (currentInputConnection() == null) {
-            return
-        }
-        if (isNavModeLatched()) {
-            return
-        }
+        if (!canShow() || waitingForBackendHide) return
+        dismissed = false
+        if (pending || isExpectedSurfaceRequestedOrShown()) return
+        pending = true
+        val ticket = ++generation
+        // onStartInput/onShowInputRequested may be inside a framework hide/show. Wait for it to end.
+        postToUi { present(ticket, 0) }
+    }
 
-        clearExplicitCandidatesDismissal()
-
-        when (SettingsManager.resolveEffectiveSoftwareKeyboardMode(context)) {
-            SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL -> ensureFullInputViewVisible()
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE,
-            SettingsManager.SoftwareKeyboardMode.AUTO ->
-                ensureCandidatesSurfaceVisible()
+    private fun present(ticket: Int, attempt: Int) {
+        if (ticket != generation || !pending) return
+        if (!canShow() || dismissed) {
+            cancelPendingSurfaceTransition()
+            return
         }
+        if (isExpectedSurfaceRequestedOrShown()) {
+            pending = false
+            trace("shown target=${expectedSurface()} attempt=$attempt")
+            return
+        }
+        if (attempt >= MAX_ATTEMPTS) {
+            // A failed show must not leave an invisible window intercepting the editor.
+            pending = false
+            changingSurface = true
+            setCandidatesSurfaceActive(false)
+            setCandidatesViewShown(false)
+            hideInputWindow()
+            requestHideInputView()
+            changingSurface = false
+            trace("show_failed target=${expectedSurface()}; window closed")
+            return
+        }
+        trace("show target=${expectedSurface()} attempt=$attempt rendered=${renderedSurface()}")
+        changingSurface = true
+        try {
+            val candidates = usesCandidatesView()
+            setRequestedInputViewShown(!candidates)
+            setCandidatesSurfaceActive(candidates)
+            if (candidates) {
+                // Rebind the actual child, even when Android still reports candidates-started.
+                // setCandidatesViewShown(true) alone is an idempotent no-op in that ghost state.
+                attachCandidatesView(onCreateCandidatesView())
+                setCandidatesViewShown(true)
+                synchronizeCandidatesContainerVisibility()
+                showInputWindow(false)
+                synchronizeCandidatesContainerVisibility()
+                // Direct child/window repair does not restore IMMS's show request after Back.
+                // Issue one server request for this explicit recovery, never one per retry/key.
+                if (attempt == 0) requestShowInputView()
+            } else {
+                setCandidatesViewShown(false)
+                attachInputView(onCreateInputView())
+                if (attempt == 0) requestShowInputView()
+                else showInputWindow(true)
+            }
+            refreshStatusBar()
+        } catch (error: RuntimeException) {
+            // A disappearing editor/window can reject a request. Retry within the same bound.
+            trace("show_rejected target=${expectedSurface()} error=${error.javaClass.simpleName}")
+        } finally {
+            changingSurface = false
+        }
+        postToUiDelayed(RETRY_DELAY_MS) { present(ticket, attempt + 1) }
     }
 
     fun shouldShowSurfaceOnInputStart(autoShowKeyboardEnabled: Boolean): Boolean =
         SettingsManager.resolveEffectiveSoftwareKeyboardMode(context) !=
             SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL || autoShowKeyboardEnabled
 
-    private fun ensureFullInputViewVisible() {
-        candidatesSurfaceRequested = false
-        setCandidatesSurfaceActive(false)
-        setCandidatesViewShown(false)
-
-        val layout = candidatesBarController.getInputView(symLayoutController.emojiMapTextForLayout())
-        refreshStatusBar()
-
-        if (layout.parent == null) {
-            attachInputView(layout)
-        }
-
-        if (!isInputViewShown()) {
-            try {
-                requestShowInputView()
-            } catch (_: Exception) {
-                // Avoid crashing if the system rejects the request
-            }
-        }
-    }
-
-    private fun ensureCandidatesSurfaceVisible() {
-        setRequestedInputViewShown(false)
-        setCandidatesSurfaceActive(true)
-
-        if (!candidatesSurfaceRequested) {
-            candidatesSurfaceRequested = true
-            if (!requestCandidatesView()) return
-            refreshStatusBar()
-        }
-        candidatesSurfaceRecoveryWorkaround.scheduleIfNeeded()
-    }
-
     fun onImeWindowVisibilityChanged(shown: Boolean) {
-        if (!shown && candidatesSurfaceRequested) {
-            candidatesSurfaceRequested = false
-            setCandidatesViewShown(false)
+        windowShown = shown
+        trace("window shown=$shown changing=$changingSurface")
+        if (!shown && waitingForBackendHide) {
+            waitingForBackendHide = false
+            // Let Android finish clearing mShowInputRequested before starting the new backend.
+            val ticket = generation
+            postToUi { if (ticket == generation) ensureImeSurfaceVisible() }
+            return
         }
-        if (!shown) {
-            pendingSurfaceTransition
-                ?.takeIf { it.target == RenderedSurface.CANDIDATES_VIEW }
-                ?.let { transition ->
-                    postToUi {
-                        startCandidatesTransition(transition.generation)
-                    }
-                }
+        if (!shown && !changingSurface) {
+            dismissed = true
+            cancelPendingSurfaceTransition()
         }
     }
 
     fun onCandidatesViewStarted() {
-        clearExplicitCandidatesDismissal()
-        candidatesSurfaceRequested = true
-        // This callback describes the framework's actual surface transition, not merely a
-        // request. A preceding full-input transition may have collapsed the candidates root;
-        // reactivate it before the service refreshes its contents.
-        setCandidatesSurfaceActive(true)
+        candidatesStarted = true
+        if (usesCandidatesView()) setCandidatesSurfaceActive(true)
+        trace("candidates_started rendered=${renderedSurface()}")
     }
 
     fun onCandidatesViewFinished(finishingInput: Boolean) {
-        val externallyFinishedRequestedSurface =
-            candidatesSurfaceRequested && pendingSurfaceTransition == null
-        candidatesSurfaceRequested = false
-        // A delayed app-compatibility recovery belongs to the surface that just finished. Let a
-        // subsequent explicit show or hardware-input request schedule a fresh generation instead
-        // of allowing the stale action to rebound after Back or focus loss.
-        candidatesSurfaceRecoveryWorkaround.cancel()
-        // Keep the local child state aligned with the framework callback. The next
-        // onCandidatesViewStarted callback reactivates and refreshes the same root.
-        setCandidatesSurfaceActive(false)
-        if (finishingInput || !externallyFinishedRequestedSurface) return
-
-        // setCandidatesViewShown(false) only removes the candidates child. When the system/user
-        // dismisses an otherwise still-requested candidates-only surface, Android can keep the
-        // server-side IME request (and an OEM caption/touch region) alive. Complete that external
-        // dismissal through the public IME hide request. Delay by one UI turn so a transient
-        // candidates restart can cancel it before a newly started surface is hidden.
-        candidatesSurfaceExplicitlyDismissed = true
-        val generation = ++candidatesDismissalGeneration
+        val wasStarted = candidatesStarted
+        candidatesStarted = false
+        trace("candidates_finished finishing=$finishingInput changing=$changingSurface")
+        if (changingSurface || waitingForBackendHide || finishingInput || !wasStarted || !usesCandidatesView()) return
+        dismissed = true
+        cancelPendingSurfaceTransition()
+        val ticket = generation
         postToUi {
-            if (
-                generation != candidatesDismissalGeneration ||
-                !candidatesSurfaceExplicitlyDismissed ||
-                candidatesSurfaceRequested ||
-                pendingSurfaceTransition != null ||
-                renderedSurface() == RenderedSurface.FULL_INPUT_VIEW
-            ) {
-                return@postToUi
-            }
-            try {
-                requestHideInputView()
-            } catch (_: Exception) {
-                // The framework may have completed the hide already.
-            }
+            if (ticket != generation || !dismissed || candidatesStarted) return@postToUi
+            changingSurface = true
+            setCandidatesSurfaceActive(false)
+            setCandidatesViewShown(false)
+            hideInputWindow()
+            requestHideInputView()
+            changingSurface = false
         }
+    }
+
+    fun onInputUnbound() {
+        cancelPendingSurfaceTransition()
+        windowShown = false
+        candidatesStarted = false
+        dismissed = false
+        trace("input_unbound")
     }
 
     fun onInputStarted(restarting: Boolean) {
-        if (!restarting) {
-            clearExplicitCandidatesDismissal()
-        }
+        cancelPendingSurfaceTransition()
+        if (!restarting) dismissed = false
     }
 
-    fun onExplicitShowRequested() {
-        // The framework reports an editor's showSoftInput request even when a retap on the same
-        // still-focused field does not restart input or call onViewClicked. This explicit request
-        // is one same-session action that clears a deliberate dismissal. A non-Back hardware key
-        // is the other and follows onHardwareInputRequested().
-        if (!isInputViewActive() || currentInputConnection() == null) return
-        clearExplicitCandidatesDismissal()
-        ensureImeSurfaceVisible()
-    }
+    fun onExplicitShowRequested() = ensureImeSurfaceVisible()
+    fun onHardwareInputRequested() = ensureImeSurfaceVisible()
 
-    fun onHardwareInputRequested() {
-        if (!isInputViewActive() || currentInputConnection() == null || isNavModeLatched()) return
-
-        // Telegram deliberately reports the candidate surface as needing recovery even while its
-        // enclosing IME window is still requested and visible. Preserve its delayed compatibility
-        // request, but reserve an immediate whole-window show for a window that actually finished.
-        val enclosingImeWindowNeedsShow =
-            candidatesSurfaceExplicitlyDismissed || !candidatesSurfaceRequested
-        ensureImeSurfaceVisible()
-        if (
-            enclosingImeWindowNeedsShow &&
-            SettingsManager.resolveEffectiveSoftwareKeyboardMode(context) !=
-            SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
-        ) {
+    fun onKeyboardSurfaceChanged(ensureInputViewShown: Boolean, requireActiveTextField: Boolean = false) {
+        cancelPendingSurfaceTransition()
+        if (requireActiveTextField && !hasActiveTextField()) return
+        if (windowShown) {
+            // hideWindow() only hides the local window. The framework's hideSoftInput path
+            // also resets mShowInputRequested and finishes the preceding input/candidates view.
+            waitingForBackendHide = true
+            val ticket = generation
             try {
-                // setCandidatesViewShown(true) attaches the candidates child, but after a full
-                // framework hide Android may keep mInputShown=false. A hardware key is explicit
-                // user input, so pair the child request with the same framework show request a
-                // retap would issue.
-                requestShowInputView()
-            } catch (_: Exception) {
-                // The candidates request above remains the safe fallback if Android rejects it.
+                requestHideInputView()
+                postToUiDelayed(BACKEND_HIDE_TIMEOUT_MS) {
+                    if (ticket == generation && waitingForBackendHide) abortBackendHide()
+                }
+            } catch (error: RuntimeException) {
+                trace("backend_hide_rejected error=${error.javaClass.simpleName}")
+                abortBackendHide()
             }
-        }
-    }
-
-    fun togglePastierinaMode() {
-        statusBarPresentationMode = when (statusBarPresentationMode) {
-            SettingsManager.StatusBarPresentationMode.PASTIERINA ->
-                SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR
-            SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR ->
-                SettingsManager.StatusBarPresentationMode.PASTIERINA
-        }
-        SettingsManager.setStatusBarPresentationMode(context, statusBarPresentationMode)
-        applyStatusBarPresentationMode()
-    }
-
-    private fun applyStatusBarPresentationMode() {
-        val pastierinaModeActive =
-            statusBarPresentationMode == SettingsManager.StatusBarPresentationMode.PASTIERINA
-        candidatesBarController.setPastierinaModeActive(pastierinaModeActive)
-        SettingsManager.setPastierinaModeActive(context, pastierinaModeActive)
-        refreshStatusBar()
-    }
-
-    fun syncStatusBarPresentationModeFromSettings() {
-        statusBarPresentationMode = SettingsManager.getStatusBarPresentationMode(context)
-        applyStatusBarPresentationMode()
-    }
-
-    fun onKeyboardSurfaceChanged(
-        ensureInputViewShown: Boolean,
-        requireActiveTextField: Boolean = false
-    ) {
-        val generation = ++surfaceTransitionGeneration
-        clearExplicitCandidatesDismissal()
-        pendingSurfaceTransition = null
-        candidatesSurfaceRecoveryWorkaround.cancel()
-        refreshStatusBar()
-        if ((requireActiveTextField && !hasActiveTextField()) || currentInputConnection() == null) {
-            return
-        }
-
-        pendingSurfaceTransition = PendingSurfaceTransition(
-            generation = generation,
-            target = if (ensureInputViewShown) {
-                RenderedSurface.FULL_INPUT_VIEW
-            } else {
-                RenderedSurface.CANDIDATES_VIEW
-            },
-            requireActiveTextField = requireActiveTextField
-        )
-        if (ensureInputViewShown) {
-            candidatesSurfaceRequested = false
+        } else {
             setCandidatesSurfaceActive(false)
             setCandidatesViewShown(false)
-            reconcilePendingSurfaceTransition(generation)
-        } else {
-            setCandidatesSurfaceActive(true)
-            candidatesSurfaceRequested = false
-            setCandidatesViewShown(false)
-            if (isInputViewShown()) {
-                try {
-                    requestHideInputView()
-                } catch (_: Exception) {
-                    startCandidatesTransition(generation)
-                }
-            } else {
-                startCandidatesTransition(generation)
-            }
+            ensureImeSurfaceVisible()
         }
+    }
+
+    private fun abortBackendHide() {
+        // Do not reopen against an unacknowledged hide, but allow the next explicit tap/key.
+        cancelPendingSurfaceTransition()
+        dismissed = true
+        trace("backend_hide_aborted")
     }
 
     fun cancelPendingSurfaceTransition() {
-        surfaceTransitionGeneration += 1
-        pendingSurfaceTransition = null
-        candidatesSurfaceRecoveryWorkaround.cancel()
+        generation++
+        pending = false
+        waitingForBackendHide = false
     }
 
-    private fun reconcilePendingSurfaceTransition(generation: Int) {
-        val transition = pendingSurfaceTransition
-            ?.takeIf { it.generation == generation }
-            ?: return
-        transition.retryScheduled = false
+    fun isCandidatesOnlySurface() = usesCandidatesView()
+    fun isExpectedSurfaceRequestedOrShown(): Boolean = windowShown && renderedSurface() == expectedSurface() &&
+        (usesCandidatesView() || isInputViewShown())
+    fun shouldRecoverSurfaceOnHardwareKey() = !isExpectedSurfaceRequestedOrShown()
+    internal fun isCandidatesSurfaceExplicitlyDismissedForTests() = dismissed
 
-        if (
-            currentInputConnection() == null ||
-            (transition.requireActiveTextField && !hasActiveTextField())
-        ) {
-            abandonSurfaceTransition()
-            return
+    fun togglePastierinaMode() {
+        val next = when (SettingsManager.getStatusBarPresentationMode(context)) {
+            SettingsManager.StatusBarPresentationMode.PASTIERINA -> SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR
+            SettingsManager.StatusBarPresentationMode.FULL_STATUS_BAR -> SettingsManager.StatusBarPresentationMode.PASTIERINA
         }
-        if (renderedSurface() == transition.target) {
-            setRequestedInputViewShown(transition.target == RenderedSurface.FULL_INPUT_VIEW)
-            pendingSurfaceTransition = null
-            return
-        }
-        if (transition.attemptsRemaining <= 0) {
-            abandonSurfaceTransition()
-            return
-        }
-
-        transition.attemptsRemaining -= 1
-        try {
-            showInputWindow(transition.target == RenderedSurface.FULL_INPUT_VIEW)
-        } catch (_: Exception) {
-            // A configuration rebind can temporarily reject this request. The bounded
-            // reconciliation below retries only this explicit surface transition.
-        }
-        scheduleSurfaceReconciliation(transition)
+        SettingsManager.setStatusBarPresentationMode(context, next)
+        syncStatusBarPresentationModeFromSettings()
     }
 
-    private fun startCandidatesTransition(generation: Int) {
-        val transition = pendingSurfaceTransition
-            ?.takeIf {
-                it.generation == generation && it.target == RenderedSurface.CANDIDATES_VIEW
-            }
-            ?: return
-        if (
-            currentInputConnection() == null ||
-            (transition.requireActiveTextField && !hasActiveTextField())
-        ) {
-            abandonSurfaceTransition()
-            return
-        }
-
-        setRequestedInputViewShown(false)
-        setCandidatesSurfaceActive(true)
-        candidatesSurfaceRequested = true
-        if (!requestCandidatesView()) {
-            scheduleSurfaceReconciliation(transition)
-            return
-        }
-        refreshStatusBar()
-        postToUi {
-            if (generation != surfaceTransitionGeneration) return@postToUi
-            synchronizeCandidatesContainerVisibility()
-            refreshStatusBar()
-        }
-        // setCandidatesViewShown(true) is the primary candidates-only window request. Verify it
-        // after the framework has had a chance to present the window before using showWindow(false)
-        // as a bounded recovery path.
-        scheduleSurfaceReconciliation(transition)
-    }
-
-    private fun requestCandidatesView(): Boolean =
-        try {
-            setCandidatesViewShown(true)
-            true
-        } catch (_: Exception) {
-            candidatesSurfaceRequested = false
-            false
-        }
-
-    private fun scheduleSurfaceReconciliation(transition: PendingSurfaceTransition) {
-        if (transition.retryScheduled) return
-        transition.retryScheduled = true
-        postToUiDelayed(SURFACE_TRANSITION_RETRY_DELAY_MS) {
-            reconcilePendingSurfaceTransition(transition.generation)
-        }
-    }
-
-    fun isCandidatesOnlySurface(): Boolean = renderedSurface() == RenderedSurface.CANDIDATES_VIEW
-
-    fun isExpectedSurfaceRequestedOrShown(): Boolean =
-        if (
-            SettingsManager.resolveEffectiveSoftwareKeyboardMode(context) ==
-            SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
-        ) {
-            isInputViewShown()
-        } else {
-            candidatesSurfaceRequested && !requiresCandidatesSurfaceRecovery()
-        }
-
-    /**
-     * A non-Back hardware key is an explicit request to resume typing. Keep the dismissal latch
-     * only long enough to prevent an autonomous rebound after the framework hide; the first
-     * subsequent key must restore the surface just as it did before candidates-only lifecycle
-     * handling was introduced. The caller then uses [onHardwareInputRequested] to reconcile both
-     * the candidates child and Android's enclosing IME-window request.
-     */
-    fun shouldRecoverSurfaceOnHardwareKey(): Boolean =
-        !isExpectedSurfaceRequestedOrShown()
-
-    internal fun isCandidatesSurfaceExplicitlyDismissedForTests(): Boolean =
-        candidatesSurfaceExplicitlyDismissed
-
-    private fun clearExplicitCandidatesDismissal() {
-        candidatesDismissalGeneration += 1
-        candidatesSurfaceExplicitlyDismissed = false
-    }
-
-    private fun abandonSurfaceTransition() {
-        val actualSurface = renderedSurface()
-        setRequestedInputViewShown(actualSurface == RenderedSurface.FULL_INPUT_VIEW)
-        setCandidatesSurfaceActive(actualSurface == RenderedSurface.CANDIDATES_VIEW)
-        setCandidatesViewShown(actualSurface == RenderedSurface.CANDIDATES_VIEW)
-        candidatesSurfaceRequested = actualSurface == RenderedSurface.CANDIDATES_VIEW
-        pendingSurfaceTransition = null
+    fun syncStatusBarPresentationModeFromSettings() {
+        val minimal = SettingsManager.getStatusBarPresentationMode(context) == SettingsManager.StatusBarPresentationMode.PASTIERINA
+        candidatesBarController.setPastierinaModeActive(minimal)
+        SettingsManager.setPastierinaModeActive(context, minimal)
         refreshStatusBar()
     }
 
-    private fun detachFromParent(view: View) {
-        (view.parent as? ViewGroup)?.removeView(view)
-    }
+    private fun detachFromParent(view: View) { (view.parent as? ViewGroup)?.removeView(view) }
 
     private companion object {
-        const val MAX_SURFACE_TRANSITION_ATTEMPTS = 6
-        const val SURFACE_TRANSITION_RETRY_DELAY_MS = 250L
+        const val BACKEND_HIDE_TIMEOUT_MS = 1000L
+        const val MAX_ATTEMPTS = 3
+        const val RETRY_DELAY_MS = 150L
     }
 }

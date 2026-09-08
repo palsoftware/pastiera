@@ -89,6 +89,7 @@ object SettingLinkIds {
     const val ADVANCED_RESTORE = "advanced.restore"
     const val ADVANCED_SWIPE_INCREMENTAL_THRESHOLD = "advanced.swipe_incremental_threshold"
     const val ADVANCED_CLIPBOARD_RETENTION_TIME = "advanced.clipboard_retention_time"
+    const val ADVANCED_EXPERIMENTAL_CANDIDATES_VIEW = "advanced.experimental_candidates_view"
     const val ADVANCED_SHOW_TUTORIAL = "advanced.show_tutorial"
     const val ADVANCED_SHOW_RELEASE_NOTES_TUTORIAL = "advanced.show_release_notes_tutorial"
 
@@ -154,7 +155,9 @@ data class SettingRoute(
     val destination: SettingsDestination,
     val customizationDestination: String? = null,
     val keyboardThemeTarget: SettingsManager.KeyboardThemeTarget? = null,
-    val keyboardThemeTab: KeyboardThemeEditorTab? = null
+    val keyboardThemeTab: KeyboardThemeEditorTab? = null,
+    val keyboardsDevicesDestination: KeyboardsDevicesDestination = KeyboardsDevicesDestination.Main,
+    val symCustomization: Boolean = false
 )
 
 enum class KeyboardThemeEditorTab {
@@ -178,9 +181,10 @@ data class SettingEntry(
     val summaryRes: Int? = null,
     val route: SettingRoute,
     val availability: SettingAvailability = SettingAvailability.Always,
-    val unavailableFallbackId: String? = null
+    val unavailableFallbackId: String? = null,
+    val availabilityCheck: ((Context) -> Boolean)? = null
 ) {
-    fun isAvailable(context: Context): Boolean = when (availability) {
+    fun isAvailable(context: Context): Boolean = (availabilityCheck?.invoke(context) ?: true) && when (availability) {
         SettingAvailability.Always -> true
         SettingAvailability.AutoCapitalizeEnabled ->
             SettingsManager.getAutoCapitalizeFirstLetter(context)
@@ -205,6 +209,10 @@ object SettingLinkRegistry {
 
     const val LINK_SCHEME = "pastiera"
     const val LINK_HOST = "setting"
+    const val WEB_LINK_HOST = "pastiera.eu"
+    const val ALTERNATE_WEB_LINK_HOST = "pkb.rocks"
+    const val WEB_LINK_PATH_PREFIX = "/settings/"
+    private val settingIdPattern = Regex("^[a-z0-9_]+(\\.[a-z0-9_]+)+$")
 
     private fun entry(
         id: String,
@@ -624,6 +632,12 @@ object SettingLinkRegistry {
             destination = SettingsDestination.Advanced
         ),
         entry(
+            SettingLinkIds.ADVANCED_EXPERIMENTAL_CANDIDATES_VIEW,
+            R.string.experimental_candidates_view_title,
+            R.string.experimental_candidates_view_description,
+            destination = SettingsDestination.Advanced
+        ),
+        entry(
             SettingLinkIds.ADVANCED_SHOW_TUTORIAL,
             R.string.tutorial_show,
             R.string.tutorial_review_description,
@@ -879,7 +893,7 @@ object SettingLinkRegistry {
             R.string.modifier_indicators_status_bar_description,
             destination = SettingsDestination.Modifiers
         )
-    )
+    ) + customizationSettingEntries() + inputDeviceSettingEntries() + systemSettingEntries()
 
     private val entriesById: Map<String, SettingEntry> =
         entries.associateBy { it.id }
@@ -950,7 +964,7 @@ object SettingLinkRegistry {
         return candidate
     }
 
-    fun buildLink(id: String): String = "$LINK_SCHEME://$LINK_HOST/$id"
+    fun buildLink(id: String): String = "https://$WEB_LINK_HOST$WEB_LINK_PATH_PREFIX$id"
 
     /**
      * Markdown link used for sharing. With [withDescription] the localized
@@ -968,11 +982,15 @@ object SettingLinkRegistry {
         parseSettingLink(uri.scheme, uri.host, uri.path)
 
     fun parseSettingLink(scheme: String?, host: String?, path: String?): String? {
-        if (scheme != LINK_SCHEME || host != LINK_HOST) return null
-        return path
-            ?.trim()
-            ?.removePrefix("/")
-            ?.takeIf { it.isNotEmpty() }
+        val id = when {
+            scheme == LINK_SCHEME && host == LINK_HOST ->
+                path?.trim()?.removePrefix("/")
+            scheme == "https" && (host == WEB_LINK_HOST || host == ALTERNATE_WEB_LINK_HOST) ->
+                path?.takeIf { it.startsWith(WEB_LINK_PATH_PREFIX) }
+                    ?.removePrefix(WEB_LINK_PATH_PREFIX)
+            else -> null
+        }
+        return id?.takeIf(settingIdPattern::matches)
     }
 
     /**
@@ -993,6 +1011,12 @@ object SettingLinkRegistry {
         SettingsDestination.Modifiers to R.string.modifiers_title
     )
 
+    val keyboardsDevicesSubtitles: Map<KeyboardsDevicesDestination, Int> = mapOf(
+        KeyboardsDevicesDestination.OnScreen to R.string.on_screen_keyboard_title,
+        KeyboardsDevicesDestination.BuiltIn to R.string.built_in_keyboards_title,
+        KeyboardsDevicesDestination.PowerKeyboard to R.string.keyboard_accessories_title
+    )
+
     val customizationSubtitles: Map<String, Int> = mapOf(
         SettingsActivity.CUSTOMIZATION_DESTINATION_STATUS_BAR_BUTTONS to
             R.string.status_bar_buttons_title,
@@ -1002,7 +1026,7 @@ object SettingLinkRegistry {
             R.string.app_enter_behaviour_title,
         SettingsActivity.CUSTOMIZATION_DESTINATION_KEYBOARD_THEME to
             R.string.keyboard_theme_title
-    )
+    ) + customizationSettingSubtitles()
 
     /**
      * Search across all registered entries. The query is split into tokens;
@@ -1021,7 +1045,13 @@ object SettingLinkRegistry {
             .mapNotNull { entry ->
             val title = normalizeForSearch(context.getString(entry.titleRes))
             val summary = entry.summaryRes?.let { normalizeForSearch(context.getString(it)) }
-            val keywords = keywordsById[entry.id]?.let { normalizeForSearch(context.getString(it)) }
+            val keywords = normalizeForSearch(listOfNotNull(
+                keywordsById[entry.id]?.let(context::getString),
+                destinationTitles[entry.route.destination]?.let(context::getString),
+                entry.route.customizationDestination?.let(customizationSubtitles::get)?.let(context::getString),
+                keyboardsDevicesSubtitles[entry.route.keyboardsDevicesDestination]?.let(context::getString),
+                entry.id.replace('.', ' ').replace('_', ' ')
+            ).joinToString(" "))
             var score = 0
             for (token in tokens) {
                 score += tokenScore(title, summary, keywords, token) ?: return@mapNotNull null

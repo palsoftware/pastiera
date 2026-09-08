@@ -3,7 +3,6 @@ package it.palsoftware.pastiera
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -43,6 +42,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -98,7 +98,7 @@ fun AdvancedSettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val prefs = remember { SettingsManager.getPreferences(context) }
-    
+
     // Store the actual value (3 to 25), but display it inverted in the slider (25 to 3)
     var swipeIncrementalThreshold by remember {
         mutableStateOf(SettingsManager.getSwipeIncrementalThreshold(context))
@@ -108,28 +108,18 @@ fun AdvancedSettingsScreen(
     }
     var shizukuStatus by remember { mutableStateOf(ShizukuStatus.NotConnected) }
     var trackpadProvider by remember { mutableStateOf(SettingsManager.getTrackpadProvider(context)) }
+    var experimentalCandidatesViewEnabled by remember {
+        mutableStateOf(SettingsManager.getExperimentalCandidatesViewEnabled(context))
+    }
     var pendingDeviceChangeRestore by remember {
         mutableStateOf<Pair<Uri, RestoreManager.DeviceChange>?>(null)
     }
-    var navigationDirection by remember { mutableStateOf(AdvancedNavigationDirection.Push) }
-    val navigationStack = remember {
-        mutableStateListOf<AdvancedDestination>(AdvancedDestination.Main)
-    }
-    val currentDestination by remember {
-        derivedStateOf { navigationStack.last() }
-    }
+    val currentDestination = remember { when (settingsChild(context, "advanced")) {
+        "ImeTest" -> AdvancedDestination.ImeTest
+        "TrackpadGestures" -> AdvancedDestination.TrackpadGestures
+        else -> if (context.settingsActivity().intent.data?.let(SettingLinkRegistry::parseSettingLinkUri) in TRACKPAD_SETTING_LINK_IDS) AdvancedDestination.TrackpadGestures else AdvancedDestination.Main
+    } }
     val highlightedSettingId = LocalSettingHighlightId.current
-
-    LaunchedEffect(highlightedSettingId) {
-        if (
-            highlightedSettingId in TRACKPAD_SETTING_LINK_IDS &&
-            navigationStack.last() != AdvancedDestination.TrackpadGestures
-        ) {
-            navigationDirection = AdvancedNavigationDirection.Push
-            navigationStack.add(AdvancedDestination.TrackpadGestures)
-        }
-    }
-    
     // Listen to SharedPreferences changes to update UI when values are restored
     DisposableEffect(prefs) {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -142,6 +132,9 @@ fun AdvancedSettingsScreen(
                 }
                 "trackpad_provider" -> {
                     trackpadProvider = SettingsManager.getTrackpadProvider(context)
+                }
+                "experimental_candidates_view_enabled" -> {
+                    experimentalCandidatesViewEnabled = SettingsManager.getExperimentalCandidatesViewEnabled(context)
                 }
             }
         }
@@ -160,21 +153,11 @@ fun AdvancedSettingsScreen(
     }
 
     fun navigateTo(destination: AdvancedDestination) {
-        navigationDirection = AdvancedNavigationDirection.Push
-        navigationStack.add(destination)
+        openSettingsChild(context, "advanced", when (destination) { AdvancedDestination.Main -> "Main"; AdvancedDestination.ImeTest -> "ImeTest"; AdvancedDestination.TrackpadGestures -> "TrackpadGestures" })
     }
-    
-    fun navigateBack() {
-        if (navigationStack.size > 1) {
-            navigationDirection = AdvancedNavigationDirection.Pop
-            navigationStack.removeAt(navigationStack.lastIndex)
-        } else {
-            onBack()
-        }
-    }
-    
-    BackHandler { navigateBack() }
-    
+    fun navigateBack() { context.settingsActivity().finish() }
+
+
     fun defaultBackupName(): String {
         val formatter = SimpleDateFormat("yyyyMMdd-HHmm", Locale.US)
         return "pastiera-backup-${formatter.format(Date())}.zip"
@@ -279,33 +262,8 @@ fun AdvancedSettingsScreen(
             }
         )
     }
-    
-    AnimatedContent(
-        targetState = currentDestination,
-        transitionSpec = {
-            if (navigationDirection == AdvancedNavigationDirection.Push) {
-                // Forward navigation: new screen enters from right, old screen exits to left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                )
-            } else {
-                // Back navigation: current screen exits to right, previous screen enters from left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                )
-            }
-        },
-        label = "advanced_navigation",
-        contentKey = { it::class }
-    ) { destination ->
+
+    val destination = currentDestination
         when (destination) {
             AdvancedDestination.Main -> {
                 Scaffold(
@@ -477,7 +435,7 @@ fun AdvancedSettingsScreen(
                                 )
                             }
                         }
-                    
+
                         // Restore
                         Surface(
                             modifier = Modifier
@@ -521,7 +479,7 @@ fun AdvancedSettingsScreen(
                                 )
                             }
                         }
-                    
+
                         // Swipe Incremental Threshold
                         Surface(
                             modifier = Modifier
@@ -557,11 +515,11 @@ fun AdvancedSettingsScreen(
                                     )
                                 }
                                 Slider(
-                                    value = SettingsManager.getMaxSwipeIncrementalThreshold() + 
+                                    value = SettingsManager.getMaxSwipeIncrementalThreshold() +
                                         SettingsManager.getMinSwipeIncrementalThreshold() - swipeIncrementalThreshold,
                                     onValueChange = { newInvertedValue ->
                                         // Invert the slider value (25 to 3) back to stored value (3 to 25)
-                                        val actualValue = SettingsManager.getMaxSwipeIncrementalThreshold() + 
+                                        val actualValue = SettingsManager.getMaxSwipeIncrementalThreshold() +
                                             SettingsManager.getMinSwipeIncrementalThreshold() - newInvertedValue
                                         swipeIncrementalThreshold = actualValue
                                         SettingsManager.setSwipeIncrementalThreshold(context, actualValue)
@@ -574,7 +532,7 @@ fun AdvancedSettingsScreen(
                                 )
                             }
                         }
-                    
+
                         // Clipboard Retention Time
                         Surface(
                             modifier = Modifier
@@ -640,7 +598,59 @@ fun AdvancedSettingsScreen(
                                 }
                             }
                         }
-                    
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .settingRow(SettingLinkIds.ADVANCED_EXPERIMENTAL_CANDIDATES_VIEW)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.experimental_candidates_view_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.experimental_candidates_view_description),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = experimentalCandidatesViewEnabled,
+                                    onCheckedChange = { enabled ->
+                                        experimentalCandidatesViewEnabled = enabled
+                                        SettingsManager.setExperimentalCandidatesViewEnabled(context, enabled)
+                                    }
+                                )
+                            }
+                        }
+
+                        if (it.palsoftware.pastiera.inputmethod.DeviceSpecific.isTitan2EliteDevice() ||
+                            SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) {
+                            Surface(modifier = Modifier.fillMaxWidth()
+                                .settingRow("advanced.corner_calibration") {
+                                    context.startActivity(Intent(context, CornerCalibrationActivity::class.java))
+                                }) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text(stringResource(R.string.corner_calibration_title),
+                                        style = MaterialTheme.typography.titleMedium)
+                                    Text(stringResource(R.string.corner_calibration_description),
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+
                         // IME Test Screen (only in debug builds)
                         if (BuildConfig.DEBUG) {
                             Surface(
@@ -684,7 +694,7 @@ fun AdvancedSettingsScreen(
                                 }
                             }
                         }
-                    
+
                         // Show Tutorial
                         Surface(
                             modifier = Modifier
@@ -797,7 +807,7 @@ fun AdvancedSettingsScreen(
             }
 
         }
-    }
+
 }
 
 private sealed class AdvancedDestination {
@@ -806,12 +816,13 @@ private sealed class AdvancedDestination {
     object TrackpadGestures : AdvancedDestination()
 }
 
-private enum class AdvancedNavigationDirection {
-    Push,
-    Pop
-}
+
 
 private val TRACKPAD_SETTING_LINK_IDS = setOf(
+    "trackpad.add_word",
+    "trackpad.add_word_full_width",
+    "trackpad.swipe_to_delete",
+    "trackpad.swipe_to_delete_provider",
     SettingLinkIds.TRACKPAD_GESTURES_ENABLED,
     SettingLinkIds.TRACKPAD_PROVIDER,
     SettingLinkIds.TRACKPAD_SHIZUKU_DEVICE,

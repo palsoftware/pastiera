@@ -39,9 +39,7 @@ class SettingsActivity : LocalizedComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) {
-            applySlideInFromRightTransition()
-        }
+        intent.putSettingsPage(intent.settingsPage())
         enableEdgeToEdge()
         settingLinkRequest.value = if (savedInstanceState == null) {
             resolveSettingLinkId(intent)?.let(::newSettingLinkRequest)
@@ -76,8 +74,4 @@ class SettingsActivity : LocalizedComponentActivity() {
     private fun resolveSettingLinkId(intent: Intent?): String? =
         intent?.data?.let(SettingLinkRegistry::parseSettingLinkUri)
 
-    override fun finish() {
-        super.finish()
-        applySlideOutToRightTransition()
-    }
 }

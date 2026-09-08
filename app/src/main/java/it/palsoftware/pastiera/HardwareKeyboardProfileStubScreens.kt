@@ -10,7 +10,6 @@ import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -161,6 +160,14 @@ fun ClicksPowerKeyboardSettingsScreen(
     var backlightSlider by remember { mutableStateOf(100f) }
     var reserveSlider by remember { mutableStateOf(0f) }
     var mappingPage by remember { mutableStateOf<ClicksMappingPage?>(null) }
+    val settingHighlight = LocalSettingHighlightId.current
+    var showRequestedHostSlots by remember { mutableStateOf(settingHighlight == "clicks.host_slots") }
+    androidx.compose.runtime.LaunchedEffect(settingHighlight) {
+        if (settingHighlight != null) {
+            showRequestedHostSlots = settingHighlight == "clicks.host_slots"
+            mappingPage = if (settingHighlight.startsWith("clicks.buttons.")) ClicksMappingPage.Buttons else null
+        }
+    }
     var hostSlotToEdit by remember { mutableStateOf<Int?>(null) }
     var buttonBindingsInProgress by remember { mutableStateOf(emptySet<String>()) }
     var buttonBindingResult by remember { mutableStateOf<Int?>(null) }
@@ -423,10 +430,11 @@ fun ClicksPowerKeyboardSettingsScreen(
         val firmwareVersion = powerState.firmwareVersion
         val firmwareSupported = firmwareVersion?.let(ClicksFirmwareVersionReader::isSupported) == true
         val controlsEnabled = powerState.ready && powerState.sessionValidated && !powerState.stale && firmwareSupported
-        if (powerState.activeHostSlot != null) {
+        if (powerState.activeHostSlot != null || showRequestedHostSlots) {
             ClicksDeviceInfoRow(
                 icon = Icons.Filled.Bluetooth,
                 title = stringResource(R.string.clicks_host_slots_title),
+                linkId = "clicks.host_slots",
                 description = hostSlotsSummary(powerState),
                 onClick = if (controlsEnabled && powerState.supportsHostNameWrites()) {
                     ({ mappingPage = ClicksMappingPage.HostSlots })
@@ -447,6 +455,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         ClicksDeviceInfoRow(
             icon = Icons.Filled.SystemUpdate,
             title = stringResource(R.string.clicks_firmware_updates_title),
+            linkId = "clicks.firmware_updates",
             description = if (clicksAppInstalled) {
                 stringResource(R.string.clicks_firmware_updates_open_app)
             } else {
@@ -459,6 +468,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         ClicksDeviceInfoRow(
             icon = Icons.Filled.CheckCircle,
             title = stringResource(R.string.clicks_recommended_settings_title),
+            linkId = "clicks.recommended_settings",
             description = stringResource(R.string.clicks_recommended_settings_description),
             onClick = if (controlsEnabled && powerState.specialKeyEnableFlags != null) ({
                 val client = gattClient ?: return@ClicksDeviceInfoRow
@@ -534,6 +544,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_number_row_repeat_title),
+            linkId = "clicks.number_row_repeat",
             description = stringResource(R.string.clicks_number_row_repeat_description),
             checked = numberRowRepeatEnabled,
             onCheckedChange = { enabled ->
@@ -543,6 +554,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_sticky_alt_title),
+            linkId = "clicks.sticky_alt",
             description = stringResource(R.string.clicks_sticky_alt_description),
             checked = powerState.hasFeature(ClicksPowerKeyboardProtocol.FLAG_SYM_LOCK) == true,
             enabled = controlsEnabled && powerState.featureFlags != null,
@@ -551,6 +563,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_sticky_shift_title),
+            linkId = "clicks.sticky_shift",
             description = stringResource(R.string.clicks_sticky_shift_description),
             checked = powerState.hasFeature(ClicksPowerKeyboardProtocol.FLAG_CAPS_LOCK) == true,
             enabled = controlsEnabled && powerState.featureFlags != null,
@@ -559,6 +572,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_soft_return_title),
+            linkId = "clicks.soft_return",
             description = stringResource(R.string.clicks_soft_return_description),
             checked = powerState.hasFeature(ClicksPowerKeyboardProtocol.FLAG_SOFT_RETURN) == true,
             enabled = controlsEnabled && powerState.featureFlags != null,
@@ -567,6 +581,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_cursor_mode_title),
+            linkId = "clicks.cursor_mode",
             description = stringResource(R.string.clicks_cursor_mode_description),
             checked = powerState.hasFeature(ClicksPowerKeyboardProtocol.FLAG_CURSOR_MODE) == true,
             enabled = controlsEnabled && powerState.featureFlags != null,
@@ -578,6 +593,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         ClicksDeviceInfoRow(
             icon = Icons.Filled.Edit,
             title = stringResource(R.string.clicks_button_bindings_title),
+            linkId = "clicks.button_bindings",
             description = stringResource(R.string.clicks_button_bindings_description),
             onClick = {
                 buttonBindingResult = null
@@ -587,6 +603,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         ClicksDeviceInfoRow(
             icon = Icons.Filled.Edit,
             title = stringResource(R.string.clicks_number_row_title),
+            linkId = "clicks.number_row",
             description = stringResource(R.string.clicks_number_row_description),
             onClick = if (
                 controlsEnabled &&
@@ -607,6 +624,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         StubSection(stringResource(R.string.clicks_section_backlight_power))
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_backlight_title),
+            linkId = "clicks.backlight",
             description = stringResource(R.string.clicks_backlight_description),
             checked = powerState.hasFeature(ClicksPowerKeyboardProtocol.FLAG_BACKLIGHT) == true,
             enabled = controlsEnabled && powerState.featureFlags != null,
@@ -614,6 +632,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSliderRow(
             title = stringResource(R.string.clicks_backlight_brightness_title),
+            linkId = "clicks.backlight_brightness",
             valueLabel = "${backlightSlider.toInt()} %",
             value = backlightSlider,
             range = 0f..100f,
@@ -624,6 +643,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksIntDropdownRow(
             title = stringResource(R.string.clicks_backlight_timeout_dialog_title),
+            linkId = "clicks.backlight_timeout_dialog",
             selected = powerState.backlightTimeoutSeconds?.takeIf { it in CLICKS_BACKLIGHT_TIMEOUT_OPTIONS },
             options = CLICKS_BACKLIGHT_TIMEOUT_OPTIONS,
             label = { stringResource(R.string.clicks_seconds_value, it) },
@@ -632,6 +652,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksIntDropdownRow(
             title = stringResource(R.string.clicks_idle_timeout_dialog_title),
+            linkId = "clicks.idle_timeout_dialog",
             selected = powerState.idleTimeoutSeconds
                 ?.takeIf { it % 60 == 0 }
                 ?.div(60)
@@ -645,6 +666,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         StubSection(stringResource(R.string.clicks_section_wireless_charging))
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_charging_automation_title),
+            linkId = "clicks.charging_automation",
             description = stringResource(R.string.clicks_charging_automation_description),
             checked = chargingAutomation,
             infoText = stringResource(R.string.clicks_charging_connection_boundary_description),
@@ -655,6 +677,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSliderRow(
             title = stringResource(R.string.clicks_charging_start_title),
+            linkId = "clicks.charging_start",
             valueLabel = "${chargingStartSlider.toInt()} %",
             value = chargingStartSlider,
             range = 5f..90f,
@@ -670,6 +693,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSliderRow(
             title = stringResource(R.string.clicks_charging_stop_title),
+            linkId = "clicks.charging_stop",
             valueLabel = "${chargingStopSlider.toInt()} %",
             value = chargingStopSlider,
             range = 6f..95f,
@@ -751,6 +775,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         }
         ClicksSliderRow(
             title = stringResource(R.string.clicks_charging_reserve_title),
+            linkId = "clicks.charging_reserve",
             valueLabel = "$selectedReservePercent %",
             description = reserveDescription,
             value = reserveSlider,
@@ -762,6 +787,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_manual_wireless_charging_title),
+            linkId = "clicks.manual_wireless_charging",
             description = stringResource(R.string.clicks_manual_wireless_charging_description),
             checked = manualChargingUntil > System.currentTimeMillis(),
             enabled = controlsEnabled && powerState.chargingReservePercent != null,
@@ -771,6 +797,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         StubSection(stringResource(R.string.clicks_section_automation))
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_show_keyboard_only_with_text_focus_title),
+            linkId = "clicks.show_keyboard_only_with_text_focus",
             description = stringResource(R.string.clicks_show_keyboard_only_with_text_focus_description),
             checked = showKeyboardOnlyWithTextFocus,
             onCheckedChange = { enabled ->
@@ -780,6 +807,7 @@ fun ClicksPowerKeyboardSettingsScreen(
         )
         ClicksSettingsSwitchRow(
             title = stringResource(R.string.clicks_close_input_on_disconnect_title),
+            linkId = "clicks.close_input_on_disconnect",
             description = stringResource(R.string.clicks_close_input_on_disconnect_description),
             checked = closeInputOnDisconnect,
             onCheckedChange = { enabled ->
@@ -1173,6 +1201,7 @@ private fun ClicksButtonMappingsScreen(
         )
         ClicksButtonBindingRow(
             title = stringResource(R.string.clicks_launcher_button_title),
+            linkId = "clicks.buttons.launcher_button",
             hardwareDescription = stringResource(R.string.clicks_launcher_button_hardware_description),
             selected = launcherSelected,
             choices = launcherChoices,
@@ -1183,6 +1212,7 @@ private fun ClicksButtonMappingsScreen(
         )
         ClicksButtonBindingRow(
             title = stringResource(R.string.clicks_red_button_title),
+            linkId = "clicks.buttons.red_button",
             hardwareDescription = stringResource(R.string.clicks_red_button_hardware_description),
             selected = redSelected,
             choices = if (redSelected.id == "red_custom") redChoices + redSelected else redChoices,
@@ -1200,6 +1230,7 @@ private fun ClicksButtonMappingsScreen(
         )
         ClicksButtonBindingRow(
             title = stringResource(R.string.clicks_alt_button_title),
+            linkId = "clicks.buttons.alt_button",
             hardwareDescription = stringResource(R.string.clicks_alt_button_hardware_description),
             selected = altSelected,
             choices = displayedAltChoices,
@@ -1217,6 +1248,7 @@ private fun ClicksButtonMappingsScreen(
         )
         ClicksButtonBindingRow(
             title = stringResource(R.string.clicks_microphone_button_title),
+            linkId = "clicks.buttons.microphone_button",
             hardwareDescription = stringResource(R.string.clicks_microphone_button_hardware_description),
             selected = microphoneSelected,
             choices = displayedMicrophoneChoices,
@@ -1339,6 +1371,7 @@ private const val CLICKS_COMPANION_PLAY_STORE_URL =
 @Composable
 private fun ClicksDeviceInfoRow(
     icon: ImageVector,
+    linkId: String? = null,
     title: String,
     description: String,
     onClick: (() -> Unit)? = null
@@ -1347,7 +1380,7 @@ private fun ClicksDeviceInfoRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .settingRow(linkId, onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -1425,6 +1458,7 @@ private fun applyClicksBindingPastieraFunction(
 @Composable
 private fun ClicksSettingsSwitchRow(
     title: String,
+    linkId: String? = null,
     description: String,
     checked: Boolean,
     enabled: Boolean = true,
@@ -1441,7 +1475,7 @@ private fun ClicksSettingsSwitchRow(
             }
         )
     }
-    Surface(modifier = Modifier.fillMaxWidth()) {
+    Surface(modifier = Modifier.settingRow(linkId).fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1542,6 +1576,7 @@ private fun ClicksRemapDropdownRow(
 @Composable
 private fun ClicksIntDropdownRow(
     title: String,
+    linkId: String? = null,
     selected: Int?,
     options: List<Int>,
     label: @Composable (Int) -> String,
@@ -1552,7 +1587,7 @@ private fun ClicksIntDropdownRow(
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { if (enabled) expanded = it },
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+        modifier = Modifier.settingRow(linkId).fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         OutlinedTextField(
             value = selected?.let { label(it) } ?: "–",
@@ -1581,6 +1616,7 @@ private fun ClicksIntDropdownRow(
 @Composable
 private fun ClicksButtonBindingRow(
     title: String,
+    linkId: String? = null,
     hardwareDescription: String,
     selected: ClicksButtonBindingChoice,
     choices: List<ClicksButtonBindingChoice>,
@@ -1593,7 +1629,7 @@ private fun ClicksButtonBindingRow(
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { if (enabled) expanded = it },
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+        modifier = Modifier.settingRow(linkId).fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         OutlinedTextField(
             value = if (applying) {
@@ -1742,7 +1778,7 @@ private fun ClicksNumberRowInputModeRow(
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+        modifier = Modifier.settingRow("clicks.number_row_input_mode").fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         OutlinedTextField(
             value = clicksNumberRowInputModeLabel(selected),
@@ -1777,7 +1813,7 @@ private fun ClicksOverlappingKeysModeRow(
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
+        modifier = Modifier.settingRow("clicks.release_order").fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         OutlinedTextField(
             value = clicksOverlappingKeysModeLabel(selected),
@@ -1850,6 +1886,7 @@ private fun numberRemapPresets(): List<ClicksRemapPreset> = listOf(
 @Composable
 private fun ClicksSliderRow(
     title: String,
+    linkId: String? = null,
     valueLabel: String,
     description: String? = null,
     value: Float,
@@ -1859,7 +1896,7 @@ private fun ClicksSliderRow(
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+    Column(modifier = Modifier.settingRow(linkId).fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(valueLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
@@ -2146,7 +2183,6 @@ private fun HardwareProfileScaffold(
     scrollState: ScrollState = rememberScrollState(),
     content: @Composable () -> Unit
 ) {
-    BackHandler { onBack() }
 
     Scaffold(
         topBar = {

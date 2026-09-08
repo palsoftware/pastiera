@@ -865,8 +865,8 @@
     <!-- Update Notifications -->
     <string name="notification_update_channel_name">Pastiera Updates</string>
     <string name="notification_update_channel_description">Notifications about new Pastiera versions</string>
-    <string name="notification_update_available_title">Pastiera - New update available</string>
-    <string name="notification_update_available_text">A new version of Pastiera is available (%1$s)</string>
+    <string name="notification_successor_release_title">Plektra release available</string>
+    <string name="notification_successor_release_text">%1$s is available as the successor to Pastiera.</string>
     
     <!-- Speech Recognition -->
     <string name="speech_recognition_prompt">Speak now...</string>
@@ -978,10 +978,16 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="app_enter_behaviour_add_app">Add app</string>
     <string name="app_enter_behaviour_add_app_description">For additional apps this is a target configuration first. The curated messaging list uses tested strategies.</string>
     <string name="app_enter_behaviour_add_app_list_title">Choose app</string>
+    <string name="app_enter_behaviour_app_picker_title">Add apps</string>
+    <string name="app_enter_behaviour_app_picker_search">Search apps</string>
+    <string name="app_enter_behaviour_app_picker_empty">No matching apps</string>
+    <string name="app_enter_behaviour_app_picker_add_selected">Add (%1$d)</string>
     <string name="app_enter_behaviour_remove_app">Remove app</string>
     <string name="app_enter_behaviour_show_manual_override">Manual override</string>
     <string name="app_enter_behaviour_hide_manual_override">Hide manual fields</string>
     <string name="app_enter_behaviour_manual_override_note">The curated strategy is usually the better default. Override only for app updates or special cases.</string>
+    <string name="app_enter_behaviour_manual_summary">%1$s · %2$s</string>
+    <string name="app_enter_behaviour_manual_additional_shortcut_summary">Additional shortcut: %1$s</string>
     <string name="app_enter_behaviour_option_app_default">App default</string>
     <string name="app_enter_behaviour_option_send_shift_newline">Enter sends, Shift+Enter newline</string>
     <string name="app_enter_behaviour_option_newline_ctrl_send">Enter newline, Ctrl+Enter sends</string>
@@ -1047,16 +1053,15 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <!-- Settings Screen -->
     <string name="settings_support_ko_fi">Support on Ko-fi</string>
     <string name="settings_nav_mode_configure">Configure navigation mode key mappings</string>
-    <string name="settings_update_section_title">Updates</string>
-    <string name="settings_update_section_description">Check the latest release on GitHub.</string>
-    <string name="settings_update_checking">Checking for updates…</string>
-    <string name="settings_update_up_to_date">App is up to date.</string>
+    <string name="settings_update_section_title">Plektra</string>
+    <string name="settings_update_section_description">Check for a new Plektra successor release.</string>
+    <string name="settings_update_checking">Checking Plektra releases…</string>
+    <string name="settings_update_up_to_date">No Plektra release found.</string>
     <string name="settings_update_check_failed">Unable to reach GitHub.</string>
-    <string name="update_dialog_title">New update available</string>
-    <string name="update_dialog_message">Version %1$s is available on GitHub.</string>
-    <string name="update_dialog_open_github">Open GitHub</string>
-    <string name="update_dialog_later">Later</string>
-    <string name="update_dialog_download_apk">Download APK</string>
+    <string name="successor_dialog_title">Pastiera has a successor</string>
+    <string name="successor_dialog_message">Plektra succeeds Pastiera. %1$s is available on GitHub.</string>
+    <string name="successor_dialog_open_release">View Plektra release</string>
+    <string name="successor_dialog_later">Later</string>
     
     <!-- Auto Correct Settings -->
     <string name="auto_correct_ricette_pastiera_name">Ricette Pastiera</string>
@@ -1481,10 +1486,13 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="clipboard_history_title">Clipboard History</string>
     <string name="clipboard_clear_all">Clear All</string>
     <string name="clipboard_empty_state">No clipboard history</string>
+    <string name="clipboard_locked_state">Clipboard history is unavailable while the device is locked.</string>
     <string name="clipboard_pin">Pin</string>
     <string name="clipboard_unpin">Unpin</string>
     <string name="clipboard_delete">Delete</string>
     <string name="clipboard_retention_apply">Apply</string>
+    <string name="experimental_candidates_view_title">Experimental candidates view</string>
+    <string name="experimental_candidates_view_description">Uses an alternative Android display mode for the hardware keyboard. May cause display problems.</string>
     <string name="clipboard_retention_time_title">Clipboard Retention Time</string>
     <string name="clipboard_retention_time_description">0 = never delete clips</string>
     <string name="clipboard_retention_time_minutes">%1$d minutes</string>
@@ -1901,4 +1909,8 @@ Each key can be configured as Keycode, Action, Native Ctrl, or None. Use overrid
     <string name="command_error_nav_mode_unavailable">Nav mode unavailable</string>
     <string name="command_error_no_input_context">No input context</string>
     <string name="command_error_nav_action_failed">Nav action failed</string>
+    <string name="titan2_elite_top_corner_title">Upper button corners</string>
+    <string name="titan2_elite_top_corner_description">Round only the upper corner facing the display edge. Corners facing inward and inner buttons stay unchanged.</string>
+    <string name="titan2_elite_max_icon_shrink_title">Maximum icon reduction: %1$d%%</string>
+    <string name="titan2_elite_max_icon_shrink_description">Automatically shrink outer button icons only as much as needed, up to this limit. 0% disables shrinking; positioning stays active.</string>
 </resources>

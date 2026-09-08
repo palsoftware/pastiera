@@ -384,10 +384,16 @@ Jede Taste kann als Keycode, Aktion, Native Ctrl oder Keine konfiguriert werden.
     <string name="app_enter_behaviour_add_app">App hinzufügen</string>
     <string name="app_enter_behaviour_add_app_description">Für zusätzliche Apps ist dies zunächst eine Ziel-Konfiguration. Die kuratierte Messenger-Liste nutzt getestete Strategien.</string>
     <string name="app_enter_behaviour_add_app_list_title">App auswählen</string>
+    <string name="app_enter_behaviour_app_picker_title">Apps hinzufügen</string>
+    <string name="app_enter_behaviour_app_picker_search">Apps suchen</string>
+    <string name="app_enter_behaviour_app_picker_empty">Keine passenden Apps</string>
+    <string name="app_enter_behaviour_app_picker_add_selected">Hinzufügen (%1$d)</string>
     <string name="app_enter_behaviour_remove_app">App entfernen</string>
     <string name="app_enter_behaviour_show_manual_override">Manuell überschreiben</string>
     <string name="app_enter_behaviour_hide_manual_override">Manuelle Felder ausblenden</string>
     <string name="app_enter_behaviour_manual_override_note">Normalerweise ist die kuratierte Strategie sinnvoller. Überschreiben ist nur für App-Updates oder Sonderfälle gedacht.</string>
+    <string name="app_enter_behaviour_manual_summary">%1$s · %2$s</string>
+    <string name="app_enter_behaviour_manual_additional_shortcut_summary">Zusätzlicher Kurzbefehl: %1$s</string>
     <string name="app_enter_behaviour_option_app_default">App-Standard</string>
     <string name="app_enter_behaviour_option_send_shift_newline">Enter sendet, Shift+Enter neue Zeile</string>
     <string name="app_enter_behaviour_option_newline_ctrl_send">Enter neue Zeile, Ctrl+Enter sendet</string>
@@ -899,18 +905,20 @@ Jede Taste kann als Keycode, Aktion, Native Ctrl oder Keine konfiguriert werden.
     <string name="clipboard_history_title">Zwischenablageverlauf</string>
     <string name="clipboard_clear_all">Alle löschen</string>
     <string name="clipboard_empty_state">Kein Zwischenablageverlauf</string>
+    <string name="clipboard_locked_state">Der Zwischenablageverlauf ist nicht verfügbar, solange das Gerät gesperrt ist.</string>
     <string name="clipboard_pin">Anheften</string>
     <string name="clipboard_unpin">Loslösen</string>
     <string name="clipboard_delete">Löschen</string>
     <string name="clipboard_retention_apply">Anwenden</string>
+    <string name="experimental_candidates_view_title">Experimentelle Kandidatenansicht</string>
+    <string name="experimental_candidates_view_description">Verwendet einen alternativen Android-Anzeigeweg für die Hardware-Tastatur. Kann Darstellungsprobleme verursachen.</string>
     <string name="clipboard_retention_time_title">Aufbewahrungszeit der Zwischenablage</string>
     <string name="clipboard_retention_time_description">0 = nie löschen</string>
     <string name="clipboard_retention_time_minutes">%1$d Minuten</string>
-    <string name="update_dialog_title">Neues Update verfügbar</string>
-    <string name="update_dialog_message">Version %1$s ist auf GitHub verfügbar.</string>
-    <string name="update_dialog_open_github">GitHub öffnen</string>
-    <string name="update_dialog_later">Später</string>
-    <string name="update_dialog_download_apk">APK herunterladen</string>
+    <string name="successor_dialog_title">Pastiera hat einen Nachfolger</string>
+    <string name="successor_dialog_message">Plektra folgt auf Pastiera. %1$s ist auf GitHub verfügbar.</string>
+    <string name="successor_dialog_open_release">Plektra-Veröffentlichung ansehen</string>
+    <string name="successor_dialog_later">Später</string>
     <string name="custom_input_styles_title">Eingabesprachen</string>
     <string name="keyboards_devices_title">Tastaturen &amp; Geräte</string>
     <string name="keyboard_switching_section_title">Automatischer Wechsel</string>
@@ -1183,8 +1191,8 @@ Jede Taste kann als Keycode, Aktion, Native Ctrl oder Keine konfiguriert werden.
     <string name="power_shortcuts_press_key">Zum Starten die Shortcut-Taste drücken</string>
     <string name="notification_update_channel_name">Pastiera-Updates</string>
     <string name="notification_update_channel_description">Benachrichtigungen über neue Pastiera-Versionen</string>
-    <string name="notification_update_available_title">Pastiera - Neues Update verfügbar</string>
-    <string name="notification_update_available_text">Eine neue Version von Pastiera ist verfügbar (%1$s)</string>
+    <string name="notification_successor_release_title">Plektra-Veröffentlichung verfügbar</string>
+    <string name="notification_successor_release_text">%1$s ist als Nachfolger von Pastiera verfügbar.</string>
     <string name="speech_recognition_error_no_match">Kein Text erkannt. Bitte erneut versuchen.</string>
     <string name="speech_recognition_error_timeout">Keine Spracheingabe erkannt.</string>
     <string name="speech_recognition_error_permission">Mikrofonberechtigung verweigert.</string>
@@ -1193,10 +1201,10 @@ Jede Taste kann als Keycode, Aktion, Native Ctrl oder Keine konfiguriert werden.
     <string name="speech_recognition_error_not_available">Spracherkennung nicht verfügbar.</string>
     <string name="nav_mode_warning_icon">⚠</string>
     <string name="emoji_category_emoticons">Emoticons</string>
-    <string name="settings_update_section_title">Updates</string>
-    <string name="settings_update_section_description">Neueste Veröffentlichung auf GitHub prüfen.</string>
-    <string name="settings_update_checking">Suche nach Updates…</string>
-    <string name="settings_update_up_to_date">App ist auf dem neuesten Stand.</string>
+    <string name="settings_update_section_title">Plektra</string>
+    <string name="settings_update_section_description">Nach einer neuen Plektra-Veröffentlichung suchen.</string>
+    <string name="settings_update_checking">Prüfe Plektra-Veröffentlichungen…</string>
+    <string name="settings_update_up_to_date">Keine Plektra-Veröffentlichung gefunden.</string>
     <string name="settings_update_check_failed">GitHub konnte nicht erreicht werden.</string>
     <string name="languages_title">Sprachen</string>
     <string name="languages_description">Sprachen zum Android-Eingabemethoden-Auswähler hinzufügen. Es werden nur Sprachen mit Wörterbuch angezeigt, die keine Systemsprachen sind.</string>
@@ -1400,4 +1408,8 @@ Jede Taste kann als Keycode, Aktion, Native Ctrl oder Keine konfiguriert werden.
     <string name="kw_indicator_bottom_strip">LED, LEDs, Leuchten, Streifen, unten</string>
     <string name="kw_indicator_menu_bar">LED, Leuchten, Icon, Statusleiste, Anzeigen</string>
     <string name="kw_indicator_status_bar">LED, Leuchten, Symbole, Anzeigen, Pastiera</string>
+    <string name="titan2_elite_top_corner_title">Obere Buttonrundung</string>
+    <string name="titan2_elite_top_corner_description">Verstärkt nur die obere Ecke zum Displayrand. Nach innen gerichtete Ecken und innere Buttons bleiben unverändert.</string>
+    <string name="titan2_elite_max_icon_shrink_title">Maximale Icon-Verkleinerung: %1$d%%</string>
+    <string name="titan2_elite_max_icon_shrink_description">Verkleinert äußere Buttonsymbole automatisch nur bei Bedarf bis zu dieser Grenze. 0% schaltet die Verkleinerung aus; die Positionierung bleibt aktiv.</string>
 </resources>

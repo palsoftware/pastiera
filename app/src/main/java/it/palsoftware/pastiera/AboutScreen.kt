@@ -25,7 +25,6 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -56,7 +55,6 @@ fun AboutScreen(
         isLoading = false
     }
 
-    BackHandler { onBack() }
 
     Scaffold(
         topBar = {
@@ -215,11 +213,11 @@ private suspend fun loadCreditsFromAssets(context: android.content.Context): Str
 private fun parseMarkdown(markdown: String): List<MarkdownElement> {
     val elements = mutableListOf<MarkdownElement>()
     val lines = markdown.lines()
-    
+
     var i = 0
     while (i < lines.size) {
         val line = lines[i].trim()
-        
+
         when {
             line.isEmpty() -> {
                 // Skip empty lines or treat as paragraph separator
@@ -267,11 +265,11 @@ private fun parseMarkdown(markdown: String): List<MarkdownElement> {
                 val paragraphLines = mutableListOf<String>()
                 while (i < lines.size) {
                     val currentLine = lines[i].trim()
-                    if (currentLine.isEmpty() || 
-                        (currentLine.startsWith("#") && (currentLine.startsWith("# ") || 
-                         currentLine.startsWith("## ") || currentLine.startsWith("### ") || 
+                    if (currentLine.isEmpty() ||
+                        (currentLine.startsWith("#") && (currentLine.startsWith("# ") ||
+                         currentLine.startsWith("## ") || currentLine.startsWith("### ") ||
                          currentLine.startsWith("#### "))) ||
-                        currentLine.startsWith("- ") || 
+                        currentLine.startsWith("- ") ||
                         currentLine.startsWith("* ") ||
                         currentLine.startsWith("---") ||
                         currentLine.startsWith("![") ||
@@ -288,7 +286,7 @@ private fun parseMarkdown(markdown: String): List<MarkdownElement> {
             }
         }
     }
-    
+
     return elements
 }
 
@@ -302,7 +300,7 @@ private fun MarkdownContent(
     modifier: Modifier = Modifier
 ) {
     val elements = remember(markdown) { parseMarkdown(markdown) }
-    
+
     Column(modifier = modifier) {
         elements.forEachIndexed { index, element ->
             when (element) {
@@ -516,7 +514,7 @@ private fun MarkdownImage(
     val bitmap = remember(url) {
         loadImageFromAssets(context, url)
     }
-    
+
     if (bitmap != null) {
         Image(
             bitmap = bitmap.asImageBitmap(),
@@ -567,29 +565,29 @@ private fun parseInlineFormatting(
     val builder = AnnotatedString.Builder()
     val urlMap = mutableMapOf<Int, String>()
     var i = 0
-    
+
     while (i < text.length) {
         when {
             // Link: [text](url)
-            text.startsWith("[", i) && "]" in text.substring(i + 1) && 
+            text.startsWith("[", i) && "]" in text.substring(i + 1) &&
             "(" in text.substring(i) -> {
                 val linkEnd = text.indexOf("]", i)
                 val urlStart = text.indexOf("(", linkEnd)
                 val urlEnd = text.indexOf(")", urlStart)
-                
+
                 if (linkEnd > i && urlStart > linkEnd && urlEnd > urlStart) {
                     val linkText = text.substring(i + 1, linkEnd)
                     val url = text.substring(urlStart + 1, urlEnd)
-                    
+
                     val linkStartPos = builder.length
                     builder.append(linkText)
                     val linkEndPos = builder.length
-                    
+
                     // Store URL for all positions in the link
                     for (pos in linkStartPos until linkEndPos) {
                         urlMap[pos] = url
                     }
-                    
+
                     builder.addStyle(
                         style = SpanStyle(
                             color = MaterialTheme.colorScheme.primary,
@@ -598,7 +596,7 @@ private fun parseInlineFormatting(
                         start = linkStartPos,
                         end = linkEndPos
                     )
-                    
+
                     i = urlEnd + 1
                     continue
                 }
@@ -640,7 +638,7 @@ private fun parseInlineFormatting(
                 continue
             }
             // Italic: *text* (but not if it's part of **)
-            text.startsWith("*", i) && !text.startsWith("**", i) && 
+            text.startsWith("*", i) && !text.startsWith("**", i) &&
             text.indexOf("*", i + 1) > i && (i + 1 >= text.length || text[i + 1] != '*') -> {
                 val italicEnd = text.indexOf("*", i + 1)
                 val italicText = text.substring(i + 1, italicEnd)
@@ -659,7 +657,7 @@ private fun parseInlineFormatting(
                 continue
             }
             // Italic: _text_ (but not if it's part of __)
-            text.startsWith("_", i) && !text.startsWith("__", i) && 
+            text.startsWith("_", i) && !text.startsWith("__", i) &&
             text.indexOf("_", i + 1) > i && (i + 1 >= text.length || text[i + 1] != '_') -> {
                 val italicEnd = text.indexOf("_", i + 1)
                 val italicText = text.substring(i + 1, italicEnd)
@@ -702,7 +700,7 @@ private fun parseInlineFormatting(
             }
         }
     }
-    
+
     // The TextStyle in the composables already has the correct color (colorScheme.onSurface),
     // and inline styles (bold, italic, links, code) explicitly set their colors.
     // Text without inline formatting will inherit the color from the TextStyle in the composable.

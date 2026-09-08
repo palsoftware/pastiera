@@ -23,7 +23,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardCommandKey
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -60,7 +59,7 @@ fun LauncherShortcutsScreen(
 ) {
     val context = LocalContext.current
     val pm = context.packageManager
-    
+
     // Funzione helper per verificare se un package esiste ancora installato
     fun isPackageInstalled(packageName: String?): Boolean {
         if (packageName == null) return false
@@ -70,17 +69,17 @@ fun LauncherShortcutsScreen(
             false
         }
     }
-    
+
     // Carica le scorciatoie salvate e pulisce quelle per app disinstallate
     var shortcuts by remember {
         mutableStateOf(SettingsManager.getLauncherShortcuts(context))
     }
-    
+
     // Clean up shortcuts for uninstalled apps when screen is displayed
     LaunchedEffect(Unit) {
         val currentShortcuts = SettingsManager.getLauncherShortcuts(context)
         var needsUpdate = false
-        
+
         currentShortcuts.forEach { (keyCode, shortcut) ->
             val shortcutPackage = shortcut.packageName
                 ?: (shortcut.commandLaunch as? CommandLaunchSpec.AppPackage)?.packageName
@@ -90,12 +89,12 @@ fun LauncherShortcutsScreen(
                 needsUpdate = true
             }
         }
-        
+
         if (needsUpdate) {
             shortcuts = SettingsManager.getLauncherShortcuts(context)
         }
     }
-    
+
     // Activity launcher per avviare LauncherShortcutAssignmentActivity
     val launcherShortcutAssignmentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -108,7 +107,7 @@ fun LauncherShortcutsScreen(
             shortcuts = SettingsManager.getLauncherShortcuts(context)
         }
     }
-    
+
     // Funzione helper per avviare l'activity di assegnazione
     fun launchShortcutAssignment(keyCode: Int) {
         val intent = Intent(context, LauncherShortcutAssignmentActivity::class.java).apply {
@@ -117,7 +116,7 @@ fun LauncherShortcutsScreen(
         }
         launcherShortcutAssignmentLauncher.launch(intent)
     }
-    
+
     // Drag and drop state
     var draggedKeyCode by remember { mutableStateOf<Int?>(null) }
     var dragStartPosition by remember { mutableStateOf<Offset?>(null) }
@@ -126,20 +125,17 @@ fun LauncherShortcutsScreen(
     var keyPositions by remember { mutableStateOf<Map<Int, androidx.compose.ui.geometry.Rect>>(emptyMap()) }
             var currentDropTarget by remember { mutableStateOf<Int?>(null) } // Track which key is currently under drag
             var containerPosition by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
-    
-    BackHandler {
-        onBack()
-    }
-    
+
+
     // Funzione helper per scambiare gli shortcut tra due tasti
     fun swapShortcuts(fromKeyCode: Int, toKeyCode: Int) {
         // Use atomic swap function from SettingsManager
         SettingsManager.swapLauncherShortcuts(context, fromKeyCode, toKeyCode)
-        
+
         // Update local state
         shortcuts = SettingsManager.getLauncherShortcuts(context)
     }
-    
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -168,11 +164,11 @@ fun LauncherShortcutsScreen(
                     text = stringResource(R.string.launcher_shortcuts_screen_title),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = 8.dp).settingRow("quick_launcher.assignments")
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Griglia QWERTY con larghezza fissa (come SYM layers)
@@ -181,7 +177,7 @@ fun LauncherShortcutsScreen(
             listOf("A", "S", "D", "F", "G", "H", "J", "K", "L", "⌫"),
             listOf("Z", "X", "C", "V","␣", "B", "N", "M", "⏎")
         )
-        
+
         // Funzione helper per ottenere l'icona dell'app
         fun getAppIcon(packageName: String?): android.graphics.drawable.Drawable? {
             return try {
@@ -194,7 +190,7 @@ fun LauncherShortcutsScreen(
                 null
             }
         }
-        
+
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
@@ -212,7 +208,7 @@ fun LauncherShortcutsScreen(
             val availableWidth = maxWidth - totalSpacing
             val fixedKeyWidth = availableWidth / maxKeysInRow
             val keySize = fixedKeyWidth
-            
+
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(keySpacing)
@@ -223,7 +219,7 @@ fun LauncherShortcutsScreen(
                     val totalRowWidth = keySize * rowKeysCount + keySpacing * (rowKeysCount - 1)
                     val maxRowWidth = keySize * maxKeysInRow + keySpacing * (maxKeysInRow - 1)
                     val leftSpacing = (maxRowWidth - totalRowWidth) / 2
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
@@ -232,7 +228,7 @@ fun LauncherShortcutsScreen(
                         if (rowIndex > 0) {
                             Spacer(modifier = Modifier.width(leftSpacing))
                         }
-                        
+
                         row.forEachIndexed { keyIndex, keyName ->
                             val keyCode = when (keyName) {
                                 "Q" -> KeyEvent.KEYCODE_Q
@@ -266,7 +262,7 @@ fun LauncherShortcutsScreen(
                                 "⏎" -> KeyEvent.KEYCODE_ENTER
                                 else -> null
                             }
-                            
+
                             if (keyCode != null) {
                                 val shortcut = shortcuts[keyCode]
                                 val isQuickLauncher = shortcut?.type == SettingsManager.LauncherShortcut.TYPE_QUICK_LAUNCHER ||
@@ -277,7 +273,7 @@ fun LauncherShortcutsScreen(
                                 // Verify that shortcut exists, is an app type, has a package name, AND the app is still installed
                                 val hasApp = shortcutPackage != null && isPackageInstalled(shortcutPackage)
                                 val hasAssignedShortcut = hasApp || isQuickLauncher || hasCommand
-                                
+
                                 // Use remember with shortcut.packageName as dependency
                                 // This recalculates icon only when packageName changes
                                 val appIcon = remember(shortcutPackage) {
@@ -287,16 +283,16 @@ fun LauncherShortcutsScreen(
                                         null
                                     }
                                 }
-                                
+
                                 if (keyIndex > 0) {
                                     Spacer(modifier = Modifier.width(keySpacing))
                                 }
-                                
+
                                 // Use key() to force recomposition when shortcut changes
                                 // When packageName changes, the entire Surface is recomposed
                                 key("${shortcut?.type}_${shortcutPackage ?: shortcut?.commandId ?: "none"}_$keyCode") {
                                     var keyPosition by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-                                    
+
                                     Surface(
                                         modifier = Modifier
                                             .width(keySize)
@@ -332,7 +328,7 @@ fun LauncherShortcutsScreen(
                                                                 onDragStart = { offset ->
                                                                     draggedKeyCode = keyCode
                                                                     draggedIcon = appIcon
-                                                                    val startPos = keyPosition?.let { 
+                                                                    val startPos = keyPosition?.let {
                                                                         androidx.compose.ui.geometry.Offset(it.center.x, it.center.y)
                                                                     }
                                                                     dragStartPosition = startPos
@@ -347,7 +343,7 @@ fun LauncherShortcutsScreen(
                                                                             swapShortcuts(keyCode, currentDropTarget!!)
                                                                         }
                                                                     }
-                                                                    
+
                                                                     draggedKeyCode = null
                                                                     dragStartPosition = null
                                                                     dragCurrentPosition = null
@@ -368,7 +364,7 @@ fun LauncherShortcutsScreen(
                                                                         current + dragAmount
                                                                     } ?: (dragStartPosition ?: change.position)
                                                                     dragCurrentPosition = newPosition
-                                                                    
+
                                                                     // Check if over another key - just track, don't swap yet
                                                                     var foundTarget: Int? = null
                                                                     keyPositions.forEach { (targetKeyCode, targetRect) ->
@@ -513,7 +509,7 @@ fun LauncherShortcutsScreen(
                                 }
                             }
                         }
-                        
+
                         // Spacer a destra per centrare la riga
                         if (rowIndex > 0) {
                             Spacer(modifier = Modifier.width(leftSpacing))
@@ -535,7 +531,7 @@ fun LauncherShortcutsScreen(
                     // Convert absolute position to relative position within container
                     val relativeX = dragCurrentPosition!!.x - containerPosition!!.x
                     val relativeY = dragCurrentPosition!!.y - containerPosition!!.y
-                    
+
                     AndroidView(
                         factory = { ctx ->
                             ImageView(ctx).apply {

@@ -46,7 +46,13 @@ class SettingLinkRegistryTest {
     @Test
     fun buildLinkAndParseLinkRoundTrip() {
         SettingLinkRegistry.entries.forEach { entry ->
-            assertEquals("pastiera://setting/${entry.id}", SettingLinkRegistry.buildLink(entry.id))
+            assertEquals("https://pastiera.eu/settings/${entry.id}", SettingLinkRegistry.buildLink(entry.id))
+            for (host in listOf("pkb.rocks", "pastiera.eu")) {
+                assertEquals(
+                    entry.id,
+                    SettingLinkRegistry.parseSettingLink("https", host, "/settings/${entry.id}")
+                )
+            }
             assertEquals(
                 entry.id,
                 SettingLinkRegistry.parseSettingLink("pastiera", "setting", "/${entry.id}")
@@ -68,6 +74,21 @@ class SettingLinkRegistryTest {
             "text_input.auto_capitalize",
             SettingLinkRegistry.parseSettingLink("pastiera", "setting", " /text_input.auto_capitalize ")
         )
+    }
+
+    @Test
+    fun webLinksRejectOtherOriginsAndMalformedPaths() {
+        val id = "text_input.auto_capitalize"
+        for (host in listOf("www.pkb.rocks", "pkb.rocks.example.org", "example.org")) {
+            assertNull(SettingLinkRegistry.parseSettingLink("https", host, "/settings/$id"))
+        }
+        for (host in listOf("pkb.rocks", "pastiera.eu")) {
+            assertNull(SettingLinkRegistry.parseSettingLink("http", host, "/settings/$id"))
+            for (path in listOf("/", "/settings/", "/setting/$id", "/settings/$id/extra",
+                "/settings/$id/", "/settings/../$id", "/settings/ $id", "/settingsx/$id")) {
+                assertNull(SettingLinkRegistry.parseSettingLink("https", host, path))
+            }
+        }
     }
 
     @Test

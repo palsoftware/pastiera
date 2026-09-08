@@ -82,6 +82,13 @@ android {
     val nightlyVersionCode = providers.gradleProperty("PASTIERA_NIGHTLY_VERSION_CODE").orNull?.toIntOrNull()
     val nightlyVersionNameSuffix = providers.gradleProperty("PASTIERA_NIGHTLY_VERSION_SUFFIX").orNull ?: "-nightly"
     val isFdroidBuild = gradleBooleanProperty("PASTIERA_FDROID_BUILD")
+    val successorGithubRepository = providers.gradleProperty("PASTIERA_SUCCESSOR_GITHUB_REPOSITORY")
+        .orNull ?: "pkb-rocks/plektra"
+    if (!successorGithubRepository.matches(Regex("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"))) {
+        throw GradleException(
+            "PASTIERA_SUCCESSOR_GITHUB_REPOSITORY must have the form owner/repository"
+        )
+    }
 
     defaultConfig {
         applicationId = "it.palsoftware.pastiera"
@@ -91,6 +98,7 @@ android {
         versionName = ciVersionName ?: defaultVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "SUCCESSOR_GITHUB_REPOSITORY", "\"$successorGithubRepository\"")
     }
 
     signingConfigs {

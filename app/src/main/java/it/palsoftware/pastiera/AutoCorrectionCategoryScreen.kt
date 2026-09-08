@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
@@ -72,61 +71,18 @@ fun AutoCorrectionCategoryScreen(
     var useEditTypeRanking by remember {
         mutableStateOf(SettingsManager.getUseEditTypeRanking(context))
     }
-    var navigationDirection by remember { mutableStateOf(LocalNavigationDirection.Push) }
-    val navigationStack = remember {
-        mutableStateListOf<AutoCorrectionDestination>(AutoCorrectionDestination.Main)
+    val currentDestination = when (val page = settingsChild(context, "autocorrection")) {
+        "Settings" -> AutoCorrectionDestination.Settings
+        "UserDictionary" -> AutoCorrectionDestination.UserDictionary
+        else -> if (page?.startsWith("Edit:") == true) AutoCorrectionDestination.Edit(page.removePrefix("Edit:")) else AutoCorrectionDestination.Main
     }
-    val currentDestination by remember {
-        derivedStateOf { navigationStack.last() }
-    }
-    
     fun navigateTo(destination: AutoCorrectionDestination) {
-        navigationDirection = LocalNavigationDirection.Push
-        navigationStack.add(destination)
+        openSettingsChild(context, "autocorrection", when (destination) { AutoCorrectionDestination.Main -> "Main"; AutoCorrectionDestination.Settings -> "Settings"; AutoCorrectionDestination.UserDictionary -> "UserDictionary"; is AutoCorrectionDestination.Edit -> "Edit:${destination.languageCode}" })
     }
-    
-    fun navigateBack() {
-        if (navigationStack.size > 1) {
-            navigationDirection = LocalNavigationDirection.Pop
-            navigationStack.removeAt(navigationStack.lastIndex)
-        } else {
-            onBack()
-        }
-    }
-    
-    BackHandler { navigateBack() }
-    
-    AnimatedContent(
-        targetState = currentDestination,
-        transitionSpec = {
-            if (navigationDirection == LocalNavigationDirection.Push) {
-                // Forward navigation: new screen enters from right, old screen exits to left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                )
-            } else {
-                // Back navigation: current screen exits to right, previous screen enters from left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                )
-            }
-        },
-        label = "auto_correction_navigation",
-        contentKey = { destination ->
-            when (destination) {
-                is AutoCorrectionDestination.Edit -> "auto_correct_edit_${destination.languageCode}"
-                else -> destination::class
-            }
-        }
-    ) { destination ->
+    fun navigateBack() { context.settingsActivity().finish() }
+
+
+    val destination = currentDestination
         when (destination) {
             AutoCorrectionDestination.Main -> {
                 Scaffold(
@@ -614,7 +570,7 @@ fun AutoCorrectionCategoryScreen(
                     }
                 }
             }
-            
+
             AutoCorrectionDestination.Settings -> {
                 AutoCorrectSettingsScreen(
                     modifier = modifier,
@@ -640,7 +596,7 @@ fun AutoCorrectionCategoryScreen(
                 )
             }
         }
-    }
+
 }
 
 private sealed class AutoCorrectionDestination {
@@ -867,7 +823,7 @@ private fun UserDictionaryScreen(
             }
         }
     }
-    
+
     // Add word dialog
     if (showAddDialog) {
         UserDictWordDialog(
@@ -951,10 +907,7 @@ private fun UserDictWordDialog(
     )
 }
 
-private enum class LocalNavigationDirection {
-    Push,
-    Pop
-}
+
 
 private data class DefaultUserWord(val word: String, val frequency: Int)
 

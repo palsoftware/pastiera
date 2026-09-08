@@ -26,7 +26,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import it.palsoftware.pastiera.data.layout.BundledLayoutAssets
@@ -59,7 +58,7 @@ fun KeyboardLayoutSettingsScreen(
     onLayoutSelected: (String, String) -> Unit
 ) {
     val context = LocalContext.current
-    
+
     var automaticLayoutMode by remember {
         mutableStateOf(SettingsManager.isKeyboardLayoutAutoByLocale(context))
     }
@@ -74,7 +73,7 @@ fun KeyboardLayoutSettingsScreen(
             }
         )
     }
-    
+
     // Refresh trigger for custom layouts
     var refreshTrigger by remember { mutableStateOf(0) }
     var showAddMenu by remember { mutableStateOf(false) }
@@ -90,7 +89,7 @@ fun KeyboardLayoutSettingsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    
+
     // Get all keyboard layouts (assets + custom, excluding qwerty as it's the default)
     val allLayouts = remember(refreshTrigger, locale) {
         LayoutMappingRepository.getAvailableLayouts(context.assets, context)
@@ -109,11 +108,11 @@ fun KeyboardLayoutSettingsScreen(
                 }.thenBy { it }
             )
     }
-    
+
     // Snackbar host state for showing messages
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
-    var previewLayout by remember { mutableStateOf<String?>(null) }
+    val previewLayout = settingsChild(context, "layout_preview")
     var layoutToDelete by remember { mutableStateOf<String?>(null) }
 
     // Launcher per importare layout JSON via SAF
@@ -167,7 +166,7 @@ fun KeyboardLayoutSettingsScreen(
         KeyboardLayoutViewerScreen(
             layoutName = previewLayout!!,
             modifier = modifier,
-            onBack = { previewLayout = null }
+            onBack = { context.settingsActivity().finish() }
         )
         return
     }
@@ -178,10 +177,12 @@ fun KeyboardLayoutSettingsScreen(
         }
         onBack()
     }
-    
+
     // Handle system back button
-    BackHandler { navigateBack() }
-    
+    LaunchedEffect(pickerMode, locale, selectedLayout) {
+        if (pickerMode) onLayoutSelected(locale, selectedLayout)
+    }
+
     Scaffold(
         topBar = {
             Surface(
@@ -274,7 +275,7 @@ fun KeyboardLayoutSettingsScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                
+
                 // Online Layout Editor link
                 Row(
                     modifier = Modifier
@@ -303,7 +304,7 @@ fun KeyboardLayoutSettingsScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // No Conversion (QWERTY - default, passes keycodes as-is)
@@ -347,7 +348,7 @@ fun KeyboardLayoutSettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             IconButton(
-                                onClick = { previewLayout = "qwerty" }
+                                onClick = { openSettingsChild(context, "layout_preview", "qwerty") }
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Visibility,
@@ -364,18 +365,18 @@ fun KeyboardLayoutSettingsScreen(
                         }
                     }
                 }
-                
+
                 // All layouts (assets + custom, unified list)
                 allLayouts.forEach { layout ->
                     val metadata = LayoutFileStore.getLayoutMetadataFromAssets(
                         context.assets,
                         layout
                     ) ?: LayoutFileStore.getLayoutMetadata(context, layout)
-                    
+
                     val hasMultiTap = hasLayoutMultiTap(context.assets, context, layout)
                     val isCustomLayout = LayoutFileStore.layoutExists(context, layout)
                     val canDelete = layout != "qwerty" && isCustomLayout
-                    
+
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -444,7 +445,7 @@ fun KeyboardLayoutSettingsScreen(
                                     }
                                 }
                                 IconButton(
-                                    onClick = { previewLayout = layout }
+                                    onClick = { openSettingsChild(context, "layout_preview", layout) }
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Visibility,
@@ -462,18 +463,18 @@ fun KeyboardLayoutSettingsScreen(
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
-    
+
     // Delete confirmation dialog
     layoutToDelete?.let { layoutName ->
         val metadata = LayoutFileStore.getLayoutMetadata(context, layoutName)
             ?: LayoutFileStore.getLayoutMetadataFromAssets(context.assets, layoutName)
         val displayName = metadata?.name ?: layoutName.replaceFirstChar { it.uppercase() }
-        
+
         AlertDialog(
             onDismissRequest = { layoutToDelete = null },
             title = {
@@ -487,7 +488,7 @@ fun KeyboardLayoutSettingsScreen(
                     onClick = {
                         val success = LayoutFileStore.deleteLayout(context, layoutName)
                         layoutToDelete = null
-                        
+
                         if (success) {
                             // If deleted layout was selected, switch to qwerty
                             if (selectedLayout == layoutName) {
@@ -499,7 +500,7 @@ fun KeyboardLayoutSettingsScreen(
                                     onLayoutSelected(locale, "qwerty")
                                 }
                             }
-                            
+
                             refreshTrigger++
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar(context.getString(R.string.layout_delete_success))
@@ -561,7 +562,7 @@ private fun getLayoutDescription(context: Context, layoutName: String): String {
     if (customMetadata != null) {
         return customMetadata.description
     }
-    
+
     // Fallback to assets
     val assetsMetadata = LayoutFileStore.getLayoutMetadataFromAssets(
         context.assets,
@@ -582,7 +583,7 @@ private fun hasLayoutMultiTap(assets: AssetManager, context: Context, layoutName
             val jsonString = customFile.readText()
             val jsonObject = JSONObject(jsonString)
             val mappingsObject = jsonObject.optJSONObject("mappings") ?: return false
-            
+
             val keys = mappingsObject.keys()
             while (keys.hasNext()) {
                 val keyName = keys.next()
@@ -598,7 +599,7 @@ private fun hasLayoutMultiTap(assets: AssetManager, context: Context, layoutName
             val jsonString = inputStream.bufferedReader().use { it.readText() }
             val jsonObject = JSONObject(jsonString)
             val mappingsObject = jsonObject.optJSONObject("mappings") ?: return false
-            
+
             val keys = mappingsObject.keys()
             while (keys.hasNext()) {
                 val keyName = keys.next()

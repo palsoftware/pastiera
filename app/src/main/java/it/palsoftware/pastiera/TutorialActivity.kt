@@ -312,14 +312,13 @@ fun TutorialScreen(
     // Automatic update check at tutorial start (only once, respecting dismissed releases)
     if (shouldUseGithubUpdateChecks(context)) {
         LaunchedEffect(Unit) {
-            checkForUpdate(
+            it.palsoftware.pastiera.update.checkForUpdateNotices(
                 context = context,
-                currentVersion = BuildConfig.VERSION_NAME,
                 releaseChannel = BuildConfig.RELEASE_CHANNEL,
                 ignoreDismissedReleases = true
-            ) { hasUpdate, latestVersion, downloadUrl, releasePageUrl ->
-                if (hasUpdate && latestVersion != null) {
-                    showUpdateDialog(context, latestVersion, downloadUrl, releasePageUrl)
+            ) { result ->
+                if (result.hasAnnouncement && result.releaseTag != null && result.displayName != null) {
+                    it.palsoftware.pastiera.update.showReleaseNotice(context, result)
                 }
             }
         }

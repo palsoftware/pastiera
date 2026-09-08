@@ -361,6 +361,7 @@
     <string name="clipboard_history_title">Historia schowka</string>
     <string name="clipboard_clear_all">Wyczyść wszystko</string>
     <string name="clipboard_empty_state">Brak historii schowka</string>
+    <string name="clipboard_locked_state">Historia schowka jest niedostępna, gdy urządzenie jest zablokowane.</string>
     <string name="clipboard_pin">Przypnij</string>
     <string name="clipboard_unpin">Odepnij</string>
     <string name="clipboard_delete">Usuń</string>
@@ -368,11 +369,10 @@
     <string name="clipboard_retention_time_title">Czas przechowywania schowka</string>
     <string name="clipboard_retention_time_description">0 = nigdy nie usuwaj</string>
     <string name="clipboard_retention_time_minutes">%1$d minut</string>
-    <string name="update_dialog_title">Dostępna nowa aktualizacja</string>
-    <string name="update_dialog_message">Wersja %1$s jest dostępna na GitHubie.</string>
-    <string name="update_dialog_open_github">Otwórz GitHub</string>
-    <string name="update_dialog_later">Później</string>
-    <string name="update_dialog_download_apk">Pobierz APK</string>
+    <string name="successor_dialog_title">Pastiera ma następcę</string>
+    <string name="successor_dialog_message">Plektra zastępuje Pastierę. %1$s jest dostępna na GitHubie.</string>
+    <string name="successor_dialog_open_release">Zobacz wydanie Plektra</string>
+    <string name="successor_dialog_later">Później</string>
     <string name="custom_input_styles_title">Języki wprowadzania</string>
     <string name="custom_input_styles_description">Dodaj dodatkowe języki i układy klawiatury, które nie są powiązane z ustawieniami regionalnymi systemu</string>
     <string name="custom_input_styles_language_label">Język</string>
@@ -549,8 +549,8 @@
     <string name="power_shortcuts_press_key">Naciśnij klawisz skrótu, aby uruchomić</string>
     <string name="notification_update_channel_name">Aktualizacje Pastiera</string>
     <string name="notification_update_channel_description">Powiadomienia o nowych wersjach Pastiera</string>
-    <string name="notification_update_available_title">Pastiera - Dostępna nowa aktualizacja</string>
-    <string name="notification_update_available_text">Dostępna jest nowa wersja Pastiera (%1$s)</string>
+    <string name="notification_successor_release_title">Dostępne wydanie Plektra</string>
+    <string name="notification_successor_release_text">%1$s jest dostępna jako następca Pastiery.</string>
     <string name="speech_recognition_error_no_match">Nie rozpoznano tekstu. Spróbuj ponownie.</string>
     <string name="speech_recognition_error_timeout">Nie wykryto mowy.</string>
     <string name="speech_recognition_error_permission">Brak uprawnienia do mikrofonu.</string>
@@ -565,10 +565,10 @@
     <string name="variation_global_layout_override_title">Global Variation Mapping</string>
     <string name="variation_global_layout_override_description">Force variation ordering from one layout across all layouts. Default is current IME layout (%1$s).</string>
     <string name="variation_global_layout_override_none">None (use current layout)</string>
-    <string name="settings_update_section_title">Aktualizacje</string>
-    <string name="settings_update_section_description">Sprawdź najnowsze wydanie na GitHubie.</string>
-    <string name="settings_update_checking">Sprawdzanie aktualizacji…</string>
-    <string name="settings_update_up_to_date">Aplikacja jest aktualna.</string>
+    <string name="settings_update_section_title">Plektra</string>
+    <string name="settings_update_section_description">Sprawdź nowe wydanie następcy Plektra.</string>
+    <string name="settings_update_checking">Sprawdzanie wydań Plektra…</string>
+    <string name="settings_update_up_to_date">Nie znaleziono wydania Plektra.</string>
     <string name="settings_update_check_failed">Nie udało się połączyć z GitHubem.</string>
     <string name="languages_title">Języki</string>
     <string name="languages_description">Dodaj języki do selektora metody wprowadzania Androida. Pokazywane są tylko języki ze słownikiem, które nie są językami systemowymi.</string>

@@ -33,45 +33,36 @@ class UpdateCheckWorker(
 
         // Use a latch to bridge the async callback-based API with the
         // synchronous Worker API.
-        val hasUpdateRef = AtomicBoolean(false)
-        val latestVersionRef = AtomicReference<String?>()
-        val downloadUrlRef = AtomicReference<String?>()
-        val releasePageUrlRef = AtomicReference<String?>()
+        val resultRef = AtomicReference<UpdateCheckResult?>()
         val completedRef = AtomicBoolean(false)
         val latch = CountDownLatch(1)
 
-        checkForUpdate(
+        checkForUpdateNotices(
             context = context,
-            currentVersion = BuildConfig.VERSION_NAME,
             releaseChannel = BuildConfig.RELEASE_CHANNEL,
             // Respect releases dismissed by the user via the dialog.
             ignoreDismissedReleases = true
-        ) { hasUpdate, latestVersion, downloadUrl, releasePageUrl ->
-            hasUpdateRef.set(hasUpdate)
-            latestVersionRef.set(latestVersion)
-            downloadUrlRef.set(downloadUrl)
-            releasePageUrlRef.set(releasePageUrl)
+        ) { result ->
+            resultRef.set(result)
             completedRef.set(true)
             latch.countDown()
         }
 
         // Wait for the network response (or timeout).
         val awaitSuccess = latch.await(30, TimeUnit.SECONDS)
-        if (!awaitSuccess || !completedRef.get()) {
+        val result = resultRef.get()
+        if (!awaitSuccess || !completedRef.get() || result == null || !result.successful) {
             // Network error or timeout: ask WorkManager to retry later.
             return Result.retry()
         }
 
-        if (hasUpdateRef.get()) {
-            val latestVersion = latestVersionRef.get()
-            val downloadUrl = downloadUrlRef.get()
-            val releasePageUrl = releasePageUrlRef.get()
-            if (latestVersion != null) {
+        if (result.hasAnnouncement) {
+            if (result.releaseTag != null && result.displayName != null) {
                 NotificationHelper.showUpdateAvailableNotification(
                     context = context,
-                    latestVersion = latestVersion,
-                    downloadUrl = downloadUrl,
-                    releasePageUrl = releasePageUrl
+                    displayName = result.displayName,
+                    releasePageUrl = result.releasePageUrl,
+                    isNightlyUpdate = result.isNightlyUpdate
                 )
             }
         }

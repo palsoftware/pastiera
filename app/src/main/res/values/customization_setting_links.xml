@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setting_link_quick_launcher_highlight_favorites">Highlight favorites in list</string>
+    <string name="setting_link_quick_launcher_icon_colors">Tint entries from app icon colors</string>
+    <string name="setting_link_quick_launcher_static_top_highlight">Use static top-match highlight color</string>
+    <string name="setting_link_quick_launcher_alias_first">Show search alias before entry name</string>
+    <string name="setting_link_quick_launcher_entries">QuickLauncher entries</string>
+    <string name="setting_link_quick_launcher_customize_entries">Customize QuickLauncher entries</string>
+    <string name="setting_link_quick_launcher_source_apps">Apps</string>
+    <string name="setting_link_quick_launcher_source_pastiera">Pastiera actions</string>
+    <string name="setting_link_quick_launcher_source_appactions">App actions</string>
+    <string name="setting_link_quick_launcher_source_devicecontrol">Device control</string>
+    <string name="setting_link_quick_launcher_source_navactions">Navigation actions</string>
+    <string name="setting_link_haptic_duration">Tap haptic duration</string>
+    <string name="setting_link_variation_mappings">Variation mappings</string>
+    <string name="setting_link_max_icon_shrink">Maximum icon shrink</string>
+    <string name="setting_link_status_extended_left">Extended status bar: left buttons</string>
+    <string name="setting_link_status_extended_right">Extended status bar: right buttons</string>
+    <string name="setting_link_status_pastierina_left">Pastierina: left buttons</string>
+    <string name="setting_link_status_pastierina_right">Pastierina: right buttons</string>
+    <string name="setting_link_theme_software_key_rounding">Software keyboard: key rounding</string>
+    <string name="setting_link_theme_hardware_chrome_rounding">Hardware keyboard: suggestions / variations rounding</string>
+    <string name="setting_link_theme_software_chrome_rounding">Software keyboard: suggestions / variations rounding</string>
+    <string name="setting_link_theme_hardware_suggestions_height">Hardware keyboard: suggestions height</string>
+    <string name="setting_link_theme_software_suggestions_height">Software keyboard: suggestions height</string>
+    <string name="setting_link_theme_hardware_variations_height">Hardware keyboard: variations height</string>
+    <string name="setting_link_theme_software_variations_height">Software keyboard: variations height</string>
+    <string name="setting_link_theme_software_key_height">Software keyboard: key height</string>
+    <string name="setting_link_theme_software_number_row_height">Software keyboard: number row height</string>
+    <string name="setting_link_theme_software_key_width">Software keyboard: key width</string>
+    <string name="setting_link_theme_software_row_spacing">Software keyboard: row spacing</string>
+    <string name="setting_link_theme_preview_viewport">Preview max viewport</string>
+    <string name="setting_link_theme_hardware_led_colors">Hardware keyboard: LED colors</string>
+    <string name="setting_link_theme_hardware_assignment">Hardware keyboard: theme assignment</string>
+    <string name="setting_link_theme_hardware_light_theme">Hardware keyboard: light mode theme</string>
+    <string name="setting_link_theme_hardware_dark_theme">Hardware keyboard: dark mode theme</string>
+    <string name="setting_link_theme_hardware_layout_overrides">Hardware keyboard: theme layout overrides</string>
+    <string name="setting_link_theme_software_led_colors">Software keyboard: LED colors</string>
+    <string name="setting_link_theme_software_assignment">Software keyboard: theme assignment</string>
+    <string name="setting_link_theme_software_light_theme">Software keyboard: light mode theme</string>
+    <string name="setting_link_theme_software_dark_theme">Software keyboard: dark mode theme</string>
+    <string name="setting_link_theme_software_layout_overrides">Software keyboard: theme layout overrides</string>
+    <string name="setting_link_theme_assignment">Theme assignment</string>
+    <string name="setting_link_quick_launcher_favorite_color">QuickLauncher favorite highlight color</string>
+    <string name="setting_link_quick_launcher_top_match_color">QuickLauncher top-match highlight color</string>
+</resources>

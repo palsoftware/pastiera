@@ -234,4 +234,17 @@ internal fun keyboardThemePresets(): List<KeyboardThemePreset> = listOf(
     KeyboardThemePreset("Dracula", 0xFF282A36.toInt(), 0xFF6272A4.toInt(), 0xFF343746.toInt(), 0xFF44475A.toInt(), 0xFFF8F8F2.toInt(), 0xFF6272A4.toInt(), 0xFFFF79C6.toInt(), 0xFFF1FA8C.toInt(), 0xFFBD93F9.toInt()),
     KeyboardThemePreset("Nord", 0xFF2E3440.toInt(), 0xFF4C566A.toInt(), 0xFF3B4252.toInt(), 0xFF434C5E.toInt(), 0xFFECEFF4.toInt(), 0xFF4C566A.toInt(), 0xFF88C0D0.toInt(), 0xFFEBCB8B.toInt(), 0xFF88C0D0.toInt()),
     KeyboardThemePreset("Volcanic Dusk", 0xFF1B141A.toInt(), 0xFF5D3B4F.toInt(), 0xFF2A2028.toInt(), 0xFF723650.toInt(), 0xFFFFEDF5.toInt(), 0xFF66515F.toInt(), 0xFFFF5D9E.toInt(), 0xFFFFB000.toInt(), 0xFFFF5D9E.toInt())
-)
+).flatMap { preset ->
+    when (preset.name) {
+        "Pastiera Dark", "Pastiera Light" -> listOf(
+            preset,
+            preset.copy(
+                name = preset.name.replace("Pastiera", "Transparent"),
+                background = preset.background and 0x00FFFFFF,
+                keyCornerRadiusRatio = 0.10f,
+                chromeCornerRadiusRatio = 0.35f
+            )
+        )
+        else -> listOf(preset)
+    }
+}

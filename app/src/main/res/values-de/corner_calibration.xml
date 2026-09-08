@@ -1,0 +1,4 @@
+<resources>
+    <string name="corner_calibration_title">Displaykurve kalibrieren</string>
+    <string name="corner_calibration_description">Erweiterte Kalibrierung der Displaykontur des Titan 2 Elite.</string>
+</resources>

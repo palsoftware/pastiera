@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import it.palsoftware.pastiera.SettingsManager
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -22,12 +23,18 @@ import org.robolectric.annotation.Config
 class CandidatesBarControllerTest {
     private val context = RuntimeEnvironment.getApplication()
 
+    @Before
+    fun setUp() {
+        SettingsManager.getVariationsFile(context).delete()
+    }
+
     @After
     fun tearDown() {
         SettingsManager.setSoftwareKeyboardMode(context, SettingsManager.SoftwareKeyboardMode.AUTO)
         SettingsManager.setSuggestionsEnabled(context, true)
         SettingsManager.setStaticVariationBarPreset(context, SettingsManager.STATIC_VARIATION_PRESET_OFF)
         SettingsManager.setStatusBarVariationsVisible(context, true)
+        SettingsManager.getVariationsFile(context).delete()
         SoftwareKeyboardAutoDetector.onInputDevicesChanged()
     }
 
@@ -145,6 +152,84 @@ class CandidatesBarControllerTest {
         assertTrue(
             visibleTexts.containsAll(SettingsManager.getDevChoiceStaticVariationBasePreset())
         )
+    }
+
+    @Test
+    fun customizedBaseRowReplacesEveryPresetWhileKeyboardIsVisible() {
+        SettingsManager.setSuggestionsEnabled(context, false)
+        SettingsManager.setStatusBarVariationsVisible(context, true)
+        val controller = CandidatesBarController(context)
+        val candidatesView = controller.getCandidatesView()
+        val presets = listOf(
+            SettingsManager.STATIC_VARIATION_PRESET_SYMBOLS,
+            SettingsManager.STATIC_VARIATION_PRESET_NUMBERS,
+            SettingsManager.STATIC_VARIATION_PRESET_ALTERNATIVE,
+            SettingsManager.STATIC_VARIATION_PRESET_DEV_CHOICE
+        )
+
+        presets.forEachIndexed { index, preset ->
+            SettingsManager.setStaticVariationBarPreset(context, preset)
+            val customBase = listOf("custom-229-$index", "slot-$index")
+            SettingsManager.saveVariations(
+                context = context,
+                variations = emptyMap(),
+                staticVariations = customBase,
+                staticVariationsShift = listOf("shift-229-$index"),
+                staticVariationsAlt = listOf("alt-229-$index")
+            )
+            controller.invalidateStaticVariations()
+
+            controller.updateStatusBars(emptyStatusSnapshot(), "", null, null)
+            val visibleTexts = layoutAndCollectVisibleTexts(candidatesView)
+
+            assertTrue("Preset $preset ignored the customized base row", visibleTexts.containsAll(customBase))
+        }
+    }
+
+    @Test
+    fun customizedModifierRowsRefreshWhileKeyboardIsVisible() {
+        SettingsManager.setSuggestionsEnabled(context, false)
+        SettingsManager.setStatusBarVariationsVisible(context, true)
+        SettingsManager.setStaticVariationBarPreset(
+            context,
+            SettingsManager.STATIC_VARIATION_PRESET_NUMBERS
+        )
+        val controller = CandidatesBarController(context)
+        val candidatesView = controller.getCandidatesView()
+
+        SettingsManager.saveVariations(
+            context = context,
+            variations = emptyMap(),
+            staticVariations = listOf("base-229"),
+            staticVariationsShift = listOf("shift-229"),
+            staticVariationsAlt = listOf("alt-229")
+        )
+        controller.invalidateStaticVariations()
+
+        controller.updateStatusBars(
+            emptyStatusSnapshot().copy(shiftPhysicallyPressed = true),
+            "",
+            null,
+            null
+        )
+        assertTrue(layoutAndCollectVisibleTexts(candidatesView).contains("shift-229"))
+
+        controller.updateStatusBars(
+            emptyStatusSnapshot().copy(altPhysicallyPressed = true),
+            "",
+            null,
+            null
+        )
+        assertTrue(layoutAndCollectVisibleTexts(candidatesView).contains("alt-229"))
+    }
+
+    private fun layoutAndCollectVisibleTexts(view: View): List<String> {
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+        return collectLaidOutVisibleTexts(view)
     }
 
     private fun collectLaidOutVisibleTexts(view: View): List<String> {

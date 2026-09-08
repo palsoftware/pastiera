@@ -95,6 +95,11 @@
             android:label="@string/sym_customize_title"
             android:theme="@style/Theme.Pastiera" />
         
+        <activity android:name=".KeyboardLayoutActivity" android:exported="false" android:theme="@style/Theme.Pastiera" />
+
+        <activity android:name=".CornerCalibrationActivity" android:exported="false"
+            android:label="Displaykurve kalibrieren" android:theme="@style/Theme.Pastiera" />
+
         <!-- Activity per le impostazioni -->
         <activity
             android:name=".SettingsActivity"
@@ -102,8 +107,11 @@
             android:exported="true"
             android:label="@string/settings_title"
             android:theme="@style/Theme.Pastiera">
-            <!-- Deep links to individual settings entries (pastiera://setting/<id>).
-                 Opening a link only navigates and highlights, it never changes values. -->
+            <!-- Settings links only navigate and highlight; they never change values.
+                 Keep the pastiera scheme and pastiera.eu alias after the Plektra rename.
+                 Future: if multiple Stable/Nightly or Pastiera/Plektra apps are installed,
+                 consider an in-app choice with explicit forwarding to the selected package.
+                 Verified overlapping App Links do not guarantee an Android chooser. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -113,6 +121,24 @@
                 <data
                     android:scheme="pastiera"
                     android:host="setting" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="pkb.rocks"
+                    android:pathPrefix="/settings/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="pastiera.eu"
+                    android:pathPrefix="/settings/" />
             </intent-filter>
         </activity>
         

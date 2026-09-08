@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Language
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.WindowInsets
@@ -77,7 +76,7 @@ private fun LanguageItem(
 ) {
     val isRicettePastiera = languageCode == "x-pastiera"
     val showToggle = true
-    
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -147,13 +146,13 @@ private fun getLanguageDisplayName(context: Context, languageCode: String): Stri
     if (languageCode == "x-pastiera") {
         return context.getString(R.string.auto_correct_ricette_pastiera_name)
     }
-    
+
     // First try to get saved name from JSON
     val savedName = SettingsManager.getCustomLanguageName(context, languageCode)
     if (savedName != null) {
         return savedName
     }
-    
+
     // For standard languages, use simple locale display name (without "Pastiera")
     val standardLanguages = mapOf(
         "en" to "English",
@@ -163,11 +162,11 @@ private fun getLanguageDisplayName(context: Context, languageCode: String): Stri
         "pl" to "Polski",
         "es" to "Español"
     )
-    
+
     if (languageCode in standardLanguages) {
         return standardLanguages[languageCode]!!
     }
-    
+
     // If no saved name and not standard, use name generated from locale
     return try {
         val locale = Locale.forLanguageTag(languageCode)
@@ -190,20 +189,20 @@ fun AutoCorrectSettingsScreen(
     onEditLanguage: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
-    
+
     // Load available languages (updatable)
-    var allLanguages by remember { 
-        mutableStateOf(AutoCorrector.getAllAvailableLanguages().toList()) 
+    var allLanguages by remember {
+        mutableStateOf(AutoCorrector.getAllAvailableLanguages().toList())
     }
     val systemLocale = remember {
         context.applicationContext.resources.configuration.locales[0].language.lowercase()
     }
-    
+
     // Load enabled languages
     var enabledLanguages by remember {
         mutableStateOf(SettingsManager.getAutoCorrectEnabledLanguages(context))
     }
-    
+
     // Load corrections when screen is opened to ensure languages are available
     LaunchedEffect(Unit) {
         try {
@@ -223,13 +222,13 @@ fun AutoCorrectSettingsScreen(
             android.util.Log.e("AutoCorrectSettings", "Error loading corrections", e)
         }
     }
-    
+
     // Helper to determine if a language is enabled
     fun isLanguageEnabled(locale: String): Boolean {
         // If set is empty, all languages are enabled (default)
         return enabledLanguages.isEmpty() || enabledLanguages.contains(locale)
     }
-    
+
     // Helper to count how many languages are enabled (excluding x-pastiera which is always enabled)
     fun countEnabledLanguages(): Int {
         return if (enabledLanguages.isEmpty()) {
@@ -238,7 +237,7 @@ fun AutoCorrectSettingsScreen(
             enabledLanguages.size
         }
     }
-    
+
     // Helper to handle language toggle
     fun toggleLanguage(locale: String, currentEnabled: Boolean) {
         if (!currentEnabled) {
@@ -249,14 +248,14 @@ fun AutoCorrectSettingsScreen(
             } else {
                 enabledLanguages + locale
             }
-            
+
             // If new set contains all languages, save as empty (all enabled)
             val finalSet = if (newSet.size == allLanguages.size && newSet.containsAll(allLanguages)) {
                 emptySet<String>()
             } else {
                 newSet
             }
-            
+
             enabledLanguages = finalSet
             SettingsManager.setAutoCorrectEnabledLanguages(context, finalSet)
         } else {
@@ -271,7 +270,7 @@ fun AutoCorrectSettingsScreen(
                 ).show()
                 return
             }
-            
+
             val newSet = if (enabledLanguages.isEmpty()) {
                 // Was "all enabled", now disable this one
                 // So enable all others
@@ -279,24 +278,21 @@ fun AutoCorrectSettingsScreen(
             } else {
                 enabledLanguages - locale
             }
-            
+
             // If new set contains all languages, save as empty
             val finalSet = if (newSet.size == allLanguages.size && newSet.containsAll(allLanguages)) {
                 emptySet<String>()
             } else {
                 newSet
             }
-            
+
             enabledLanguages = finalSet
             SettingsManager.setAutoCorrectEnabledLanguages(context, finalSet)
         }
     }
-    
+
     // Handle system back button
-    BackHandler {
-        onBack()
-    }
-    
+
     Scaffold(
         topBar = {
             Surface(
@@ -364,7 +360,7 @@ fun AutoCorrectSettingsScreen(
                             )
                         }
                     }
-                    
+
                     // System language (always at top)
                     if (allLanguages.contains(systemLocale)) {
                         val systemEnabled = isLanguageEnabled(systemLocale)
@@ -381,7 +377,7 @@ fun AutoCorrectSettingsScreen(
                             }
                         )
                     }
-                    
+
                     // Ricette Pastiera (shown after system language)
                     LanguageItem(
                         languageCode = "x-pastiera",
@@ -395,10 +391,10 @@ fun AutoCorrectSettingsScreen(
                             onEditLanguage("x-pastiera")
                         }
                     )
-                    
+
                     // Other available languages (excluding x-pastiera)
                     val otherLanguages = allLanguages.filter { it != systemLocale && it != "x-pastiera" }.sorted()
-                    
+
                     if (otherLanguages.isNotEmpty()) {
                         // Header for other languages
                         Surface(
@@ -420,7 +416,7 @@ fun AutoCorrectSettingsScreen(
                                 )
                             }
                         }
-                        
+
                         otherLanguages.forEach { locale ->
                             val localeEnabled = isLanguageEnabled(locale)
                             LanguageItem(
@@ -437,7 +433,7 @@ fun AutoCorrectSettingsScreen(
                             )
                         }
                     }
-                    
+
                     // Section for custom languages (if present)
                     // Filter only languages that are not standard and not already shown above (excluding x-pastiera)
                     val customLanguages = AutoCorrector.getCustomLanguages()
@@ -462,7 +458,7 @@ fun AutoCorrectSettingsScreen(
                                 )
                             }
                         }
-                        
+
                         customLanguages.forEach { locale ->
                             val localeEnabled = isLanguageEnabled(locale)
                             LanguageItem(

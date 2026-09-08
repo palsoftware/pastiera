@@ -9,9 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -38,7 +36,6 @@ import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Engineering
-import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -78,12 +75,8 @@ enum class SettingsDestination {
     Modifiers
 }
 
-/**
- * One entry in the settings navigation stack. Deep-link payloads travel with
- * their entry so a buried entry keeps its own destination instead of being
- * repainted by whichever sibling was opened last.
- */
-internal data class SettingsStackEntry(
+/** The destination payload of one SettingsActivity, also used by deep links. */
+internal data class SettingsPage(
     val destination: SettingsDestination,
     val customizationDestination: String? = null,
     val keyboardThemeTarget: String? = null,
@@ -92,78 +85,13 @@ internal data class SettingsStackEntry(
     val keyboardsDevicesDestination: KeyboardsDevicesDestination = KeyboardsDevicesDestination.Main
 )
 
-private const val SETTINGS_STACK_SAVER_VERSION = "settings-stack-v3"
-private const val SETTINGS_STACK_SAVER_VERSION_V2 = "settings-stack-v2"
-
-private fun decodeSettingsDestination(value: String): SettingsDestination? =
-    runCatching { SettingsDestination.valueOf(value) }.getOrNull()
-
-internal fun restoreSettingsStack(values: List<String>): SnapshotStateList<SettingsStackEntry> {
-    val restored = when {
-        values.firstOrNull() == SETTINGS_STACK_SAVER_VERSION ->
-            values.drop(1).chunked(6).mapNotNull { chunk ->
-                if (chunk.size != 6) return@mapNotNull null
-                val destination = decodeSettingsDestination(chunk[0]) ?: return@mapNotNull null
-                SettingsStackEntry(
-                    destination = destination,
-                    customizationDestination = chunk[1].ifEmpty { null },
-                    keyboardThemeTarget = chunk[2].ifEmpty { null },
-                    keyboardThemeTab = chunk[3].ifEmpty { null },
-                    navModeKeyCode = chunk[4].ifEmpty { null }?.toIntOrNull(),
-                    keyboardsDevicesDestination = runCatching {
-                        KeyboardsDevicesDestination.valueOf(chunk[5])
-                    }.getOrDefault(KeyboardsDevicesDestination.Main)
-                )
-            }
-        values.firstOrNull() == SETTINGS_STACK_SAVER_VERSION_V2 ->
-            values.drop(1).chunked(5).mapNotNull { chunk ->
-                if (chunk.size != 5) return@mapNotNull null
-                val destination = decodeSettingsDestination(chunk[0]) ?: return@mapNotNull null
-                SettingsStackEntry(
-                    destination = destination,
-                    customizationDestination = chunk[1].ifEmpty { null },
-                    keyboardThemeTarget = chunk[2].ifEmpty { null },
-                    navModeKeyCode = chunk[3].ifEmpty { null }?.toIntOrNull(),
-                    keyboardsDevicesDestination = runCatching {
-                        KeyboardsDevicesDestination.valueOf(chunk[4])
-                    }.getOrDefault(KeyboardsDevicesDestination.Main)
-                )
-            }
-        values.isNotEmpty() && values.all { decodeSettingsDestination(it) != null } ->
-            values.mapNotNull(::decodeSettingsDestination).map { SettingsStackEntry(it) }
-        values.size % 4 == 0 ->
-            values.chunked(4).mapNotNull { chunk ->
-                val destination = decodeSettingsDestination(chunk[0]) ?: return@mapNotNull null
-                SettingsStackEntry(
-                    destination = destination,
-                    customizationDestination = chunk[1].ifEmpty { null },
-                    keyboardThemeTarget = chunk[2].ifEmpty { null },
-                    navModeKeyCode = chunk[3].ifEmpty { null }?.toIntOrNull()
-                )
-            }
-        else -> emptyList()
-    }
-    return mutableStateListOf<SettingsStackEntry>().apply {
-        addAll(restored.ifEmpty { listOf(SettingsStackEntry(SettingsDestination.Main)) })
-    }
-}
-
-private val settingsNavigationStackSaver =
-    listSaver<SnapshotStateList<SettingsStackEntry>, String>(
-        save = { stack ->
-            listOf(SETTINGS_STACK_SAVER_VERSION) + stack.flatMap { entry ->
-                listOf(
-                    entry.destination.name,
-                    entry.customizationDestination.orEmpty(),
-                    entry.keyboardThemeTarget.orEmpty(),
-                    entry.keyboardThemeTab.orEmpty(),
-                    entry.navModeKeyCode?.toString().orEmpty(),
-                    entry.keyboardsDevicesDestination.name
-                )
-            }
-        },
-        restore = ::restoreSettingsStack
-    )
+internal fun SettingRoute.toSettingsPage() = SettingsPage(
+    destination = destination,
+    customizationDestination = customizationDestination,
+    keyboardThemeTarget = keyboardThemeTarget?.name,
+    keyboardThemeTab = keyboardThemeTab?.name,
+    keyboardsDevicesDestination = keyboardsDevicesDestination
+)
 
 /**
  * App settings screen.
@@ -180,96 +108,21 @@ fun SettingsScreen(
     val activity = context as? ComponentActivity
 
     var checkingForUpdates by remember { mutableStateOf(false) }
-    var navigationDirection by remember { mutableStateOf(NavigationDirection.Push) }
-    val initialLinkEntry = remember {
-        settingLinkRequest?.id?.let(SettingLinkRegistry::byId)
-    }
+    val currentEntry = remember { context.settingsActivity().intent.settingsPage() }
+    val currentDestination = currentEntry.destination
     var highlightSettingId by rememberSaveable { mutableStateOf<String?>(null) }
     var linkSheetEntry by remember { mutableStateOf<SettingEntry?>(null) }
-    val navigationStack = rememberSaveable(saver = settingsNavigationStackSaver) {
-        mutableStateListOf<SettingsStackEntry>().apply {
-            val linkEntry = initialLinkEntry
-            if (linkEntry != null) {
-                if (linkEntry.route.destination != SettingsDestination.Main) {
-                    add(SettingsStackEntry(SettingsDestination.Main))
-                }
-                add(
-                    SettingsStackEntry(
-                        destination = linkEntry.route.destination,
-                        customizationDestination = linkEntry.route.customizationDestination,
-                        keyboardThemeTarget = linkEntry.route.keyboardThemeTarget?.name,
-                        keyboardThemeTab = linkEntry.route.keyboardThemeTab?.name
-                    )
-                )
-            } else when (initialDestination) {
-                SettingsActivity.DESTINATION_CUSTOMIZATION -> {
-                    if (initialCustomizationDestination == null) {
-                        add(SettingsStackEntry(SettingsDestination.Main))
-                    }
-                    add(
-                        SettingsStackEntry(
-                            destination = SettingsDestination.Customization,
-                            customizationDestination = initialCustomizationDestination,
-                            keyboardThemeTarget = initialKeyboardThemeTarget
-                        )
-                    )
-                }
-                SettingsActivity.DESTINATION_DEVICE_SYM_LAYER_EDITOR ->
-                    add(SettingsStackEntry(SettingsDestination.DeviceSymLayerEditor))
-                SettingsActivity.DESTINATION_MODIFIERS ->
-                    add(SettingsStackEntry(SettingsDestination.Modifiers))
-                else -> add(SettingsStackEntry(SettingsDestination.Main))
-            }
-        }
-    }
-    val currentEntry by remember {
-        derivedStateOf { navigationStack.last() }
-    }
-    val currentDestination = currentEntry.destination
 
     fun navigateTo(destination: SettingsDestination) {
-        if (currentDestination == destination) return
-        navigationDirection = NavigationDirection.Push
-        navigationStack.add(SettingsStackEntry(destination))
+        openSettingsPage(context, SettingsPage(destination))
     }
-
-    fun navigateBack() {
-        if (navigationStack.size > 1) {
-            navigationDirection = NavigationDirection.Pop
-            navigationStack.removeAt(navigationStack.lastIndex)
-        } else {
-            activity?.finish()
-        }
+    fun navigateBack() { context.settingsActivity().finish() }
+    fun openCustomization(destination: String?, keyboardThemeTarget: String? = null, keyboardThemeTab: String? = null) {
+        openSettingsPage(context, SettingsPage(SettingsDestination.Customization,
+            destination, keyboardThemeTarget, keyboardThemeTab))
     }
-
-    fun openCustomization(
-        destination: String?,
-        keyboardThemeTarget: String? = null,
-        keyboardThemeTab: String? = null
-    ) {
-        navigationDirection = NavigationDirection.Push
-        val target = SettingsStackEntry(
-            destination = SettingsDestination.Customization,
-            customizationDestination = destination,
-            keyboardThemeTarget = keyboardThemeTarget,
-            keyboardThemeTab = keyboardThemeTab
-        )
-        if (currentDestination == SettingsDestination.Customization) {
-            navigationStack[navigationStack.lastIndex] = target
-        } else {
-            navigationStack.add(target)
-        }
-    }
-
     fun navigateToNavMode(keyCode: Int?) {
-        if (currentDestination == SettingsDestination.NavMode) return
-        navigationDirection = NavigationDirection.Push
-        navigationStack.add(
-            SettingsStackEntry(
-                destination = SettingsDestination.NavMode,
-                navModeKeyCode = keyCode
-            )
-        )
+        openSettingsPage(context, SettingsPage(SettingsDestination.NavMode, navModeKeyCode = keyCode))
     }
 
     /**
@@ -277,16 +130,21 @@ fun SettingsScreen(
      * its row to flash and scroll into view. Never changes any value.
      */
     fun openSettingEntry(entry: SettingEntry) {
+        linkSheetEntry = null
         val visibleEntry = SettingLinkRegistry.visibleTarget(context, entry)
         val route = visibleEntry.route
-        if (route.destination == SettingsDestination.Customization) {
-            openCustomization(
-                destination = route.customizationDestination,
-                keyboardThemeTarget = route.keyboardThemeTarget?.name,
-                keyboardThemeTab = route.keyboardThemeTab?.name
-            )
-        } else if (currentDestination != route.destination) {
-            navigateTo(route.destination)
+        if (route.symCustomization) {
+            context.startActivity(Intent(context, SymCustomizationActivity::class.java).apply {
+                putExtra(SymCustomizationActivity.EXTRA_SETTING_ID, visibleEntry.id)
+            })
+            return
+        }
+        val target = route.toSettingsPage()
+        if (currentEntry != target) {
+            context.startActivity(Intent(context, SettingsActivity::class.java).apply {
+                data = android.net.Uri.parse("pastiera://setting/${visibleEntry.id}")
+            })
+            return
         }
         highlightSettingId = visibleEntry.id
     }
@@ -310,56 +168,28 @@ fun SettingsScreen(
             highlightSettingId = null
         }
     }
-    
+
     // Automatic update check on screen open (only once, respecting dismissed releases)
-    if (shouldUseGithubUpdateChecks(context)) {
+    if (currentDestination == SettingsDestination.Main && shouldUseGithubUpdateChecks(context)) {
         LaunchedEffect(Unit) {
-            checkForUpdate(
+            it.palsoftware.pastiera.update.checkForUpdateNotices(
                 context = context,
-                currentVersion = BuildConfig.VERSION_NAME,
                 releaseChannel = BuildConfig.RELEASE_CHANNEL,
                 ignoreDismissedReleases = true
-            ) { hasUpdate, latestVersion, downloadUrl, releasePageUrl ->
-                if (hasUpdate && latestVersion != null) {
-                    showUpdateDialog(context, latestVersion, downloadUrl, releasePageUrl)
+            ) { result ->
+                if (result.hasAnnouncement && result.releaseTag != null && result.displayName != null) {
+                    it.palsoftware.pastiera.update.showReleaseNotice(context, result)
                 }
             }
         }
     }
-    
-    // Handle system back button
-    BackHandler { navigateBack() }
+
 
     CompositionLocalProvider(
         LocalSettingHighlightId provides highlightSettingId,
         LocalSettingLinkLongPress provides ({ id -> linkSheetEntry = SettingLinkRegistry.byId(id) })
     ) {
-    AnimatedContent(
-        targetState = currentEntry,
-        transitionSpec = {
-            if (navigationDirection == NavigationDirection.Push) {
-                // Forward navigation: new screen enters from right, old screen exits to left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                )
-            } else {
-                // Back navigation: current screen exits to right, previous screen enters from left
-                slideInHorizontally(
-                    initialOffsetX = { fullWidth -> -fullWidth },
-                    animationSpec = tween(250)
-                ) togetherWith slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
-                    animationSpec = tween(250)
-                )
-            }
-        },
-        label = "settings_navigation",
-        contentKey = { it }
-    ) { entry ->
+    val entry = currentEntry
         when (entry.destination) {
             SettingsDestination.Main -> {
                 SettingsMainScreen(
@@ -367,7 +197,11 @@ fun SettingsScreen(
                     context = context,
                     checkingForUpdates = checkingForUpdates,
                     onCheckingForUpdatesChange = { checkingForUpdates = it },
-                    onOpenSettingEntry = { openSettingEntry(it) },
+                    onOpenSettingEntry = { target ->
+                        context.startActivity(Intent(context, SettingsActivity::class.java).apply {
+                            data = android.net.Uri.parse("pastiera://setting/${target.id}")
+                        })
+                    },
                     onModifiersClick = { navigateTo(SettingsDestination.Modifiers) },
                     onKeyboardsDevicesClick = { navigateTo(SettingsDestination.KeyboardsDevices) },
                     onTextInputClick = { navigateTo(SettingsDestination.TextInput) },
@@ -414,18 +248,8 @@ fun SettingsScreen(
                     },
                     destination = entry.keyboardsDevicesDestination,
                     onDestinationChange = { destination ->
-                        val index = navigationStack.lastIndex
-                        if (index >= 0 && navigationStack[index] == entry) {
-                            navigationDirection =
-                                if (destination == KeyboardsDevicesDestination.Main) {
-                                    NavigationDirection.Pop
-                                } else {
-                                    NavigationDirection.Push
-                                }
-                            navigationStack[index] = entry.copy(
-                                keyboardsDevicesDestination = destination
-                            )
-                        }
+                        if (destination == KeyboardsDevicesDestination.Main) navigateBack()
+                        else openSettingsPage(context, entry.copy(keyboardsDevicesDestination = destination))
                     }
                 )
             }
@@ -495,9 +319,7 @@ fun SettingsScreen(
                     onBack = { navigateBack() },
                     onOpenSymLayers = {
                         context.startActivity(
-                            Intent(context, SymCustomizationActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            }
+Intent(context, SymCustomizationActivity::class.java)
                         )
                     },
                     onOpenSymShortcuts = {
@@ -510,7 +332,6 @@ fun SettingsScreen(
             }
         }
     }
-    }
 
     // Share/copy sheet for the settings entry currently being long-pressed
     linkSheetEntry?.let { entry ->
@@ -518,10 +339,7 @@ fun SettingsScreen(
     }
 }
 
-private enum class NavigationDirection {
-    Push,
-    Pop
-}
+
 
 @Composable
 private fun SettingsMainScreen(
@@ -547,6 +365,8 @@ private fun SettingsMainScreen(
     onAppLanguageClick: () -> Unit,
     onOpenSettingEntry: (SettingEntry) -> Unit
 ) {
+    var checkingNightly by remember { mutableStateOf(false) }
+
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchResults = remember(searchQuery, context) {
@@ -749,6 +569,23 @@ private fun SettingsMainScreen(
                 onClick = onAboutClick
             )
 
+            if (BuildConfig.RELEASE_CHANNEL == "nightly" && shouldUseGithubUpdateChecks(context)) {
+                SettingsCategoryRow(
+                    icon = Icons.Filled.Code,
+                    title = stringResource(if (checkingNightly) R.string.nightly_update_checking else R.string.nightly_update_settings_title),
+                    description = stringResource(R.string.nightly_update_settings_description),
+                    enabled = !checkingNightly,
+                    onClick = {
+                        checkingNightly = true
+                        it.palsoftware.pastiera.update.checkForNightlyUpdate(context, ignoreDismissedReleases = false) { result ->
+                            checkingNightly = false
+                            if (result.hasAnnouncement) it.palsoftware.pastiera.update.showReleaseNotice(context, result)
+                            else Toast.makeText(context, if (result.successful) R.string.nightly_update_current else R.string.settings_update_check_failed, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+            }
+
             if (shouldUseGithubUpdateChecks(context)) {
                 SettingsCategoryRow(
                     icon = Icons.Filled.Code,
@@ -763,18 +600,22 @@ private fun SettingsMainScreen(
                         onCheckingForUpdatesChange(true)
                         checkForUpdate(
                             context = context,
-                            currentVersion = BuildConfig.VERSION_NAME,
                             releaseChannel = BuildConfig.RELEASE_CHANNEL,
                             ignoreDismissedReleases = false
-                        ) { hasUpdate, latestVersion, downloadUrl, releasePageUrl ->
+                        ) { result ->
                             onCheckingForUpdatesChange(false)
                             when {
-                                latestVersion == null -> Toast.makeText(
+                                !result.successful -> Toast.makeText(
                                     context,
                                     context.getString(R.string.settings_update_check_failed),
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                hasUpdate -> showUpdateDialog(context, latestVersion, downloadUrl, releasePageUrl)
+                                result.hasAnnouncement && result.releaseTag != null && result.displayName != null -> showUpdateDialog(
+                                    context,
+                                    result.releaseTag,
+                                    result.displayName,
+                                    result.releasePageUrl
+                                )
                                 else -> Toast.makeText(
                                     context,
                                     context.getString(R.string.settings_update_up_to_date),

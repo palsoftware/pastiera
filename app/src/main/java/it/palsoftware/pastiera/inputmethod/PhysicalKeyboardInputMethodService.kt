@@ -35,6 +35,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.Toast
+import it.palsoftware.pastiera.BuildConfig
 import it.palsoftware.pastiera.R
 import it.palsoftware.pastiera.inputmethod.NotificationHelper
 import it.palsoftware.pastiera.core.AutoCorrectionManager
@@ -105,6 +106,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         private const val MODIFIER_ICON_ACTIVE = 1
         private const val MODIFIER_ICON_LOCKED = 2
         private const val DISCORD_PACKAGE_NAME = "com.discord"
+        private const val FACEBOOK_MESSENGER_PACKAGE_NAME = "com.facebook.orca"
         private val MESSENGER_ENTER_BEHAVIOR_PACKAGES = setOf(
             "com.whatsapp",
             CompatibilityWorkarounds.TELEGRAM_PACKAGE_NAME,
@@ -114,7 +116,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             "com.google.android.apps.messaging",
             "ch.threema.app",
             "ch.threema.app.libre",
-            "com.instagram.android"
+            "com.instagram.android",
+            FACEBOOK_MESSENGER_PACKAGE_NAME
         )
         private val ENTER_BEHAVIOR_SEND_ACTION_PACKAGES = MESSENGER_ENTER_BEHAVIOR_PACKAGES -
             DISCORD_PACKAGE_NAME
@@ -866,7 +869,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
 
     private fun resolveAppEnterBehavior(info: EditorInfo?): String? {
         val packageName = info?.packageName ?: return null
-        if (packageName !in MESSENGER_ENTER_BEHAVIOR_PACKAGES) return null
         if (!SettingsManager.getAppEnterBehaviorEnabled(this)) return null
 
         val override = SettingsManager.getAppEnterBehaviorOverrides(this)
@@ -875,6 +877,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         if (override != null && override != SettingsManager.ENTER_BEHAVIOR_APP_DEFAULT) {
             return override
         }
+        if (packageName !in MESSENGER_ENTER_BEHAVIOR_PACKAGES) return null
 
         return when (SettingsManager.getAppEnterBehaviorPreset(this)) {
             SettingsManager.ENTER_BEHAVIOR_PRESET_ENTER_SEND_SHIFT_NEWLINE ->
@@ -893,7 +896,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
 
     private fun resolveAppEnterAdditionalSendShortcut(info: EditorInfo?): String {
         val packageName = info?.packageName ?: return SettingsManager.ENTER_ADDITIONAL_SEND_SHORTCUT_NONE
-        if (packageName !in MESSENGER_ENTER_BEHAVIOR_PACKAGES) return SettingsManager.ENTER_ADDITIONAL_SEND_SHORTCUT_NONE
         if (!SettingsManager.getAppEnterBehaviorEnabled(this)) return SettingsManager.ENTER_ADDITIONAL_SEND_SHORTCUT_NONE
 
         return SettingsManager.getAppEnterBehaviorOverrides(this)
@@ -902,9 +904,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             ?: SettingsManager.ENTER_ADDITIONAL_SEND_SHORTCUT_NONE
     }
 
-    private fun resolveTestedAppSendAction(info: EditorInfo?): Int? {
-        if (info?.packageName !in ENTER_BEHAVIOR_SEND_ACTION_PACKAGES) return null
-        return resolveEditorAction(info) ?: EditorInfo.IME_ACTION_SEND
+    private fun resolveAppEnterSendStrategy(info: EditorInfo?): String? {
+        val packageName = info?.packageName ?: return null
+        if (!SettingsManager.getAppEnterBehaviorEnabled(this)) return null
+
+        val override = SettingsManager.getAppEnterBehaviorOverrides(this)
+            .firstOrNull { it.packageName == packageName }
+        val configuredStrategy = override?.sendStrategy
+            ?: SettingsManager.ENTER_SEND_STRATEGY_AUTO
+        if (configuredStrategy != SettingsManager.ENTER_SEND_STRATEGY_AUTO) {
+            return configuredStrategy
+        }
+
+        return when {
+            packageName == DISCORD_PACKAGE_NAME -> SettingsManager.ENTER_SEND_STRATEGY_PLAIN_ENTER
+            packageName in ENTER_BEHAVIOR_SEND_ACTION_PACKAGES ->
+                SettingsManager.ENTER_SEND_STRATEGY_EDITOR_ACTION
+            override != null -> SettingsManager.ENTER_SEND_STRATEGY_EDITOR_ACTION
+            else -> null
+        }
     }
 
     private fun consumeUnsupportedEnterSend(
@@ -948,26 +966,63 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         val now = System.currentTimeMillis()
         val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 0, 0)
         val up = KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER, 0, 0)
-        val performed = inputConnection.sendKeyEvent(down) && inputConnection.sendKeyEvent(up)
-        if (performed) {
-            val wasNavModeLatched = ctrlLatchFromNavMode || navModeController.isNavModeActive()
-            modifierStateController.clearCtrlState(resetPressedState = false)
-            if (wasNavModeLatched) {
-                navModeController.cancelNotification()
-                navModeController.refreshNavModeState()
-            }
-            updateStatusBarText()
-            suggestionController.onContextReset()
-            notifyDebugKeyEvent(
-                keyCode,
-                event,
-                "KEY_DOWN",
-                origin = "ime_service",
-                outputKeyCode = KeyEvent.KEYCODE_ENTER,
-                outputKeyCodeName = outputKeyCodeName
-            )
+        val downPerformed = inputConnection.sendKeyEvent(down)
+        val upPerformed = inputConnection.sendKeyEvent(up)
+        val performed = downPerformed && upPerformed
+        val wasNavModeLatched = ctrlLatchFromNavMode || navModeController.isNavModeActive()
+        modifierStateController.clearCtrlState(resetPressedState = false)
+        if (wasNavModeLatched) {
+            navModeController.cancelNotification()
+            navModeController.refreshNavModeState()
         }
-        return performed
+        updateStatusBarText()
+        if (performed) {
+            suggestionController.onContextReset()
+        }
+        notifyDebugKeyEvent(
+            keyCode,
+            event,
+            "KEY_DOWN",
+            origin = "ime_service",
+            outputKeyCode = KeyEvent.KEYCODE_ENTER,
+            outputKeyCodeName = if (performed) outputKeyCodeName else "${outputKeyCodeName}_rejected"
+        )
+        return true
+    }
+
+    private fun performCtrlEnterSend(
+        keyCode: Int,
+        inputConnection: InputConnection,
+        event: KeyEvent?,
+        outputKeyCodeName: String
+    ): Boolean {
+        inputConnection.finishComposingText()
+        val now = System.currentTimeMillis()
+        val metaState = KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON
+        val down = KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 0, metaState)
+        val up = KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER, 0, metaState)
+        val downPerformed = inputConnection.sendKeyEvent(down)
+        val upPerformed = inputConnection.sendKeyEvent(up)
+        val performed = downPerformed && upPerformed
+        val wasNavModeLatched = ctrlLatchFromNavMode || navModeController.isNavModeActive()
+        modifierStateController.clearCtrlState(resetPressedState = false)
+        if (wasNavModeLatched) {
+            navModeController.cancelNotification()
+            navModeController.refreshNavModeState()
+        }
+        updateStatusBarText()
+        if (performed) {
+            suggestionController.onContextReset()
+        }
+        notifyDebugKeyEvent(
+            keyCode,
+            event,
+            "KEY_DOWN",
+            origin = "ime_service",
+            outputKeyCode = KeyEvent.KEYCODE_ENTER,
+            outputKeyCodeName = if (performed) outputKeyCodeName else "${outputKeyCodeName}_rejected"
+        )
+        return true
     }
 
     private fun isShiftModifierActive(event: KeyEvent?): Boolean {
@@ -1014,7 +1069,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         actionId: Int,
         inputConnection: InputConnection,
         event: KeyEvent?,
-        consumeCtrlState: Boolean = false
+        consumeCtrlState: Boolean = false,
+        consumeOnFailure: Boolean = false
     ): Boolean {
         inputConnection.finishComposingText()
         // Skip autocorrection when Enter is mapped to an IME action.
@@ -1024,7 +1080,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             shouldDisableAutoCapitalize
         ) { updateStatusBarText() }
         val performed = inputConnection.performEditorAction(actionId)
-        if (performed) {
+        if (performed || consumeOnFailure) {
             if (consumeCtrlState) {
                 val wasNavModeLatched = ctrlLatchFromNavMode || navModeController.isNavModeActive()
                 modifierStateController.clearCtrlState(resetPressedState = false)
@@ -1034,17 +1090,50 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                 }
                 updateStatusBarText()
             }
-            suggestionController.onContextReset()
+            if (performed) {
+                suggestionController.onContextReset()
+            }
             notifyDebugKeyEvent(
                 keyCode,
                 event,
                 "KEY_DOWN",
                 origin = "ime_service",
                 outputKeyCode = null,
-                outputKeyCodeName = "editor_action_$actionId"
+                outputKeyCodeName = if (performed) {
+                    "editor_action_$actionId"
+                } else {
+                    "editor_action_${actionId}_rejected"
+                }
             )
         }
-        return performed
+        return performed || consumeOnFailure
+    }
+
+    private fun performConfiguredAppEnterSend(
+        keyCode: Int,
+        info: EditorInfo?,
+        inputConnection: InputConnection,
+        event: KeyEvent?,
+        consumeCtrlState: Boolean
+    ): Boolean {
+        return when (resolveAppEnterSendStrategy(info)) {
+            SettingsManager.ENTER_SEND_STRATEGY_EDITOR_ACTION -> {
+                val actionId = resolveEditorAction(info) ?: EditorInfo.IME_ACTION_SEND
+                performEnterEditorAction(
+                    keyCode = keyCode,
+                    actionId = actionId,
+                    inputConnection = inputConnection,
+                    event = event,
+                    consumeCtrlState = consumeCtrlState,
+                    consumeOnFailure = true
+                )
+            }
+            SettingsManager.ENTER_SEND_STRATEGY_CTRL_ENTER ->
+                performCtrlEnterSend(keyCode, inputConnection, event, "app_ctrl_enter_send")
+            SettingsManager.ENTER_SEND_STRATEGY_PLAIN_ENTER ->
+                performPlainEnterSend(keyCode, inputConnection, event, "app_plain_enter_send")
+            else -> consumeUnsupportedEnterSend(keyCode, event, "app_enter_send_unsupported")
+        }
     }
 
     /**
@@ -1074,20 +1163,25 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         if (symEnterSendActive) {
             symChordUsedSinceKeyDown = true
             symTogglePendingOnKeyUp = false
-            if (info?.packageName == DISCORD_PACKAGE_NAME) {
-                return performPlainEnterSend(keyCode, ic, event, "app_sym_enter_plain_enter_send")
-            }
-            return resolveTestedAppSendAction(info)
-                ?.let { performEnterEditorAction(keyCode, it, ic, event) }
-                ?: consumeUnsupportedEnterSend(keyCode, event, "app_sym_enter_send_unsupported")
+            return performConfiguredAppEnterSend(
+                keyCode = keyCode,
+                info = info,
+                inputConnection = ic,
+                event = event,
+                consumeCtrlState = false
+            )
         }
 
         when (resolveAppEnterBehavior(info)) {
             SettingsManager.ENTER_BEHAVIOR_ENTER_NEWLINE -> {
                 if (navModeController.isNavModeActive() && ctrlActiveForEnter) {
-                    return resolveTestedAppSendAction(info)
-                        ?.let { performEnterEditorAction(keyCode, it, ic, event, consumeCtrlState = true) }
-                        ?: false
+                    return performConfiguredAppEnterSend(
+                        keyCode = keyCode,
+                        info = info,
+                        inputConnection = ic,
+                        event = event,
+                        consumeCtrlState = true
+                    )
                 }
                 return commitEnterNewline(keyCode, ic, event, "app_enter_newline")
             }
@@ -1095,25 +1189,34 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                 if (!ctrlActiveForEnter) {
                     return commitEnterNewline(keyCode, ic, event, "app_enter_newline")
                 }
-                if (info?.packageName == DISCORD_PACKAGE_NAME) {
-                    return performPlainEnterSend(keyCode, ic, event, "discord_plain_enter_send")
-                }
-                return resolveTestedAppSendAction(info)
-                    ?.let { performEnterEditorAction(keyCode, it, ic, event, consumeCtrlState = true) }
-                    ?: consumeUnsupportedEnterSend(keyCode, event, "app_enter_send_unsupported")
+                return performConfiguredAppEnterSend(
+                    keyCode = keyCode,
+                    info = info,
+                    inputConnection = ic,
+                    event = event,
+                    consumeCtrlState = true
+                )
             }
             SettingsManager.ENTER_BEHAVIOR_ENTER_SEND_SHIFT_NEWLINE -> {
                 if (ctrlActiveForEnter) {
-                    return resolveTestedAppSendAction(info)
-                        ?.let { performEnterEditorAction(keyCode, it, ic, event, consumeCtrlState = true) }
-                        ?: consumeUnsupportedEnterSend(keyCode, event, "app_enter_send_unsupported")
+                    return performConfiguredAppEnterSend(
+                        keyCode = keyCode,
+                        info = info,
+                        inputConnection = ic,
+                        event = event,
+                        consumeCtrlState = true
+                    )
                 }
                 if (isShiftModifierActive(event)) {
                     return commitEnterNewline(keyCode, ic, event, "app_shift_enter_newline")
                 }
-                return resolveTestedAppSendAction(info)
-                    ?.let { performEnterEditorAction(keyCode, it, ic, event) }
-                    ?: consumeUnsupportedEnterSend(keyCode, event, "app_enter_send_unsupported")
+                return performConfiguredAppEnterSend(
+                    keyCode = keyCode,
+                    info = info,
+                    inputConnection = ic,
+                    event = event,
+                    consumeCtrlState = false
+                )
             }
         }
 
@@ -1969,6 +2072,11 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                 postClipboardBadgeUpdate()
             }
         })
+        clipboardHistoryManager.addAccessStateListener {
+            uiHandler.post {
+                candidatesBarController.updateClipboardCount(clipboardHistoryManager.getHistorySize())
+            }
+        }
         alternateCharacterManager = AlternateCharacterManager(
             assets = assets,
             prefs = prefs,
@@ -2032,19 +2140,19 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                     else -> KeyboardVisibilityController.RenderedSurface.HIDDEN
                 }
             },
-            requiresCandidatesSurfaceRecovery = {
-                CompatibilityWorkarounds.requiresCandidatesSurfaceRecovery(currentPackageName)
-            },
             setRequestedInputViewShown = { shown -> requestedInputViewShown = shown },
             attachInputView = { view -> setInputView(view) },
+            attachCandidatesView = { view -> setCandidatesView(view) },
             setCandidatesSurfaceActive = candidatesBarController::setCandidatesSurfaceActive,
             setCandidatesViewShown = { shown -> setCandidatesViewShown(shown) },
             synchronizeCandidatesContainerVisibility = ::synchronizeCandidatesContainerVisibility,
             postToUi = { action -> uiHandler.post(action) },
             postToUiDelayed = { delayMs, action -> uiHandler.postDelayed(action, delayMs) },
             showInputWindow = { showInput -> showWindow(showInput) },
+            hideInputWindow = { hideWindow() },
             requestHideInputView = { requestHideSelf(0) },
             requestShowInputView = ::requestKeyboardInputView,
+            trace = ::traceImeVisibility,
             refreshStatusBar = {
                 invalidateRenderedStatusSnapshot()
                 refreshStatusBar()
@@ -2240,11 +2348,15 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                 attachTrackpadDecorViewMotionHook("provider_changed")
             } else if (key == "pastierina_mode_override") {
                 keyboardVisibilityController.syncStatusBarPresentationModeFromSettings()
-            } else if (key == SettingsManager.KEY_TITAN2_ELITE_ROUNDED_CORNER_INSETS) {
+            } else if (key == SettingsManager.KEY_TITAN2_ELITE_ROUNDED_CORNER_INSETS ||
+                key == it.palsoftware.pastiera.T2eCornerCalibration.KEY ||
+                key == SettingsManager.KEY_TITAN2_ELITE_TOP_CORNER_MULTIPLIER ||
+                key == SettingsManager.KEY_TITAN2_ELITE_MAX_ICON_SHRINK) {
                 if (::candidatesBarController.isInitialized) {
                     candidatesBarController.refreshWindowInsets()
                 }
             } else if (
+                key == "experimental_candidates_view_enabled" ||
                 key == "software_keyboard_mode" ||
                 key == SettingsManager.KEY_SOFTWARE_KEYBOARD_MODE_RUNTIME_OVERRIDE
             ) {
@@ -2819,8 +2931,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
 
     override fun onStartCandidatesView(info: EditorInfo?, restarting: Boolean) {
         super.onStartCandidatesView(info, restarting)
+        isInputViewActive = inputContextState.isEditable
         keyboardVisibilityController.onCandidatesViewStarted()
         updateStatusBarText()
+        traceImeVisibility("onStartCandidatesView restarting=$restarting")
     }
 
     override fun onFinishCandidatesView(finishingInput: Boolean) {
@@ -2829,10 +2943,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
     }
 
     /**
-     * Determines whether the input view (soft keyboard) should be shown.
-     * Respects the system flag (e.g. "Mostra tastiera virtuale" off for tastiere fisiche):
-     * when the system asks for candidate-only mode we hide the main status UI and
-     * expose the slim candidates view (LED strip + SYM layout on demand).
+     * The standard backend uses the input view for both compact hardware UI and software keys.
+     * Only the experimental hardware backend uses Android's separate candidates lifecycle.
      */
     override fun onEvaluateInputViewShown(): Boolean {
         val systemShouldShowInputView = super.onEvaluateInputViewShown()
@@ -2847,25 +2959,32 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         if (::keyboardVisibilityController.isInitialized) {
             keyboardVisibilityController.onExplicitShowRequested()
         }
-        return accepted
+        traceImeVisibility("onShowInputRequested accepted=$accepted flags=$flags")
+        return !keyboardVisibilityController.usesCandidatesView()
     }
 
     override fun onComputeInsets(outInsets: InputMethodService.Insets?) {
         super.onComputeInsets(outInsets)
-        outInsets?.let {
-            val decorView = window?.window?.decorView
-            ImeInsetsPolicy.applyCandidatesOnlyContentInsets(
-                insets = it,
-                candidatesOnly = !isFullscreenMode &&
-                    if (::keyboardVisibilityController.isInitialized) {
-                        keyboardVisibilityController.isCandidatesOnlySurface()
-                    } else {
-                        !requestedInputViewShown
-                    },
-                touchableWidth = decorView?.width ?: 0,
-                touchableHeight = decorView?.height ?: 0
+        val decor = window?.window?.decorView ?: return
+        outInsets ?: return
+        if (!isFullscreenMode && ::candidatesBarController.isInitialized) {
+            // Content and touch geometry come from the same attached, visible child. Neither
+            // a requested surface nor Android's cached candidates-started flag is sufficient.
+            ImeInsetsPolicy.applyRenderedContentInsets(
+                outInsets,
+                candidatesBarController.visibleBoundsInWindow(),
+                decor.height
             )
         }
+    }
+
+    private fun traceImeVisibility(event: String) {
+        if (!BuildConfig.DEBUG) return
+        val bounds = if (::candidatesBarController.isInitialized) {
+            candidatesBarController.visibleBoundsInWindow()
+        } else null
+        Log.i("PastieraImeVisibility", "$event editor=$currentPackageName active=$isInputViewActive " +
+            "inputShown=$isInputViewShown requestedInput=$requestedInputViewShown bounds=$bounds")
     }
 
     private fun synchronizeCandidatesContainerVisibility() {
@@ -3301,7 +3420,23 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
     }
     
 
+    override fun onUnbindInput() {
+        pendingKeyboardSurfaceTransition?.let(uiHandler::removeCallbacks)
+        pendingKeyboardSurfaceTransition = null
+        isInputViewActive = false
+        if (::keyboardVisibilityController.isInitialized) keyboardVisibilityController.onInputUnbound()
+        traceImeVisibility("onUnbindInput")
+        super.onUnbindInput()
+    }
+
+    override fun onBindInput() {
+        super.onBindInput()
+        traceImeVisibility("onBindInput")
+    }
+
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
+        pendingKeyboardSurfaceTransition?.let(uiHandler::removeCallbacks)
+        pendingKeyboardSurfaceTransition = null
         super.onStartInput(info, restarting)
         compositionCoordinator.startEditorSession()
         compositionCoordinator.selectLayout(activeKeyboardLayoutName)
@@ -3333,6 +3468,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         val isReallyEditable = state.isReallyEditable
         isInputViewActive = isEditable
         keyboardVisibilityController.onInputStarted(restarting)
+        traceImeVisibility("onStartInput restarting=$restarting")
         
         if (restarting) {
             enforceSmartFeatureDisabledState()
@@ -3346,7 +3482,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             val shouldShowSurface = keyboardVisibilityController.shouldShowSurfaceOnInputStart(
                 autoShowKeyboardEnabled = SettingsManager.getAutoShowKeyboard(this)
             )
-            if (shouldShowSurface && !isInputViewShown) {
+            if (shouldShowSurface) {
                 ensureImeSurfaceVisible()
             }
         }
@@ -3406,6 +3542,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         attachTrackpadDecorViewMotionHook("onStartInputView")
 
         updateInputContextState(info)
+        isInputViewActive = inputContextState.isEditable
+        traceImeVisibility("onStartInputView restarting=$restarting")
         initializeInputContext(restarting)
         suggestionController.onContextReset()
         
@@ -3469,6 +3607,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
 
     override fun onFinishInput() {
         compositionCoordinator.finish(currentInputConnection, CompositionFinishReason.INPUT_FINISH)
+        pendingKeyboardSurfaceTransition?.let(uiHandler::removeCallbacks)
+        pendingKeyboardSurfaceTransition = null
         super.onFinishInput()
         if (::textExpansionController.isInitialized) textExpansionController.clear()
         keyboardVisibilityController.cancelPendingSurfaceTransition()
@@ -3495,7 +3635,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         if (finishingInput) compositionCoordinator.finish(currentInputConnection, CompositionFinishReason.INPUT_FINISH)
         super.onFinishInputView(finishingInput)
         if (::textExpansionController.isInitialized) textExpansionController.clear()
-        isInputViewActive = false
+        // Finishing a view does not finish the editor session (Back and backend transitions).
+        isInputViewActive = !finishingInput && inputContextState.isEditable
+        traceImeVisibility("onFinishInputView finishing=$finishingInput")
         if (::candidatesBarController.isInitialized) {
             candidatesBarController.resetSuggestionActionMode()
         }
@@ -3655,6 +3797,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
     
     override fun onWindowHidden() {
         compositionCoordinator.finish(currentInputConnection, CompositionFinishReason.WINDOW_HIDDEN)
+        pendingKeyboardSurfaceTransition?.let(uiHandler::removeCallbacks)
+        pendingKeyboardSurfaceTransition = null
         super.onWindowHidden()
         if (::candidatesBarController.isInitialized) {
             candidatesBarController.dismissEmojiPickerPopups()
@@ -4222,6 +4366,10 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                     return true
                 }
             }
+            // A user dismissal wins over an in-flight backend switch or queued recovery.
+            pendingKeyboardSurfaceTransition?.let(uiHandler::removeCallbacks)
+            pendingKeyboardSurfaceTransition = null
+            keyboardVisibilityController.cancelPendingSurfaceTransition()
         }
 
         val navModeBefore = navModeController.isNavModeActive()
@@ -4534,12 +4682,6 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             origin = "ime_service",
             unicodeCharOverride = debugUnicodeOverride
         )
-        if (
-            isInputViewActive &&
-            keyboardVisibilityController.shouldRecoverSurfaceOnHardwareKey()
-        ) {
-            keyboardVisibilityController.onHardwareInputRequested()
-        }
         val ctrlActiveNow = event?.isCtrlPressed == true ||
             ctrlPressed ||
             ctrlPhysicallyPressed ||

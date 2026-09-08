@@ -1,0 +1,10 @@
+<resources>
+    <string name="nightly_update_title">Pastiera-Nightly-Update verfügbar</string>
+    <string name="nightly_update_message">%1$s ist auf GitHub verfügbar.</string>
+    <string name="nightly_update_open">Veröffentlichung ansehen</string>
+    <string name="nightly_update_download">APK herunterladen</string>
+    <string name="nightly_update_settings_title">Pastiera-Nightly-Updates</string>
+    <string name="nightly_update_settings_description">Nach einem neueren Pastiera-Nightly-Build suchen.</string>
+    <string name="nightly_update_checking">Prüfe Nightly-Builds…</string>
+    <string name="nightly_update_current">Kein neueres Pastiera-Nightly verfügbar.</string>
+</resources>

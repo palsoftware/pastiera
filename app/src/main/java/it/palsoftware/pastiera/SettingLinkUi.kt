@@ -159,7 +159,9 @@ fun settingEntryBreadcrumb(entry: SettingEntry): String {
     val subtitle = entry.route.customizationDestination?.let { sub ->
         SettingLinkRegistry.customizationSubtitles[sub]?.let { context.getString(it) }
     }
-    return listOfNotNull(root, screen, subtitle).joinToString(" › ")
+    val deviceSubtitle = SettingLinkRegistry.keyboardsDevicesSubtitles[entry.route.keyboardsDevicesDestination]
+        ?.let(context::getString)
+    return listOfNotNull(root, screen, subtitle, deviceSubtitle).joinToString(" › ")
 }
 
 /**

@@ -12,6 +12,10 @@ on:
         required: false
         default: nightly
         type: string
+      nightly_timestamp:
+        description: "Optional shared timestamp, e.g. 20260820.220354"
+        required: false
+        type: string
       publish_github_prerelease:
         description: "Create a GitHub pre-release and attach the nightly APK"
         required: true
@@ -61,6 +65,8 @@ jobs:
 
       - name: Compute nightly version metadata
         id: nightly_meta
+        env:
+          PASTIERA_NIGHTLY_TIMESTAMP: ${{ inputs.nightly_timestamp }}
         run: |
           chmod +x ./scripts/nightly-version.sh
           ./scripts/nightly-version.sh "${{ inputs.version_name }}" >> "$GITHUB_OUTPUT"

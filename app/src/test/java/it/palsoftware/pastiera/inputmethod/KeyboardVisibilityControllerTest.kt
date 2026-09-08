@@ -4,10 +4,12 @@ import android.content.Context
 import android.view.inputmethod.InputConnection
 import it.palsoftware.pastiera.SettingsManager
 import it.palsoftware.pastiera.core.SymLayoutController
+import it.palsoftware.pastiera.inputmethod.KeyboardVisibilityController.RenderedSurface
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
@@ -18,787 +20,423 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
 class KeyboardVisibilityControllerTest {
+    private val context: Context get() = RuntimeEnvironment.getApplication()
+
+    @Before
+    fun setUp() {
+        SettingsManager.getPreferences(context).edit().remove("experimental_candidates_view_enabled").commit()
+        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(context, SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE)
+    }
 
     @After
     fun tearDown() {
-        val context = RuntimeEnvironment.getApplication()
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, false)
         SettingsManager.setSoftwareKeyboardMode(context, SettingsManager.SoftwareKeyboardMode.AUTO)
         SettingsManager.setSoftwareKeyboardModeRuntimeOverride(context, null)
         SoftwareKeyboardAutoDetector.onInputDevicesChanged()
     }
 
     @Test
-    fun systemShowingInputView_evaluationDoesNotMutateSurface() {
-        val harness = createHarness()
-
-        assertTrue(harness.controller.onEvaluateInputViewShown(shouldShowInputView = true))
-        assertEquals(0, harness.candidatesVisibilityChanges)
-        assertFalse(harness.candidatesViewShown)
-        assertTrue(harness.candidatesSurfaceActiveChanges.isEmpty())
-        assertEquals(0, harness.postedActionCount)
-        assertEquals(1, harness.statusBarRefreshes)
+    fun existingInstallDefaultsToFullInputViewForHardware() {
+        val h = Harness()
+        assertFalse(SettingsManager.getExperimentalCandidatesViewEnabled(context))
+        assertTrue(h.controller.onEvaluateInputViewShown(false))
+        h.controller.ensureImeSurfaceVisible()
+        assertEquals(0, h.inputAttachments)
+        h.runNext()
+        assertEquals(1, h.inputAttachments)
+        assertEquals(0, h.candidatesAttachments)
+        assertEquals(listOf(true), h.requestedInputShown)
+        assertEquals(1, h.showRequests)
+        assertFalse(h.controller.isExpectedSurfaceRequestedOrShown())
     }
 
     @Test
-    fun systemHidingInputView_evaluationDoesNotShowCandidatesAsSideEffect() {
-        val harness = createHarness()
-
-        assertFalse(harness.controller.onEvaluateInputViewShown(shouldShowInputView = false))
-        assertEquals(0, harness.candidatesVisibilityChanges)
-        assertFalse(harness.candidatesViewShown)
-        assertTrue(harness.candidatesSurfaceActiveChanges.isEmpty())
-        assertEquals(0, harness.postedActionCount)
-        assertEquals(1, harness.statusBarRefreshes)
-        assertEquals(0, harness.candidatesContainerRefreshes)
-    }
-
-    @Test
-    fun hardwareMode_ensureSurfaceShowsCandidatesWithoutRequestingSoftInput() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-
-        assertTrue(harness.candidatesViewShown)
-        assertEquals(1, harness.candidatesVisibilityChanges)
-        assertEquals(listOf(true), harness.candidatesSurfaceActiveChanges)
-        assertEquals(listOf(false), harness.requestedInputViewShownChanges)
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-        assertEquals(0, harness.inputViewAttachments)
-    }
-
-    @Test
-    fun hardwareMode_repeatedPhysicalKeysDoNotRepeatCandidatesRequest() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.ensureImeSurfaceVisible()
-
-        assertEquals(1, harness.candidatesVisibilityChanges)
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-    }
-
-    @Test
-    fun hardwareMode_telegramRecoveryKeepsSingleLegacyShowRequestPending() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            requiresCandidatesSurfaceRecovery = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.ensureImeSurfaceVisible()
-
-        assertEquals(1, harness.candidatesVisibilityChanges)
-        assertEquals(1, harness.postedActionCount)
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-        assertFalse(harness.controller.isExpectedSurfaceRequestedOrShown())
-
-        harness.runPostedActions()
-
-        assertEquals(listOf(false), harness.inputViewShowRequests)
-    }
-
-    @Test
-    fun visibleTelegramHardwareInputDoesNotAddImmediateWholeWindowShow() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW,
-            requiresCandidatesSurfaceRecovery = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onHardwareInputRequested()
-
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-        assertEquals(1, harness.postedActionCount)
-
-        harness.runPostedActions()
-
-        assertEquals(listOf(false), harness.inputViewShowRequests)
-    }
-
-    @Test
-    fun finishedTelegramSurfaceCancelsStaleRecoveryAndFreshHardwareInputRearmsIt() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW,
-            requiresCandidatesSurfaceRecovery = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = false)
-        harness.renderSurface(KeyboardVisibilityController.RenderedSurface.HIDDEN)
-        harness.runPostedActions()
-
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-        assertEquals(1, harness.inputViewHideRequests)
-
-        harness.controller.onHardwareInputRequested()
-
-        assertEquals(listOf(false), harness.inputViewShowRequests)
-        assertEquals(1, harness.postedActionCount)
-
-        harness.runPostedActions()
-
-        assertEquals(listOf(false, false), harness.inputViewShowRequests)
-    }
-
-    @Test
-    fun hardwareMode_hiddenNonTelegramCandidatesDoNotUseLegacyShowRequest() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.HIDDEN
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.runPostedActions()
-
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-        assertTrue(harness.controller.isExpectedSurfaceRequestedOrShown())
-    }
-
-    @Test
-    fun hardwareMode_staleTelegramRecoveryDoesNotClearNewerRequest() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            requiresCandidatesSurfaceRecovery = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.cancelPendingSurfaceTransition()
-        harness.controller.ensureImeSurfaceVisible()
-        harness.runPostedActions()
-
-        assertEquals(listOf(false), harness.inputViewShowRequests)
-        assertFalse(harness.controller.isExpectedSurfaceRequestedOrShown())
-    }
-
-    @Test
-    fun hardwareMode_pastieraTelegramPastieraRearmsCandidatesWithoutSoftInput() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onImeWindowVisibilityChanged(shown = false)
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onImeWindowVisibilityChanged(shown = false)
-        harness.controller.ensureImeSurfaceVisible()
-
-        assertTrue(harness.candidatesViewShown)
-        assertEquals(5, harness.candidatesVisibilityChanges)
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-    }
-
-    @Test
-    fun hardwareMode_newEditorKeepsAlreadyVisibleCandidatesSessionStable() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.ensureImeSurfaceVisible()
-
-        assertTrue(harness.candidatesViewShown)
-        assertEquals(1, harness.candidatesVisibilityChanges)
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-    }
-
-    @Test
-    fun hardwareMode_windowHideAllowsNextKeyToStartFreshCandidatesSession() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onImeWindowVisibilityChanged(shown = false)
-        harness.controller.ensureImeSurfaceVisible()
-
-        assertTrue(harness.candidatesViewShown)
-        assertEquals(3, harness.candidatesVisibilityChanges)
-        assertTrue(harness.inputViewShowRequests.isEmpty())
-    }
-
-    @Test
-    fun virtualMode_ensureSurfaceUsesFullInputViewRequest() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-
-        assertEquals(1, harness.inputViewAttachments)
-        assertEquals(listOf(false), harness.inputViewShowRequests)
-        assertFalse(harness.candidatesViewShown)
-    }
-
-    @Test
-    fun hardwareMode_inputFocusShowsStatusEvenWhenFullKeyboardAutoShowIsDisabled() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness()
-
-        assertTrue(harness.controller.shouldShowSurfaceOnInputStart(autoShowKeyboardEnabled = false))
-    }
-
-    @Test
-    fun virtualMode_inputFocusStillRespectsFullKeyboardAutoShowSetting() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL
-        )
-        val harness = createHarness()
-
-        assertFalse(harness.controller.shouldShowSurfaceOnInputStart(autoShowKeyboardEnabled = false))
-        assertTrue(harness.controller.shouldShowSurfaceOnInputStart(autoShowKeyboardEnabled = true))
-    }
-
-    @Test
-    fun explicitVirtualSurfaceChangeForcesInputViewFromCandidatesOnlyMode() {
-        val harness = createHarness(currentInputConnection = mock(InputConnection::class.java))
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-
-        assertFalse(harness.candidatesViewShown)
-        assertEquals(1, harness.candidatesVisibilityChanges)
-        assertEquals(listOf(true), harness.inputWindowShowRequests)
-    }
-
-    @Test
-    fun repeatedVirtualSurfaceRequestRetriesWhenFirstRequestDidNotRender() {
-        val harness = createHarness(currentInputConnection = mock(InputConnection::class.java))
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-
-        assertEquals(listOf(true, true), harness.inputWindowShowRequests)
-    }
-
-    @Test
-    fun renderedVirtualSurfaceDoesNotReopenWindow() {
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewShown = true
-        )
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-
-        assertTrue(harness.inputWindowShowRequests.isEmpty())
-    }
-
-    @Test
-    fun virtualSurfaceRequestRetriesAfterFrameworkDidNotRenderIt() {
-        val harness = createHarness(currentInputConnection = mock(InputConnection::class.java))
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-        harness.runPostedActions()
-
-        assertEquals(listOf(true, true), harness.inputWindowShowRequests)
-
-        harness.renderSurface(KeyboardVisibilityController.RenderedSurface.FULL_INPUT_VIEW)
-        harness.runPostedActions()
-
-        assertEquals(listOf(true, true), harness.inputWindowShowRequests)
-    }
-
-    @Test
-    fun failedSurfaceTransitionStopsAfterBoundedRetries() {
-        val harness = createHarness(currentInputConnection = mock(InputConnection::class.java))
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-        repeat(8) { harness.runPostedActions() }
-
-        assertEquals(6, harness.inputWindowShowRequests.size)
-        assertEquals(listOf(false), harness.requestedInputViewShownChanges)
-        assertTrue(harness.controller.isCandidatesOnlySurface())
-    }
-
-    @Test
-    fun cancelledSurfaceTransitionDoesNotRetry() {
-        val harness = createHarness(currentInputConnection = mock(InputConnection::class.java))
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-        harness.controller.cancelPendingSurfaceTransition()
-        harness.runPostedActions()
-
-        assertEquals(listOf(true), harness.inputWindowShowRequests)
-    }
-
-    @Test
-    fun frameworkEvaluationKeepsResolvedSurfaceStateInSync() {
-        val harness = createHarness(currentInputConnection = mock(InputConnection::class.java))
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-        harness.controller.onEvaluateInputViewShown(shouldShowInputView = false)
-
-        assertEquals(listOf(true), harness.inputWindowShowRequests)
-    }
-
-    @Test
-    fun explicitHardwareSurfaceChangeRestartsAsCandidatesOnlyMode() {
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewShown = true
-        )
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = false)
-
-        assertFalse(harness.candidatesViewShown)
-        assertEquals(1, harness.inputViewHideRequests)
-        assertTrue(harness.inputWindowShowRequests.isEmpty())
-
-        harness.renderSurface(KeyboardVisibilityController.RenderedSurface.HIDDEN)
-        harness.controller.onImeWindowVisibilityChanged(shown = false)
-        harness.runPostedActions()
-
-        assertTrue(harness.candidatesViewShown)
-        assertEquals(listOf(false), harness.requestedInputViewShownChanges)
-        assertTrue(harness.inputWindowShowRequests.isEmpty())
-
-        harness.renderSurface(KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW)
-        harness.runPostedActions()
-        assertEquals(1, harness.candidatesContainerRefreshes)
-    }
-
-    @Test
-    fun completedHardwareTransitionCanImmediatelyToggleBackToVirtual() {
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewShown = true
-        )
-
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = false)
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-
-        assertEquals(1, harness.inputViewHideRequests)
-        assertTrue(harness.inputWindowShowRequests.isEmpty())
-    }
-
-    @Test
-    fun externallyFinishedCandidatesCompletesTheWholeImeHide() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = false)
-
-        assertTrue(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-        assertTrue(harness.controller.shouldRecoverSurfaceOnHardwareKey())
-        assertEquals(0, harness.inputViewHideRequests)
-
-        harness.renderSurface(KeyboardVisibilityController.RenderedSurface.HIDDEN)
-        harness.runPostedActions()
-
-        assertEquals(1, harness.inputViewHideRequests)
-    }
-
-    @Test
-    fun transientCandidatesRestartCancelsPendingWholeWindowHide() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = false)
-        harness.controller.onCandidatesViewStarted()
-        harness.runPostedActions()
-
-        assertEquals(0, harness.inputViewHideRequests)
-        assertFalse(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-        assertEquals(listOf(true, false, true), harness.candidatesSurfaceActiveChanges)
-        assertEquals(1, harness.statusBarRefreshes)
-    }
-
-    @Test
-    fun frameworkCandidatesStartReactivatesCollapsedRootBeforeRefresh() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.HIDDEN
-        )
-
-        harness.controller.onCandidatesViewStarted()
-
-        assertEquals(listOf(true), harness.candidatesSurfaceActiveChanges)
-        assertEquals(0, harness.statusBarRefreshes)
-        assertTrue(harness.controller.isExpectedSurfaceRequestedOrShown())
-    }
-
-    @Test
-    fun frameworkCandidatesFinishCollapsesRenderedChildEvenWhenInputFinishes() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = true)
-
-        assertEquals(listOf(true, false), harness.candidatesSurfaceActiveChanges)
-        assertEquals(0, harness.inputViewHideRequests)
-    }
-
-    @Test
-    fun finishingInputReliesOnFrameworkHideWithoutIssuingAnotherRequest() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = true)
-        harness.runPostedActions()
-
-        assertEquals(0, harness.inputViewHideRequests)
-        assertFalse(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-    }
-
-    @Test
-    fun internalCandidatesToFullTransitionDoesNotLookLikeUserDismissal() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onKeyboardSurfaceChanged(ensureInputViewShown = true)
-        harness.controller.onCandidatesViewFinished(finishingInput = false)
-        harness.runPostedActions()
-
-        assertFalse(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-        assertEquals(0, harness.inputViewHideRequests)
-    }
-
-    @Test
-    fun firstHardwareKeyAfterDeliberateHideRecoversTheSurface() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = false)
-        harness.renderSurface(KeyboardVisibilityController.RenderedSurface.HIDDEN)
-        harness.runPostedActions()
-
-        assertTrue(harness.controller.shouldRecoverSurfaceOnHardwareKey())
-
-        harness.controller.onHardwareInputRequested()
-
-        assertFalse(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-        assertTrue(harness.controller.isExpectedSurfaceRequestedOrShown())
-        assertTrue(harness.candidatesViewShown)
-        assertEquals(listOf(false), harness.inputViewShowRequests)
-    }
-
-    @Test
-    fun explicitEditorShowRequestAfterDeliberateHideAlsoRecoversTheSurface() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = false)
-        harness.renderSurface(KeyboardVisibilityController.RenderedSurface.HIDDEN)
-        harness.runPostedActions()
-
-        harness.controller.onExplicitShowRequested()
-
-        assertFalse(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-        assertTrue(harness.controller.isExpectedSurfaceRequestedOrShown())
-        assertTrue(harness.candidatesViewShown)
-    }
-
-    @Test
-    fun restartPreservesDeliberateHideButFreshInputClearsIt() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        harness.controller.ensureImeSurfaceVisible()
-        harness.controller.onCandidatesViewFinished(finishingInput = false)
-        harness.controller.onInputStarted(restarting = true)
-
-        assertTrue(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-        assertTrue(harness.controller.shouldRecoverSurfaceOnHardwareKey())
-
-        harness.controller.onInputStarted(restarting = false)
-
-        assertFalse(harness.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
-        assertTrue(harness.controller.shouldRecoverSurfaceOnHardwareKey())
-    }
-
-    @Test
-    fun repeatedExternalShowHideCyclesRequestOneWholeHideEach() {
-        val context = RuntimeEnvironment.getApplication()
-        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(
-            context,
-            SettingsManager.SoftwareKeyboardMode.FORCE_HARDWARE
-        )
-        val harness = createHarness(
-            currentInputConnection = mock(InputConnection::class.java),
-            inputViewActive = true,
-            initialRenderedSurface = KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        )
-
-        repeat(10) {
-            harness.controller.onInputStarted(restarting = false)
-            harness.controller.ensureImeSurfaceVisible()
-            harness.controller.onCandidatesViewFinished(finishingInput = false)
-            harness.renderSurface(KeyboardVisibilityController.RenderedSurface.HIDDEN)
-            harness.runPostedActions()
-            harness.renderSurface(KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW)
+    fun evaluationDoesNotShowAttachOrScheduleAnySurface() {
+        val h = Harness()
+        for (experimental in listOf(false, true)) {
+            SettingsManager.setExperimentalCandidatesViewEnabled(context, experimental)
+            for (systemDecision in listOf(false, true)) {
+                assertEquals(!experimental, h.controller.onEvaluateInputViewShown(systemDecision))
+            }
         }
-
-        assertEquals(10, harness.inputViewHideRequests)
+        assertEquals(0, h.inputAttachments + h.candidatesAttachments + h.showRequests + h.refreshes)
+        assertTrue(h.actions.isEmpty())
+        assertTrue(h.candidatesShown.isEmpty())
+        assertTrue(h.requestedInputShown.isEmpty())
+        assertTrue(h.windowShows.isEmpty())
     }
 
-    private fun createHarness(
-        currentInputConnection: InputConnection? = null,
-        inputViewShown: Boolean = false,
-        inputViewActive: Boolean = false,
-        initialRenderedSurface: KeyboardVisibilityController.RenderedSurface? = null,
-        requiresCandidatesSurfaceRecovery: Boolean = false
-    ): VisibilityHarness {
-        val context = RuntimeEnvironment.getApplication()
-        val prefs = context.getSharedPreferences("keyboard_visibility_controller_test", Context.MODE_PRIVATE)
-        val alternateCharacterManager = AlternateCharacterManager(context.assets, prefs, context)
-        val symLayoutController = SymLayoutController(context, prefs, alternateCharacterManager)
-        val candidatesBarController = CandidatesBarController(context)
-        var candidatesViewShown = false
-        var candidatesVisibilityChanges = 0
-        val candidatesSurfaceActiveChanges = mutableListOf<Boolean>()
-        var candidatesContainerRefreshes = 0
-        var statusBarRefreshes = 0
-        var inputViewAttachments = 0
-        val requestedInputViewShownChanges = mutableListOf<Boolean>()
-        val inputViewShowRequests = mutableListOf<Boolean>()
-        val postedActions = mutableListOf<() -> Unit>()
-        val inputWindowShowRequests = mutableListOf<Boolean>()
-        var inputViewHideRequests = 0
-        var renderedSurface = initialRenderedSurface ?: if (inputViewShown) {
-            KeyboardVisibilityController.RenderedSurface.FULL_INPUT_VIEW
-        } else {
-            KeyboardVisibilityController.RenderedSurface.CANDIDATES_VIEW
-        }
+    @Test
+    fun experimentalHardwareAttachesCandidatesAndShowsCandidatesWindow() {
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        val h = Harness()
+        h.controller.ensureImeSurfaceVisible()
+        h.runNext()
+        assertEquals(1, h.candidatesAttachments)
+        assertEquals(0, h.inputAttachments)
+        assertEquals(listOf(false), h.requestedInputShown)
+        assertEquals(listOf(true), h.candidatesShown)
+        assertEquals(listOf(false), h.windowShows)
+        assertEquals(1, h.showRequests)
+        assertEquals(2, h.containerSynchronizations)
+    }
 
+    @Test
+    fun virtualModeUsesInputViewEvenWithExperimentEnabled() {
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        SettingsManager.setSoftwareKeyboardModeRuntimeOverride(context, SettingsManager.SoftwareKeyboardMode.FORCE_VIRTUAL)
+        val h = Harness()
+        assertTrue(h.controller.onEvaluateInputViewShown(false))
+        assertFalse(h.controller.shouldShowSurfaceOnInputStart(false))
+        assertTrue(h.controller.shouldShowSurfaceOnInputStart(true))
+        h.controller.ensureImeSurfaceVisible()
+        h.runNext()
+        assertEquals(1, h.inputAttachments)
+        assertEquals(0, h.candidatesAttachments)
+    }
+
+    @Test
+    fun frameworkLifecycleFlagsWithoutRenderedChildDoNotProveSuccess() {
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        val h = Harness()
+        h.controller.onCandidatesViewStarted()
+        h.controller.onImeWindowVisibilityChanged(true)
+        h.controller.onExplicitShowRequested()
+        h.runNext()
+        assertFalse(h.controller.isExpectedSurfaceRequestedOrShown())
+        assertTrue(h.controller.shouldRecoverSurfaceOnHardwareKey())
+        h.drain()
+        assertEquals(1, h.windowHides)
+        assertEquals(1, h.hideRequests)
+    }
+
+    @Test
+    fun noFrameworkResponseRetriesBoundedlyThenClosesGhostWindow() {
+        for (experimental in listOf(false, true)) {
+            SettingsManager.setExperimentalCandidatesViewEnabled(context, experimental)
+            val h = Harness()
+            h.controller.ensureImeSurfaceVisible()
+            repeat(20) { h.controller.onHardwareInputRequested() }
+            h.drain()
+            assertEquals(3, h.inputAttachments + h.candidatesAttachments)
+            assertEquals(1, h.showRequests)
+            assertEquals(1, h.windowHides)
+            assertEquals(1, h.hideRequests)
+            assertFalse(h.candidatesShown.last())
+            assertFalse(h.controller.isExpectedSurfaceRequestedOrShown())
+        }
+    }
+
+    @Test
+    fun deliveredRenderedSurfaceStopsRetryAndRepeatedKeysDoNotShowAgain() {
+        for (experimental in listOf(false, true)) {
+            SettingsManager.setExperimentalCandidatesViewEnabled(context, experimental)
+            val h = Harness()
+            h.controller.ensureImeSurfaceVisible()
+            h.runNext()
+            // Deliver framework rendering separately: show requests in this harness never render.
+            h.rendered = if (experimental) RenderedSurface.CANDIDATES_VIEW else RenderedSurface.FULL_INPUT_VIEW
+            h.inputShown = !experimental
+            h.controller.onImeWindowVisibilityChanged(true)
+            h.drain()
+            repeat(10) { h.controller.onHardwareInputRequested() }
+            assertTrue(h.controller.isExpectedSurfaceRequestedOrShown())
+            assertEquals(1, h.inputAttachments + h.candidatesAttachments)
+            assertEquals(0, h.windowHides)
+            assertTrue(h.actions.isEmpty())
+        }
+    }
+
+    @Test
+    fun hiddenWindowWithStaleRenderedCandidatesStillSchedulesShow() {
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        val h = Harness()
+        h.rendered = RenderedSurface.CANDIDATES_VIEW
+        h.controller.onImeWindowVisibilityChanged(true)
+        assertTrue(h.controller.isExpectedSurfaceRequestedOrShown())
+        h.controller.onImeWindowVisibilityChanged(false)
+        assertFalse(h.controller.isExpectedSurfaceRequestedOrShown())
+        h.controller.onExplicitShowRequested()
+        assertEquals(1, h.actions.size)
+        h.runNext()
+        assertEquals(1, h.candidatesAttachments)
+    }
+
+    @Test
+    fun unbindCancelsPendingWorkAndInvalidatesStaleRenderedCandidates() {
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        val h = Harness()
+        h.controller.ensureImeSurfaceVisible()
+        h.runNext()
+        h.rendered = RenderedSurface.CANDIDATES_VIEW
+        h.controller.onCandidatesViewStarted()
+        h.controller.onImeWindowVisibilityChanged(true)
+        assertTrue(h.controller.isExpectedSurfaceRequestedOrShown())
+
+        h.controller.onInputUnbound()
+        // AOSP can retain the old connection without finishing input. Leave both fakes intact.
+        assertTrue(h.active)
+        assertTrue(h.connection != null)
+        h.drain()
+
+        assertFalse(h.controller.isExpectedSurfaceRequestedOrShown())
+        assertEquals(1, h.candidatesAttachments)
+        assertEquals(0, h.windowHides + h.hideRequests)
+        assertTrue(h.actions.isEmpty())
+        assertFalse(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+        h.controller.onCandidatesViewFinished(false)
+        assertTrue(h.actions.isEmpty())
+    }
+
+    @Test
+    fun inputFinishCancellationMakesAlreadyPostedRetriesInert() {
+        val h = Harness()
+        h.controller.ensureImeSurfaceVisible()
+        h.runNext()
+        // The service invokes this on finish before disposing its input connection.
+        h.controller.cancelPendingSurfaceTransition()
+        h.active = false
+        h.connection = null
+        h.drain()
+        assertEquals(1, h.inputAttachments)
+        assertEquals(0, h.windowHides + h.hideRequests)
+    }
+
+    @Test
+    fun externalHideCancelsPendingRetries() {
+        val h = Harness()
+        h.controller.ensureImeSurfaceVisible()
+        h.runNext()
+        h.controller.onImeWindowVisibilityChanged(false)
+        h.drain()
+        assertEquals(1, h.inputAttachments)
+        assertEquals(0, h.windowHides + h.hideRequests)
+        assertTrue(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+    }
+
+    @Test
+    fun tapAndHardwareKeyCanEachReopenAfterExplicitDismissal() {
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        for (tap in listOf(false, true)) {
+            val h = Harness()
+            h.controller.onCandidatesViewStarted()
+            h.controller.onCandidatesViewFinished(false)
+            h.drain()
+            assertTrue(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+            assertEquals(1, h.windowHides)
+            if (tap) h.controller.onExplicitShowRequested() else h.controller.onHardwareInputRequested()
+            h.runNext()
+            assertFalse(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+            assertEquals(1, h.candidatesAttachments)
+            assertFalse(h.controller.isExpectedSurfaceRequestedOrShown())
+        }
+    }
+
+    @Test
+    fun settingChangeCancelsOldRetryAndPresentsNewBackend() {
+        val h = Harness()
+        h.controller.ensureImeSurfaceVisible()
+        h.runNext()
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        h.controller.onKeyboardSurfaceChanged(true)
+        h.runNext() // obsolete retry
+        assertEquals(0, h.candidatesAttachments)
+        h.runNext() // new backend
+        assertEquals(1, h.candidatesAttachments)
+        assertEquals(1, h.inputAttachments)
+        assertEquals(0, h.windowHides)
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, false)
+        h.controller.onKeyboardSurfaceChanged(true)
+        h.runNext() // obsolete candidates retry
+        h.runNext() // stable backend
+        assertEquals(2, h.inputAttachments)
+        assertEquals(1, h.candidatesAttachments)
+    }
+
+    @Test
+    fun visibleBackendSwitchWaitsForFrameworkHideBeforePresentingTarget() {
+        val h = Harness()
+        h.rendered = RenderedSurface.FULL_INPUT_VIEW
+        h.inputShown = true
+        h.controller.onImeWindowVisibilityChanged(true)
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+
+        h.controller.onKeyboardSurfaceChanged(true)
+        h.controller.onExplicitShowRequested()
+        h.controller.onHardwareInputRequested()
+        assertEquals(1, h.hideRequests)
+        assertEquals(0, h.windowHides)
+        assertEquals(0, h.candidatesAttachments + h.showRequests)
+        assertFalse(h.hasImmediateActions())
+
+        h.controller.onImeWindowVisibilityChanged(false)
+        assertEquals(0, h.candidatesAttachments + h.showRequests)
+        h.runNextUiAction() // Resume only after the enclosing framework hide has returned.
+        assertEquals(0, h.candidatesAttachments)
+        h.runNextUiAction()
+        assertEquals(1, h.candidatesAttachments)
+        assertEquals(1, h.showRequests)
+    }
+
+    @Test
+    fun candidatesFinishDuringControlledHideDoesNotDismissTransition() {
+        SettingsManager.setExperimentalCandidatesViewEnabled(context, true)
+        val h = Harness()
+        h.rendered = RenderedSurface.CANDIDATES_VIEW
+        h.controller.onCandidatesViewStarted()
+        h.controller.onImeWindowVisibilityChanged(true)
+        // A surface/layout change can also rebuild the same backend.
+        h.controller.onKeyboardSurfaceChanged(true)
+        h.controller.onCandidatesViewFinished(false)
+        assertFalse(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+        assertFalse(h.hasImmediateActions())
+        h.controller.onImeWindowVisibilityChanged(false)
+        h.runNextUiAction()
+        h.runNextUiAction()
+        assertEquals(1, h.candidatesAttachments)
+        assertEquals(1, h.hideRequests)
+    }
+
+    @Test
+    fun cancellationOrUnbindBeforeHideCallbackPreventsBackendReopen() {
+        for (unbind in listOf(false, true)) {
+            val h = Harness()
+            h.controller.onImeWindowVisibilityChanged(true)
+            h.controller.onKeyboardSurfaceChanged(true)
+            if (unbind) h.controller.onInputUnbound() else h.controller.cancelPendingSurfaceTransition()
+            h.controller.onImeWindowVisibilityChanged(false)
+            h.drain()
+            assertEquals(1, h.hideRequests)
+            assertEquals(0, h.showRequests + h.inputAttachments + h.candidatesAttachments)
+        }
+    }
+
+    @Test
+    fun cancellationAfterHideCallbackInvalidatesDeferredBackendReopen() {
+        val h = Harness()
+        h.controller.onImeWindowVisibilityChanged(true)
+        h.controller.onKeyboardSurfaceChanged(true)
+        h.controller.onImeWindowVisibilityChanged(false)
+        assertTrue(h.hasImmediateActions())
+        h.controller.cancelPendingSurfaceTransition()
+        h.drain()
+        assertEquals(0, h.showRequests + h.inputAttachments + h.candidatesAttachments)
+    }
+
+    @Test
+    fun missingBackendHideCallbackTimesOutWithoutShowAndNextKeyCanRetry() {
+        val h = Harness()
+        h.controller.onImeWindowVisibilityChanged(true)
+        h.controller.onKeyboardSurfaceChanged(true)
+        h.runHideTimeout()
+        assertEquals(0, h.showRequests + h.inputAttachments)
+        assertTrue(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+        assertTrue(h.actions.isEmpty())
+
+        h.controller.onHardwareInputRequested()
+        h.runNextUiAction()
+        assertEquals(1, h.inputAttachments)
+        assertEquals(1, h.showRequests)
+    }
+
+    @Test
+    fun successfulHideCallbackMakesOldTimeoutHarmlessToNewShow() {
+        val h = Harness()
+        h.controller.onImeWindowVisibilityChanged(true)
+        h.controller.onKeyboardSurfaceChanged(true)
+        h.controller.onImeWindowVisibilityChanged(false)
+        h.runNextUiAction() // Queue the new presentation generation.
+        h.runHideTimeout()
+        h.runNextUiAction()
+        assertEquals(1, h.inputAttachments)
+        assertEquals(1, h.showRequests)
+        assertFalse(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+    }
+
+    @Test
+    fun rejectedBackendHideDoesNotLeaveWaitingLatchStuck() {
+        val h = Harness()
+        h.rejectHideRequest = true
+        h.controller.onImeWindowVisibilityChanged(true)
+        h.controller.onKeyboardSurfaceChanged(true)
+        assertTrue(h.actions.isEmpty())
+        assertEquals(0, h.showRequests)
+        assertTrue(h.controller.isCandidatesSurfaceExplicitlyDismissedForTests())
+        h.rejectHideRequest = false
+        h.controller.onExplicitShowRequested()
+        h.runNextUiAction()
+        assertEquals(1, h.inputAttachments)
+        assertEquals(1, h.showRequests)
+    }
+
+    @Test
+    fun inactiveEditorOrMissingConnectionDoesNotScheduleShow() {
+        val h = Harness()
+        h.active = false
+        h.controller.ensureImeSurfaceVisible()
+        h.active = true
+        h.connection = null
+        h.controller.ensureImeSurfaceVisible()
+        assertTrue(h.actions.isEmpty())
+    }
+
+    private inner class Harness {
+        var active = true
+        var connection: InputConnection? = mock(InputConnection::class.java)
+        var inputShown = false
+        var rendered = RenderedSurface.HIDDEN
+        var inputAttachments = 0
+        var candidatesAttachments = 0
+        var showRequests = 0
+        var hideRequests = 0
+        var rejectHideRequest = false
+        var windowHides = 0
+        var refreshes = 0
+        var containerSynchronizations = 0
+        val requestedInputShown = mutableListOf<Boolean>()
+        val candidatesShown = mutableListOf<Boolean>()
+        val windowShows = mutableListOf<Boolean>()
+        val actions = mutableListOf<Pair<Long, () -> Unit>>()
+        private val prefs = context.getSharedPreferences("keyboard_visibility_controller_test", Context.MODE_PRIVATE)
+        private val alternate = AlternateCharacterManager(context.assets, prefs, context)
         val controller = KeyboardVisibilityController(
             context = context,
-            candidatesBarController = candidatesBarController,
-            symLayoutController = symLayoutController,
-            isInputViewActive = { inputViewActive },
-            hasActiveTextField = { false },
+            candidatesBarController = CandidatesBarController(context),
+            symLayoutController = SymLayoutController(context, prefs, alternate),
+            isInputViewActive = { active },
+            hasActiveTextField = { active },
             isNavModeLatched = { false },
-            currentInputConnection = { currentInputConnection },
-            isInputViewShown = { inputViewShown },
-            renderedSurface = { renderedSurface },
-            requiresCandidatesSurfaceRecovery = { requiresCandidatesSurfaceRecovery },
-            setRequestedInputViewShown = { requestedInputViewShownChanges += it },
-            attachInputView = { inputViewAttachments += 1 },
-            setCandidatesSurfaceActive = { candidatesSurfaceActiveChanges += it },
-            setCandidatesViewShown = {
-                candidatesViewShown = it
-                candidatesVisibilityChanges += 1
+            currentInputConnection = { connection },
+            isInputViewShown = { inputShown },
+            renderedSurface = { rendered },
+            setRequestedInputViewShown = { requestedInputShown += it },
+            attachInputView = { inputAttachments++ },
+            attachCandidatesView = { candidatesAttachments++ },
+            setCandidatesSurfaceActive = {},
+            setCandidatesViewShown = { candidatesShown += it },
+            synchronizeCandidatesContainerVisibility = { containerSynchronizations++ },
+            postToUi = { actions.add(0L to it) },
+            postToUiDelayed = { delay, action -> actions.add(delay to action) },
+            showInputWindow = { windowShows += it },
+            hideInputWindow = { windowHides++ },
+            requestHideInputView = {
+                hideRequests++
+                if (rejectHideRequest) throw IllegalStateException("Window detached")
             },
-            synchronizeCandidatesContainerVisibility = {
-                candidatesContainerRefreshes += 1
-            },
-            postToUi = { postedActions += it },
-            postToUiDelayed = { _, action -> postedActions += action },
-            showInputWindow = { shown -> inputWindowShowRequests += shown },
-            requestHideInputView = { inputViewHideRequests += 1 },
-            requestShowInputView = { inputViewShowRequests += false },
-            refreshStatusBar = { statusBarRefreshes += 1 }
+            requestShowInputView = { showRequests++ },
+            refreshStatusBar = { refreshes++ }
         )
-
-        return VisibilityHarness(
-            controller = controller,
-            onCandidatesViewShown = { candidatesViewShown },
-            onCandidatesVisibilityChanges = { candidatesVisibilityChanges },
-            onCandidatesContainerRefreshes = { candidatesContainerRefreshes },
-            runPostedActions = {
-                postedActions.toList().also { postedActions.clear() }.forEach { it() }
-            },
-            onInputWindowShowRequests = { inputWindowShowRequests.toList() },
-            onInputViewShowRequests = { inputViewShowRequests.toList() },
-            renderSurface = { renderedSurface = it },
-            onRequestedInputViewShownChanges = { requestedInputViewShownChanges.toList() },
-            onCandidatesSurfaceActiveChanges = { candidatesSurfaceActiveChanges.toList() },
-            onStatusBarRefreshes = { statusBarRefreshes },
-            onPostedActionCount = { postedActions.size },
-            onInputViewAttachments = { inputViewAttachments },
-            onInputViewHideRequests = { inputViewHideRequests }
-        )
-    }
-
-    private class VisibilityHarness(
-        val controller: KeyboardVisibilityController,
-        private val onCandidatesViewShown: () -> Boolean,
-        private val onCandidatesVisibilityChanges: () -> Int,
-        private val onCandidatesContainerRefreshes: () -> Int,
-        val runPostedActions: () -> Unit,
-        private val onInputWindowShowRequests: () -> List<Boolean>,
-        private val onInputViewShowRequests: () -> List<Boolean>,
-        val renderSurface: (KeyboardVisibilityController.RenderedSurface) -> Unit,
-        private val onRequestedInputViewShownChanges: () -> List<Boolean>,
-        private val onCandidatesSurfaceActiveChanges: () -> List<Boolean>,
-        private val onStatusBarRefreshes: () -> Int,
-        private val onPostedActionCount: () -> Int,
-        private val onInputViewAttachments: () -> Int,
-        private val onInputViewHideRequests: () -> Int
-    ) {
-        val candidatesViewShown: Boolean
-            get() = onCandidatesViewShown()
-        val candidatesVisibilityChanges: Int
-            get() = onCandidatesVisibilityChanges()
-        val candidatesContainerRefreshes: Int
-            get() = onCandidatesContainerRefreshes()
-        val inputWindowShowRequests: List<Boolean>
-            get() = onInputWindowShowRequests()
-        val inputViewShowRequests: List<Boolean>
-            get() = onInputViewShowRequests()
-        val statusBarRefreshes: Int
-            get() = onStatusBarRefreshes()
-        val requestedInputViewShownChanges: List<Boolean>
-            get() = onRequestedInputViewShownChanges()
-        val candidatesSurfaceActiveChanges: List<Boolean>
-            get() = onCandidatesSurfaceActiveChanges()
-        val postedActionCount: Int
-            get() = onPostedActionCount()
-        val inputViewAttachments: Int
-            get() = onInputViewAttachments()
-        val inputViewHideRequests: Int
-            get() = onInputViewHideRequests()
+        fun runNext() = actions.removeAt(0).second.invoke()
+        fun hasImmediateActions() = actions.any { it.first == 0L }
+        fun runNextUiAction() = actions.removeAt(actions.indexOfFirst { it.first == 0L }).second.invoke()
+        fun runHideTimeout() = actions.removeAt(actions.indexOfFirst { it.first == 1000L }).second.invoke()
+        fun drain() {
+            var count = 0
+            while (actions.isNotEmpty()) {
+                check(count++ < 20) { "Unbounded show retry" }
+                runNext()
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ package it.palsoftware.pastiera.clipboard
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -20,12 +21,22 @@ import it.palsoftware.pastiera.R
  * Popup window that displays clipboard history.
  * Triggered by SHIFT+CTRL+V keyboard shortcut.
  */
-class ClipboardHistoryPopupView(private val context: Context) {
+class ClipboardHistoryPopupView(
+    private val context: Context,
+    private val clipboardHistoryManager: ClipboardHistoryManager
+) {
 
     private val popupWindow: PopupWindow
     private val contentView: LinearLayout
     private val entriesContainer: LinearLayout
-    private val clipboardDao = ClipboardDao.getInstance(context)
+    private val clearButton: Button
+    private val accessStateListener: (Boolean) -> Unit = {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            refreshEntries()
+        } else {
+            contentView.post { refreshEntries() }
+        }
+    }
 
     private var onItemClickListener: ((ClipboardHistoryEntry) -> Unit)? = null
     private var onPinClickListener: ((ClipboardHistoryEntry) -> Unit)? = null
@@ -61,7 +72,7 @@ class ClipboardHistoryPopupView(private val context: Context) {
             )
         }
 
-        val clearButton = Button(context).apply {
+        clearButton = Button(context).apply {
             text = context.getString(R.string.clipboard_clear_all)
             textSize = 14f
             setTextColor(Color.WHITE)
@@ -69,7 +80,9 @@ class ClipboardHistoryPopupView(private val context: Context) {
             val buttonPadding = dpToPx(8f)
             setPadding(buttonPadding, buttonPadding / 2, buttonPadding, buttonPadding / 2)
             setOnClickListener {
-                onClearAllClickListener?.invoke()
+                if (clipboardHistoryManager.isHistoryAccessible()) {
+                    onClearAllClickListener?.invoke()
+                }
                 refreshEntries()
             }
         }
@@ -103,6 +116,9 @@ class ClipboardHistoryPopupView(private val context: Context) {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             isOutsideTouchable = true
             elevation = 8f
+            setOnDismissListener {
+                clipboardHistoryManager.removeAccessStateListener(accessStateListener)
+            }
         }
 
         refreshEntries()
@@ -127,25 +143,37 @@ class ClipboardHistoryPopupView(private val context: Context) {
     private fun refreshEntries() {
         entriesContainer.removeAllViews()
 
-        val count = clipboardDao?.count() ?: 0
+        if (!clipboardHistoryManager.isHistoryAccessible()) {
+            clearButton.visibility = View.GONE
+            addStateText(R.string.clipboard_locked_state)
+            return
+        }
+
+        clearButton.visibility = View.VISIBLE
+
+        val count = clipboardHistoryManager.getHistorySize()
         if (count == 0) {
-            val emptyText = TextView(context).apply {
-                text = context.getString(R.string.clipboard_empty_state)
-                textSize = 14f
-                setTextColor(Color.GRAY)
-                gravity = Gravity.CENTER
-                val padding = dpToPx(16f)
-                setPadding(padding, padding, padding, padding)
-            }
-            entriesContainer.addView(emptyText)
+            addStateText(R.string.clipboard_empty_state)
             return
         }
 
         for (i in 0 until count) {
-            val entry = clipboardDao?.getAt(i) ?: continue
+            val entry = clipboardHistoryManager.getHistoryEntry(i) ?: continue
             val entryView = createEntryView(entry)
             entriesContainer.addView(entryView)
         }
+    }
+
+    private fun addStateText(stringRes: Int) {
+        val stateText = TextView(context).apply {
+            text = context.getString(stringRes)
+            textSize = 14f
+            setTextColor(Color.GRAY)
+            gravity = Gravity.CENTER
+            val padding = dpToPx(16f)
+            setPadding(padding, padding, padding, padding)
+        }
+        entriesContainer.addView(stateText)
     }
 
     private fun createEntryView(entry: ClipboardHistoryEntry): View {
@@ -221,6 +249,8 @@ class ClipboardHistoryPopupView(private val context: Context) {
     }
 
     fun show() {
+        clipboardHistoryManager.addAccessStateListener(accessStateListener)
+        refreshEntries()
         // Show at top of screen or above keyboard
         popupWindow.showAtLocation(
             contentView,
@@ -231,6 +261,7 @@ class ClipboardHistoryPopupView(private val context: Context) {
     }
 
     fun dismiss() {
+        clipboardHistoryManager.removeAccessStateListener(accessStateListener)
         popupWindow.dismiss()
     }
 

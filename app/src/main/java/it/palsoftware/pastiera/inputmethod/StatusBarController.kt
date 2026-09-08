@@ -219,7 +219,7 @@ class StatusBarController(
     fun invalidateStaticVariations() {
         variationBarView?.invalidateStaticVariations()
     }
-    
+
     /**
      * Sets the microphone button active state.
      */
@@ -325,6 +325,7 @@ class StatusBarController(
     private var emojiKeyboardBottomPaddingPx: Int = 0
     private var clipboardHistoryView: ClipboardHistoryView? = null
     private var lastClipboardCountRendered: Int = -1
+    private var lastClipboardAccessibleRendered: Boolean? = null
     private var emojiPickerView: EmojiPickerView? = null
     private var emojiPickerSearchPopup: PopupWindow? = null
     private var emojiPickerSearchPopupShowPending: Boolean = false
@@ -451,18 +452,11 @@ class StatusBarController(
         symSurfaceStack?.setBackgroundColor(surfaceBackground)
         symSurfaceContainer?.setBackgroundColor(surfaceBackground)
         (statusBarLayout as? ImeChromeLayout)?.let { chrome ->
-            val regularButtons = buttonRegistry.getEnabledButtons(context)
-            val compactButtons = buttonRegistry.getEnabledPastierinaButtons(context)
-            chrome.regularCornerColors = Pair(
-                if (regularButtons.any { it.position == StatusBarButtonPosition.LEFT }) activeColors.statusBarButton else activeColors.normalKey,
-                if (regularButtons.any { it.position == StatusBarButtonPosition.RIGHT }) activeColors.statusBarButton else activeColors.normalKey
-            )
-            chrome.compactCornerColors = Pair(
-                if (compactButtons.any { it.position == StatusBarButtonPosition.LEFT }) activeColors.statusBarButton else activeColors.suggestion,
-                if (compactButtons.any { it.position == StatusBarButtonPosition.RIGHT }) activeColors.statusBarButton else activeColors.suggestion
-            )
-            chrome.bottomFillColors = activeColors.normalKey to activeColors.suggestion
-            chrome.expandedCloseColor = activeColors.statusBarButton
+            // Keep the spacing around the individually rounded buttons in the chrome background.
+            chrome.regularCornerColors = activeColors.background to activeColors.background
+            chrome.compactCornerColors = activeColors.background to activeColors.background
+            chrome.bottomFillColors = activeColors.background to activeColors.background
+            chrome.expandedCloseColor = activeColors.background
             chrome.expandedKeyHeightPx = hardwareSymKeyHeightPx(activeColors)
             chrome.invalidate()
         }
@@ -1170,10 +1164,12 @@ class StatusBarController(
 
         // Refresh only when needed (data changed), otherwise keep the list stable.
         val count = manager.getHistorySize()
-        if (count != lastClipboardCountRendered) {
+        val accessible = manager.isHistoryAccessible()
+        if (count != lastClipboardCountRendered || accessible != lastClipboardAccessibleRendered) {
             manager.prepareClipboardHistory()
             view.refresh()
             lastClipboardCountRendered = count
+            lastClipboardAccessibleRendered = accessible
         }
         lastSymPageRendered = 3
     }
@@ -1355,7 +1351,7 @@ class StatusBarController(
         val container = emojiKeyboardContainer ?: return
         // Restore default padding for emoji/symbols pages.
         val roundedCorners = SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)
-        val sidePadding = if (roundedCorners) 0 else emojiKeyboardHorizontalPaddingPx
+        val sidePadding = emojiKeyboardHorizontalPaddingPx
         container.setPadding(sidePadding, 0, sidePadding, 0)
         val inputConnectionChanged = lastInputConnectionUsed != inputConnection
         val inputConnectionBecameAvailable = lastInputConnectionUsed == null && inputConnection != null
@@ -1393,7 +1389,7 @@ class StatusBarController(
             android.view.KeyEvent.KEYCODE_N to "N", android.view.KeyEvent.KEYCODE_M to "M"
         )
         
-        val keySpacing = if (roundedCorners) 0 else TypedValue.applyDimension(
+        val keySpacing = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             4f,
             context.resources.displayMetrics
@@ -1402,7 +1398,7 @@ class StatusBarController(
         // Calcola la larghezza fissa dei tasti basata sulla prima riga (10 caselle)
         val maxKeysInRow = 10 // Prima riga ha 10 caselle
         val screenWidth = context.resources.displayMetrics.widthPixels
-        val horizontalPadding = if (roundedCorners) 0 else TypedValue.applyDimension(
+        val horizontalPadding = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             8f * 2, // padding sinistro + destro
             context.resources.displayMetrics
@@ -2369,9 +2365,8 @@ class StatusBarController(
         )
         val drawable = GradientDrawable().apply {
             setColor(theme.normalKey)
-            val roundedCorners = SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)
-            setCornerRadius(if (roundedCorners) 0f else cornerRadius)
-            if (!roundedCorners) setStroke(dpToPx(1f), theme.divider)
+            setCornerRadius(cornerRadius)
+            setStroke(dpToPx(1f), theme.divider)
         }
         keyLayout.background = drawable
         
@@ -2582,7 +2577,7 @@ class StatusBarController(
             }
             setPadding(dpToPx(4f), dpToPx(4f), dpToPx(if (rounded) 12f else 4f), dpToPx(if (rounded) 12f else 4f))
             if (rounded) {
-                background = ColorDrawable(theme.statusBarButton)
+                background = android.graphics.drawable.InsetDrawable(background, 0, 0, dpToPx(3f), dpToPx(3f))
                 drawable?.let { icon ->
                     val clipboardSize = if (pastierinaModeActive) {
                         (dpToPx(36f * theme.suggestionsHeightScale.coerceIn(0.65f, 1.6f)) - dpToPx(4f)) * 0.64f
@@ -2594,7 +2589,7 @@ class StatusBarController(
                     imageMatrix = Matrix().apply {
                         setScale(scale, scale)
                         postTranslate(
-                            (layoutParams.width - icon.intrinsicWidth * scale) / 2f - paddingLeft - dpToPx(4f),
+                            (layoutParams.width - icon.intrinsicWidth * scale) / 2f - paddingLeft - dpToPx(8f),
                             (layoutParams.height - icon.intrinsicHeight * scale) / 2f - paddingTop - dpToPx(2f)
                         )
                     }
@@ -2969,12 +2964,12 @@ class StatusBarController(
         view.translationY = measuredHeight.toFloat()
         view.visibility = View.VISIBLE
 
-        // Set background to opaque immediately without animation
+        // Restore the theme background, including its transparency, without animation.
         backgroundView?.let { bgView ->
             if (bgView.background !is ColorDrawable) {
                 bgView.background = ColorDrawable(activeThemeColors().background)
             }
-            (bgView.background as? ColorDrawable)?.alpha = 255
+            (bgView.background as? ColorDrawable)?.color = activeThemeColors().background
         }
 
         val animator = ValueAnimator.ofFloat(measuredHeight.toFloat(), 0f).apply {
@@ -3096,7 +3091,7 @@ class StatusBarController(
         if (layout.background !is ColorDrawable) {
             layout.background = ColorDrawable(activeTheme.background)
         } else if (snapshot.symPage == 0) {
-            (layout.background as ColorDrawable).alpha = 255
+            (layout.background as ColorDrawable).color = activeThemeColors().background
         }
         
         modifiersContainerView.visibility = View.GONE
@@ -3179,7 +3174,7 @@ class StatusBarController(
             if (layout.background !is ColorDrawable) {
                 layout.background = ColorDrawable(activeColors.background)
             }
-            (layout.background as? ColorDrawable)?.alpha = 255
+            (layout.background as? ColorDrawable)?.color = activeThemeColors().background
             variationsWrapperView?.apply {
                 visibility = View.INVISIBLE
                 isEnabled = false
@@ -3270,11 +3265,11 @@ class StatusBarController(
             }
             variationsBar?.resetVariationsState()
 
-            // Pin background to opaque IME color and hide variations so SYM animates on a solid canvas.
+            // Restore the theme background and hide variations while SYM animates.
             if (layout.background !is ColorDrawable) {
                 layout.background = ColorDrawable(activeColors.background)
             }
-            (layout.background as? ColorDrawable)?.alpha = 255
+            (layout.background as? ColorDrawable)?.color = activeThemeColors().background
             if (isSoftwareKeyboardOverlayPage) {
                 variationsWrapperView?.apply {
                     visibility = View.VISIBLE
@@ -3576,7 +3571,7 @@ class StatusBarController(
         if (!isFullSoftwareKeyboardMode && snapshot.symPage in listOf(1, 2, 5)) {
             // All hardware SYM pages use the same three key rows. Do not let
             // measurement under the previous page's weighted layout resize them.
-            val gap = if (SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) 0 else dpToPx(4f)
+            val gap = dpToPx(4f)
             return 3 * hardwareSymKeyHeightPx() + 2 * gap
         }
         if (snapshot.symPage == 4 && measuredHeight > 0) {
@@ -3612,6 +3607,16 @@ class StatusBarController(
         var expandedPickerButtons: Pair<View, View>? = null
         var expandedKeyHeightPx: Int = (HARDWARE_SYM_KEY_HEIGHT_DP * resources.displayMetrics.density).toInt()
         private val cornerFillPaint = Paint()
+        private val calibrationPreviewListener: () -> Unit = {
+            applyBottomCornerClip()
+            requestLayout()
+            invalidate()
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            it.palsoftware.pastiera.T2eCornerCalibration.addPreviewListener(calibrationPreviewListener)
+        }
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
@@ -3734,8 +3739,6 @@ class StatusBarController(
             val inset = (6.5f * resources.displayMetrics.density).toInt()
             val radius = maxOf(radii.first, radii.second)
             val stripTop = (resources.displayMetrics.density).toInt()
-            params.leftMargin += inset
-            params.rightMargin += inset
             // The LED surface draws first; overlap its empty center with the row.
             val requestedRowHeight = params.height.coerceAtLeast(0)
             val bottomInset = (3.1f * resources.displayMetrics.density).toInt()
@@ -3767,7 +3770,8 @@ class StatusBarController(
                     }
                 }
             }
-            row.clipToOutline = true
+            // Each outer button draws its own inset contour; the chrome clips the display edge.
+            row.clipToOutline = false
             row.invalidateOutline()
         }
 
@@ -3824,7 +3828,9 @@ class StatusBarController(
             }
             val radii = bottomCornerRadiiPx ?: return
             fun fitIcons(view: View, offsetX: Int) {
-                if (view is ImageView && view.visibility == View.VISIBLE) {
+                if (view is ImageView && view.visibility == View.VISIBLE &&
+                    view.background !is it.palsoftware.pastiera.inputmethod.statusbar.CurvedCornerButtonDrawable
+                ) {
                     val onLeft = offsetX < radii.first
                     val onRight = offsetX + view.width > row.width - radii.second
                     val drawable = view.drawable
@@ -3839,14 +3845,14 @@ class StatusBarController(
                         val size = minOf(view.width.toFloat(), iconHeight) * iconFraction
                         val requestedScale = size / maxOf(drawable.intrinsicWidth, drawable.intrinsicHeight)
                         val scale = if (row === compactStatusRow) requestedScale else minOf(1f, requestedScale)
-                        val inward = 4f * resources.displayMetrics.density * if (onLeft) 1f else -1f
+                        val iconCenterX = view.width / 2f
                         view.scaleType = ImageView.ScaleType.MATRIX
                         view.imageMatrix = Matrix().apply {
                             setScale(scale, scale)
                             postTranslate(
-                                (view.width - drawable.intrinsicWidth * scale) / 2f - view.paddingLeft + inward,
-                                (view.height - drawable.intrinsicHeight * scale) / 2f - view.paddingTop -
-                                    2f * resources.displayMetrics.density
+                                iconCenterX - drawable.intrinsicWidth * scale / 2f - view.paddingLeft,
+                                (view.height / 2f) -
+                                    drawable.intrinsicHeight * scale / 2f - view.paddingTop
                             )
                         }
                     }
@@ -3864,7 +3870,12 @@ class StatusBarController(
         // (left, right) display corner radii in px; null disables the outline clip.
         var bottomCornerRadiiPx: Pair<Int, Int>? = null
             set(value) {
-                if (field == value) return
+                if (field == value) {
+                    applyBottomCornerClip()
+                    invalidate()
+                    requestLayout()
+                    return
+                }
                 field = value
                 applyBottomCornerClip()
                 requestLayout()
@@ -3905,13 +3916,10 @@ class StatusBarController(
                 override fun getOutline(view: View, outline: Outline) {
                     val left = radii!!.first.coerceIn(0, view.width / 2).toFloat()
                     val right = radii.second.coerceIn(0, view.width / 2).toFloat()
-                    val path = Path().apply {
-                        addRoundRect(
-                            RectF(0f, -2f * radius, view.width.toFloat(), view.height.toFloat()),
-                            floatArrayOf(0f, 0f, 0f, 0f, right, right, left, left),
-                            Path.Direction.CW
-                        )
-                    }
+                    val path = it.palsoftware.pastiera.T2eCornerGeometry.path(
+                        view.width.toFloat(), view.height.toFloat(), left, right,
+                        it.palsoftware.pastiera.T2eCornerCalibration.read(context)
+                    )
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         outline.setPath(path)
                     } else {
@@ -3925,6 +3933,7 @@ class StatusBarController(
         }
 
         override fun onDetachedFromWindow() {
+            it.palsoftware.pastiera.T2eCornerCalibration.removePreviewListener(calibrationPreviewListener)
             screenAwakeController.release()
             super.onDetachedFromWindow()
         }

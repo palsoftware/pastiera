@@ -187,7 +187,7 @@ fun VariationCustomizationScreen(
                             text = stringResource(R.string.variation_customize_title),
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(start = 8.dp)
+                            modifier = Modifier.padding(start = 8.dp).settingRow("customization.variations")
                         )
                     }
                     
@@ -217,7 +217,7 @@ fun VariationCustomizationScreen(
             // Static Variation Bar preset selector
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth().settingRow("variations.preset")
             ) {
                 Row(
                     modifier = Modifier
@@ -316,7 +316,7 @@ fun VariationCustomizationScreen(
             // Sticky layer toggle
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth().settingRow("variations.sticky_layer")
                     .heightIn(min = 64.dp)
             ) {
                 Row(
@@ -357,7 +357,7 @@ fun VariationCustomizationScreen(
             }
             
             Surface(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().settingRow("variations.layout_override")
             ) {
                 Column(
                     modifier = Modifier
@@ -443,6 +443,12 @@ fun VariationCustomizationScreen(
                 }
             }
 
+            // Static and per-letter mappings share one addressable editor heading.
+            Text(
+                text = stringResource(R.string.setting_link_variation_mappings),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.fillMaxWidth().settingRow("variations.mappings").padding(16.dp)
+            )
             // Static variations row
             VariationRow(
                 letter = "S",

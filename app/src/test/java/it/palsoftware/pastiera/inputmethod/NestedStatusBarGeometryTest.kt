@@ -46,8 +46,8 @@ class NestedStatusBarGeometryTest {
             chrome.layout(0, 0, chrome.measuredWidth, chrome.measuredHeight)
         }
         measure()
-        assertTrue(row.clipToOutline)
-        assertTrue(row.left > 0)
+        assertTrue(!row.clipToOutline)
+        assertEquals(0, row.left)
         assertEquals("The status content must start at the top of the bar", 0, row.top)
         assertEquals(0, side.top)
         assertEquals(row.height, side.height)

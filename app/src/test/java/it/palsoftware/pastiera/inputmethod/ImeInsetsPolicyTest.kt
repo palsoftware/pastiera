@@ -2,55 +2,50 @@ package it.palsoftware.pastiera.inputmethod
 
 import android.inputmethodservice.InputMethodService
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ImeInsetsPolicyTest {
     @Test
-    fun candidatesOnlyTreatsVisibleStatusBarAsImeContent() {
+    fun renderedBarReservesItsHeightAndRestrictsTouchToActualBounds() {
         val insets = InputMethodService.Insets().apply {
-            contentTopInsets = 122
+            contentTopInsets = 600
             visibleTopInsets = 0
-            touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_VISIBLE
             touchableRegion = android.graphics.Region()
         }
+        val bounds = android.graphics.Rect(12, 492, 708, 600)
 
-        ImeInsetsPolicy.applyCandidatesOnlyContentInsets(
-            insets,
-            candidatesOnly = true,
-            touchableWidth = 1080,
-            touchableHeight = 229
-        )
+        ImeInsetsPolicy.applyRenderedContentInsets(insets, bounds, 600)
 
-        assertEquals(0, insets.contentTopInsets)
-        assertEquals(
-            InputMethodService.Insets.TOUCHABLE_INSETS_REGION,
-            insets.touchableInsets
-        )
-        assertEquals(
-            android.graphics.Rect(0, 0, 1080, 229),
-            ImeInsetsPolicy.candidatesTouchableBounds(0, 1080, 229)
-        )
+        assertEquals(108, 600 - insets.contentTopInsets)
+        assertEquals(492, insets.visibleTopInsets)
+        assertEquals(InputMethodService.Insets.TOUCHABLE_INSETS_REGION, insets.touchableInsets)
+        assertEquals(bounds, insets.touchableRegion.bounds)
     }
 
     @Test
-    fun inputViewKeepsFrameworkContentInsets() {
-        val insets = InputMethodService.Insets().apply {
-            contentTopInsets = 122
-            visibleTopInsets = 0
-            touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_VISIBLE
+    fun missingOrEmptyContentClearsStaleTouchAreaAndReservedHeight() {
+        for (bounds in listOf(null, android.graphics.Rect(0, 0, 720, 0), android.graphics.Rect(0, 0, 0, 108))) {
+            val insets = InputMethodService.Insets().apply {
+                contentTopInsets = 0
+                visibleTopInsets = 0
+                touchableRegion = android.graphics.Region(0, 0, 720, 108)
+            }
+
+            ImeInsetsPolicy.applyRenderedContentInsets(insets, bounds, 108)
+
+            assertEquals(108, insets.contentTopInsets)
+            assertEquals(108, insets.visibleTopInsets)
+            assertEquals(InputMethodService.Insets.TOUCHABLE_INSETS_REGION, insets.touchableInsets)
+            assertTrue(insets.touchableRegion.isEmpty)
         }
-
-        ImeInsetsPolicy.applyCandidatesOnlyContentInsets(insets, candidatesOnly = false)
-
-        assertEquals(122, insets.contentTopInsets)
-        assertEquals(
-            InputMethodService.Insets.TOUCHABLE_INSETS_VISIBLE,
-            insets.touchableInsets
-        )
     }
+
 }

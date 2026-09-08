@@ -267,13 +267,25 @@ class CandidatesBarController(
         candidatesStatusBar.getLayout().isActuallyRendered()
 
     private fun View?.isActuallyRendered(): Boolean {
-        if (this == null || !isAttachedToWindow || !isShown || width <= 0 || height <= 0) {
+        if (this == null || !isAttachedToWindow || windowVisibility != View.VISIBLE || !isShown || width <= 0 || height <= 0) {
             return false
         }
         val visibleBounds = Rect()
         return getGlobalVisibleRect(visibleBounds) &&
             visibleBounds.width() > 0 &&
             visibleBounds.height() > 0
+    }
+
+    /** Visible child bounds in IME-window coordinates; absent content owns no input region. */
+    fun visibleBoundsInWindow(): Rect? {
+        val view = listOf(inputStatusBar.getLayout(), candidatesStatusBar.getLayout())
+            .firstOrNull { it.isActuallyRendered() } ?: return null
+        val bounds = Rect()
+        if (!view.getLocalVisibleRect(bounds)) return null
+        val location = IntArray(2)
+        view.getLocationInWindow(location)
+        bounds.offset(location[0], location[1])
+        return bounds
     }
 
     fun setPastierinaModeActive(active: Boolean) {

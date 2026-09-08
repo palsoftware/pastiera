@@ -11,9 +11,6 @@ import it.palsoftware.pastiera.ui.theme.PastieraTheme
 class LanguagesActivity : LocalizedComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (savedInstanceState == null) {
-            applySlideInFromRightTransition()
-        }
         enableEdgeToEdge()
         setContent {
             PastieraTheme {
@@ -23,9 +20,5 @@ class LanguagesActivity : LocalizedComponentActivity() {
             }
         }
     }
-    
-    override fun finish() {
-        super.finish()
-        applySlideOutToRightTransition()
-    }
+
 }
