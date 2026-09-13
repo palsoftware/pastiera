@@ -94,7 +94,7 @@ class FullSuggestionsBar(
                     pressedColor = it.accent,
                     iconColor = it.textAndIcons,
                     cornerRadiusRatio = it.keyCornerRadiusRatio,
-                    borderColor = it.statusButtonBorder,
+                    borderColor = it.divider,
                     borderWidthPx = dpToPx(1f)
                 )
             }
@@ -358,7 +358,7 @@ class FullSuggestionsBar(
         addWordCandidate: String?,
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
-        onSuggestionCommitted: (() -> Unit)?,
+        onSuggestionCommitted: ((String) -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?,
@@ -474,18 +474,6 @@ class FullSuggestionsBar(
         }
     }
 
-    private fun chromeSpacingPx(): Int = dpToPx(3f)
-
-    private fun outerButtonExtraPx(): Int =
-        if (it.palsoftware.pastiera.SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) dpToPx(8f) else 0
-
-    private fun minimalButtonWidthPx(): Int {
-        val size = (targetHeightPx - dpToPx(4f)).coerceAtLeast(dpToPx(24f))
-        return if (it.palsoftware.pastiera.SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) {
-            maxOf(dpToPx(56f), (size * 1.6f).toInt())
-        } else size
-    }
-
     private fun renderMinimalUiButtons() {
         val leftContainer = minimalLeftButtonsContainer ?: return
         val rightContainer = minimalRightButtonsContainer ?: return
@@ -502,25 +490,19 @@ class FullSuggestionsBar(
         }
 
         val buttonSize = (targetHeightPx - dpToPx(4f)).coerceAtLeast(dpToPx(24f))
-        val buttonWidth = minimalButtonWidthPx()
-        val buttonHeight = if (it.palsoftware.pastiera.SettingsManager.getTitan2EliteRoundedCornerInsetsEnabled(context)) {
-            targetHeightPx
-        } else buttonSize
-        val spacing = chromeSpacingPx()
+        val spacing = dpToPx(3f)
         val callbacks = (callbacksProvider?.invoke() ?: StatusBarCallbacks())
             .copy(onHamburgerMenuRequested = { toggleHamburgerMenu() })
 
-        fun addButton(buttonId: StatusBarButtonId, target: LinearLayout, isLast: Boolean, outerEdge: StatusBarButtonPosition?) {
-            val actualButtonWidth = buttonWidth + if (outerEdge != null) outerButtonExtraPx() else 0
+        fun addButton(buttonId: StatusBarButtonId, target: LinearLayout, isLast: Boolean) {
             val hosted = host.getOrCreateButton(
                 id = buttonId,
                 size = buttonSize,
                 callbacks = callbacks,
-                width = actualButtonWidth,
-                height = buttonHeight
+                width = buttonSize,
+                height = buttonSize
             ) ?: return
-            host.setOuterEdge(buttonId, outerEdge)
-            hosted.container.layoutParams = LinearLayout.LayoutParams(actualButtonWidth, buttonHeight).apply {
+            hosted.container.layoutParams = LinearLayout.LayoutParams(buttonSize, buttonSize).apply {
                 marginEnd = if (isLast) 0 else spacing
             }
             target.addView(hosted.container)
@@ -535,10 +517,10 @@ class FullSuggestionsBar(
             .sortedBy { it.order }
 
         leftButtons.forEachIndexed { index, config ->
-            addButton(config.id, leftContainer, index == leftButtons.lastIndex, if (index == 0) StatusBarButtonPosition.LEFT else null)
+            addButton(config.id, leftContainer, index == leftButtons.lastIndex)
         }
         rightButtons.forEachIndexed { index, config ->
-            addButton(config.id, rightContainer, index == rightButtons.lastIndex, if (index == rightButtons.lastIndex) StatusBarButtonPosition.RIGHT else null)
+            addButton(config.id, rightContainer, index == rightButtons.lastIndex)
         }
 
         leftContainer.visibility = if (leftButtons.isEmpty()) View.GONE else View.VISIBLE
@@ -548,7 +530,7 @@ class FullSuggestionsBar(
 
     private fun applyContainerInsetsForMinimalButtons() {
         val bar = container ?: return
-        val spacing = chromeSpacingPx()
+        val spacing = dpToPx(3f)
         val indicatorInset = modifierIndicatorsContainer?.takeIf {
             showModifierMenuIndicators && it.visibility == View.VISIBLE
         }?.let {
@@ -556,7 +538,7 @@ class FullSuggestionsBar(
         } ?: 0
         val minimalLeftInset = if (showMinimalUiButtons) {
             minimalLeftButtonsContainer?.takeIf { it.visibility == View.VISIBLE }?.let {
-                it.childCount * minimalButtonWidthPx() + (if (it.childCount > 0) outerButtonExtraPx() else 0) +
+                it.childCount * (targetHeightPx - dpToPx(4f)).coerceAtLeast(dpToPx(24f)) +
                     (it.childCount - 1).coerceAtLeast(0) * spacing +
                     spacing
             } ?: 0
@@ -576,7 +558,7 @@ class FullSuggestionsBar(
         val leftInset = indicatorInset + minimalLeftInset
         val rightInset = if (showMinimalUiButtons) {
             minimalRightButtonsContainer?.takeIf { it.visibility == View.VISIBLE }?.let {
-                it.childCount * minimalButtonWidthPx() + (if (it.childCount > 0) outerButtonExtraPx() else 0) +
+                it.childCount * (targetHeightPx - dpToPx(4f)).coerceAtLeast(dpToPx(24f)) +
                     (it.childCount - 1).coerceAtLeast(0) * spacing +
                     spacing
             } ?: 0
@@ -630,7 +612,7 @@ class FullSuggestionsBar(
         addWordCandidate: String?,
         onAddUserWord: ((String) -> Unit)?,
         onAddUserWordSubstitutionRequested: ((String) -> Unit)?,
-        onSuggestionCommitted: (() -> Unit)?,
+        onSuggestionCommitted: ((String) -> Unit)?,
         onHideSuggestion: ((String) -> Unit)?,
         onDeleteUserSuggestion: ((String) -> Unit)?,
         canDeleteUserSuggestion: ((String) -> Boolean)?,
@@ -675,7 +657,7 @@ class FullSuggestionsBar(
             ).apply {
                 // Apply margin only if not the last suggestion box
                 if (index < slotOrder.size - 1) {
-                    marginEnd = chromeSpacingPx()
+                    marginEnd = dpToPx(3f)
                 }
             }
             if (suggestion != null && actionCandidate?.equals(suggestion, ignoreCase = true) == true) {
@@ -811,8 +793,7 @@ class FullSuggestionsBar(
             gravity = Gravity.CENTER
             layoutParams = weightLayoutParams
             background = buildSuggestionBackground()
-            val padding = dpToPx(4f)
-            setPadding(padding, padding, padding, padding)
+            setPadding(dpToPx(4f), dpToPx(4f), dpToPx(4f), dpToPx(4f))
 
         actions.forEachIndexed { index, action ->
             val button = ImageView(context).apply {
@@ -827,7 +808,7 @@ class FullSuggestionsBar(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     1f
                 ).apply {
-                    if (index < actions.lastIndex) marginEnd = chromeSpacingPx()
+                    if (index < actions.lastIndex) marginEnd = dpToPx(3f)
                 }
                 isClickable = true
                 isFocusable = true
