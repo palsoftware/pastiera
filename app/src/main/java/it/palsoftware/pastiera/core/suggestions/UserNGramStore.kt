@@ -46,27 +46,23 @@ class UserNGramStore(context: Context) : SQLiteOpenHelper(
         seedDefaultBigrams(db)
     }
 
-    /**
-     * Pre-populates a small set of very common Vietnamese word-pair predictions, so next-word
-     * suggestions aren't completely empty for a brand-new install. Seeded at a low baseline
-     * count (1) so genuinely learned usage (which increments on every real use) naturally
-     * overtakes it over time rather than permanently dominating.
-     */
     private fun seedDefaultBigrams(db: SQLiteDatabase) {
         val nowMs = System.currentTimeMillis()
         db.beginTransaction()
         try {
+            val cv = ContentValues()
             for ((prefix, nextWord) in DEFAULT_VI_BIGRAMS) {
+                cv.clear()
+                cv.put(COL_LOCALE, "vi")
+                cv.put(COL_PREFIX, prefix)
+                cv.put(COL_NEXT_WORD, nextWord)
+                cv.put(COL_COUNT, 1)
+                cv.put(COL_LAST_USED, nowMs)
+
                 db.insertWithOnConflict(
                     TABLE_BIGRAMS,
                     null,
-                    ContentValues().apply {
-                        put(COL_LOCALE, "vi")
-                        put(COL_PREFIX, prefix)
-                        put(COL_NEXT_WORD, nextWord)
-                        put(COL_COUNT, 1)
-                        put(COL_LAST_USED, nowMs)
-                    },
+                    cv,
                     SQLiteDatabase.CONFLICT_IGNORE
                 )
             }
@@ -77,43 +73,25 @@ class UserNGramStore(context: Context) : SQLiteOpenHelper(
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 1) {
-            db.execSQL("DROP TABLE IF EXISTS $TABLE_BIGRAMS")
-            onCreate(db)
+        // Handle future database migrations when DATABASE_VERSION is incremented
+        if (oldVersion < 2) {
+            // Migration logic for future versions goes here
         }
     }
 
     override fun learn(locale: String, prefix: String, nextWord: String, nowMs: Long) {
         val db = writableDatabase
-        db.beginTransaction()
-        try {
-            db.insertWithOnConflict(
-                TABLE_BIGRAMS,
-                null,
-                ContentValues().apply {
-                    put(COL_LOCALE, locale)
-                    put(COL_PREFIX, prefix)
-                    put(COL_NEXT_WORD, nextWord)
-                    put(COL_COUNT, 0)
-                    put(COL_LAST_USED, nowMs)
-                },
-                SQLiteDatabase.CONFLICT_IGNORE
-            )
-            db.execSQL(
-                """
-                UPDATE $TABLE_BIGRAMS
-                SET $COL_COUNT = $COL_COUNT + 1,
-                    $COL_LAST_USED = ?
-                WHERE $COL_LOCALE = ?
-                    AND $COL_PREFIX = ?
-                    AND $COL_NEXT_WORD = ?
-                """.trimIndent(),
-                arrayOf(nowMs, locale, prefix, nextWord)
-            )
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
+        // Native SQLite UPSERT operation for efficiency
+        db.execSQL(
+            """
+            INSERT INTO $TABLE_BIGRAMS ($COL_LOCALE, $COL_PREFIX, $COL_NEXT_WORD, $COL_COUNT, $COL_LAST_USED)
+            VALUES (?, ?, ?, 1, ?)
+            ON CONFLICT($COL_LOCALE, $COL_PREFIX, $COL_NEXT_WORD) DO UPDATE SET
+                $COL_COUNT = $COL_COUNT + 1,
+                $COL_LAST_USED = excluded.$COL_LAST_USED
+            """.trimIndent(),
+            arrayOf(locale, prefix, nextWord, nowMs)
+        )
     }
 
     override fun predict(locale: String, prefix: String, limit: Int): List<Prediction> {
@@ -176,8 +154,6 @@ class UserNGramStore(context: Context) : SQLiteOpenHelper(
         private const val COL_COUNT = "count"
         private const val COL_LAST_USED = "last_used"
 
-        // prefix is the accent-stripped, lowercase normalized form of the previous word
-        // (matching NextWordPredictor.normalizedKey); next_word is the real display form.
         private val DEFAULT_VI_BIGRAMS: List<Pair<String, String>> = listOf(
             "dinh" to "làm",
             "dinh" to "đi",
@@ -640,7 +616,7 @@ class UserNGramStore(context: Context) : SQLiteOpenHelper(
             "nao" to "cũng",
             "bao" to "giờ",
             "bao" to "nhiêu",
-            "bao" to "lâu",
+            "bao" to "lâu"
         )
     }
 }
