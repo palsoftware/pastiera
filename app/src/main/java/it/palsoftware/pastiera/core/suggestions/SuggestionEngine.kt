@@ -1,9 +1,10 @@
 package it.palsoftware.pastiera.core.suggestions
 
-import kotlin.math.min
 import java.text.Normalizer
 import java.util.Locale
-import android.util.Log
+import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.sqrt
 
 data class SuggestionResult(
     val candidate: String,
@@ -25,45 +26,43 @@ class SuggestionEngine(
     private val debugLogging: Boolean = false
 ) {
 
-    private val accentCache: MutableMap<String, String> = mutableMapOf()
-    private val tag = "SuggestionEngine"
     private val wordNormalizeCache: MutableMap<String, String> = mutableMapOf()
-
-    // Keyboard layout positions - built dynamically based on layout type
     private var keyboardPositions: Map<Char, Pair<Int, Int>> = buildKeyboardPositions("qwerty")
 
     private fun isPreferredUserEntry(source: SuggestionSource): Boolean {
         return source == SuggestionSource.USER || source == SuggestionSource.DEFAULT_USER
     }
 
-    /**
-     * Build character-to-position map for a given keyboard layout.
-     * Physical key positions match the actual Pastiera compact keyboard layout:
-     * - Row 0: Q W E R T Y U I O P
-     * - Row 1: A S D F G H J K L
-     * - Row 2: Z X C V [space] B N M
-     */
+    private fun normalize(input: String): String {
+        return WordNormalization.normalizeApostrophes(input.lowercase(locale).trim())
+    }
+
+    private fun normalizeCached(word: String): String {
+        return wordNormalizeCache.getOrPut(word) {
+            normalize(word)
+        }
+    }
+
+    private fun stripAccents(input: String): String {
+        val normalized = Normalizer.normalize(input, Normalizer.Form.NFD)
+        return normalized.replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+    }
+
     private fun buildKeyboardPositions(layout: String): Map<Char, Pair<Int, Int>> {
-        // Physical key positions (row, column) for compact keyboard with split bottom row
         val physicalPositions = mapOf(
-            // Row 0 (top letter row): Q W E R T Y U I O P
             "KEYCODE_Q" to (0 to 0), "KEYCODE_W" to (0 to 1), "KEYCODE_E" to (0 to 2),
             "KEYCODE_R" to (0 to 3), "KEYCODE_T" to (0 to 4), "KEYCODE_Y" to (0 to 5),
             "KEYCODE_U" to (0 to 6), "KEYCODE_I" to (0 to 7), "KEYCODE_O" to (0 to 8),
             "KEYCODE_P" to (0 to 9),
-            // Row 1 (home row): A S D F G H J K L
             "KEYCODE_A" to (1 to 0), "KEYCODE_S" to (1 to 1), "KEYCODE_D" to (1 to 2),
             "KEYCODE_F" to (1 to 3), "KEYCODE_G" to (1 to 4), "KEYCODE_H" to (1 to 5),
             "KEYCODE_J" to (1 to 6), "KEYCODE_K" to (1 to 7), "KEYCODE_L" to (1 to 8),
-            // Row 2 (bottom row left): Z X C V
             "KEYCODE_Z" to (2 to 0), "KEYCODE_X" to (2 to 1), "KEYCODE_C" to (2 to 2),
-            "KEYCODE_V" to (2 to 3),
-            // Row 2 (bottom row right, after spacebar): B N M
-            "KEYCODE_B" to (2 to 6), "KEYCODE_N" to (2 to 7), "KEYCODE_M" to (2 to 8)
+            "KEYCODE_V" to (2 to 3), "KEYCODE_B" to (2 to 6), "KEYCODE_N" to (2 to 7),
+            "KEYCODE_M" to (2 to 8)
         )
 
-        // Map keycodes to characters for each layout
-        val layoutMappings = when (layout.lowercase()) {
+        val layoutMappings = when (layout.lowercase(Locale.ROOT)) {
             "qwerty" -> mapOf(
                 "KEYCODE_Q" to 'q', "KEYCODE_W" to 'w', "KEYCODE_E" to 'e', "KEYCODE_R" to 'r',
                 "KEYCODE_T" to 't', "KEYCODE_Y" to 'y', "KEYCODE_U" to 'u', "KEYCODE_I" to 'i',
@@ -91,63 +90,42 @@ class SuggestionEngine(
                 "KEYCODE_X" to 'x', "KEYCODE_C" to 'c', "KEYCODE_V" to 'v', "KEYCODE_B" to 'b',
                 "KEYCODE_N" to 'n', "KEYCODE_M" to 'm'
             )
-            else -> return buildKeyboardPositions("qwerty") // Fallback to QWERTY
+            else -> return buildKeyboardPositions("qwerty")
         }
 
-        // Build character to position map
         return layoutMappings.mapNotNull { (keycode, char) ->
-            physicalPositions[keycode]?.let { position ->
-                char to position
-            }
+            physicalPositions[keycode]?.let { position -> char to position }
         }.toMap()
     }
 
-    /**
-     * Update the keyboard layout for proximity calculations.
-     */
     fun setKeyboardLayout(layout: String) {
         keyboardPositions = buildKeyboardPositions(layout)
     }
 
     private enum class EditType { DELETE, SUBSTITUTE, INSERT, OTHER }
 
-    /**
-     * Determine the edit type between input and suggestion.
-     */
     private fun getEditType(input: String, suggestion: String): EditType {
         val inputLen = input.length
         val suggestionLen = suggestion.length
-
         return when {
-            suggestionLen == inputLen - 1 -> EditType.DELETE      // suggestion is shorter (user typed extra char)
-            suggestionLen == inputLen -> EditType.SUBSTITUTE       // same length (substitution)
-            suggestionLen == inputLen + 1 -> EditType.INSERT       // suggestion is longer (user missed a char)
+            suggestionLen == inputLen - 1 -> EditType.DELETE
+            suggestionLen == inputLen -> EditType.SUBSTITUTE
+            suggestionLen == inputLen + 1 -> EditType.INSERT
             else -> EditType.OTHER
         }
     }
 
-    /**
-     * Check if input has adjacent duplicate letters that could be a typo.
-     */
     private fun hasAdjacentDuplicates(word: String): Boolean {
         for (i in 0 until word.length - 1) {
-            if (word[i] == word[i + 1]) {
-                return true
-            }
+            if (word[i] == word[i + 1]) return true
         }
         return false
     }
 
-    /**
-     * Check if suggestion "fixes" a duplicate letter issue in the input.
-     */
     private fun fixesDuplicateLetter(input: String, suggestion: String): Boolean {
         if (input.length != suggestion.length) return false
-
-        // Find where input has adjacent duplicates
         for (i in 0 until input.length - 1) {
             if (input[i] == input[i + 1]) {
-                // Check if suggestion breaks this duplicate
                 if (i < suggestion.length - 1 && suggestion[i] != suggestion[i + 1]) {
                     return true
                 }
@@ -156,91 +134,54 @@ class SuggestionEngine(
         return false
     }
 
-    /**
-     * Calculate keyboard distance between two characters.
-     */
     private fun keyboardDistance(c1: Char, c2: Char): Double? {
         val pos1 = keyboardPositions[c1.lowercaseChar()] ?: return null
         val pos2 = keyboardPositions[c2.lowercaseChar()] ?: return null
         val rowDiff = (pos1.first - pos2.first).toDouble()
         val colDiff = (pos1.second - pos2.second).toDouble()
-        return kotlin.math.sqrt(rowDiff * rowDiff + colDiff * colDiff)
+        return sqrt(rowDiff * rowDiff + colDiff * colDiff)
     }
 
-    /**
-     * Check if input and suggestion differ by a simple adjacent character transposition.
-     * E.g., "teh" ↔ "the", "hte" ↔ "the", "thier" ↔ "their"
-     */
     private fun isTransposition(input: String, suggestion: String): Boolean {
         if (input.length != suggestion.length) return false
-
         var diffCount = 0
         var firstDiffIndex = -1
 
         for (i in input.indices) {
             if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
-                if (diffCount == 0) {
-                    firstDiffIndex = i
-                }
+                if (diffCount == 0) firstDiffIndex = i
                 diffCount++
             }
         }
-
-        // Must have exactly 2 differences
         if (diffCount != 2) return false
-
-        // Differences must be adjacent positions
         val secondDiffIndex = firstDiffIndex + 1
         if (secondDiffIndex >= input.length) return false
 
-        // Check if characters are swapped
         return input[firstDiffIndex].lowercaseChar() == suggestion[secondDiffIndex].lowercaseChar() &&
-               input[secondDiffIndex].lowercaseChar() == suggestion[firstDiffIndex].lowercaseChar()
+                input[secondDiffIndex].lowercaseChar() == suggestion[firstDiffIndex].lowercaseChar()
     }
 
-    /**
-     * Check if a substitution involves adjacent/nearby keys (likely typo).
-     * Transpositions are always considered nearby regardless of key distance.
-     */
     private fun isNearbySubstitution(input: String, suggestion: String): Boolean {
-        if (input.length != suggestion.length) return true // Not a substitution
-
-        // Transpositions (adjacent character swaps) are always considered nearby typos
-        if (isTransposition(input, suggestion)) {
-            return true
-        }
+        if (input.length != suggestion.length) return true
+        if (isTransposition(input, suggestion)) return true
 
         for (i in input.indices) {
             if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
                 val dist = keyboardDistance(input[i], suggestion[i])
-                // If distance is > 2.5 keys, it's a distant substitution (unlikely typo)
-                if (dist != null && dist > 2.5) {
-                    return false
-                }
+                if (dist != null && dist > 2.5) return false
             }
         }
         return true
     }
 
-    /**
-     * Check if a substitution involves truly adjacent keys (directly touching).
-     * Transpositions are always considered adjacent substitutions.
-     */
     private fun isAdjacentSubstitution(input: String, suggestion: String): Boolean {
-        if (input.length != suggestion.length) return false // Not a substitution
-
-        // Transpositions are always considered "adjacent" for ranking purposes
-        if (isTransposition(input, suggestion)) {
-            return true
-        }
+        if (input.length != suggestion.length) return false
+        if (isTransposition(input, suggestion)) return true
 
         for (i in input.indices) {
             if (input[i].lowercaseChar() != suggestion[i].lowercaseChar()) {
                 val dist = keyboardDistance(input[i], suggestion[i])
-                // Only truly adjacent keys (distance ~1.0) count
-                if (dist == null || dist > 1.15) {
-                    return false
-                }
+                if (dist == null || dist > 1.15) return false
             }
         }
         return true
@@ -260,21 +201,17 @@ class SuggestionEngine(
         val normalizedCandidate = normalizeApostrophes(candidate)
         val hasApostrophe = normalizedCandidate.contains('\'')
         val matchesPrefix = normalizedCandidate.length >= prefix.length &&
-            normalizedCandidate.substring(0, prefix.length).equals(prefix, ignoreCase = true)
+                normalizedCandidate.substring(0, prefix.length).equals(prefix, ignoreCase = true)
 
         val rootPart = when {
             matchesPrefix -> candidate.substring(prefix.length)
-            hasApostrophe -> return null // don't mix different apostrophe prefixes
+            hasApostrophe -> return null
             else -> candidate
         }
         val recasedRoot = CasingHelper.applyCasing(rootPart, split.root, forceLeadingCapital = false)
         return prefix + recasedRoot
     }
 
-    /**
-     * Split a word with a single apostrophe into prefix (with apostrophe) and root.
-     * Language-agnostic: only checks structure/length, not locale lists.
-     */
     private fun splitApostropheWord(word: String): ApostropheSplit? {
         val normalized = normalizeApostrophes(word)
         val apostropheCount = normalized.count { it == '\'' }
@@ -284,7 +221,7 @@ class SuggestionEngine(
 
         val prefix = normalized.substring(0, idx + 1)
         val root = normalized.substring(idx + 1)
-        val prefixRaw = prefix.dropLast(1) // remove apostrophe
+        val prefixRaw = prefix.dropLast(1)
 
         val isPrefixOk = prefixRaw.isNotEmpty() &&
                 isSupportedApostrophePrefix(prefixRaw) &&
@@ -296,13 +233,7 @@ class SuggestionEngine(
     private fun isSupportedApostrophePrefix(prefix: String): Boolean {
         if (prefix.length <= 3) return true
         return prefix.lowercase(Locale.ROOT) in setOf(
-            "dall",
-            "dell",
-            "nell",
-            "sull",
-            "coll",
-            "quell",
-            "quest"
+            "dall", "dell", "nell", "sull", "coll", "quell", "quest"
         )
     }
 
@@ -313,10 +244,8 @@ class SuggestionEngine(
         useKeyboardProximity: Boolean = true,
         useEditTypeRanking: Boolean = true
     ): List<SuggestionResult> {
-        if (currentWord.isBlank()) return emptyList()
-        if (!repository.isReady) return emptyList()
+        if (currentWord.isBlank() || !repository.isReady) return emptyList()
 
-        // Apostrophe branch: split and suggest on the root to avoid over-corrections.
         val apostropheSplit = splitApostropheWord(currentWord)
         if (apostropheSplit != null) {
             val rootResults = suggestInternal(
@@ -326,16 +255,12 @@ class SuggestionEngine(
                 useKeyboardProximity = useKeyboardProximity,
                 useEditTypeRanking = useEditTypeRanking
             )
-            val filtered = rootResults
-                .filter { it.distance <= 1 } // stay conservative on apostrophated forms
-                .take(limit * 2)
+            val filtered = rootResults.filter { it.distance <= 1 }.take(limit * 2)
             val recomposed = filtered.mapNotNull { res ->
                 val candidate = recomposeApostropheCandidate(apostropheSplit, res.candidate) ?: return@mapNotNull null
                 res.copy(candidate = candidate)
             }.take(limit)
-            if (recomposed.isNotEmpty()) {
-                return recomposed
-            }
+            if (recomposed.isNotEmpty()) return recomposed
         }
 
         return suggestInternal(
@@ -357,39 +282,29 @@ class SuggestionEngine(
         val normalizedWord = normalize(currentWord)
         val normalizedWordBare = normalizedWord.replace("'", "")
         val inputLen = normalizedWord.length
-        // Require at least 1 character to start suggesting.
         if (inputLen < 1) return emptyList()
-        // Force prefix completions: take frequent words that start with the input (distance 0)
-        // Filter out very rare words to avoid suggesting obscure completions
-        // Never suggest the exact word the user has already typed
-        val minFrequencyForPrefixSuggestion = if (inputLen <= 2) {
-            300 // Very high threshold for short inputs
-        } else if (inputLen == 3) {
-            250 // High threshold for 3-char inputs
-        } else if (inputLen == 4) {
-            200 // High threshold for 4-char inputs
-        } else {
-            150 // Medium threshold for longer inputs
+
+        val minFrequencyForPrefixSuggestion = when {
+            inputLen <= 2 -> 300
+            inputLen == 3 -> 250
+            inputLen == 4 -> 200
+            else -> 150
         }
+
         val completions = repository.lookupByPrefixMerged(normalizedWord, maxSize = 200)
             .filter {
                 val norm = normalizeCached(it.word)
-                val meetsFrequency = isPreferredUserEntry(it.source) || repository.effectiveFrequency(it) >= minFrequencyForPrefixSuggestion
-                // Only show words that are longer (actual completions) and meet frequency threshold
-                // Exception: USER dictionary words are always included regardless of frequency
+                val meetsFrequency = isPreferredUserEntry(it.source) ||
+                        repository.effectiveFrequency(it) >= minFrequencyForPrefixSuggestion
                 norm.startsWith(normalizedWord) && it.word.length > currentWord.length && meetsFrequency
             }
 
-        // SymSpell lookup on normalized input (skip for single-char to avoid noise)
-        // Reduce SymSpell suggestions to prioritize prefix matches
-        val symResultsPrimary = if (inputLen == 1) {
-            emptyList()
-        } else if (inputLen <= 3) {
-            // For short inputs, heavily prioritize prefix matches over edit distance
-            repository.symSpellLookup(normalizedWord, maxSuggestions = limit * 2)
-        } else {
-            repository.symSpellLookup(normalizedWord, maxSuggestions = limit * 4)
+        val symResultsPrimary = when {
+            inputLen == 1 -> emptyList()
+            inputLen <= 3 -> repository.symSpellLookup(normalizedWord, maxSuggestions = limit * 2)
+            else -> repository.symSpellLookup(normalizedWord, maxSuggestions = limit * 4)
         }
+
         val symResultsAccent = if (includeAccentMatching && inputLen > 1) {
             val normalizedAccentless = stripAccents(normalizedWord)
             if (normalizedAccentless != normalizedWord) {
@@ -397,36 +312,33 @@ class SuggestionEngine(
             } else emptyList()
         } else emptyList()
 
-        val allSymResults = (symResultsPrimary + symResultsAccent)
+        val allSymResults = symResultsPrimary + symResultsAccent
         val elisionPrefixEntries = if (inputLen == 1) {
             repository.lookupByPrefixMerged("${normalizedWord}'", maxSize = 80)
         } else emptyList()
+
         val leadingChar = currentWord.firstOrNull()
         val shortElisionEntries = if (inputLen == 1 && leadingChar != null) {
             elisionPrefixEntries.filter { entry ->
                 val word = entry.word
                 word.length in 2..3 &&
-                    word.getOrNull(0)?.equals(leadingChar, ignoreCase = true) == true &&
-                    word.getOrNull(1) == '\''
+                        word.getOrNull(0)?.equals(leadingChar, ignoreCase = true) == true &&
+                        word.getOrNull(1) == '\''
             }
         } else emptyList()
-        val seen = HashSet<String>(limit * 3)
-        val top = ArrayList<SuggestionResult>(limit)
 
-        // Comparator with three-tier priority: USER words > prefix completions > edit-distance
+        val seen = HashSet<String>(limit * 4)
+        val candidatesPool = ArrayList<SuggestionResult>()
+
         val comparator = Comparator<SuggestionResult> { a, b ->
             val aIsUser = isPreferredUserEntry(a.source)
             val bIsUser = isPreferredUserEntry(b.source)
 
-            // User dictionary words ALWAYS rank highest
             if (aIsUser && !bIsUser) return@Comparator -1
             if (!aIsUser && bIsUser) return@Comparator 1
 
-            // Use normalized versions to check prefix matches (allows accented variants)
             val aNormCandidate = normalizeCached(a.candidate)
             val bNormCandidate = normalizeCached(b.candidate)
-            // For single-char input: prefix includes accented variants (same normalized form, different original)
-            // For longer inputs: prefix means actual completions (longer words)
             val aIsPrefix = if (inputLen == 1) {
                 aNormCandidate == normalizedWord && a.candidate != currentWord
             } else {
@@ -438,11 +350,9 @@ class SuggestionEngine(
                 bNormCandidate.startsWith(normalizedWord) && b.candidate.length > currentWord.length
             }
 
-            // Prefix completions rank higher than edit-distance suggestions
             if (aIsPrefix && !bIsPrefix) return@Comparator -1
             if (!aIsPrefix && bIsPrefix) return@Comparator 1
 
-            // Same tier - use normal ranking (distance, score, length)
             val d = a.distance.compareTo(b.distance)
             if (d != 0) return@Comparator d
             val scoreCmp = b.score.compareTo(a.score)
@@ -457,72 +367,46 @@ class SuggestionEngine(
             isForcedPrefix: Boolean = false,
             overrideCandidates: List<DictionaryEntry>? = null
         ) {
-            // For very short inputs, avoid suggesting single-char tokens unless exact
             if (inputLen <= 2 && term.length == 1 && term != normalizedWord) return
             if (inputLen <= 2 && distance > 1) return
 
-            // Filter out rare words for prefix suggestions (completions)
-            // Exception: Don't filter when overrideCandidates is provided (e.g., user dictionary words)
             val isPrefix = term.startsWith(normalizedWord) && term.length > normalizedWord.length
-            val minFrequency = if (inputLen <= 2) {
-                150 // Threshold for short inputs
-            } else if (inputLen == 3) {
-                100 // Threshold for 3-char inputs
-            } else if (inputLen == 4) {
-                80 // Threshold for 4-char inputs
-            } else {
-                60 // Threshold for longer inputs
+            val minFrequency = when {
+                inputLen <= 2 -> 150
+                inputLen == 3 -> 100
+                inputLen == 4 -> 80
+                else -> 60
             }
-            if (isPrefix && frequency < minFrequency && overrideCandidates == null) {
-                return // Skip rare prefix completions
-            }
+            if (isPrefix && frequency < minFrequency && overrideCandidates == null) return
 
-            // Apply keyboard proximity filtering when enabled
             if (useKeyboardProximity && distance > 0) {
                 val editType = getEditType(normalizedWord, term)
-                // Filter out distant substitutions (unlikely typos)
-                if (editType == EditType.SUBSTITUTE && !isNearbySubstitution(normalizedWord, term)) {
-                    return
-                }
+                if (editType == EditType.SUBSTITUTE && !isNearbySubstitution(normalizedWord, term)) return
             }
 
-            val isSingleCharInput = inputLen == 1
             val candidateList: List<DictionaryEntry> = overrideCandidates ?: when {
-                isSingleCharInput -> repository.topByNormalized(term, limit = 5)
+                inputLen == 1 -> repository.topByNormalized(term, limit = 5)
                 distance == 0 -> repository.topByNormalized(term, limit = 3)
                 else -> listOfNotNull(repository.bestEntryForNormalized(term))
             }
             if (candidateList.isEmpty()) return
 
             candidateList.forEach { entry ->
+                if (entry.word == currentWord) return@forEach
+
                 val candidateLen = entry.word.length
                 val normCandidate = normalizeCached(entry.word)
-
-                // Never suggest the exact same word (exact match, case-sensitive)
-                // This allows suggesting accented variants (e.g., "perche" → "perché")
-                // and capitalization variants (e.g., "mario" → "Mario")
-                if (entry.word == currentWord) {
-                    return@forEach
-                }
-
                 val effectiveFreq = repository.effectiveFrequency(entry)
 
-                // Filter prefix completions by their ACTUAL frequency, not SymSpell boosted frequency
-                // Exception: Never filter user dictionary words
                 val isActualPrefix = normCandidate.startsWith(normalizedWord) && entry.word.length > currentWord.length
                 if (isActualPrefix && !isPreferredUserEntry(entry.source)) {
-                    val minFreqForCandidate = if (inputLen <= 2) {
-                        150
-                    } else if (inputLen == 3) {
-                        100
-                    } else if (inputLen == 4) {
-                        80
-                    } else {
-                        60
+                    val minFreqForCandidate = when {
+                        inputLen <= 2 -> 150
+                        inputLen == 3 -> 100
+                        inputLen == 4 -> 80
+                        else -> 60
                     }
-                    if (entry.frequency < minFreqForCandidate) {
-                        return@forEach
-                    }
+                    if (entry.frequency < minFreqForCandidate) return@forEach
                 }
 
                 val hasAccent = stripAccents(entry.word) != entry.word
@@ -533,53 +417,44 @@ class SuggestionEngine(
                         entry.word.length >= 2 &&
                         entry.word[0].equals(currentWord.firstOrNull() ?: ' ', ignoreCase = true) &&
                         entry.word.getOrNull(1) == '\''
-                val isPrefix = normCandidate.startsWith(normalizedWord)
-                val isActualCompletion = isPrefix && entry.word.length > currentWord.length
 
-                // Filter out capitalized words for prefix completions when input is lowercase
-                // (likely proper nouns like "Hardy" when typing "hard")
-                // Exception: Never filter user dictionary words
                 val inputIsLowercase = currentWord.firstOrNull()?.isLowerCase() == true
                 val candidateIsCapitalized = entry.word.firstOrNull()?.isUpperCase() == true
-                if (isActualCompletion && inputIsLowercase && candidateIsCapitalized && !isPreferredUserEntry(entry.source)) {
-                    return@forEach // Skip capitalized prefix completions when user typed lowercase
+                if (isActualPrefix && inputIsLowercase && candidateIsCapitalized && !isPreferredUserEntry(entry.source)) {
+                    return@forEach
                 }
 
                 val bareCandidate = normCandidate.replace("'", "")
                 val distanceScore = 1.0 / (1 + distance)
-                val isCompletion = isActualCompletion
                 val prefixBonus = when {
-                    // Avoid boosting completions when input is a single character
                     inputLen == 1 && isForcedPrefix -> 0.0
                     inputLen <= 2 && isForcedPrefix -> 2.0
-                    inputLen <= 2 && isCompletion -> 1.8
+                    inputLen <= 2 && isActualPrefix -> 1.8
                     inputLen <= 2 && isPrefix -> 1.5
-                    isForcedPrefix -> 5.0  // Strongly boost prefix matches
-                    isCompletion -> 4.0    // Strongly boost completions
-                    isPrefix -> 3.0        // Boost any prefix match
+                    isForcedPrefix -> 5.0
+                    isActualPrefix -> 4.0
+                    isPrefix -> 3.0
                     else -> 0.0
                 }
                 val frequencyScore = (effectiveFreq / 1_600.0)
                 val sourceBoost = if (isPreferredUserEntry(entry.source)) 5.0 else 1.0
-                val accentBonus = if (isSingleCharInput && candidateLen == 1 && hasAccent) 0.8 else 0.0
-                val accentSameLengthBonus = if (!isSingleCharInput && candidateLen == currentWord.length && hasAccent) 0.4 else 0.0
-                val baseLetterMalus = if (isSingleCharInput && candidateLen == 1 && !hasAccent && isSameBaseLetter) -2.0 else 0.0
+                val accentBonus = if (inputLen == 1 && candidateLen == 1 && hasAccent) 0.8 else 0.0
+                val accentSameLengthBonus = if (inputLen > 1 && candidateLen == currentWord.length && hasAccent) 0.4 else 0.0
+                val baseLetterMalus = if (inputLen == 1 && candidateLen == 1 && !hasAccent && isSameBaseLetter) -2.0 else 0.0
                 val elisionBonus = when {
-                    // Strongly boost single-letter inputs that can expand to "<letter>'"
-                    isSingleCharInput && isShortElision && candidateLen == 2 -> 1.00
-                    isSingleCharInput && isShortElision -> 0.55
+                    inputLen == 1 && isShortElision && candidateLen == 2 -> 1.00
+                    inputLen == 1 && isShortElision -> 0.55
                     else -> 0.0
                 }
-                val lengthPenalty = if (isSingleCharInput && candidateLen > 2) -0.2 * (candidateLen - 2) else 0.0
-                // Small preference for lengths close to the current word; penalize large gaps.
-                val lenDiff = kotlin.math.abs(candidateLen - currentWord.length)
-                val lengthSimilarityBonus = when {
-                    lenDiff == 0 -> 0.35
-                    lenDiff == 1 -> 0.2
-                    lenDiff == 2 -> 0.05
-                    else -> -0.15 * kotlin.math.min(lenDiff, 4)
+                val lengthPenalty = if (inputLen == 1 && candidateLen > 2) -0.2 * (candidateLen - 2) else 0.0
+                val lenDiff = abs(candidateLen - currentWord.length)
+                val lengthSimilarityBonus = when (lenDiff) {
+                    0 -> 0.35
+                    1 -> 0.2
+                    2 -> 0.05
+                    else -> -0.15 * min(lenDiff, 4)
                 }
-                // Strong malus for numeric/symbolic candidates, especially when already correcting a typo.
+
                 val containsSpecialChars = hasDigit || hasSymbol
                 val numericMalus = when {
                     containsSpecialChars && distance > 0 && inputLen <= 2 -> -4.0
@@ -590,32 +465,21 @@ class SuggestionEngine(
                     hasSymbol -> -0.6
                     else -> 0.0
                 }
-                val completionLengthPenalty = if (isCompletion && currentWord.length >= 4 && (candidateLen - currentWord.length) >= 3) -0.35 else 0.0
+                val completionLengthPenalty = if (isActualPrefix && currentWord.length >= 4 && (candidateLen - currentWord.length) >= 3) -0.35 else 0.0
                 val sameRootBonus = if (distance == 1 && bareCandidate == normalizedWordBare) 0.25 else 0.0
 
-                // Apply edit type ranking when enabled
                 var editTypeBonus = 0.0
                 if (useEditTypeRanking && distance > 0) {
                     val editType = getEditType(normalizedWord, term)
                     editTypeBonus = when (editType) {
-                        EditType.INSERT -> 0.5  // User missed a character - higher boost
+                        EditType.INSERT -> 0.5
                         EditType.SUBSTITUTE -> {
-                            // Adjacent key substitutions get higher boost
-                            if (useKeyboardProximity && isAdjacentSubstitution(normalizedWord, term)) {
-                                0.4
-                            } else {
-                                0.2
-                            }
+                            if (useKeyboardProximity && isAdjacentSubstitution(normalizedWord, term)) 0.4 else 0.2
                         }
                         EditType.DELETE -> {
-                            // Only boost deletes if input has duplicate letters
-                            if (hasAdjacentDuplicates(normalizedWord) && fixesDuplicateLetter(normalizedWord, term)) {
-                                0.3
-                            } else if (hasAdjacentDuplicates(normalizedWord)) {
-                                0.1
-                            } else {
-                                0.0  // Don't suggest deletes for non-duplicate inputs
-                            }
+                            if (hasAdjacentDuplicates(normalizedWord) && fixesDuplicateLetter(normalizedWord, term)) 0.3
+                            else if (hasAdjacentDuplicates(normalizedWord)) 0.1
+                            else 0.0
                         }
                         EditType.OTHER -> 0.0
                     }
@@ -623,40 +487,34 @@ class SuggestionEngine(
 
                 val score = (
                     distanceScore +
-                        frequencyScore +
-                        prefixBonus +
-                        editTypeBonus +
-                        accentBonus +
-                        accentSameLengthBonus +
-                        baseLetterMalus +
-                        elisionBonus +
-                        lengthPenalty +
-                        lengthSimilarityBonus +
-                        numericMalus +
-                        completionLengthPenalty +
-                        sameRootBonus
-                    ) * sourceBoost
-                val key = entry.word.lowercase(locale)
-                if (!seen.add(key)) return@forEach
-                val suggestion = SuggestionResult(
-                    candidate = entry.word,
-                    distance = distance,
-                    score = score,
-                    source = entry.source
-                )
+                    frequencyScore +
+                    prefixBonus +
+                    editTypeBonus +
+                    accentBonus +
+                    accentSameLengthBonus +
+                    baseLetterMalus +
+                    elisionBonus +
+                    lengthPenalty +
+                    lengthSimilarityBonus +
+                    numericMalus +
+                    completionLengthPenalty +
+                    sameRootBonus
+                ) * sourceBoost
 
-                if (top.size < limit) {
-                    top.add(suggestion)
-                    top.sortWith(comparator)
-                } else if (comparator.compare(suggestion, top.last()) < 0) {
-                    top.add(suggestion)
-                    top.sortWith(comparator)
-                    while (top.size > limit) top.removeAt(top.lastIndex)
+                val key = entry.word.lowercase(locale)
+                if (seen.add(key)) {
+                    candidatesPool.add(
+                        SuggestionResult(
+                            candidate = entry.word,
+                            distance = distance,
+                            score = score,
+                            source = entry.source
+                        )
+                    )
                 }
             }
         }
 
-        // For single-character input, explicitly surface normalized variants (accented and base).
         if (inputLen == 1) {
             consider(
                 term = normalizedWord,
@@ -666,13 +524,11 @@ class SuggestionEngine(
             )
         }
 
-        // Consider completions first to surface them even if SymSpell returns other close words
         for (entry in completions) {
             val norm = normalizeCached(entry.word)
             consider(norm, 0, entry.frequency, isForcedPrefix = true, overrideCandidates = listOf(entry))
         }
 
-        // Ensure short elisions like "l'" are considered even if absent from the dictionary
         for (entry in shortElisionEntries) {
             val norm = normalizeCached(entry.word)
             consider(
@@ -687,61 +543,48 @@ class SuggestionEngine(
             consider(item.term, item.distance, item.frequency)
         }
 
-        return top
+        return candidatesPool
+            .sortedWith(comparator)
+            .take(limit)
     }
 
     private fun boundedLevenshtein(a: String, b: String, maxDistance: Int): Int {
-        // Optimal String Alignment distance (Damerau-Levenshtein with adjacent transpositions cost=1)
-        if (kotlin.math.abs(a.length - b.length) > maxDistance) return -1
-        val prev = IntArray(b.length + 1) { it }
-        val curr = IntArray(b.length + 1)
+        if (abs(a.length - b.length) > maxDistance) return -1
 
-        for (i in 1..a.length) {
+        val lenA = a.length
+        val lenB = b.length
+
+        var prev = IntArray(lenB + 1) { it }
+        var curr = IntArray(lenB + 1)
+
+        for (i in 1..lenA) {
             curr[0] = i
-            var minRow = curr[0]
-            for (j in 1..b.length) {
-                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
-                var value = minOf(
-                    prev[j] + 1,      // deletion
-                    curr[j - 1] + 1,  // insertion
-                    prev[j - 1] + cost // substitution
-                )
+            var minDistanceInRow = curr[0]
 
-                if (i > 1 && j > 1 &&
-                    a[i - 1] == b[j - 2] &&
-                    a[i - 2] == b[j - 1]
-                ) {
-                    // adjacent transposition
-                    value = min(value, prev[j - 2] + 1)
+            for (j in 1..lenB) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                var minVal = min(curr[j - 1] + 1, prev[j] + 1)
+                minVal = min(minVal, prev[j - 1] + cost)
+
+                // Check for Damerau-Levenshtein transposition
+                if (i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1]) {
+                    minVal = min(minVal, prev[j - 2] + cost)
                 }
 
-                curr[j] = value
-                minRow = min(minRow, value)
+                curr[j] = minVal
+                if (minVal < minDistanceInRow) {
+                    minDistanceInRow = minVal
+                }
             }
 
-            if (minRow > maxDistance) return -1
-            // swap arrays
-            for (k in 0..b.length) {
-                val tmp = prev[k]
-                prev[k] = curr[k]
-                curr[k] = tmp
-            }
+            if (minDistanceInRow > maxDistance) return -1
+
+            val temp = prev
+            prev = curr
+            curr = temp
         }
-        return if (prev[b.length] <= maxDistance) prev[b.length] else -1
-    }
 
-    private fun normalize(word: String): String {
-        return WordNormalization.normalizeForSuggestion(word, locale)
-    }
-
-    private fun normalizeCached(word: String): String {
-        return wordNormalizeCache.getOrPut(word) { normalize(word) }
-    }
-
-    private fun stripAccents(input: String): String {
-        return accentCache.getOrPut(input) {
-            Normalizer.normalize(input, Normalizer.Form.NFD)
-                .replace("\\p{Mn}".toRegex(), "")
-        }
+        val finalDist = prev[lenB]
+        return if (finalDist <= maxDistance) finalDist else -1
     }
 }
