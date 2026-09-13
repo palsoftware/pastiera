@@ -1778,7 +1778,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
         candidatesBarController.onAddUserWordSubstitutionRequested = { word ->
             showAddSubstitutionDialog(word)
         }
-        candidatesBarController.onSuggestionCommitted = {
+        candidatesBarController.onSuggestionCommitted = { committedWord ->
             if (shiftLayerLatched || altModifierLayerLatched) {
                 shiftLayerLatched = false
                 altModifierLayerLatched = false
@@ -1789,7 +1789,7 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                 modifierStateController.consumeShiftOneShot()
             }
             variationInteractedDuringHold = true
-            suggestionController.readInitialContext(currentInputConnection)
+            suggestionController.notifyWordCompletedExternally(committedWord)
             updateStatusBarText()
         }
         candidatesBarController.onHideSuggestion = { suggestion ->
