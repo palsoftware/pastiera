@@ -2087,7 +2087,8 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
             refreshStatusBar = {
                 invalidateRenderedStatusSnapshot()
                 refreshStatusBar()
-            }
+            },
+            isSurfaceHiddenByUser = { candidatesBarController.isStatusBarHiddenByUser() }
         )
         inputManager = getSystemService(InputManager::class.java)
         InputDevice.getDeviceIds().forEach { deviceId ->
@@ -2279,6 +2280,9 @@ class PhysicalKeyboardInputMethodService : InputMethodService(), ClicksAccessibi
                 attachTrackpadDecorViewMotionHook("provider_changed")
             } else if (key == "pastierina_mode_override") {
                 keyboardVisibilityController.syncStatusBarPresentationModeFromSettings()
+            } else if (key == "status_bar_hidden") {
+                invalidateRenderedStatusSnapshot()
+                refreshStatusBar()
             } else if (key == SettingsManager.KEY_TITAN2_ELITE_ROUNDED_CORNER_INSETS ||
                 key == SettingsManager.KEY_TITAN2_ELITE_FILL_BOTTOM_CORNERS ||
                 key == it.palsoftware.pastiera.T2eCornerCalibration.KEY ||

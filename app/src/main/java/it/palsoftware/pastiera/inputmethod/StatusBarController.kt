@@ -356,6 +356,7 @@ class StatusBarController(
     private var variationsWrapper: View? = null
     private var hamburgerMenuView: HamburgerMenuView? = null
     private var pastierinaModeActive: Boolean = false
+    private var hiddenByUser: Boolean = false
     private var fullSuggestionsBar: FullSuggestionsBar? = null
     private var expansionSuggestions: List<String> = emptyList()
     private var onExpansionSuggestionSelected: ((String) -> Unit)? = null
@@ -577,6 +578,9 @@ class StatusBarController(
     }
 
     fun isPastierinaModeActive(): Boolean = pastierinaModeActive
+
+    /** True while the "hide status bar" setting deliberately leaves this surface empty. */
+    fun isHiddenByUser(): Boolean = hiddenByUser
 
     fun dismissEmojiPickerPopup() {
         emojiPickerSearchPopupShowPending = false
@@ -3076,6 +3080,16 @@ class StatusBarController(
         emojiView.visibility = View.GONE
         
         if (snapshot.navModeActive) {
+            layout.visibility = View.GONE
+            return
+        }
+        hiddenByUser = SettingsManager.isStatusBarHidden(context) &&
+            !isFullSoftwareKeyboardMode &&
+            snapshot.symPage == 0 &&
+            !snapshot.clipboardOverlay &&
+            expansionSuggestions.isEmpty()
+        if (hiddenByUser) {
+            hideHamburgerMenu()
             layout.visibility = View.GONE
             return
         }

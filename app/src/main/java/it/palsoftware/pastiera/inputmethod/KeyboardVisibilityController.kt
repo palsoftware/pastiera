@@ -31,6 +31,7 @@ class KeyboardVisibilityController(
     private val requestHideInputView: () -> Unit,
     private val requestShowInputView: () -> Unit,
     private val refreshStatusBar: () -> Unit,
+    private val isSurfaceHiddenByUser: () -> Boolean = { false },
     private val trace: (String) -> Unit = {}
 ) {
     enum class RenderedSurface { HIDDEN, FULL_INPUT_VIEW, CANDIDATES_VIEW }
@@ -242,7 +243,9 @@ class KeyboardVisibilityController(
     }
 
     fun isCandidatesOnlySurface() = usesCandidatesView()
-    fun isExpectedSurfaceRequestedOrShown(): Boolean = windowShown && renderedSurface() == expectedSurface() &&
+    // A surface the user chose to hide renders nothing; treat it as shown so keys don't retry.
+    fun isExpectedSurfaceRequestedOrShown(): Boolean = windowShown &&
+        (renderedSurface() == expectedSurface() || isSurfaceHiddenByUser()) &&
         (usesCandidatesView() || isInputViewShown())
     fun shouldRecoverSurfaceOnHardwareKey() = !isExpectedSurfaceRequestedOrShown()
     internal fun isCandidatesSurfaceExplicitlyDismissedForTests() = dismissed
