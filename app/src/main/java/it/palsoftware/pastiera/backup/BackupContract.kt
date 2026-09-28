@@ -319,6 +319,7 @@ internal object BackupPreferenceContract {
             "pastierina_status_bar_slots_left" to PreferenceValueType.STRING,
             "pastierina_status_bar_slots_right" to PreferenceValueType.STRING,
             "status_bar_variations_visible" to PreferenceValueType.BOOLEAN,
+            "status_bar_hidden" to PreferenceValueType.BOOLEAN,
             "dynamic_variation_bar_slot_count" to PreferenceValueType.INT,
             "dynamic_variation_bar_resize_to_content" to PreferenceValueType.BOOLEAN,
             "launcher_shortcuts" to PreferenceValueType.STRING,

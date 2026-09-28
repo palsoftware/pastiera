@@ -398,6 +398,15 @@ internal fun customizationSettingEntries(): List<SettingEntry> = listOf(
         unavailableFallbackId = "status_bar.rounded_corners"
     ),
     SettingEntry(
+        id = "status_bar.hidden",
+        titleRes = R.string.status_bar_hidden_title,
+        summaryRes = R.string.status_bar_hidden_description,
+        route = SettingRoute(
+            destination = SettingsDestination.Customization,
+            customizationDestination = "status_bar_buttons"
+        )
+    ),
+    SettingEntry(
         id = "status_bar.variations_visible",
         titleRes = R.string.status_bar_variations_visible_title,
         summaryRes = R.string.status_bar_variations_visible_description,

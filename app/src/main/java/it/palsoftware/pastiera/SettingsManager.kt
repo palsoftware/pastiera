@@ -226,6 +226,7 @@ object SettingsManager {
     private const val KEY_PASTIERINA_STATUS_BAR_SLOTS_LEFT = "pastierina_status_bar_slots_left"
     private const val KEY_PASTIERINA_STATUS_BAR_SLOTS_RIGHT = "pastierina_status_bar_slots_right"
     private const val KEY_STATUS_BAR_VARIATIONS_VISIBLE = "status_bar_variations_visible"
+    private const val KEY_STATUS_BAR_HIDDEN = "status_bar_hidden"
     private const val KEY_DYNAMIC_VARIATION_BAR_SLOT_COUNT = "dynamic_variation_bar_slot_count"
     private const val KEY_DYNAMIC_VARIATION_BAR_RESIZE_TO_CONTENT = "dynamic_variation_bar_resize_to_content"
     const val KEY_MODIFIER_INDICATOR_MODE = "modifier_indicator_mode"
@@ -282,6 +283,7 @@ object SettingsManager {
     private const val DEFAULT_PASTIERINA_SLOT_LEFT = STATUS_BAR_BUTTON_LANGUAGE
     private const val DEFAULT_PASTIERINA_SLOT_RIGHT = STATUS_BAR_BUTTON_HAMBURGER
     private const val DEFAULT_STATUS_BAR_VARIATIONS_VISIBLE = true
+    private const val DEFAULT_STATUS_BAR_HIDDEN = false
     private const val DEFAULT_DYNAMIC_VARIATION_BAR_SLOT_COUNT = 7
     private const val DEFAULT_DYNAMIC_VARIATION_BAR_RESIZE_TO_CONTENT = false
     private val DEFAULT_MODIFIER_INDICATORS = setOf(MODIFIER_INDICATOR_BOTTOM_STRIP)
@@ -6022,6 +6024,17 @@ object SettingsManager {
 
     fun setStatusBarVariationsEnabled(context: Context, enabled: Boolean) {
         setStatusBarVariationsVisible(context, enabled)
+    }
+
+    /** Hardware-keyboard mode only: draw nothing until a SYM/emoji/clipboard page is opened. */
+    fun isStatusBarHidden(context: Context): Boolean {
+        return getPreferences(context).getBoolean(KEY_STATUS_BAR_HIDDEN, DEFAULT_STATUS_BAR_HIDDEN)
+    }
+
+    fun setStatusBarHidden(context: Context, hidden: Boolean) {
+        getPreferences(context).edit()
+            .putBoolean(KEY_STATUS_BAR_HIDDEN, hidden)
+            .apply()
     }
 
     fun getDynamicVariationBarSlotCount(context: Context): Int {

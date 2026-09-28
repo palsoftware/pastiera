@@ -319,6 +319,9 @@ class CandidatesBarController(
 
     fun isPastierinaModeActive(): Boolean = inputStatusBar.isPastierinaModeActive()
 
+    fun isStatusBarHiddenByUser(): Boolean =
+        (if (candidatesSurfaceActive) candidatesStatusBar else inputStatusBar).isHiddenByUser()
+
     fun refreshWindowInsets() {
         inputStatusBar.refreshWindowInsets()
         candidatesStatusBar.refreshWindowInsets()

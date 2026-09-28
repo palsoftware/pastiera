@@ -46,6 +46,7 @@ fun StatusBarButtonsScreen(
     var pastierinaRightSlots by remember {
         mutableStateOf(SettingsManager.getPastierinaStatusBarSlotsRight(context))
     }
+    var statusBarHidden by remember { mutableStateOf(SettingsManager.isStatusBarHidden(context)) }
     var variationsVisible by remember {
         mutableStateOf(SettingsManager.areStatusBarVariationsEnabled(context))
     }
@@ -255,6 +256,34 @@ fun StatusBarButtonsScreen(
                         maxLines = 1
                     )
                 }
+            }
+        }
+
+        Surface(modifier = Modifier.fillMaxWidth().settingRow("status_bar.hidden")) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.status_bar_hidden_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = stringResource(R.string.status_bar_hidden_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = statusBarHidden,
+                    onCheckedChange = { hidden ->
+                        statusBarHidden = hidden
+                        SettingsManager.setStatusBarHidden(context, hidden)
+                    }
+                )
             }
         }
 
