@@ -400,14 +400,35 @@ class AutoReplaceController(
             }
         }
 
-        val suggestions = suggestionEngine.suggest(
+        // For auto-correction, prefer an orthographic variant of the exact same
+        // normalized word before running the broader suggestion search.
+        // Example: "etat" -> "état" should take priority over "états".
+        val normalizedLookupWord =
+            WordNormalization.normalizeForDictionary(lookupWord, Locale.ROOT)
+
+        val orthographicEntry = repository
+            .topByNormalized(normalizedLookupWord, limit = 8)
+            .firstOrNull { entry ->
+                entry.word.length == lookupWord.length &&
+                        !entry.word.equals(lookupWord, ignoreCase = true) &&
+                        isAccentOnlyVariant(lookupWord, entry.word)
+            }
+
+        val topRaw = orthographicEntry?.let { entry ->
+            SuggestionResult(
+                candidate = entry.word,
+                distance = 0,
+                score = Double.MAX_VALUE,
+                source = entry.source,
+                kind = SuggestionKind.CURRENT_WORD
+            )
+        } ?: suggestionEngine.suggest(
             lookupWord,
             limit = 1,
             includeAccentMatching = settings.accentMatching,
             useKeyboardProximity = settings.useKeyboardProximity,
             useEditTypeRanking = settings.useEditTypeRanking
-        )
-        val topRaw = suggestions.firstOrNull()
+        ).firstOrNull()
         val top = topRaw?.let {
             if (apostropheSplit != null) {
                 val recomposed = recomposeApostropheCandidate(apostropheSplit, it.candidate) ?: return@let null
@@ -416,16 +437,38 @@ class AutoReplaceController(
                 it
             }
         }
-        
+
+        // Prefix completions intentionally use distance=0 in SuggestionEngine so they
+        // rank highly in the suggestion bar. Auto-replace needs the actual edit
+        // distance instead. For apostrophe words, compare the root that was actually
+        // looked up with the raw dictionary candidate, before recomposing the prefix.
+        val autoReplaceDistance = top?.let { candidate ->
+            if (candidate.distance == 0 && candidate.candidate != word) {
+                val distanceInput = if (apostropheSplit != null) lookupWord else word
+                val distanceCandidate =
+                    if (apostropheSplit != null) topRaw?.candidate ?: candidate.candidate
+                    else candidate.candidate
+
+                suggestionEngine.editDistance(
+                    distanceInput,
+                    distanceCandidate,
+                    settings.maxAutoReplaceDistance
+                ).takeIf { it >= 0 }
+                    ?: (settings.maxAutoReplaceDistance + 1)
+            } else {
+                candidate.distance
+            }
+        } ?: 0
+
         // Safety checks for auto-replace
         val isOrthographicVariant = top != null && isAccentOnlyVariant(word, top.candidate)
         val isCaseVariant = top != null && isCaseOnlyVariant(word, top.candidate)
         val minWordLength = if (isOrthographicVariant) 2 else 3 // Allow short orthographic fixes (e.g., "ja" -> "já")
         val maxLengthRatio = 1.25 // Keep as a fallback guard for longer typo candidates.
-        
+
         // Check if word has been rejected by user
         val isRejected = rejectedWords.contains(wordLower)
-        
+
         // Check if word exists in dictionary
         val isKnownWord = knownWordProvider?.invoke(lookupWord) ?: repository.isKnownWord(lookupWord)
         val isExactKnownWord = repository.getExactWordFrequency(lookupWord) > 0

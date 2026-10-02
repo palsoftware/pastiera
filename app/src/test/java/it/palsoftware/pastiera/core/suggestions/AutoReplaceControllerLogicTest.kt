@@ -484,6 +484,76 @@ class AutoReplaceControllerLogicTest {
     }
 
     @Test
+    fun autoReplaceOnSpaceAppliesAccentVariantAfterApostrophe() {
+        val context = RuntimeEnvironment.getApplication()
+        val repository = FakeDictionaryRepository().apply {
+            isReady = true
+            addTestEntry("état", 200)
+            addTestEntry("états", 255)
+        }
+        val controller = AutoReplaceController(
+            repository = repository,
+            suggestionEngine = SuggestionEngine(repository, locale = Locale.FRENCH),
+            settingsProvider = {
+                SuggestionSettings(
+                    autoReplaceOnSpaceEnter = true,
+                    accentMatching = true,
+                    maxAutoReplaceDistance = 1
+                )
+            }
+        )
+        val tracker = CurrentWordTracker(onWordChanged = {}, onWordReset = {})
+        tracker.setWord("l'etat")
+        val inputConnection = FakeInputConnection(context, "l'etat")
+
+        val result = controller.handleBoundary(
+            keyCode = KeyEvent.KEYCODE_SPACE,
+            event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_SPACE),
+            tracker = tracker,
+            inputConnection = inputConnection
+        )
+
+        assertTrue(result.replaced)
+        assertEquals("l'état ", inputConnection.text)
+        assertEquals("l'état", result.replacement)
+    }
+
+    @Test
+    fun autoReplaceOnSpaceAppliesAccentVariantAfterJApostrophe() {
+        val context = RuntimeEnvironment.getApplication()
+        val repository = FakeDictionaryRepository().apply {
+            isReady = true
+            addTestEntry("écris", 200)
+            addTestEntry("écrits", 255)
+        }
+        val controller = AutoReplaceController(
+            repository = repository,
+            suggestionEngine = SuggestionEngine(repository, locale = Locale.FRENCH),
+            settingsProvider = {
+                SuggestionSettings(
+                    autoReplaceOnSpaceEnter = true,
+                    accentMatching = true,
+                    maxAutoReplaceDistance = 2
+                )
+            }
+        )
+        val tracker = CurrentWordTracker(onWordChanged = {}, onWordReset = {})
+        tracker.setWord("j'ecris")
+        val inputConnection = FakeInputConnection(context, "j'ecris")
+
+        val result = controller.handleBoundary(
+            keyCode = KeyEvent.KEYCODE_SPACE,
+            event = KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_SPACE),
+            tracker = tracker,
+            inputConnection = inputConnection
+        )
+
+        assertTrue(result.replaced)
+        assertEquals("j'écris ", inputConnection.text)
+        assertEquals("j'écris", result.replacement)
+    }
+
+    @Test
     fun boundaryCharOverrideAutoReplacesBeforeEveryRequestedPunctuation() {
         val context = RuntimeEnvironment.getApplication()
         val punctuation = listOf('?', '!', ':', ',', '.', ';')

@@ -691,6 +691,22 @@ class SuggestionEngine(
         return top
     }
 
+    /**
+     * Returns the actual edit distance between two words using the same
+     * normalization as the suggestion engine.
+     */
+    internal fun editDistance(
+        input: String,
+        candidate: String,
+        maxDistance: Int
+    ): Int {
+        return boundedLevenshtein(
+            normalize(input),
+            normalize(candidate),
+            maxDistance
+        )
+    }
+
     private fun boundedLevenshtein(a: String, b: String, maxDistance: Int): Int {
         // Optimal String Alignment distance (Damerau-Levenshtein with adjacent transpositions cost=1)
         if (kotlin.math.abs(a.length - b.length) > maxDistance) return -1
