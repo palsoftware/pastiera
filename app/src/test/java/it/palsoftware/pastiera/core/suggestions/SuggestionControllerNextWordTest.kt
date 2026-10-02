@@ -59,10 +59,10 @@ class SuggestionControllerNextWordTest {
         typeWord(controller, "ich")
         pressSpace(controller)
 
+        // Only the genuinely learned continuation is shown - no generic filler padding it out.
         val latest = snapshots.last()
-        assertEquals(listOf("bin", "bar"), latest.map { it.candidate })
+        assertEquals(listOf("bin"), latest.map { it.candidate })
         assertEquals(SuggestionKind.NEXT_WORD, latest.first().kind)
-        assertEquals(SuggestionKind.STARTER_WORD, latest[1].kind)
     }
 
     @Test
@@ -94,11 +94,13 @@ class SuggestionControllerNextWordTest {
 
         assertEquals(listOf("bin"), store.predict("de-DE", "ich", limit = 3).map { it.word })
         assertTrue(store.predict("de-DE", "bin", limit = 3).isEmpty())
-        assertEquals(SuggestionKind.STARTER_WORD, snapshots.last().first().kind)
+        // "morgen" has no learned continuation, so the bar goes blank rather than padding with
+        // unrelated common words.
+        assertTrue(snapshots.last().isEmpty())
     }
 
     @Test
-    fun typingLetterOverridesNextWordPredictions() {
+    fun typingLetterBlendsContextPredictionsWithDictionaryCompletions() {
         val controller = newController()
 
         typeWord(controller, "ich")
@@ -107,6 +109,27 @@ class SuggestionControllerNextWordTest {
         pressSpace(controller)
         typeWord(controller, "ich")
         pressSpace(controller)
+        typeWord(controller, "b")
+
+        // "ich" was learned to be followed by "bin", so typing just "b" should surface the
+        // context-predicted "bin" ahead of the generic dictionary completion "bar" - not
+        // discard the context the moment a letter is typed.
+        val latest = waitForSuggestionCandidates("bin", "bar")
+        assertEquals(listOf("bin", "bar"), latest.map { it.candidate })
+        assertEquals(SuggestionKind.NEXT_WORD, latest.first().kind)
+        assertEquals(SuggestionKind.CURRENT_WORD, latest[1].kind)
+    }
+
+    @Test
+    fun typingLetterThatDoesNotMatchContextFallsBackToDictionaryOnly() {
+        val controller = newController()
+
+        typeWord(controller, "ich")
+        pressSpace(controller)
+        typeWord(controller, "bin")
+        pressSpace(controller)
+        // "bin" has no learned continuation yet, so typing "b" (which doesn't match anything
+        // in-context anyway) should behave exactly as plain dictionary completion.
         typeWord(controller, "b")
 
         val latest = waitForSuggestionCandidates("bar")
@@ -145,7 +168,7 @@ class SuggestionControllerNextWordTest {
     }
 
     @Test
-    fun emptyInitialContextShowsStarterSuggestions() {
+    fun emptyFieldShowsNoSuggestionsWhenNothingLearnedYet() {
         fakeRepository.addTestEntry("Pastiera", 255, SuggestionSource.DEFAULT_USER)
         fakeRepository.addTestEntry("BlackBerry", 255, SuggestionSource.DEFAULT_USER)
         fakeRepository.addTestEntry("Parenzo", 255, SuggestionSource.DEFAULT_USER)
@@ -155,13 +178,15 @@ class SuggestionControllerNextWordTest {
 
         controller.readInitialContext(emptyInputConnection())
 
+        // A brand-new field with no learned sentence-starts yet should show nothing - not the
+        // dictionary's generically most-common words, which have no connection to what the user
+        // is about to type.
         val latest = snapshots.last()
-        assertEquals(listOf("ich", "dann", "bar"), latest.map { it.candidate })
-        assertEquals(SuggestionKind.STARTER_WORD, latest.first().kind)
+        assertTrue(latest.isEmpty())
     }
 
     @Test
-    fun typingLetterOverridesStarterSuggestions() {
+    fun typingLetterShowsDictionaryCompletionsFromAnEmptyField() {
         fakeRepository.addTestEntry("ich", 220)
         fakeRepository.addTestEntry("dann", 210)
         val controller = newController()
@@ -175,7 +200,7 @@ class SuggestionControllerNextWordTest {
     }
 
     @Test
-    fun softBoundaryFallsBackToStarterSuggestionsWhenNoBigramExists() {
+    fun softBoundaryShowsNoSuggestionsWhenNoLearnedContinuationExists() {
         fakeRepository.addTestEntry("ich", 220)
         fakeRepository.addTestEntry("dann", 210)
         val controller = newController()
@@ -183,13 +208,15 @@ class SuggestionControllerNextWordTest {
         typeWord(controller, "neu")
         pressSpace(controller)
 
+        // "neu" has never been followed by anything the predictor knows about, so the bar goes
+        // blank rather than showing unrelated high-frequency dictionary words as if they were a
+        // guess about what comes after "neu" specifically.
         val latest = snapshots.last()
-        assertEquals(listOf("ich", "dann", "bar"), latest.map { it.candidate })
-        assertEquals(SuggestionKind.STARTER_WORD, latest.first().kind)
+        assertTrue(latest.isEmpty())
     }
 
     @Test
-    fun learnedBigramOverridesSoftBoundaryStarterFallback() {
+    fun learnedBigramShowsAloneWithoutGenericFiller() {
         fakeRepository.addTestEntry("ich", 220)
         fakeRepository.addTestEntry("dann", 210)
         val controller = newController()
@@ -202,13 +229,12 @@ class SuggestionControllerNextWordTest {
         pressSpace(controller)
 
         val latest = snapshots.last()
-        assertEquals(listOf("bin", "ich", "dann"), latest.map { it.candidate })
+        assertEquals(listOf("bin"), latest.map { it.candidate })
         assertEquals(SuggestionKind.NEXT_WORD, latest.first().kind)
-        assertEquals(SuggestionKind.STARTER_WORD, latest[1].kind)
     }
 
     @Test
-    fun dismissSuggestionForgetsBigramAndRefillsVisibleSuggestions() {
+    fun dismissSuggestionForgetsBigramAndLeavesBarBlank() {
         fakeRepository.addTestEntry("ich", 220)
         fakeRepository.addTestEntry("dann", 210)
         val controller = newController()
@@ -223,14 +249,15 @@ class SuggestionControllerNextWordTest {
         controller.dismissSuggestion("bin")
         controller.flushNextWordLearningForTests()
 
+        // "bin" was the only real suggestion; dismissing it isn't backfilled with generic
+        // dictionary words - the bar just goes blank, same as if nothing had been learned.
         val latest = snapshots.last()
-        assertEquals(listOf("ich", "dann", "bar"), latest.map { it.candidate })
-        assertEquals(SuggestionKind.STARTER_WORD, latest.first().kind)
+        assertTrue(latest.isEmpty())
         assertTrue(store.predict("de-DE", "ich", limit = 3).isEmpty())
     }
 
     @Test
-    fun learnsSentenceStartAndPredictsItBeforeStarterFallback() {
+    fun learnsSentenceStartAndPredictsBothLearnedStarts() {
         fakeRepository.addTestEntry("ich", 220)
         fakeRepository.addTestEntry("dann", 210)
         val controller = newController()
@@ -243,9 +270,8 @@ class SuggestionControllerNextWordTest {
         controller.readInitialContext(emptyInputConnection())
 
         val latest = snapshots.last()
-        assertEquals(listOf("Hallo", "Morgen", "ich"), latest.map { it.candidate })
-        assertEquals(SuggestionKind.NEXT_WORD, latest.first().kind)
-        assertEquals(SuggestionKind.STARTER_WORD, latest[2].kind)
+        assertEquals(listOf("Hallo", "Morgen"), latest.map { it.candidate })
+        assertTrue(latest.all { it.kind == SuggestionKind.NEXT_WORD })
     }
 
     private fun newController(): SuggestionController {

@@ -123,9 +123,60 @@ class NextWordPredictorAsyncLearningTest {
             }
         }
 
+        private val learnedTrigrams = mutableListOf<LearnedBigram>()
+
+        override fun learnTrigram(locale: String, contextKey: String, nextWord: String, nowMs: Long) {
+            synchronized(lock) {
+                learnedTrigrams.add(LearnedBigram(locale, contextKey, nextWord, nowMs))
+            }
+        }
+
+        override fun predictTrigram(locale: String, contextKey: String, limit: Int): List<UserNGramStore.Prediction> {
+            synchronized(lock) {
+                return learnedTrigrams
+                    .filter { it.locale == locale && it.prefix == contextKey }
+                    .groupBy { it.nextWord }
+                    .map { (word, rows) ->
+                        UserNGramStore.Prediction(
+                            word = word,
+                            count = rows.size,
+                            lastUsed = rows.maxOf { it.nowMs }
+                        )
+                    }
+                    .sortedWith(
+                        compareByDescending<UserNGramStore.Prediction> { it.count }
+                            .thenByDescending { it.lastUsed }
+                    )
+                    .take(limit)
+            }
+        }
+
+        override fun deleteTrigram(locale: String, contextKey: String, nextWord: String): Int {
+            synchronized(lock) {
+                val before = learnedTrigrams.size
+                learnedTrigrams.removeAll {
+                    it.locale == locale &&
+                        it.prefix == contextKey &&
+                        it.nextWord.equals(nextWord, ignoreCase = true)
+                }
+                return before - learnedTrigrams.size
+            }
+        }
+
+        override fun deleteTrigramNextWord(locale: String, nextWord: String): Int {
+            synchronized(lock) {
+                val before = learnedTrigrams.size
+                learnedTrigrams.removeAll {
+                    it.locale == locale && it.nextWord.equals(nextWord, ignoreCase = true)
+                }
+                return before - learnedTrigrams.size
+            }
+        }
+
         override fun clearAll() {
             synchronized(lock) {
                 learned.clear()
+                learnedTrigrams.clear()
             }
         }
 

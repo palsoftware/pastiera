@@ -23,32 +23,135 @@ class NextWordPredictor(
         null
     }
 
+    /**
+     * Which table an n-gram operation targets. The "prefix" string passed around this class is
+     * either a single normalized word (bigram) or two normalized words joined by
+     * [CONTEXT_SEPARATOR] (trigram) - the two never collide because normalization strips every
+     * character that isn't a letter/digit, so the separator can't appear in a real word key.
+     */
+    private enum class NGramKind { BIGRAM, TRIGRAM }
+
+    // --- Learning -----------------------------------------------------------------------
+
+    /** Backward-compatible single-previous-word overload (bigram-only learning). */
     fun learn(locale: Locale, previousWord: String?, nextWord: String?) {
-        val prefix = normalizedKey(previousWord, locale) ?: return
+        learn(locale, listOfNotNull(previousWord), nextWord)
+    }
+
+    /**
+     * Learns from up to the last two completed words before [nextWord]. Always updates the
+     * bigram table (keyed on the single most recent word) and, when two words of context are
+     * available, also updates the trigram table so future predictions can use the richer
+     * context and fall back to the bigram when the trigram hasn't been seen yet.
+     */
+    fun learn(locale: Locale, context: List<String>, nextWord: String?) {
         val displayNextWord = cleanDisplayWord(nextWord) ?: return
-        learnNormalized(locale.toLanguageTag(), prefix, displayNextWord)
+        val keys = context.mapNotNull { normalizedKey(it, locale) }
+        if (keys.isEmpty()) return
+        val localeTag = locale.toLanguageTag()
+
+        learnNormalized(localeTag, keys.last(), displayNextWord, NGramKind.BIGRAM)
+        if (keys.size >= 2) {
+            val contextKey = contextKey(keys[keys.size - 2], keys.last())
+            learnNormalized(localeTag, contextKey, displayNextWord, NGramKind.TRIGRAM)
+        }
     }
 
     fun learnSentenceStart(locale: Locale, firstWord: String?) {
         val displayWord = cleanDisplayWord(firstWord) ?: return
-        learnNormalized(locale.toLanguageTag(), SENTENCE_START_PREFIX, displayWord)
+        learnNormalized(locale.toLanguageTag(), SENTENCE_START_PREFIX, displayWord, NGramKind.BIGRAM)
     }
 
+    // --- Prediction -----------------------------------------------------------------------
+
+    /** Backward-compatible single-previous-word overload. */
     fun predict(locale: Locale, previousWord: String?, limit: Int = 3): List<SuggestionResult> {
-        val prefix = normalizedKey(previousWord, locale) ?: return emptyList()
-        return predictForPrefix(locale, prefix, limit)
+        return predict(locale, listOfNotNull(previousWord), limit)
+    }
+
+    /**
+     * Predicts the next word given up to the last two completed words of context. Trigram
+     * matches (both words known) are weighted well above bigram-only matches so a specific,
+     * previously-seen two-word context wins over a generic single-word association, but the
+     * two sources are blended (not strictly either/or) so bigram data still fills in when the
+     * exact trigram hasn't been learned yet.
+     */
+    fun predict(locale: Locale, context: List<String>, limit: Int = 3): List<SuggestionResult> {
+        if (limit <= 0) return emptyList()
+        val keys = context.mapNotNull { normalizedKey(it, locale) }
+        if (keys.isEmpty()) return emptyList()
+        val localeTag = locale.toLanguageTag()
+
+        // Pull a wider pool from each source before blending/ranking, since the top-N of one
+        // source alone may not be the top-N once combined with the other.
+        val pool = (limit * CONTEXT_POOL_MULTIPLIER).coerceAtLeast(limit)
+        val bigramRaw = rawPredictions(localeTag, keys.last(), pool, NGramKind.BIGRAM)
+        val trigramRaw = if (keys.size >= 2) {
+            rawPredictions(localeTag, contextKey(keys[keys.size - 2], keys.last()), pool, NGramKind.TRIGRAM)
+        } else {
+            emptyList()
+        }
+        return blendContextPredictions(trigramRaw, bigramRaw, locale, limit)
+    }
+
+    /**
+     * Like [predict], but only returns candidates whose normalized form starts with
+     * [typedPrefix]. Used to boost/merge context-aware next-word candidates into the ordinary
+     * current-word completion list while the user is still typing the word (e.g. after typing
+     * just "b", if the learned context strongly predicts "bin" next, it should be offered
+     * alongside/ahead of generic dictionary completions rather than only appearing once the
+     * word box is empty).
+     */
+    fun predictMatchingPrefix(
+        locale: Locale,
+        context: List<String>,
+        typedPrefix: String,
+        limit: Int = 3
+    ): List<SuggestionResult> {
+        if (limit <= 0 || typedPrefix.isBlank()) return emptyList()
+        val normalizedPrefix = normalizedKey(typedPrefix, locale) ?: return emptyList()
+        if (normalizedPrefix.isEmpty()) return emptyList()
+
+        // Most context predictions won't match an arbitrary typed prefix, so ask for a wider
+        // pool up front rather than repeatedly re-querying.
+        val candidates = predict(locale, context, limit = (limit * PREFIX_FILTER_POOL_MULTIPLIER).coerceAtLeast(20))
+        return candidates
+            .filter { result -> normalizedKey(result.candidate, locale)?.startsWith(normalizedPrefix) == true }
+            .take(limit)
     }
 
     fun predictSentenceStart(locale: Locale, limit: Int = 3): List<SuggestionResult> {
         return predictForPrefix(locale, SENTENCE_START_PREFIX, limit)
     }
 
+    // --- Forgetting -----------------------------------------------------------------------
+
+    /** Backward-compatible single-previous-word overload. */
     fun forget(locale: Locale, previousWord: String?, nextWord: String?): Boolean {
-        val prefix = normalizedKey(previousWord, locale) ?: return false
+        return forget(locale, listOfNotNull(previousWord), nextWord)
+    }
+
+    /** Removes a learned association for the given context from both the bigram and (if
+     * applicable) trigram tables, plus any not-yet-flushed pending learning for either. */
+    fun forget(locale: Locale, context: List<String>, nextWord: String?): Boolean {
         val displayNextWord = cleanDisplayWord(nextWord) ?: return false
+        val keys = context.mapNotNull { normalizedKey(it, locale) }
+        if (keys.isEmpty()) return false
         val localeTag = locale.toLanguageTag()
-        val removedPending = pendingLearning.removeAll(localeTag, prefix, displayNextWord)
-        return store.delete(localeTag, prefix, displayNextWord) > 0 || removedPending
+
+        val bigramKey = keys.last()
+        val removedPendingBigram = pendingLearning.removeAll(localeTag, bigramKey, displayNextWord)
+        val removedBigram = store.delete(localeTag, bigramKey, displayNextWord) > 0
+
+        var removedTrigram = false
+        var removedPendingTrigram = false
+        if (keys.size >= 2) {
+            val triKey = contextKey(keys[keys.size - 2], keys.last())
+            removedPendingTrigram = pendingLearning.removeAll(localeTag, triKey, displayNextWord)
+            removedTrigram = store.deleteTrigram(localeTag, triKey, displayNextWord) > 0
+        }
+
+        return removedBigram || removedPendingBigram || removedTrigram || removedPendingTrigram
     }
 
     fun forgetSentenceStart(locale: Locale, firstWord: String?): Boolean {
@@ -62,18 +165,23 @@ class NextWordPredictor(
         val displayNextWord = cleanDisplayWord(nextWord) ?: return false
         val localeTag = locale.toLanguageTag()
         val removedPending = pendingLearning.removeNextWord(localeTag, displayNextWord)
-        return store.deleteNextWord(localeTag, displayNextWord) > 0 || removedPending
+        val removedBigram = store.deleteNextWord(localeTag, displayNextWord) > 0
+        val removedTrigram = store.deleteTrigramNextWord(localeTag, displayNextWord) > 0
+        return removedBigram || removedTrigram || removedPending
     }
 
-    private fun learnNormalized(localeTag: String, prefix: String, displayNextWord: String) {
+    // --- Internals -----------------------------------------------------------------------
+
+    private fun learnNormalized(localeTag: String, prefix: String, displayNextWord: String, kind: NGramKind) {
         val nowMs = System.currentTimeMillis()
         if (learningQueue == null) {
-            store.learn(localeTag, prefix, displayNextWord, nowMs)
+            persist(kind, localeTag, prefix, displayNextWord, nowMs)
             return
         }
 
         pendingLearning.add(localeTag, prefix, displayNextWord, nowMs)
         val queued = learningQueue.enqueue(
+            kind = kind,
             localeTag = localeTag,
             prefix = prefix,
             nextWord = displayNextWord,
@@ -90,22 +198,83 @@ class NextWordPredictor(
         }
     }
 
+    private fun persist(kind: NGramKind, localeTag: String, prefix: String, nextWord: String, nowMs: Long) {
+        when (kind) {
+            NGramKind.BIGRAM -> store.learn(localeTag, prefix, nextWord, nowMs)
+            NGramKind.TRIGRAM -> store.learnTrigram(localeTag, prefix, nextWord, nowMs)
+        }
+    }
+
+    private fun rawPredictions(
+        localeTag: String,
+        prefix: String,
+        limit: Int,
+        kind: NGramKind
+    ): List<UserNGramStore.Prediction> {
+        val stored = when (kind) {
+            NGramKind.BIGRAM -> store.predict(localeTag, prefix, limit)
+            NGramKind.TRIGRAM -> store.predictTrigram(localeTag, prefix, limit)
+        }
+        val pending = pendingLearning.predict(localeTag, prefix)
+        return mergePredictions(stored, pending).take(limit)
+    }
+
     private fun predictForPrefix(locale: Locale, prefix: String, limit: Int): List<SuggestionResult> {
         val localeTag = locale.toLanguageTag()
-        val stored = store.predict(localeTag, prefix, limit)
-        val pending = pendingLearning.predict(localeTag, prefix)
-        return mergePredictions(stored, pending)
+        return rawPredictions(localeTag, prefix, limit, NGramKind.BIGRAM).map { prediction ->
+            SuggestionResult(
+                candidate = prediction.word,
+                distance = 0,
+                score = prediction.count.toDouble(),
+                source = SuggestionSource.USER,
+                kind = SuggestionKind.NEXT_WORD
+            )
+        }
+    }
+
+    /**
+     * Combines trigram and bigram raw counts into a single ranked list. A trigram hit for a
+     * given word is worth [TRIGRAM_WEIGHT]x a bigram hit for the same word, and matching counts
+     * from both sources for the same candidate simply add - so a word that's both the general
+     * (bigram) association *and* the specific (trigram) one for this exact context ranks above
+     * either alone.
+     */
+    private fun blendContextPredictions(
+        trigram: List<UserNGramStore.Prediction>,
+        bigram: List<UserNGramStore.Prediction>,
+        locale: Locale,
+        limit: Int
+    ): List<SuggestionResult> {
+        val score = linkedMapOf<String, Double>()
+        val display = mutableMapOf<String, String>()
+
+        fun accumulate(predictions: List<UserNGramStore.Prediction>, weight: Double) {
+            for (prediction in predictions) {
+                val key = prediction.word.lowercase(locale)
+                score[key] = (score[key] ?: 0.0) + prediction.count * weight
+                display.putIfAbsent(key, prediction.word)
+            }
+        }
+
+        accumulate(trigram, TRIGRAM_WEIGHT)
+        accumulate(bigram, BIGRAM_WEIGHT)
+
+        return score.entries
+            .sortedByDescending { it.value }
             .take(limit)
-            .map { prediction ->
+            .map { (key, value) ->
                 SuggestionResult(
-                    candidate = prediction.word,
+                    candidate = display.getValue(key),
                     distance = 0,
-                    score = prediction.count.toDouble(),
+                    score = value,
                     source = SuggestionSource.USER,
                     kind = SuggestionKind.NEXT_WORD
                 )
             }
     }
+
+    private fun contextKey(word1Key: String, word2Key: String): String =
+        "$word1Key$CONTEXT_SEPARATOR$word2Key"
 
     internal fun clearAll() {
         flushLearningForTests()
@@ -166,6 +335,11 @@ class NextWordPredictor(
     companion object {
         private const val TAG = "NextWordPredictor"
         private const val SENTENCE_START_PREFIX = "__sentence_start__"
+        private const val CONTEXT_SEPARATOR = "\u001F"
+        private const val TRIGRAM_WEIGHT = 3.0
+        private const val BIGRAM_WEIGHT = 1.0
+        private const val CONTEXT_POOL_MULTIPLIER = 4
+        private const val PREFIX_FILTER_POOL_MULTIPLIER = 8
         private val COMBINING_MARKS_REGEX = "\\p{Mn}".toRegex()
         private val NON_WORD_KEY_REGEX = "[^\\p{L}\\p{N}]".toRegex()
     }
@@ -273,6 +447,7 @@ class NextWordPredictor(
         }
 
         fun enqueue(
+            kind: NGramKind,
             localeTag: String,
             prefix: String,
             nextWord: String,
@@ -281,7 +456,7 @@ class NextWordPredictor(
             onFinished: () -> Unit
         ): Boolean {
             return channel.trySend(
-                Command.Learn(localeTag, prefix, nextWord, nowMs, shouldPersist, onFinished)
+                Command.Learn(kind, localeTag, prefix, nextWord, nowMs, shouldPersist, onFinished)
             ).isSuccess
         }
 
@@ -299,7 +474,10 @@ class NextWordPredictor(
         private fun handleLearn(command: Command.Learn) {
             try {
                 if (command.shouldPersist()) {
-                    store.learn(command.localeTag, command.prefix, command.nextWord, command.nowMs)
+                    when (command.kind) {
+                        NGramKind.BIGRAM -> store.learn(command.localeTag, command.prefix, command.nextWord, command.nowMs)
+                        NGramKind.TRIGRAM -> store.learnTrigram(command.localeTag, command.prefix, command.nextWord, command.nowMs)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to persist next-word learning", e)
@@ -310,6 +488,7 @@ class NextWordPredictor(
 
         private sealed class Command {
             data class Learn(
+                val kind: NGramKind,
                 val localeTag: String,
                 val prefix: String,
                 val nextWord: String,

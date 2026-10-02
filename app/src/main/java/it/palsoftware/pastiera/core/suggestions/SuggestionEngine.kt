@@ -28,7 +28,6 @@ class SuggestionEngine(
     private val accentCache: MutableMap<String, String> = mutableMapOf()
     private val tag = "SuggestionEngine"
     private val wordNormalizeCache: MutableMap<String, String> = mutableMapOf()
-    private val accentChars = setOf('à', 'è', 'é', 'ì', 'ò', 'ó', 'ù', 'À', 'È', 'É', 'Ì', 'Ò', 'Ó', 'Ù')
 
     // Keyboard layout positions - built dynamically based on layout type
     private var keyboardPositions: Map<Char, Pair<Int, Int>> = buildKeyboardPositions("qwerty")
@@ -526,7 +525,7 @@ class SuggestionEngine(
                     }
                 }
 
-                val hasAccent = entry.word.any { it in accentChars }
+                val hasAccent = stripAccents(entry.word) != entry.word
                 val hasDigit = entry.word.any { it.isDigit() }
                 val hasSymbol = entry.word.any { !it.isLetterOrDigit() && it != '\'' }
                 val isSameBaseLetter = entry.word.equals(currentWord, ignoreCase = true)
